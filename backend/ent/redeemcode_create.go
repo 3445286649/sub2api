@@ -156,6 +156,20 @@ func (_c *RedeemCodeCreate) SetNillableValidityDays(v *int) *RedeemCodeCreate {
 	return _c
 }
 
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (_c *RedeemCodeCreate) SetQuotaResetScope(v string) *RedeemCodeCreate {
+	_c.mutation.SetQuotaResetScope(v)
+	return _c
+}
+
+// SetNillableQuotaResetScope sets the "quota_reset_scope" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableQuotaResetScope(v *string) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetQuotaResetScope(*v)
+	}
+	return _c
+}
+
 // SetUserID sets the "user" edge to the User entity by ID.
 func (_c *RedeemCodeCreate) SetUserID(id int64) *RedeemCodeCreate {
 	_c.mutation.SetUserID(id)
@@ -235,6 +249,10 @@ func (_c *RedeemCodeCreate) defaults() {
 		v := redeemcode.DefaultValidityDays
 		_c.mutation.SetValidityDays(v)
 	}
+	if _, ok := _c.mutation.QuotaResetScope(); !ok {
+		v := redeemcode.DefaultQuotaResetScope
+		_c.mutation.SetQuotaResetScope(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -271,6 +289,14 @@ func (_c *RedeemCodeCreate) check() error {
 	}
 	if _, ok := _c.mutation.ValidityDays(); !ok {
 		return &ValidationError{Name: "validity_days", err: errors.New(`ent: missing required field "RedeemCode.validity_days"`)}
+	}
+	if _, ok := _c.mutation.QuotaResetScope(); !ok {
+		return &ValidationError{Name: "quota_reset_scope", err: errors.New(`ent: missing required field "RedeemCode.quota_reset_scope"`)}
+	}
+	if v, ok := _c.mutation.QuotaResetScope(); ok {
+		if err := redeemcode.QuotaResetScopeValidator(v); err != nil {
+			return &ValidationError{Name: "quota_reset_scope", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.quota_reset_scope": %w`, err)}
+		}
 	}
 	return nil
 }
@@ -330,6 +356,10 @@ func (_c *RedeemCodeCreate) createSpec() (*RedeemCode, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ValidityDays(); ok {
 		_spec.SetField(redeemcode.FieldValidityDays, field.TypeInt, value)
 		_node.ValidityDays = value
+	}
+	if value, ok := _c.mutation.QuotaResetScope(); ok {
+		_spec.SetField(redeemcode.FieldQuotaResetScope, field.TypeString, value)
+		_node.QuotaResetScope = value
 	}
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -561,6 +591,18 @@ func (u *RedeemCodeUpsert) AddValidityDays(v int) *RedeemCodeUpsert {
 	return u
 }
 
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (u *RedeemCodeUpsert) SetQuotaResetScope(v string) *RedeemCodeUpsert {
+	u.Set(redeemcode.FieldQuotaResetScope, v)
+	return u
+}
+
+// UpdateQuotaResetScope sets the "quota_reset_scope" field to the value that was provided on create.
+func (u *RedeemCodeUpsert) UpdateQuotaResetScope() *RedeemCodeUpsert {
+	u.SetExcluded(redeemcode.FieldQuotaResetScope)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -771,6 +813,20 @@ func (u *RedeemCodeUpsertOne) AddValidityDays(v int) *RedeemCodeUpsertOne {
 func (u *RedeemCodeUpsertOne) UpdateValidityDays() *RedeemCodeUpsertOne {
 	return u.Update(func(s *RedeemCodeUpsert) {
 		s.UpdateValidityDays()
+	})
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (u *RedeemCodeUpsertOne) SetQuotaResetScope(v string) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetQuotaResetScope(v)
+	})
+}
+
+// UpdateQuotaResetScope sets the "quota_reset_scope" field to the value that was provided on create.
+func (u *RedeemCodeUpsertOne) UpdateQuotaResetScope() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateQuotaResetScope()
 	})
 }
 
@@ -1150,6 +1206,20 @@ func (u *RedeemCodeUpsertBulk) AddValidityDays(v int) *RedeemCodeUpsertBulk {
 func (u *RedeemCodeUpsertBulk) UpdateValidityDays() *RedeemCodeUpsertBulk {
 	return u.Update(func(s *RedeemCodeUpsert) {
 		s.UpdateValidityDays()
+	})
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (u *RedeemCodeUpsertBulk) SetQuotaResetScope(v string) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetQuotaResetScope(v)
+	})
+}
+
+// UpdateQuotaResetScope sets the "quota_reset_scope" field to the value that was provided on create.
+func (u *RedeemCodeUpsertBulk) UpdateQuotaResetScope() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateQuotaResetScope()
 	})
 }
 

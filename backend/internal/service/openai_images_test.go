@@ -176,6 +176,49 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_NormalizesOfficialAndCusto
 	}
 }
 
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_JSONUpscaleOverridesSizeTier(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"gpt-image-2","prompt":"draw a cat","size":"1536x1024","upscale":"4k"}`)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+
+	svc := &OpenAIGatewayService{}
+	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
+	require.NoError(t, err)
+	require.NotNil(t, parsed)
+	require.Equal(t, "4k", parsed.Upscale)
+	require.Equal(t, "4K", parsed.SizeTier)
+}
+
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_MultipartUpscaleOverridesSizeTier(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	require.NoError(t, writer.WriteField("model", "gpt-image-2"))
+	require.NoError(t, writer.WriteField("prompt", "draw a cat"))
+	require.NoError(t, writer.WriteField("size", "1536x1024"))
+	require.NoError(t, writer.WriteField("upscale", "4k"))
+	require.NoError(t, writer.Close())
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body.Bytes()))
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+
+	svc := &OpenAIGatewayService{}
+	parsed, err := svc.ParseOpenAIImagesRequest(c, body.Bytes())
+	require.NoError(t, err)
+	require.NotNil(t, parsed)
+	require.Equal(t, "4k", parsed.Upscale)
+	require.Equal(t, "4K", parsed.SizeTier)
+}
+
 func TestOpenAIGatewayServiceParseOpenAIImagesRequest_UnknownSizesDoNotBlockPassthrough(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -1122,6 +1165,23 @@ func TestBuildOpenAIImagesResponsesRequest_DowngradesMultipleImagesToSingle(t *t
 	require.False(t, gjson.GetBytes(body, "tools.0.n").Exists())
 	require.Equal(t, "gpt-image-2", gjson.GetBytes(body, "tools.0.model").String())
 	require.Equal(t, "draw a cat", gjson.GetBytes(body, "input.0.content.0.text").String())
+}
+
+func TestBuildOpenAIImagesResponsesRequest_ForwardsUpscaleAndResolution(t *testing.T) {
+	parsed := &OpenAIImagesRequest{
+		Endpoint:   openAIImagesGenerationsEndpoint,
+		Model:      "gpt-image-2",
+		Prompt:     "draw a cat",
+		Size:       "1536x1024",
+		Upscale:    "4k",
+		Resolution: "4k",
+	}
+
+	body, err := buildOpenAIImagesResponsesRequest(parsed, "gpt-image-2")
+	require.NoError(t, err)
+	require.NotNil(t, body)
+	require.Equal(t, "4k", gjson.GetBytes(body, "tools.0.upscale").String())
+	require.Equal(t, "4k", gjson.GetBytes(body, "tools.0.resolution").String())
 }
 
 func TestBuildOpenAIImagesResponsesRequest_StripsInputFidelity(t *testing.T) {

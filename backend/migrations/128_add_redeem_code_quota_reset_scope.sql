@@ -1,0 +1,2 @@
+ALTER TABLE redeem_codes
+ADD COLUMN IF NOT EXISTS quota_reset_scope VARCHAR(20) NOT NULL DEFAULT '';

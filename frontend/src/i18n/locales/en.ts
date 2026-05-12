@@ -370,6 +370,8 @@ export default {
     expand: 'Expand',
     logout: 'Logout',
     github: 'GitHub',
+    rechargeStorefront: 'Recharge Store',
+    pixmoStudio: 'Pixmo Images',
     mySubscriptions: 'My Subscriptions',
     buySubscription: 'Recharge / Subscription',
     docs: 'Docs',
@@ -1069,8 +1071,15 @@ export default {
     concurrencyReducedAdmin: 'Concurrency Reduced (Admin)',
     adminAdjustment: 'Admin Adjustment',
     subscriptionAssigned: 'Subscription Assigned',
+    subscriptionQuotaReset: 'Subscription quota reset',
     subscriptionAssignedDesc: 'You have been granted access to {groupName}',
     subscriptionDays: '{days} days',
+    quotaResetScopes: {
+      daily: 'Daily quota',
+      weekly: 'Weekly quota',
+      monthly: 'Monthly quota',
+      all: 'All quotas'
+    },
     days: ' days',
     codeRedeemSuccess: 'Code redeemed successfully!',
     failedToRedeem: 'Failed to redeem code. Please check the code and try again.',
@@ -4024,6 +4033,7 @@ export default {
       balance: 'Balance',
       concurrency: 'Concurrency',
       subscription: 'Subscription',
+      subscriptionQuotaReset: 'Subscription Quota Reset',
       invitation: 'Invitation',
       invitationHint: 'Invitation codes are used to restrict user registration. They are automatically marked as used after use.',
       unused: 'Unused',
@@ -4072,6 +4082,7 @@ export default {
         balance: 'Balance',
         concurrency: 'Concurrency',
         subscription: 'Subscription',
+        subscription_quota_reset: 'Subscription Quota Reset',
         invitation: 'Invitation',
         // Admin adjustment types (created when admin modifies user balance/concurrency)
         admin_balance: 'Balance (Admin)',
@@ -4080,6 +4091,13 @@ export default {
       selectGroup: 'Select Group',
       selectGroupPlaceholder: 'Choose a subscription group',
       validityDays: 'Validity Days',
+      quotaResetScope: 'Reset Scope',
+      quotaResetScopes: {
+        daily: 'Daily quota',
+        weekly: 'Weekly quota',
+        monthly: 'Monthly quota',
+        all: 'All quotas'
+      },
       groupRequired: 'Please select a subscription group',
       days: ' days',
       status: {

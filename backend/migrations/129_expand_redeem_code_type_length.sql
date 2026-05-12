@@ -1,0 +1,2 @@
+ALTER TABLE redeem_codes
+ALTER COLUMN type TYPE VARCHAR(64);

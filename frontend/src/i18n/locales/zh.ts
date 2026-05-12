@@ -370,6 +370,8 @@ export default {
     expand: '展开',
     logout: '退出登录',
     github: 'GitHub',
+    rechargeStorefront: '充值商城',
+    pixmoStudio: 'Pixmo 生图',
     mySubscriptions: '我的订阅',
     buySubscription: '充值/订阅',
     docs: '文档',
@@ -1073,8 +1075,15 @@ export default {
     concurrencyReducedAdmin: '并发减少（管理员）',
     adminAdjustment: '管理员调整',
     subscriptionAssigned: '订阅已分配',
+    subscriptionQuotaReset: '订阅额度已刷新',
     subscriptionAssignedDesc: '您已获得 {groupName} 的访问权限',
     subscriptionDays: '{days} 天',
+    quotaResetScopes: {
+      daily: '日额度',
+      weekly: '周额度',
+      monthly: '月额度',
+      all: '全部额度'
+    },
     days: '天',
     codeRedeemSuccess: '兑换成功！',
     failedToRedeem: '兑换失败，请检查兑换码后重试。',
@@ -4156,6 +4165,7 @@ export default {
         balance: '余额',
         concurrency: '并发数',
         subscription: '订阅',
+        subscription_quota_reset: '订阅额度刷新',
         invitation: '邀请码',
         // 管理员在用户管理页面调整余额/并发时产生的记录
         admin_balance: '余额（管理员）',
@@ -4165,6 +4175,7 @@ export default {
       balance: '余额',
       concurrency: '并发数',
       subscription: '订阅',
+      subscriptionQuotaReset: '订阅额度刷新',
       invitation: '邀请码',
       invitationHint: '邀请码用于限制用户注册，使用后自动标记为已使用。',
       allTypes: '全部类型',
@@ -4198,6 +4209,13 @@ export default {
       selectGroup: '选择分组',
       selectGroupPlaceholder: '选择订阅分组',
       validityDays: '有效天数',
+      quotaResetScope: '刷新范围',
+      quotaResetScopes: {
+        daily: '日额度',
+        weekly: '周额度',
+        monthly: '月额度',
+        all: '全部额度'
+      },
       groupRequired: '请选择订阅分组',
       days: '天',
       status: {

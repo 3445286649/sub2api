@@ -67,7 +67,8 @@ export async function generate(
   type: RedeemCodeType,
   value: number,
   groupId?: number | null,
-  validityDays?: number
+  validityDays?: number,
+  quotaResetScope?: 'daily' | 'weekly' | 'monthly' | 'all'
 ): Promise<RedeemCode[]> {
   const payload: GenerateRedeemCodesRequest = {
     count,
@@ -80,6 +81,12 @@ export async function generate(
     payload.group_id = groupId
     if (validityDays && validityDays > 0) {
       payload.validity_days = validityDays
+    }
+  }
+  if (type === 'subscription_quota_reset') {
+    payload.group_id = groupId
+    if (quotaResetScope) {
+      payload.quota_reset_scope = quotaResetScope
     }
   }
 

@@ -1152,7 +1152,12 @@ export interface CodexSessionImportResult {
 
 // ==================== Usage & Redeem Types ====================
 
-export type RedeemCodeType = 'balance' | 'concurrency' | 'subscription' | 'invitation'
+export type RedeemCodeType =
+  | 'balance'
+  | 'concurrency'
+  | 'subscription'
+  | 'subscription_quota_reset'
+  | 'invitation'
 export type UsageRequestType = 'unknown' | 'sync' | 'stream' | 'ws_v2'
 
 export interface UsageLog {
@@ -1278,6 +1283,7 @@ export interface RedeemCode {
   updated_at?: string
   group_id?: number | null // 订阅类型专用
   validity_days?: number // 订阅类型专用
+  quota_reset_scope?: 'daily' | 'weekly' | 'monthly' | 'all' | null
   user?: User
   group?: Group // 关联的分组
 }
@@ -1288,6 +1294,7 @@ export interface GenerateRedeemCodesRequest {
   value: number
   group_id?: number | null // 订阅类型专用
   validity_days?: number // 订阅类型专用
+  quota_reset_scope?: 'daily' | 'weekly' | 'monthly' | 'all'
 }
 
 export interface RedeemCodeRequest {

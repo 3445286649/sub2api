@@ -19,8 +19,9 @@ FROM ${NODE_IMAGE} AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install a pinned pnpm version. pnpm@latest may change build-script policy and
+# break reproducible Docker builds.
+RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
 
 # Install dependencies first (better caching)
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
@@ -36,7 +37,7 @@ RUN pnpm run build
 FROM ${GOLANG_IMAGE} AS backend-builder
 
 # Build arguments for version info (set by CI)
-ARG VERSION=docker
+ARG VERSION=
 ARG COMMIT=docker
 ARG DATE
 ARG GOPROXY
@@ -61,9 +62,14 @@ COPY backend/ ./
 COPY --from=frontend-builder /app/backend/internal/web/dist ./internal/web/dist
 
 # Build the binary (BuildType=release for CI builds, embed frontend)
-RUN CGO_ENABLED=0 GOOS=linux go build \
+# Version precedence: build arg VERSION > cmd/server/VERSION
+RUN VERSION_VALUE="${VERSION}" && \
+    if [ -z "${VERSION_VALUE}" ]; then VERSION_VALUE="$(tr -d '\r\n' < ./cmd/server/VERSION)"; fi && \
+    DATE_VALUE="${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" && \
+    CGO_ENABLED=0 GOOS=linux go build \
     -tags embed \
-    -ldflags="-s -w -X main.Commit=${COMMIT} -X main.Date=${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)} -X main.BuildType=release" \
+    -ldflags="-s -w -X main.Version=${VERSION_VALUE} -X main.Commit=${COMMIT} -X main.Date=${DATE_VALUE} -X main.BuildType=release" \
+    -trimpath \
     -o /app/sub2api \
     ./cmd/server
 

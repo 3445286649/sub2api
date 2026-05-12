@@ -279,7 +279,8 @@ func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, er
 		return nil, err
 	}
 
-	latestVersion := strings.TrimPrefix(release.TagName, "v")
+	currentVersion := normalizeVersionTag(s.currentVersion)
+	latestVersion := normalizeVersionTag(release.TagName)
 
 	assets := make([]Asset, len(release.Assets))
 	for i, a := range release.Assets {
@@ -291,9 +292,9 @@ func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, er
 	}
 
 	return &UpdateInfo{
-		CurrentVersion: s.currentVersion,
+		CurrentVersion: currentVersion,
 		LatestVersion:  latestVersion,
-		HasUpdate:      compareVersions(s.currentVersion, latestVersion) < 0,
+		HasUpdate:      compareVersions(currentVersion, latestVersion) < 0,
 		ReleaseInfo: &ReleaseInfo{
 			Name:        release.Name,
 			Body:        release.Body,
@@ -487,9 +488,9 @@ func (s *UpdateService) getFromCache(ctx context.Context) (*UpdateInfo, error) {
 	}
 
 	return &UpdateInfo{
-		CurrentVersion: s.currentVersion,
+		CurrentVersion: normalizeVersionTag(s.currentVersion),
 		LatestVersion:  cached.Latest,
-		HasUpdate:      compareVersions(s.currentVersion, cached.Latest) < 0,
+		HasUpdate:      compareVersions(normalizeVersionTag(s.currentVersion), cached.Latest) < 0,
 		ReleaseInfo:    cached.ReleaseInfo,
 		Cached:         true,
 		BuildType:      s.buildType,
@@ -528,7 +529,7 @@ func compareVersions(current, latest string) int {
 }
 
 func parseVersion(v string) [3]int {
-	v = strings.TrimPrefix(v, "v")
+	v = normalizeVersionTag(v)
 	parts := strings.Split(v, ".")
 	result := [3]int{0, 0, 0}
 	for i := 0; i < len(parts) && i < 3; i++ {
@@ -537,4 +538,21 @@ func parseVersion(v string) [3]int {
 		}
 	}
 	return result
+}
+
+func normalizeVersionTag(v string) string {
+	v = strings.TrimSpace(strings.TrimPrefix(v, "v"))
+	if v == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	for _, r := range v {
+		if (r >= '0' && r <= '9') || r == '.' {
+			b.WriteRune(r)
+			continue
+		}
+		break
+	}
+	return strings.Trim(b.String(), ".")
 }

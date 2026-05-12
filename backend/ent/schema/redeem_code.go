@@ -40,7 +40,7 @@ func (RedeemCode) Fields() []ent.Field {
 			NotEmpty().
 			Unique(),
 		field.String("type").
-			MaxLen(20).
+			MaxLen(64).
 			Default(domain.RedeemTypeBalance),
 		field.Float("value").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
@@ -68,6 +68,9 @@ func (RedeemCode) Fields() []ent.Field {
 			Nillable(),
 		field.Int("validity_days").
 			Default(30),
+		field.String("quota_reset_scope").
+			MaxLen(20).
+			Default(""),
 	}
 }
 

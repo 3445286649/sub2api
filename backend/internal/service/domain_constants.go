@@ -51,11 +51,19 @@ const (
 
 // Redeem type constants
 const (
-	RedeemTypeBalance          = domain.RedeemTypeBalance
-	RedeemTypeConcurrency      = domain.RedeemTypeConcurrency
-	RedeemTypeSubscription     = domain.RedeemTypeSubscription
-	RedeemTypeInvitation       = domain.RedeemTypeInvitation
-	RedeemTypeAffiliateBalance = "affiliate_balance"
+	RedeemTypeBalance                = domain.RedeemTypeBalance
+	RedeemTypeConcurrency            = domain.RedeemTypeConcurrency
+	RedeemTypeSubscription           = domain.RedeemTypeSubscription
+	RedeemTypeSubscriptionQuotaReset = domain.RedeemTypeSubscriptionQuotaReset
+	RedeemTypeInvitation             = domain.RedeemTypeInvitation
+	RedeemTypeAffiliateBalance       = "affiliate_balance"
+)
+
+const (
+	QuotaResetScopeDaily   = domain.QuotaResetScopeDaily
+	QuotaResetScopeWeekly  = domain.QuotaResetScopeWeekly
+	QuotaResetScopeMonthly = domain.QuotaResetScopeMonthly
+	QuotaResetScopeAll     = domain.QuotaResetScopeAll
 )
 
 // PromoCode status constants

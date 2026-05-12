@@ -202,7 +202,7 @@ func resolveOpenAIResponsesImageBillingConfig(reqBody map[string]any, fallbackMo
 	if imageModel == "" {
 		imageModel = strings.TrimSpace(fallbackModel)
 	}
-	sizeTier := normalizeOpenAIImageSizeTier(imageSize)
+	sizeTier := normalizeOpenAIImageSizeTier(imageSize, "", "")
 	return imageModel, sizeTier, nil
 }
 

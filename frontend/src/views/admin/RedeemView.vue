@@ -88,12 +88,12 @@
                 'badge',
                 value === 'balance'
                   ? 'badge-success'
-                  : value === 'subscription'
+                  : value === 'subscription' || value === 'subscription_quota_reset'
                     ? 'badge-warning'
                     : 'badge-primary'
               ]"
             >
-              {{ t('admin.redeem.types.' + value) }}
+              {{ formatRedeemType(value) }}
             </span>
           </template>
 
@@ -102,9 +102,15 @@
               <template v-if="row.type === 'balance'">${{ value.toFixed(2) }}</template>
               <template v-else-if="row.type === 'subscription'">
                 {{ row.validity_days || 30 }} {{ t('admin.redeem.days') }}
-                <span v-if="row.group" class="ml-1 text-xs text-gray-500 dark:text-gray-400"
-                  >({{ row.group.name }})</span
-                >
+                <span v-if="row.group" class="ml-1 text-xs text-gray-500 dark:text-gray-400">
+                  ({{ row.group.name }})
+                </span>
+              </template>
+              <template v-else-if="row.type === 'subscription_quota_reset'">
+                {{ formatQuotaResetScope(row.quota_reset_scope || 'daily') }}
+                <span v-if="row.group" class="ml-1 text-xs text-gray-500 dark:text-gray-400">
+                  ({{ row.group.name }})
+                </span>
               </template>
               <template v-else>{{ value }}</template>
             </span>
@@ -218,11 +224,15 @@
               <label class="input-label">{{ t('admin.redeem.codeType') }}</label>
               <Select v-model="generateForm.type" :options="typeOptions" />
             </div>
-            <!-- 余额/并发类型：显示数值输入 -->
-            <div v-if="generateForm.type !== 'subscription' && generateForm.type !== 'invitation'">
+            <!-- 余额/并发/订阅额度刷新类型：显示数值输入 -->
+            <div
+              v-if="
+                !['subscription', 'invitation'].includes(generateForm.type)
+              "
+            >
               <label class="input-label">
                 {{
-                  generateForm.type === 'balance'
+                  generateForm.type === 'balance' || generateForm.type === 'subscription_quota_reset'
                     ? t('admin.redeem.amount')
                     : t('admin.redeem.columns.value')
                 }}
@@ -230,20 +240,28 @@
               <input
                 v-model.number="generateForm.value"
                 type="number"
-                :step="generateForm.type === 'balance' ? '0.01' : '1'"
-                :min="generateForm.type === 'balance' ? '0.01' : '1'"
+                :step="['balance', 'subscription_quota_reset'].includes(generateForm.type) ? '0.01' : '1'"
+                :min="['balance', 'subscription_quota_reset'].includes(generateForm.type) ? '0.01' : '1'"
                 required
                 class="input"
               />
             </div>
             <!-- 邀请码类型：显示提示信息 -->
-            <div v-if="generateForm.type === 'invitation'" class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+            <div
+              v-if="generateForm.type === 'invitation'"
+              class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20"
+            >
               <p class="text-sm text-blue-700 dark:text-blue-300">
                 {{ t('admin.redeem.invitationHint') }}
               </p>
             </div>
             <!-- 订阅类型：显示分组选择和有效天数 -->
-            <template v-if="generateForm.type === 'subscription'">
+            <template
+              v-if="
+                generateForm.type === 'subscription' ||
+                generateForm.type === 'subscription_quota_reset'
+              "
+            >
               <div>
                 <label class="input-label">{{ t('admin.redeem.selectGroup') }}</label>
                 <Select
@@ -275,7 +293,7 @@
                   </template>
                 </Select>
               </div>
-              <div>
+              <div v-if="generateForm.type === 'subscription'">
                 <label class="input-label">{{ t('admin.redeem.validityDays') }}</label>
                 <input
                   v-model.number="generateForm.validity_days"
@@ -285,6 +303,10 @@
                   required
                   class="input"
                 />
+              </div>
+              <div v-if="generateForm.type === 'subscription_quota_reset'">
+                <label class="input-label">{{ t('admin.redeem.quotaResetScope') }}</label>
+                <Select v-model="generateForm.quota_reset_scope" :options="quotaResetScopeOptions" />
               </div>
             </template>
             <div>
@@ -436,6 +458,31 @@ const showResultDialog = ref(false)
 const generatedCodes = ref<RedeemCode[]>([])
 const subscriptionGroups = ref<Group[]>([])
 
+const redeemTypeLabels: Record<string, string> = {
+  balance: '余额',
+  concurrency: '并发数',
+  subscription: '订阅',
+  subscription_quota_reset: '订阅额度刷新',
+  invitation: '邀请码',
+  admin_balance: '余额（管理员）',
+  admin_concurrency: '并发数（管理员）'
+}
+
+const quotaResetScopeLabels: Record<string, string> = {
+  daily: '日额度',
+  weekly: '周额度',
+  monthly: '月额度',
+  all: '全部额度'
+}
+
+const formatRedeemType = (type: string) => {
+  return redeemTypeLabels[type] || t(`admin.redeem.types.${type}`)
+}
+
+const formatQuotaResetScope = (scope: string) => {
+  return quotaResetScopeLabels[scope] || t(`admin.redeem.quotaResetScopes.${scope}`)
+}
+
 // 订阅类型分组选项
 const subscriptionGroupOptions = computed(() => {
   return subscriptionGroups.value
@@ -510,18 +557,27 @@ const columns = computed<Column[]>(() => [
 ])
 
 const typeOptions = computed(() => [
-  { value: 'balance', label: t('admin.redeem.balance') },
-  { value: 'concurrency', label: t('admin.redeem.concurrency') },
-  { value: 'subscription', label: t('admin.redeem.subscription') },
-  { value: 'invitation', label: t('admin.redeem.invitation') }
+  { value: 'balance', label: formatRedeemType('balance') },
+  { value: 'concurrency', label: formatRedeemType('concurrency') },
+  { value: 'subscription', label: formatRedeemType('subscription') },
+  { value: 'subscription_quota_reset', label: formatRedeemType('subscription_quota_reset') },
+  { value: 'invitation', label: formatRedeemType('invitation') }
 ])
 
 const filterTypeOptions = computed(() => [
   { value: '', label: t('admin.redeem.allTypes') },
-  { value: 'balance', label: t('admin.redeem.balance') },
-  { value: 'concurrency', label: t('admin.redeem.concurrency') },
-  { value: 'subscription', label: t('admin.redeem.subscription') },
-  { value: 'invitation', label: t('admin.redeem.invitation') }
+  { value: 'balance', label: formatRedeemType('balance') },
+  { value: 'concurrency', label: formatRedeemType('concurrency') },
+  { value: 'subscription', label: formatRedeemType('subscription') },
+  { value: 'subscription_quota_reset', label: formatRedeemType('subscription_quota_reset') },
+  { value: 'invitation', label: formatRedeemType('invitation') }
+])
+
+const quotaResetScopeOptions = computed(() => [
+  { value: 'daily', label: formatQuotaResetScope('daily') },
+  { value: 'weekly', label: formatQuotaResetScope('weekly') },
+  { value: 'monthly', label: formatQuotaResetScope('monthly') },
+  { value: 'all', label: formatQuotaResetScope('all') }
 ])
 
 const filterStatusOptions = computed(() => [
@@ -562,7 +618,8 @@ const generateForm = reactive({
   value: 10,
   count: 1,
   group_id: null as number | null,
-  validity_days: 30
+  validity_days: 30,
+  quota_reset_scope: 'daily' as 'daily' | 'weekly' | 'monthly' | 'all'
 })
 
 // 监听类型变化，邀请码类型时自动设置 value 为 0
@@ -654,7 +711,10 @@ const handleSort = (key: string, order: 'asc' | 'desc') => {
 
 const handleGenerateCodes = async () => {
   // 订阅类型必须选择分组
-  if (generateForm.type === 'subscription' && !generateForm.group_id) {
+  if (
+    (generateForm.type === 'subscription' || generateForm.type === 'subscription_quota_reset') &&
+    !generateForm.group_id
+  ) {
     appStore.showError(t('admin.redeem.groupRequired'))
     return
   }
@@ -665,8 +725,11 @@ const handleGenerateCodes = async () => {
       generateForm.count,
       generateForm.type,
       generateForm.value,
-      generateForm.type === 'subscription' ? generateForm.group_id : undefined,
-      generateForm.type === 'subscription' ? generateForm.validity_days : undefined
+      ['subscription', 'subscription_quota_reset'].includes(generateForm.type)
+        ? generateForm.group_id
+        : undefined,
+      generateForm.type === 'subscription' ? generateForm.validity_days : undefined,
+      generateForm.type === 'subscription_quota_reset' ? generateForm.quota_reset_scope : undefined
     )
     showGenerateDialog.value = false
     generatedCodes.value = result
@@ -674,6 +737,7 @@ const handleGenerateCodes = async () => {
     // 重置表单
     generateForm.group_id = null
     generateForm.validity_days = 30
+    generateForm.quota_reset_scope = 'daily'
     loadCodes()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToGenerate'))

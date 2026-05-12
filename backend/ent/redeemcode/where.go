@@ -105,6 +105,11 @@ func ValidityDays(v int) predicate.RedeemCode {
 	return predicate.RedeemCode(sql.FieldEQ(FieldValidityDays, v))
 }
 
+// QuotaResetScope applies equality check predicate on the "quota_reset_scope" field. It's identical to QuotaResetScopeEQ.
+func QuotaResetScope(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldQuotaResetScope, v))
+}
+
 // CodeEQ applies the EQ predicate on the "code" field.
 func CodeEQ(v string) predicate.RedeemCode {
 	return predicate.RedeemCode(sql.FieldEQ(FieldCode, v))
@@ -603,6 +608,71 @@ func ValidityDaysLT(v int) predicate.RedeemCode {
 // ValidityDaysLTE applies the LTE predicate on the "validity_days" field.
 func ValidityDaysLTE(v int) predicate.RedeemCode {
 	return predicate.RedeemCode(sql.FieldLTE(FieldValidityDays, v))
+}
+
+// QuotaResetScopeEQ applies the EQ predicate on the "quota_reset_scope" field.
+func QuotaResetScopeEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeNEQ applies the NEQ predicate on the "quota_reset_scope" field.
+func QuotaResetScopeNEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNEQ(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeIn applies the In predicate on the "quota_reset_scope" field.
+func QuotaResetScopeIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIn(FieldQuotaResetScope, vs...))
+}
+
+// QuotaResetScopeNotIn applies the NotIn predicate on the "quota_reset_scope" field.
+func QuotaResetScopeNotIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotIn(FieldQuotaResetScope, vs...))
+}
+
+// QuotaResetScopeGT applies the GT predicate on the "quota_reset_scope" field.
+func QuotaResetScopeGT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGT(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeGTE applies the GTE predicate on the "quota_reset_scope" field.
+func QuotaResetScopeGTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGTE(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeLT applies the LT predicate on the "quota_reset_scope" field.
+func QuotaResetScopeLT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLT(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeLTE applies the LTE predicate on the "quota_reset_scope" field.
+func QuotaResetScopeLTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLTE(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeContains applies the Contains predicate on the "quota_reset_scope" field.
+func QuotaResetScopeContains(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContains(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeHasPrefix applies the HasPrefix predicate on the "quota_reset_scope" field.
+func QuotaResetScopeHasPrefix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasPrefix(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeHasSuffix applies the HasSuffix predicate on the "quota_reset_scope" field.
+func QuotaResetScopeHasSuffix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasSuffix(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeEqualFold applies the EqualFold predicate on the "quota_reset_scope" field.
+func QuotaResetScopeEqualFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEqualFold(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeContainsFold applies the ContainsFold predicate on the "quota_reset_scope" field.
+func QuotaResetScopeContainsFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContainsFold(FieldQuotaResetScope, v))
 }
 
 // HasUser applies the HasEdge predicate on the "user" edge.

@@ -36,10 +36,18 @@ const (
 
 // Redeem type constants
 const (
-	RedeemTypeBalance      = "balance"
-	RedeemTypeConcurrency  = "concurrency"
-	RedeemTypeSubscription = "subscription"
-	RedeemTypeInvitation   = "invitation"
+	RedeemTypeBalance                = "balance"
+	RedeemTypeConcurrency            = "concurrency"
+	RedeemTypeSubscription           = "subscription"
+	RedeemTypeSubscriptionQuotaReset = "subscription_quota_reset"
+	RedeemTypeInvitation             = "invitation"
+)
+
+const (
+	QuotaResetScopeDaily   = "daily"
+	QuotaResetScopeWeekly  = "weekly"
+	QuotaResetScopeMonthly = "monthly"
+	QuotaResetScopeAll     = "all"
 )
 
 // PromoCode status constants

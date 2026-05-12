@@ -28,11 +28,14 @@ type RedeemRequest struct {
 
 // RedeemResponse represents the redeem response
 type RedeemResponse struct {
-	Message        string   `json:"message"`
-	Type           string   `json:"type"`
-	Value          float64  `json:"value"`
-	NewBalance     *float64 `json:"new_balance,omitempty"`
-	NewConcurrency *int     `json:"new_concurrency,omitempty"`
+	Message         string   `json:"message"`
+	Type            string   `json:"type"`
+	Value           float64  `json:"value"`
+	GroupName       string   `json:"group_name,omitempty"`
+	ValidityDays    int      `json:"validity_days,omitempty"`
+	QuotaResetScope string   `json:"quota_reset_scope,omitempty"`
+	NewBalance      *float64 `json:"new_balance,omitempty"`
+	NewConcurrency  *int     `json:"new_concurrency,omitempty"`
 }
 
 // Redeem handles redeeming a code
@@ -56,7 +59,7 @@ func (h *RedeemHandler) Redeem(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, dto.RedeemCodeFromService(result))
+	response.Success(c, buildRedeemResponse(result))
 }
 
 // GetHistory returns the user's redemption history
@@ -82,4 +85,51 @@ func (h *RedeemHandler) GetHistory(c *gin.Context) {
 		out = append(out, *dto.RedeemCodeFromService(&codes[i]))
 	}
 	response.Success(c, out)
+}
+
+func buildRedeemResponse(result *service.RedeemCode) RedeemResponse {
+	resp := RedeemResponse{
+		Message: buildRedeemSuccessMessage(result),
+	}
+	if result == nil {
+		return resp
+	}
+
+	resp.Type = result.Type
+	resp.Value = result.Value
+	resp.ValidityDays = result.ValidityDays
+	resp.QuotaResetScope = result.QuotaResetScope
+	if result.Group != nil {
+		resp.GroupName = result.Group.Name
+	}
+	return resp
+}
+
+func buildRedeemSuccessMessage(result *service.RedeemCode) string {
+	if result == nil {
+		return "Redeem succeeded"
+	}
+	switch result.Type {
+	case service.RedeemTypeBalance:
+		return "Balance recharged successfully"
+	case service.RedeemTypeConcurrency:
+		return "Concurrency updated successfully"
+	case service.RedeemTypeSubscription:
+		return "Subscription renewed successfully"
+	case service.RedeemTypeSubscriptionQuotaReset:
+		switch result.QuotaResetScope {
+		case service.QuotaResetScopeDaily:
+			return "Daily quota reset successfully"
+		case service.QuotaResetScopeWeekly:
+			return "Weekly quota reset successfully"
+		case service.QuotaResetScopeMonthly:
+			return "Monthly quota reset successfully"
+		case service.QuotaResetScopeAll:
+			return "All quota windows reset successfully"
+		default:
+			return "Quota reset successfully"
+		}
+	default:
+		return "Redeem succeeded"
+	}
 }
