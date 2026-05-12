@@ -392,11 +392,12 @@ type UpdateProxyInput struct {
 }
 
 type GenerateRedeemCodesInput struct {
-	Count        int
-	Type         string
-	Value        float64
-	GroupID      *int64 // 订阅类型专用：关联的分组ID
-	ValidityDays int    // 订阅类型专用：有效天数
+	Count           int
+	Type            string
+	Value           float64
+	GroupID         *int64 // 订阅类型专用：关联的分组ID
+	ValidityDays    int    // 订阅类型专用：有效天数
+	QuotaResetScope string // 订阅额度刷新码专用
 }
 
 type ProxyBatchDeleteResult struct {
@@ -2980,6 +2981,21 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 			return nil, errors.New("group must be subscription type")
 		}
 	}
+	if input.Type == RedeemTypeSubscriptionQuotaReset {
+		if input.GroupID == nil {
+			return nil, errors.New("group_id is required for subscription_quota_reset type")
+		}
+		if !IsValidQuotaResetScope(input.QuotaResetScope) {
+			return nil, ErrInvalidQuotaResetScope
+		}
+		group, err := s.groupRepo.GetByID(ctx, *input.GroupID)
+		if err != nil {
+			return nil, fmt.Errorf("group not found: %w", err)
+		}
+		if !group.IsSubscriptionType() {
+			return nil, errors.New("group must be subscription type")
+		}
+	}
 
 	codes := make([]RedeemCode, 0, input.Count)
 	for i := 0; i < input.Count; i++ {
@@ -3000,6 +3016,11 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 			if code.ValidityDays <= 0 {
 				code.ValidityDays = 30 // 默认30天
 			}
+		}
+		if input.Type == RedeemTypeSubscriptionQuotaReset {
+			code.GroupID = input.GroupID
+			code.QuotaResetScope = input.QuotaResetScope
+			code.Value = 0
 		}
 		if err := s.redeemCodeRepo.Create(ctx, &code); err != nil {
 			return nil, err

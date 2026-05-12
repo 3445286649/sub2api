@@ -70,6 +70,8 @@ type OpenAIImagesRequest struct {
 	Size               string
 	ExplicitSize       bool
 	SizeTier           string
+	Upscale            string
+	Resolution         string
 	ResponseFormat     string
 	Quality            string
 	Background         string
@@ -218,7 +220,7 @@ func (s *OpenAIGatewayService) ParseOpenAIImagesRequest(c *gin.Context, body []b
 	if err := validateOpenAIImagesModel(req.Model); err != nil {
 		return nil, err
 	}
-	req.SizeTier = normalizeOpenAIImageSizeTier(req.Size)
+	req.SizeTier = normalizeOpenAIImageSizeTier(req.Size, req.Upscale, req.Resolution)
 	req.RequiredCapability = classifyOpenAIImagesCapability(req)
 	return req, nil
 }
@@ -250,6 +252,11 @@ func parseOpenAIImagesJSONRequest(body []byte, req *OpenAIImagesRequest) error {
 	if sizeResult := gjson.GetBytes(body, "size"); sizeResult.Exists() {
 		req.Size = strings.TrimSpace(sizeResult.String())
 		req.ExplicitSize = req.Size != ""
+	}
+	req.Upscale = strings.TrimSpace(gjson.GetBytes(body, "upscale").String())
+	req.Resolution = strings.TrimSpace(gjson.GetBytes(body, "resolution").String())
+	if req.Resolution == "" {
+		req.Resolution = strings.TrimSpace(gjson.GetBytes(body, "image_size").String())
 	}
 	req.ResponseFormat = strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, "response_format").String()))
 	req.Quality = strings.TrimSpace(gjson.GetBytes(body, "quality").String())
@@ -377,6 +384,10 @@ func parseOpenAIImagesMultipartRequest(body []byte, contentType string, req *Ope
 		case "size":
 			req.Size = value
 			req.ExplicitSize = value != ""
+		case "upscale":
+			req.Upscale = value
+		case "resolution", "image_size":
+			req.Resolution = value
 		case "response_format":
 			req.ResponseFormat = strings.ToLower(value)
 		case "stream":
@@ -531,7 +542,18 @@ func isOpenAINativeImageOption(name string) bool {
 	}
 }
 
-func normalizeOpenAIImageSizeTier(size string) string {
+func normalizeOpenAIImageSizeTier(size string, upscale string, resolution string) string {
+	for _, value := range []string{resolution, upscale} {
+		switch strings.ToUpper(strings.TrimSpace(value)) {
+		case "1K":
+			return "1K"
+		case "2K", "2X":
+			return "2K"
+		case "4K", "4X":
+			return "4K"
+		}
+	}
+
 	trimmed := strings.TrimSpace(size)
 	normalized := strings.ToLower(trimmed)
 	switch normalized {
@@ -956,6 +978,7 @@ func (s *OpenAIGatewayService) handleOpenAIImagesStreamingResponse(
 		if len(line) == 0 {
 			return
 		}
+		trimmedLine := strings.TrimRight(string(line), "\r\n")
 		if firstTokenMs == nil {
 			ms := int(time.Since(startTime).Milliseconds())
 			firstTokenMs = &ms
@@ -970,7 +993,6 @@ func (s *OpenAIGatewayService) handleOpenAIImagesStreamingResponse(
 			}
 		}
 
-		trimmedLine := strings.TrimRight(string(line), "\r\n")
 		if _, ok := extractOpenAISSEDataLine(trimmedLine); ok || strings.TrimSpace(trimmedLine) == "" {
 			sseData.AddLine(trimmedLine, processSSEData)
 			return

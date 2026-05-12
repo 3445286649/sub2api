@@ -1389,6 +1389,12 @@ func init() {
 	redeemcodeDescValidityDays := redeemcodeFields[9].Descriptor()
 	// redeemcode.DefaultValidityDays holds the default value on creation for the validity_days field.
 	redeemcode.DefaultValidityDays = redeemcodeDescValidityDays.Default.(int)
+	// redeemcodeDescQuotaResetScope is the schema descriptor for quota_reset_scope field.
+	redeemcodeDescQuotaResetScope := redeemcodeFields[10].Descriptor()
+	// redeemcode.DefaultQuotaResetScope holds the default value on creation for the quota_reset_scope field.
+	redeemcode.DefaultQuotaResetScope = redeemcodeDescQuotaResetScope.Default.(string)
+	// redeemcode.QuotaResetScopeValidator is a validator for the "quota_reset_scope" field. It is called by the builders before save.
+	redeemcode.QuotaResetScopeValidator = redeemcodeDescQuotaResetScope.Validators[0].(func(string) error)
 	securitysecretMixin := schema.SecuritySecret{}.Mixin()
 	securitysecretMixinFields0 := securitysecretMixin[0].Fields()
 	_ = securitysecretMixinFields0

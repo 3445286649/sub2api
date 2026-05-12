@@ -68,9 +68,12 @@ type RedeemCodeRepository interface {
 
 // GenerateCodesRequest 生成兑换码请求
 type GenerateCodesRequest struct {
-	Count int     `json:"count"`
-	Value float64 `json:"value"`
-	Type  string  `json:"type"`
+	Count           int     `json:"count"`
+	Value           float64 `json:"value"`
+	Type            string  `json:"type"`
+	GroupID         *int64  `json:"group_id,omitempty"`
+	ValidityDays    int     `json:"validity_days,omitempty"`
+	QuotaResetScope string  `json:"quota_reset_scope,omitempty"`
 }
 
 // RedeemCodeResponse 兑换码响应
@@ -144,8 +147,9 @@ func (s *RedeemService) GenerateCodes(ctx context.Context, req GenerateCodesRequ
 		return nil, errors.New("count must be greater than 0")
 	}
 
-	// 邀请码类型不需要数值，其他类型需要非零值（支持负数用于退款）
-	if req.Type != RedeemTypeInvitation && req.Value == 0 {
+	// 邀请码类型不需要数值，其他类型需要非零值（支持负数用于退款）。
+	// 订阅额度刷新码的 value 表示本次可刷新的额度，0 保留为全量刷新码以兼容旧数据。
+	if req.Type != RedeemTypeInvitation && req.Type != RedeemTypeSubscriptionQuotaReset && req.Value == 0 {
 		return nil, errors.New("value must not be zero")
 	}
 
@@ -172,10 +176,13 @@ func (s *RedeemService) GenerateCodes(ctx context.Context, req GenerateCodesRequ
 		}
 
 		codes = append(codes, RedeemCode{
-			Code:   code,
-			Type:   codeType,
-			Value:  value,
-			Status: StatusUnused,
+			Code:            code,
+			Type:            codeType,
+			Value:           value,
+			Status:          StatusUnused,
+			GroupID:         req.GroupID,
+			ValidityDays:    req.ValidityDays,
+			QuotaResetScope: req.QuotaResetScope,
 		})
 	}
 
@@ -201,8 +208,16 @@ func (s *RedeemService) CreateCode(ctx context.Context, code *RedeemCode) error 
 	if code.Type == "" {
 		code.Type = RedeemTypeBalance
 	}
-	if code.Type != RedeemTypeInvitation && code.Value == 0 {
+	if code.Type != RedeemTypeInvitation && code.Type != RedeemTypeSubscriptionQuotaReset && code.Value == 0 {
 		return errors.New("value must not be zero")
+	}
+	if code.Type == RedeemTypeSubscriptionQuotaReset {
+		if code.GroupID == nil {
+			return errors.New("group_id is required for subscription_quota_reset type")
+		}
+		if !IsValidQuotaResetScope(code.QuotaResetScope) {
+			return ErrInvalidQuotaResetScope
+		}
 	}
 	if code.Status == "" {
 		code.Status = StatusUnused
@@ -299,6 +314,14 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	if redeemCode.Type == RedeemTypeSubscription && redeemCode.GroupID == nil {
 		return nil, infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid subscription redeem code: missing group_id")
 	}
+	if redeemCode.Type == RedeemTypeSubscriptionQuotaReset {
+		if redeemCode.GroupID == nil {
+			return nil, infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid subscription quota reset redeem code: missing group_id")
+		}
+		if !IsValidQuotaResetScope(redeemCode.QuotaResetScope) {
+			return nil, ErrInvalidQuotaResetScope
+		}
+	}
 
 	// 获取用户信息
 	user, err := s.userRepo.GetByID(ctx, userID)
@@ -370,6 +393,15 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 			}
 		}
 
+	case RedeemTypeSubscriptionQuotaReset:
+		activeSub, err := s.resolveQuotaResetSubscription(txCtx, userID, redeemCode)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := s.subscriptionService.ResetQuotaUsage(txCtx, activeSub.ID, redeemCode.QuotaResetScope, redeemCode.Value, time.Now()); err != nil {
+			return nil, fmt.Errorf("reset quota usage: %w", err)
+		}
+
 	default:
 		return nil, fmt.Errorf("unsupported redeem type: %s", redeemCode.Type)
 	}
@@ -394,6 +426,57 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	}
 
 	return redeemCode, nil
+}
+
+func (s *RedeemService) resolveQuotaResetSubscription(ctx context.Context, userID int64, redeemCode *RedeemCode) (*UserSubscription, error) {
+	if redeemCode == nil || redeemCode.GroupID == nil {
+		return nil, infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid subscription quota reset redeem code: missing group_id")
+	}
+
+	// Legacy full-reset codes are group-bound to avoid ambiguous targeting.
+	if redeemCode.Value <= 0 {
+		activeSub, err := s.subscriptionService.userSubRepo.GetActiveByUserIDAndGroupID(ctx, userID, *redeemCode.GroupID)
+		if err != nil {
+			return nil, fmt.Errorf("get active subscription: %w", err)
+		}
+		return activeSub, nil
+	}
+
+	// Prefer an exact group match when the user owns that subscription and the limit accepts the code value.
+	if activeSub, err := s.subscriptionService.userSubRepo.GetActiveByUserIDAndGroupID(ctx, userID, *redeemCode.GroupID); err == nil {
+		if ok, checkErr := s.subscriptionAcceptsQuotaResetValue(ctx, activeSub, redeemCode.Value); checkErr != nil {
+			return nil, checkErr
+		} else if ok {
+			return activeSub, nil
+		}
+	}
+
+	activeSubs, err := s.subscriptionService.userSubRepo.ListActiveByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list active subscriptions: %w", err)
+	}
+	for i := range activeSubs {
+		sub := activeSubs[i]
+		ok, checkErr := s.subscriptionAcceptsQuotaResetValue(ctx, &sub, redeemCode.Value)
+		if checkErr != nil {
+			return nil, checkErr
+		}
+		if ok {
+			return &sub, nil
+		}
+	}
+	return nil, ErrQuotaResetValueExceedsLimit
+}
+
+func (s *RedeemService) subscriptionAcceptsQuotaResetValue(ctx context.Context, sub *UserSubscription, resetValueUSD float64) (bool, error) {
+	if sub == nil || resetValueUSD <= 0 {
+		return false, nil
+	}
+	group, err := s.subscriptionService.groupRepo.GetByID(ctx, sub.GroupID)
+	if err != nil {
+		return false, err
+	}
+	return group.HasDailyLimit() && resetValueUSD <= *group.DailyLimitUSD, nil
 }
 
 // invalidateRedeemCaches 失效兑换相关的缓存

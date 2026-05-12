@@ -533,6 +533,7 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 		CreatedAt:    rc.CreatedAt,
 		GroupID:      rc.GroupID,
 		ValidityDays: rc.ValidityDays,
+		QuotaResetScope: rc.QuotaResetScope,
 		User:         UserFromServiceShallow(rc.User),
 		Group:        GroupFromServiceShallow(rc.Group),
 	}

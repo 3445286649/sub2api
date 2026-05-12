@@ -67,6 +67,28 @@
           </span>
         </div>
 
+        <!-- Recharge Storefront -->
+        <button
+          v-if="user"
+          type="button"
+          class="hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white sm:flex"
+          @click="openRechargeStorefront"
+        >
+          <Icon name="creditCard" size="sm" />
+          <span>{{ t('nav.rechargeStorefront') }}</span>
+        </button>
+
+        <!-- Pixmo Image Studio -->
+        <button
+          v-if="user"
+          type="button"
+          class="hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white sm:flex"
+          @click="openPixmoStudio"
+        >
+          <Icon name="sparkles" size="sm" />
+          <span>{{ t('nav.pixmoStudio') }}</span>
+        </button>
+
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
           <button
@@ -125,6 +147,16 @@
                   <Icon name="key" size="sm" />
                   {{ t('nav.apiKeys') }}
                 </router-link>
+
+                <button type="button" @click="openRechargeStorefrontFromMenu" class="dropdown-item w-full">
+                  <Icon name="creditCard" size="sm" />
+                  {{ t('nav.rechargeStorefront') }}
+                </button>
+
+                <button type="button" @click="openPixmoStudioFromMenu" class="dropdown-item w-full">
+                  <Icon name="sparkles" size="sm" />
+                  {{ t('nav.pixmoStudio') }}
+                </button>
 
                 <a
                   v-if="authStore.isAdmin"
@@ -286,6 +318,9 @@ const pageDescription = computed(() => {
   return (route.meta.description as string) || ''
 })
 
+const rechargeStorefrontUrl = 'https://shop.loucer.cn/'
+const pixmoStudioUrl = 'https://pixmo.loucer.cn/'
+
 function toggleMobileSidebar() {
   appStore.toggleMobileSidebar()
 }
@@ -296,6 +331,24 @@ function toggleDropdown() {
 
 function closeDropdown() {
   dropdownOpen.value = false
+}
+
+function openRechargeStorefront() {
+  window.open(rechargeStorefrontUrl, '_blank', 'noopener,noreferrer')
+}
+
+function openRechargeStorefrontFromMenu() {
+  closeDropdown()
+  openRechargeStorefront()
+}
+
+function openPixmoStudio() {
+  window.open(pixmoStudioUrl, '_blank', 'noopener,noreferrer')
+}
+
+function openPixmoStudioFromMenu() {
+  closeDropdown()
+  openPixmoStudio()
 }
 
 async function handleLogout() {

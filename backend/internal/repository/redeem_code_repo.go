@@ -30,6 +30,7 @@ func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemC
 		SetStatus(code.Status).
 		SetNotes(code.Notes).
 		SetValidityDays(code.ValidityDays).
+		SetQuotaResetScope(code.QuotaResetScope).
 		SetNillableUsedBy(code.UsedBy).
 		SetNillableUsedAt(code.UsedAt).
 		SetNillableGroupID(code.GroupID).
@@ -56,6 +57,7 @@ func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.
 			SetStatus(c.Status).
 			SetNotes(c.Notes).
 			SetValidityDays(c.ValidityDays).
+			SetQuotaResetScope(c.QuotaResetScope).
 			SetNillableUsedBy(c.UsedBy).
 			SetNillableUsedAt(c.UsedAt).
 			SetNillableGroupID(c.GroupID)
@@ -68,6 +70,8 @@ func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.
 func (r *redeemCodeRepository) GetByID(ctx context.Context, id int64) (*service.RedeemCode, error) {
 	m, err := r.client.RedeemCode.Query().
 		Where(redeemcode.IDEQ(id)).
+		WithUser().
+		WithGroup().
 		Only(ctx)
 	if err != nil {
 		if dbent.IsNotFound(err) {
@@ -81,6 +85,8 @@ func (r *redeemCodeRepository) GetByID(ctx context.Context, id int64) (*service.
 func (r *redeemCodeRepository) GetByCode(ctx context.Context, code string) (*service.RedeemCode, error) {
 	m, err := r.client.RedeemCode.Query().
 		Where(redeemcode.CodeEQ(code)).
+		WithUser().
+		WithGroup().
 		Only(ctx)
 	if err != nil {
 		if dbent.IsNotFound(err) {
@@ -177,7 +183,8 @@ func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemC
 		SetValue(code.Value).
 		SetStatus(code.Status).
 		SetNotes(code.Notes).
-		SetValidityDays(code.ValidityDays)
+		SetValidityDays(code.ValidityDays).
+		SetQuotaResetScope(code.QuotaResetScope)
 
 	if code.UsedBy != nil {
 		up.SetUsedBy(*code.UsedBy)
@@ -298,17 +305,18 @@ func redeemCodeEntityToService(m *dbent.RedeemCode) *service.RedeemCode {
 		return nil
 	}
 	out := &service.RedeemCode{
-		ID:           m.ID,
-		Code:         m.Code,
-		Type:         m.Type,
-		Value:        m.Value,
-		Status:       m.Status,
-		UsedBy:       m.UsedBy,
-		UsedAt:       m.UsedAt,
-		Notes:        derefString(m.Notes),
-		CreatedAt:    m.CreatedAt,
-		GroupID:      m.GroupID,
-		ValidityDays: m.ValidityDays,
+		ID:              m.ID,
+		Code:            m.Code,
+		Type:            m.Type,
+		Value:           m.Value,
+		Status:          m.Status,
+		UsedBy:          m.UsedBy,
+		UsedAt:          m.UsedAt,
+		Notes:           derefString(m.Notes),
+		CreatedAt:       m.CreatedAt,
+		GroupID:         m.GroupID,
+		ValidityDays:    m.ValidityDays,
+		QuotaResetScope: m.QuotaResetScope,
 	}
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)

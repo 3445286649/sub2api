@@ -114,6 +114,16 @@
                         }})</span
                       >
                     </p>
+                    <p
+                      v-else-if="redeemResult.type === 'subscription_quota_reset'"
+                      class="font-medium"
+                    >
+                      {{ t('redeem.subscriptionQuotaReset') }}
+                      <span v-if="redeemResult.group_name"> - {{ redeemResult.group_name }}</span>
+                      <span v-if="redeemResult.quota_reset_scope">
+                        ({{ formatQuotaResetScope(redeemResult.quota_reset_scope) }})</span
+                      >
+                    </p>
                     <p v-if="redeemResult.new_balance !== undefined">
                       {{ t('redeem.newBalance') }}:
                       <span class="font-semibold">${{ redeemResult.new_balance.toFixed(2) }}</span>
@@ -369,6 +379,7 @@ const redeemResult = ref<{
   new_concurrency?: number
   group_name?: string
   validity_days?: number
+  quota_reset_scope?: 'daily' | 'weekly' | 'monthly' | 'all'
 } | null>(null)
 const errorMessage = ref('')
 
@@ -377,13 +388,24 @@ const history = ref<RedeemHistoryItem[]>([])
 const loadingHistory = ref(false)
 const contactInfo = ref('')
 
+const quotaResetScopeLabels: Record<string, string> = {
+  daily: '日额度',
+  weekly: '周额度',
+  monthly: '月额度',
+  all: '全部额度'
+}
+
+const formatQuotaResetScope = (scope: string) => {
+  return quotaResetScopeLabels[scope] || t(`redeem.quotaResetScopes.${scope}`)
+}
+
 // Helper functions for history display
 const isBalanceType = (type: string) => {
   return type === 'balance' || type === 'admin_balance'
 }
 
 const isSubscriptionType = (type: string) => {
-  return type === 'subscription'
+  return type === 'subscription' || type === 'subscription_quota_reset'
 }
 
 const isAdminAdjustment = (type: string) => {
@@ -401,6 +423,8 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
     return item.value >= 0 ? t('redeem.concurrencyAddedAdmin') : t('redeem.concurrencyReducedAdmin')
   } else if (item.type === 'subscription') {
     return t('redeem.subscriptionAssigned')
+  } else if (item.type === 'subscription_quota_reset') {
+    return t('redeem.subscriptionQuotaReset')
   }
   return t('common.unknown')
 }
@@ -409,11 +433,16 @@ const formatHistoryValue = (item: RedeemHistoryItem) => {
   if (isBalanceType(item.type)) {
     const sign = item.value >= 0 ? '+' : ''
     return `${sign}$${item.value.toFixed(2)}`
-  } else if (isSubscriptionType(item.type)) {
+  } else if (item.type === 'subscription') {
     // 订阅类型显示有效天数和分组名称
     const days = item.validity_days || Math.round(item.value)
     const groupName = item.group?.name || ''
     return groupName ? `${days}${t('redeem.days')} - ${groupName}` : `${days}${t('redeem.days')}`
+  } else if (item.type === 'subscription_quota_reset') {
+    const scope = item.quota_reset_scope || 'daily'
+    const groupName = item.group?.name || ''
+    const scopeLabel = formatQuotaResetScope(scope)
+    return groupName ? `${scopeLabel} - ${groupName}` : scopeLabel
   } else {
     const sign = item.value >= 0 ? '+' : ''
     return `${sign}${item.value} ${t('redeem.requests')}`
