@@ -112,6 +112,11 @@ type SystemSettings struct {
 	SiteSubtitle                string           `json:"site_subtitle"`
 	APIBaseURL                  string           `json:"api_base_url"`
 	ContactInfo                 string           `json:"contact_info"`
+	SupportGroupEnabled         bool             `json:"support_group_enabled"`
+	SupportGroupButtonText      string           `json:"support_group_button_text"`
+	SupportGroupTitle           string           `json:"support_group_title"`
+	SupportGroupDescription     string           `json:"support_group_description"`
+	SupportGroupQRCodeURL       string           `json:"support_group_qr_code_url"`
 	DocURL                      string           `json:"doc_url"`
 	HomeContent                 string           `json:"home_content"`
 	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
@@ -251,6 +256,11 @@ type PublicSettings struct {
 	SiteSubtitle                     string                   `json:"site_subtitle"`
 	APIBaseURL                       string                   `json:"api_base_url"`
 	ContactInfo                      string                   `json:"contact_info"`
+	SupportGroupEnabled              bool                     `json:"support_group_enabled"`
+	SupportGroupButtonText           string                   `json:"support_group_button_text"`
+	SupportGroupTitle                string                   `json:"support_group_title"`
+	SupportGroupDescription          string                   `json:"support_group_description"`
+	SupportGroupQRCodeURL            string                   `json:"support_group_qr_code_url"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`

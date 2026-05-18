@@ -78,6 +78,17 @@
           <span>{{ t('nav.rechargeStorefront') }}</span>
         </button>
 
+        <!-- Support Group -->
+        <button
+          v-if="showSupportGroup"
+          type="button"
+          class="hidden items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100 hover:text-emerald-900 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/15 sm:flex"
+          @click="openSupportGroup"
+        >
+          <Icon name="chat" size="sm" />
+          <span>{{ supportGroupButtonText }}</span>
+        </button>
+
         <!-- Pixmo Image Studio -->
         <button
           v-if="user"
@@ -151,6 +162,11 @@
                 <button type="button" @click="openRechargeStorefrontFromMenu" class="dropdown-item w-full">
                   <Icon name="creditCard" size="sm" />
                   {{ t('nav.rechargeStorefront') }}
+                </button>
+
+                <button v-if="showSupportGroup" type="button" @click="openSupportGroupFromMenu" class="dropdown-item w-full">
+                  <Icon name="chat" size="sm" />
+                  {{ supportGroupButtonText }}
                 </button>
 
                 <button type="button" @click="openPixmoStudioFromMenu" class="dropdown-item w-full">
@@ -241,6 +257,49 @@
         </div>
       </div>
     </div>
+
+    <teleport to="body">
+      <transition name="support-modal">
+        <div
+          v-if="supportGroupOpen"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="supportGroupTitle"
+          @click.self="closeSupportGroup"
+        >
+          <div class="w-full max-w-sm overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-dark-700 dark:bg-dark-900">
+            <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+              <div>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                  {{ supportGroupTitle }}
+                </h2>
+                <p v-if="supportGroupDescription" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ supportGroupDescription }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-dark-800 dark:hover:text-gray-200"
+                :aria-label="t('common.close')"
+                @click="closeSupportGroup"
+              >
+                <Icon name="x" size="sm" />
+              </button>
+            </div>
+            <div class="p-5">
+              <div class="mx-auto flex aspect-square w-64 max-w-full items-center justify-center rounded-2xl border border-gray-200 bg-white p-3 dark:border-dark-700">
+                <img
+                  :src="supportGroupQrCodeUrl"
+                  :alt="t('nav.supportGroupQrAlt')"
+                  class="h-full w-full rounded-xl object-contain"
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </teleport>
   </header>
 </template>
 
@@ -265,10 +324,19 @@ const onboardingStore = useOnboardingStore()
 
 const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
+const supportGroupOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => appStore.docUrl)
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
+const publicSettings = computed(() => appStore.cachedPublicSettings)
+const supportGroupQrCodeUrl = computed(() => publicSettings.value?.support_group_qr_code_url?.trim() || '')
+const supportGroupButtonText = computed(() => publicSettings.value?.support_group_button_text?.trim() || t('nav.supportGroup'))
+const supportGroupTitle = computed(() => publicSettings.value?.support_group_title?.trim() || t('nav.supportGroup'))
+const supportGroupDescription = computed(() => publicSettings.value?.support_group_description?.trim() || t('nav.supportGroupDescription'))
+const showSupportGroup = computed(() => {
+  return !!user.value && publicSettings.value?.support_group_enabled === true && supportGroupQrCodeUrl.value !== ''
+})
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {
@@ -333,6 +401,19 @@ function closeDropdown() {
   dropdownOpen.value = false
 }
 
+function openSupportGroup() {
+  supportGroupOpen.value = true
+}
+
+function openSupportGroupFromMenu() {
+  closeDropdown()
+  openSupportGroup()
+}
+
+function closeSupportGroup() {
+  supportGroupOpen.value = false
+}
+
 function openRechargeStorefront() {
   window.open(rechargeStorefrontUrl, '_blank', 'noopener,noreferrer')
 }
@@ -392,5 +473,26 @@ onBeforeUnmount(() => {
 .dropdown-leave-to {
   opacity: 0;
   transform: scale(0.95) translateY(-4px);
+}
+
+.support-modal-enter-active,
+.support-modal-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.support-modal-enter-active > div,
+.support-modal-leave-active > div {
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.support-modal-enter-from,
+.support-modal-leave-to {
+  opacity: 0;
+}
+
+.support-modal-enter-from > div,
+.support-modal-leave-to > div {
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
 }
 </style>

@@ -4203,6 +4203,70 @@
                 </p>
               </div>
 
+              <!-- Support Group -->
+              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div class="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <h3 class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ t("admin.settings.site.supportGroup.title") }}
+                    </h3>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.supportGroup.description") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.support_group_enabled" />
+                </div>
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.site.supportGroup.buttonText") }}
+                    </label>
+                    <input
+                      v-model="form.support_group_button_text"
+                      type="text"
+                      class="input"
+                      :placeholder="t('admin.settings.site.supportGroup.buttonTextPlaceholder')"
+                    />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.site.supportGroup.dialogTitle") }}
+                    </label>
+                    <input
+                      v-model="form.support_group_title"
+                      type="text"
+                      class="input"
+                      :placeholder="t('admin.settings.site.supportGroup.dialogTitlePlaceholder')"
+                    />
+                  </div>
+                  <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.site.supportGroup.qrCodeUrl") }}
+                    </label>
+                    <input
+                      v-model="form.support_group_qr_code_url"
+                      type="url"
+                      class="input font-mono text-sm"
+                      :placeholder="t('admin.settings.site.supportGroup.qrCodeUrlPlaceholder')"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.supportGroup.qrCodeUrlHint") }}
+                    </p>
+                  </div>
+                  <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.site.supportGroup.dialogDescription") }}
+                    </label>
+                    <input
+                      v-model="form.support_group_description"
+                      type="text"
+                      class="input"
+                      :placeholder="t('admin.settings.site.supportGroup.dialogDescriptionPlaceholder')"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <!-- Doc URL -->
               <div>
                 <label
@@ -6458,6 +6522,11 @@ const form = reactive<SettingsForm>({
   site_subtitle: "Subscription to API Conversion Platform",
   api_base_url: "",
   contact_info: "",
+  support_group_enabled: false,
+  support_group_button_text: "售后群",
+  support_group_title: "售后服务群",
+  support_group_description: "",
+  support_group_qr_code_url: "",
   doc_url: "",
   home_content: "",
   backend_mode_enabled: false,
@@ -7529,6 +7598,10 @@ async function saveSettings() {
     // Optional URL fields: auto-clear invalid values so they don't cause backend 400 errors
     if (!isValidHttpUrl(form.frontend_url)) form.frontend_url = "";
     if (!isValidHttpUrl(form.doc_url)) form.doc_url = "";
+    if (!isValidHttpUrl(form.support_group_qr_code_url)) {
+      form.support_group_qr_code_url = "";
+      form.support_group_enabled = false;
+    }
     syncWeChatConnectMode();
     const wechatStoredMode = deriveWeChatConnectStoredMode(
       form.wechat_connect_open_enabled,
@@ -7569,6 +7642,11 @@ async function saveSettings() {
       site_subtitle: form.site_subtitle,
       api_base_url: form.api_base_url,
       contact_info: form.contact_info,
+      support_group_enabled: form.support_group_enabled,
+      support_group_button_text: form.support_group_button_text,
+      support_group_title: form.support_group_title,
+      support_group_description: form.support_group_description,
+      support_group_qr_code_url: form.support_group_qr_code_url,
       doc_url: form.doc_url,
       home_content: form.home_content,
       backend_mode_enabled: form.backend_mode_enabled,
@@ -9013,11 +9091,11 @@ watch(
 }
 
 :global(.dark) .settings-tabs-shell {
-  border-color: rgb(51 65 85 / 0.65);
-  background: rgb(15 23 42 / 0.86);
+  border-color: rgb(71 85 105 / 0.5);
+  background: linear-gradient(180deg, rgb(15 23 42 / 0.96), rgb(12 20 34 / 0.96));
   box-shadow:
     0 16px 36px rgb(0 0 0 / 0.28),
-    0 1px 0 rgb(255 255 255 / 0.06) inset;
+    0 1px 0 rgb(255 255 255 / 0.05) inset;
 }
 
 .settings-tabs-scroll {
@@ -9035,7 +9113,7 @@ watch(
 }
 
 .settings-tab {
-  @apply relative isolate flex h-10 min-w-[6.75rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-transparent px-3 text-sm font-medium text-gray-600 outline-none transition-colors duration-200 ease-out dark:text-gray-300;
+  @apply relative isolate flex h-10 min-w-[6.75rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-transparent px-3 text-sm font-medium text-gray-600 outline-none transition-colors duration-200 ease-out dark:text-slate-300;
 }
 
 @media (min-width: 768px) {
@@ -9064,7 +9142,7 @@ watch(
 }
 
 :global(.dark) .settings-tab::before {
-  background: linear-gradient(135deg, rgb(30 41 59 / 0.9), rgb(51 65 85 / 0.62));
+  background: linear-gradient(135deg, rgb(30 41 59 / 0.74), rgb(51 65 85 / 0.42));
 }
 
 .settings-tab:focus-visible {
@@ -9072,7 +9150,7 @@ watch(
 }
 
 .settings-tab-active {
-  @apply border-primary-200/80 bg-white text-primary-700 shadow-sm dark:border-primary-400/30 dark:bg-dark-700/95 dark:text-primary-200;
+  @apply border-primary-200/80 bg-white text-primary-700 shadow-sm dark:border-primary-400/25 dark:bg-slate-800/90 dark:text-primary-100;
   box-shadow:
     0 8px 18px rgb(15 23 42 / 0.08),
     0 1px 0 rgb(255 255 255 / 0.92) inset;
@@ -9100,7 +9178,7 @@ watch(
 }
 
 .settings-tab-icon {
-  @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors duration-200 dark:text-gray-400;
+  @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors duration-200 dark:text-slate-400;
 }
 
 .settings-tab:hover .settings-tab-icon,
@@ -9109,7 +9187,7 @@ watch(
 }
 
 .settings-tab-active .settings-tab-icon {
-  @apply bg-primary-50 text-primary-600 dark:bg-primary-400/10 dark:text-primary-300;
+  @apply bg-primary-50 text-primary-600 dark:bg-primary-400/10 dark:text-primary-200;
 }
 
 .settings-tab-label {

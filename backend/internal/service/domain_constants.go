@@ -205,6 +205,11 @@ const (
 	SettingKeySiteSubtitle                = "site_subtitle"                 // 网站副标题
 	SettingKeyAPIBaseURL                  = "api_base_url"                  // API端点地址（用于客户端配置和导入）
 	SettingKeyContactInfo                 = "contact_info"                  // 客服联系方式
+	SettingKeySupportGroupEnabled         = "support_group_enabled"         // 是否展示售后群入口
+	SettingKeySupportGroupButtonText      = "support_group_button_text"     // 售后群入口按钮文字
+	SettingKeySupportGroupTitle           = "support_group_title"           // 售后群弹窗标题
+	SettingKeySupportGroupDescription     = "support_group_description"     // 售后群弹窗说明
+	SettingKeySupportGroupQRCodeURL       = "support_group_qr_code_url"     // 售后群二维码图片 URL
 	SettingKeyDocURL                      = "doc_url"                       // 文档链接
 	SettingKeyHomeContent                 = "home_content"                  // 首页内容（支持 Markdown/HTML，或 URL 作为 iframe src）
 	SettingKeyHideCcsImportButton         = "hide_ccs_import_button"        // 是否隐藏 API Keys 页面的导入 CCS 按钮

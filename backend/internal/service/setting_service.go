@@ -596,6 +596,11 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeySiteSubtitle,
 		SettingKeyAPIBaseURL,
 		SettingKeyContactInfo,
+		SettingKeySupportGroupEnabled,
+		SettingKeySupportGroupButtonText,
+		SettingKeySupportGroupTitle,
+		SettingKeySupportGroupDescription,
+		SettingKeySupportGroupQRCodeURL,
 		SettingKeyDocURL,
 		SettingKeyHomeContent,
 		SettingKeyHideCcsImportButton,
@@ -713,6 +718,11 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SiteSubtitle:                     s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
 		APIBaseURL:                       settings[SettingKeyAPIBaseURL],
 		ContactInfo:                      settings[SettingKeyContactInfo],
+		SupportGroupEnabled:              settings[SettingKeySupportGroupEnabled] == "true",
+		SupportGroupButtonText:           s.getStringOrDefault(settings, SettingKeySupportGroupButtonText, "售后群"),
+		SupportGroupTitle:                s.getStringOrDefault(settings, SettingKeySupportGroupTitle, "售后服务群"),
+		SupportGroupDescription:          settings[SettingKeySupportGroupDescription],
+		SupportGroupQRCodeURL:            strings.TrimSpace(settings[SettingKeySupportGroupQRCodeURL]),
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
@@ -916,6 +926,11 @@ type PublicSettingsInjectionPayload struct {
 	SiteSubtitle                     string                   `json:"site_subtitle"`
 	APIBaseURL                       string                   `json:"api_base_url"`
 	ContactInfo                      string                   `json:"contact_info"`
+	SupportGroupEnabled              bool                     `json:"support_group_enabled"`
+	SupportGroupButtonText           string                   `json:"support_group_button_text"`
+	SupportGroupTitle                string                   `json:"support_group_title"`
+	SupportGroupDescription          string                   `json:"support_group_description"`
+	SupportGroupQRCodeURL            string                   `json:"support_group_qr_code_url"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
@@ -980,6 +995,11 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		SiteSubtitle:                     settings.SiteSubtitle,
 		APIBaseURL:                       settings.APIBaseURL,
 		ContactInfo:                      settings.ContactInfo,
+		SupportGroupEnabled:              settings.SupportGroupEnabled,
+		SupportGroupButtonText:           settings.SupportGroupButtonText,
+		SupportGroupTitle:                settings.SupportGroupTitle,
+		SupportGroupDescription:          settings.SupportGroupDescription,
+		SupportGroupQRCodeURL:            settings.SupportGroupQRCodeURL,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
 		HideCcsImportButton:              settings.HideCcsImportButton,
@@ -1550,6 +1570,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeySiteSubtitle] = settings.SiteSubtitle
 	updates[SettingKeyAPIBaseURL] = settings.APIBaseURL
 	updates[SettingKeyContactInfo] = settings.ContactInfo
+	updates[SettingKeySupportGroupEnabled] = strconv.FormatBool(settings.SupportGroupEnabled)
+	updates[SettingKeySupportGroupButtonText] = strings.TrimSpace(settings.SupportGroupButtonText)
+	updates[SettingKeySupportGroupTitle] = strings.TrimSpace(settings.SupportGroupTitle)
+	updates[SettingKeySupportGroupDescription] = strings.TrimSpace(settings.SupportGroupDescription)
+	updates[SettingKeySupportGroupQRCodeURL] = strings.TrimSpace(settings.SupportGroupQRCodeURL)
 	updates[SettingKeyDocURL] = settings.DocURL
 	updates[SettingKeyHomeContent] = settings.HomeContent
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)
@@ -2504,6 +2529,11 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		SiteSubtitle:                     s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
 		APIBaseURL:                       settings[SettingKeyAPIBaseURL],
 		ContactInfo:                      settings[SettingKeyContactInfo],
+		SupportGroupEnabled:              settings[SettingKeySupportGroupEnabled] == "true",
+		SupportGroupButtonText:           s.getStringOrDefault(settings, SettingKeySupportGroupButtonText, "售后群"),
+		SupportGroupTitle:                s.getStringOrDefault(settings, SettingKeySupportGroupTitle, "售后服务群"),
+		SupportGroupDescription:          settings[SettingKeySupportGroupDescription],
+		SupportGroupQRCodeURL:            strings.TrimSpace(settings[SettingKeySupportGroupQRCodeURL]),
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",

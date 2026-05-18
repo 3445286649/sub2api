@@ -188,6 +188,11 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		SiteSubtitle:                           settings.SiteSubtitle,
 		APIBaseURL:                             settings.APIBaseURL,
 		ContactInfo:                            settings.ContactInfo,
+		SupportGroupEnabled:                    settings.SupportGroupEnabled,
+		SupportGroupButtonText:                 settings.SupportGroupButtonText,
+		SupportGroupTitle:                      settings.SupportGroupTitle,
+		SupportGroupDescription:                settings.SupportGroupDescription,
+		SupportGroupQRCodeURL:                  settings.SupportGroupQRCodeURL,
 		DocURL:                                 settings.DocURL,
 		HomeContent:                            settings.HomeContent,
 		HideCcsImportButton:                    settings.HideCcsImportButton,
@@ -435,6 +440,11 @@ type UpdateSettingsRequest struct {
 	SiteSubtitle                string                `json:"site_subtitle"`
 	APIBaseURL                  string                `json:"api_base_url"`
 	ContactInfo                 string                `json:"contact_info"`
+	SupportGroupEnabled         bool                  `json:"support_group_enabled"`
+	SupportGroupButtonText      string                `json:"support_group_button_text"`
+	SupportGroupTitle           string                `json:"support_group_title"`
+	SupportGroupDescription     string                `json:"support_group_description"`
+	SupportGroupQRCodeURL       string                `json:"support_group_qr_code_url"`
 	DocURL                      string                `json:"doc_url"`
 	HomeContent                 string                `json:"home_content"`
 	HideCcsImportButton         bool                  `json:"hide_ccs_import_button"`
@@ -1351,6 +1361,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SiteSubtitle:                     req.SiteSubtitle,
 		APIBaseURL:                       req.APIBaseURL,
 		ContactInfo:                      req.ContactInfo,
+		SupportGroupEnabled:              req.SupportGroupEnabled,
+		SupportGroupButtonText:           req.SupportGroupButtonText,
+		SupportGroupTitle:                req.SupportGroupTitle,
+		SupportGroupDescription:          req.SupportGroupDescription,
+		SupportGroupQRCodeURL:            req.SupportGroupQRCodeURL,
 		DocURL:                           req.DocURL,
 		HomeContent:                      req.HomeContent,
 		HideCcsImportButton:              req.HideCcsImportButton,
@@ -1735,6 +1750,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SiteSubtitle:                           updatedSettings.SiteSubtitle,
 		APIBaseURL:                             updatedSettings.APIBaseURL,
 		ContactInfo:                            updatedSettings.ContactInfo,
+		SupportGroupEnabled:                    updatedSettings.SupportGroupEnabled,
+		SupportGroupButtonText:                 updatedSettings.SupportGroupButtonText,
+		SupportGroupTitle:                      updatedSettings.SupportGroupTitle,
+		SupportGroupDescription:                updatedSettings.SupportGroupDescription,
+		SupportGroupQRCodeURL:                  updatedSettings.SupportGroupQRCodeURL,
 		DocURL:                                 updatedSettings.DocURL,
 		HomeContent:                            updatedSettings.HomeContent,
 		HideCcsImportButton:                    updatedSettings.HideCcsImportButton,
@@ -2063,6 +2083,21 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.ContactInfo != after.ContactInfo {
 		changed = append(changed, "contact_info")
+	}
+	if before.SupportGroupEnabled != after.SupportGroupEnabled {
+		changed = append(changed, "support_group_enabled")
+	}
+	if before.SupportGroupButtonText != after.SupportGroupButtonText {
+		changed = append(changed, "support_group_button_text")
+	}
+	if before.SupportGroupTitle != after.SupportGroupTitle {
+		changed = append(changed, "support_group_title")
+	}
+	if before.SupportGroupDescription != after.SupportGroupDescription {
+		changed = append(changed, "support_group_description")
+	}
+	if before.SupportGroupQRCodeURL != after.SupportGroupQRCodeURL {
+		changed = append(changed, "support_group_qr_code_url")
 	}
 	if before.DocURL != after.DocURL {
 		changed = append(changed, "doc_url")
