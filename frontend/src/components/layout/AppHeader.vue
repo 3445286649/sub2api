@@ -268,7 +268,7 @@
           :aria-label="supportGroupTitle"
           @click.self="closeSupportGroup"
         >
-          <div class="w-full max-w-sm overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-dark-700 dark:bg-dark-900">
+          <div class="w-full max-w-[min(30rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-dark-700 dark:bg-dark-900">
             <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-dark-700">
               <div>
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">
@@ -287,12 +287,12 @@
                 <Icon name="x" size="sm" />
               </button>
             </div>
-            <div class="p-5">
-              <div class="mx-auto flex aspect-square w-64 max-w-full items-center justify-center rounded-2xl border border-gray-200 bg-white p-3 dark:border-dark-700">
+            <div class="bg-gray-50 p-3 dark:bg-dark-950/40 sm:p-4">
+              <div class="mx-auto flex max-h-[min(72vh,42rem)] max-w-full items-center justify-center overflow-hidden rounded-2xl bg-neutral-950 shadow-inner">
                 <img
                   :src="supportGroupQrCodeUrl"
                   :alt="t('nav.supportGroupQrAlt')"
-                  class="h-full w-full rounded-xl object-contain"
+                  class="block h-auto max-h-[min(72vh,42rem)] w-full object-contain"
                 >
               </div>
             </div>
