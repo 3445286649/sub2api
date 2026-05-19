@@ -31,6 +31,7 @@ func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemC
 		SetNotes(code.Notes).
 		SetValidityDays(code.ValidityDays).
 		SetQuotaResetScope(code.QuotaResetScope).
+		SetNillableExpiresAt(code.ExpiresAt).
 		SetNillableUsedBy(code.UsedBy).
 		SetNillableUsedAt(code.UsedAt).
 		SetNillableGroupID(code.GroupID).
@@ -58,6 +59,7 @@ func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.
 			SetNotes(c.Notes).
 			SetValidityDays(c.ValidityDays).
 			SetQuotaResetScope(c.QuotaResetScope).
+			SetNillableExpiresAt(c.ExpiresAt).
 			SetNillableUsedBy(c.UsedBy).
 			SetNillableUsedAt(c.UsedAt).
 			SetNillableGroupID(c.GroupID)
@@ -113,7 +115,28 @@ func (r *redeemCodeRepository) ListWithFilters(ctx context.Context, params pagin
 		q = q.Where(redeemcode.TypeEQ(codeType))
 	}
 	if status != "" {
-		q = q.Where(redeemcode.StatusEQ(status))
+		now := time.Now()
+		switch status {
+		case service.StatusExpired:
+			q = q.Where(redeemcode.Or(
+				redeemcode.StatusEQ(service.StatusExpired),
+				redeemcode.And(
+					redeemcode.StatusEQ(service.StatusUnused),
+					redeemcode.ExpiresAtNotNil(),
+					redeemcode.ExpiresAtLTE(now),
+				),
+			))
+		case service.StatusUnused:
+			q = q.Where(
+				redeemcode.StatusEQ(service.StatusUnused),
+				redeemcode.Or(
+					redeemcode.ExpiresAtIsNil(),
+					redeemcode.ExpiresAtGT(now),
+				),
+			)
+		default:
+			q = q.Where(redeemcode.StatusEQ(status))
+		}
 	}
 	if search != "" {
 		q = q.Where(
@@ -164,6 +187,8 @@ func redeemCodeListOrder(params pagination.PaginationParams) []func(*entsql.Sele
 		field = redeemcode.FieldUsedAt
 	case "created_at":
 		field = redeemcode.FieldCreatedAt
+	case "expires_at":
+		field = redeemcode.FieldExpiresAt
 	case "code":
 		field = redeemcode.FieldCode
 	default:
@@ -200,6 +225,11 @@ func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemC
 		up.SetGroupID(*code.GroupID)
 	} else {
 		up.ClearGroupID()
+	}
+	if code.ExpiresAt != nil {
+		up.SetExpiresAt(*code.ExpiresAt)
+	} else {
+		up.ClearExpiresAt()
 	}
 
 	updated, err := up.Save(ctx)
@@ -314,6 +344,7 @@ func redeemCodeEntityToService(m *dbent.RedeemCode) *service.RedeemCode {
 		UsedAt:          m.UsedAt,
 		Notes:           derefString(m.Notes),
 		CreatedAt:       m.CreatedAt,
+		ExpiresAt:       m.ExpiresAt,
 		GroupID:         m.GroupID,
 		ValidityDays:    m.ValidityDays,
 		QuotaResetScope: m.QuotaResetScope,
