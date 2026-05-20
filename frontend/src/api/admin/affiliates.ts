@@ -49,6 +49,9 @@ export interface AffiliateInviteRecord {
 export interface AffiliateRebateRecord {
   order_id: number
   out_trade_no: string
+  source_type?: 'payment_order' | 'redeem_code' | string
+  redeem_code_id?: number
+  redeem_code?: string
   inviter_id: number
   inviter_email: string
   inviter_username: string
@@ -57,6 +60,7 @@ export interface AffiliateRebateRecord {
   invitee_username: string
   order_amount: number
   pay_amount: number
+  rebate_base_amount?: number
   rebate_amount: number
   payment_type: string
   order_status: string

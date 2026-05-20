@@ -497,6 +497,31 @@ func resToAnthHandleOutputItemDone(evt *ResponsesStreamEvent, state *ResponsesEv
 		return resToAnthHandleWebSearchDone(evt, state)
 	}
 
+	if evt.Item.Type == "function_call" &&
+		state.ContentBlockOpen &&
+		state.CurrentBlockType == "tool_use" &&
+		!state.CurrentToolHadDelta &&
+		evt.Item.Arguments != "" {
+		raw := evt.Item.Arguments
+		if state.CurrentToolName == "Read" {
+			sanitized := sanitizeAnthropicToolUseInput(state.CurrentToolName, raw)
+			if len(sanitized) > 0 {
+				raw = string(sanitized)
+			}
+		}
+		idx := state.ContentBlockIndex
+		events := []AnthropicStreamEvent{{
+			Type:  "content_block_delta",
+			Index: &idx,
+			Delta: &AnthropicDelta{
+				Type:        "input_json_delta",
+				PartialJSON: raw,
+			},
+		}}
+		events = append(events, closeCurrentBlock(state)...)
+		return events
+	}
+
 	if state.ContentBlockOpen {
 		return closeCurrentBlock(state)
 	}

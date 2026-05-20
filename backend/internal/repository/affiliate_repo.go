@@ -162,6 +162,79 @@ VALUES ($1, 'accrue', $2, $3, $4, NOW(), NOW())`, inviterID, amount, inviteeUser
 	return applied, nil
 }
 
+func (r *affiliateRepository) AccrueQuotaFromRedeemCode(ctx context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceRedeemCodeID int64) (bool, error) {
+	if amount <= 0 || sourceRedeemCodeID <= 0 {
+		return false, nil
+	}
+
+	var applied bool
+	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
+		var updateSQL string
+		if freezeHours > 0 {
+			updateSQL = "UPDATE user_affiliates SET aff_frozen_quota = aff_frozen_quota + $1, aff_history_quota = aff_history_quota + $1, updated_at = NOW() WHERE user_id = $2"
+		} else {
+			updateSQL = "UPDATE user_affiliates SET aff_quota = aff_quota + $1, aff_history_quota = aff_history_quota + $1, updated_at = NOW() WHERE user_id = $2"
+		}
+		res, err := txClient.ExecContext(txCtx, updateSQL, amount, inviterID)
+		if err != nil {
+			return err
+		}
+		affected, _ := res.RowsAffected()
+		if affected == 0 {
+			applied = false
+			return nil
+		}
+
+		if freezeHours > 0 {
+			res, err = txClient.ExecContext(txCtx, `
+INSERT INTO user_affiliate_ledger (user_id, action, amount, source_user_id, source_redeem_code_id, frozen_until, created_at, updated_at)
+VALUES ($1, 'accrue', $2, $3, $4, NOW() + make_interval(hours => $5), NOW(), NOW())
+ON CONFLICT (source_redeem_code_id) WHERE action = 'accrue' AND source_redeem_code_id IS NOT NULL DO NOTHING`,
+				inviterID, amount, inviteeUserID, sourceRedeemCodeID, freezeHours)
+		} else {
+			res, err = txClient.ExecContext(txCtx, `
+INSERT INTO user_affiliate_ledger (user_id, action, amount, source_user_id, source_redeem_code_id, created_at, updated_at)
+VALUES ($1, 'accrue', $2, $3, $4, NOW(), NOW())
+ON CONFLICT (source_redeem_code_id) WHERE action = 'accrue' AND source_redeem_code_id IS NOT NULL DO NOTHING`,
+				inviterID, amount, inviteeUserID, sourceRedeemCodeID)
+		}
+		if err != nil {
+			return fmt.Errorf("insert affiliate redeem accrue ledger: %w", err)
+		}
+		inserted, _ := res.RowsAffected()
+		if inserted == 0 {
+			// The unique ledger entry already exists; undo the optimistic quota update.
+			if freezeHours > 0 {
+				_, err = txClient.ExecContext(txCtx, `
+UPDATE user_affiliates
+SET aff_frozen_quota = GREATEST(aff_frozen_quota - $1, 0),
+    aff_history_quota = GREATEST(aff_history_quota - $1, 0),
+    updated_at = NOW()
+WHERE user_id = $2`, amount, inviterID)
+			} else {
+				_, err = txClient.ExecContext(txCtx, `
+UPDATE user_affiliates
+SET aff_quota = GREATEST(aff_quota - $1, 0),
+    aff_history_quota = GREATEST(aff_history_quota - $1, 0),
+    updated_at = NOW()
+WHERE user_id = $2`, amount, inviterID)
+			}
+			if err != nil {
+				return fmt.Errorf("rollback duplicate affiliate redeem quota: %w", err)
+			}
+			applied = false
+			return nil
+		}
+
+		applied = true
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return applied, nil
+}
+
 func (r *affiliateRepository) GetAccruedRebateFromInvitee(ctx context.Context, inviterID, inviteeUserID int64) (float64, error) {
 	client := clientFromContext(ctx, r.client)
 	rows, err := client.QueryContext(ctx,
@@ -465,14 +538,16 @@ func (r *affiliateRepository) ListAffiliateRebateRecords(ctx context.Context, fi
 	where, args := buildAffiliateRecordWhere(filter, "ual.created_at", []string{
 		"inviter.email", "inviter.username", "invitee.email", "invitee.username",
 		"po.id::text", "po.out_trade_no", "po.payment_type", "po.status",
+		"rc.id::text", "rc.code",
 	})
 	baseJoin := `
 FROM user_affiliate_ledger ual
-JOIN payment_orders po ON po.id = ual.source_order_id
+LEFT JOIN payment_orders po ON po.id = ual.source_order_id
+LEFT JOIN redeem_codes rc ON rc.id = ual.source_redeem_code_id
 JOIN users invitee ON invitee.id = ual.source_user_id
 JOIN users inviter ON inviter.id = ual.user_id
 WHERE ual.action = 'accrue'
-  AND ual.source_order_id IS NOT NULL`
+  AND (ual.source_order_id IS NOT NULL OR ual.source_redeem_code_id IS NOT NULL)`
 	if where != "" {
 		where = strings.Replace(where, "WHERE ", " AND ", 1)
 	}
@@ -483,31 +558,37 @@ WHERE ual.action = 'accrue'
 	}
 
 	orderBy := buildAffiliateRecordOrderBy(filter, map[string]string{
-		"order":         "po.id",
-		"inviter":       "inviter.email",
-		"invitee":       "invitee.email",
-		"order_amount":  "po.amount",
-		"pay_amount":    "po.pay_amount",
-		"rebate_amount": "ual.amount",
-		"payment_type":  "po.payment_type",
-		"order_status":  "po.status",
-		"created_at":    "ual.created_at",
+		"order":              "COALESCE(po.id, rc.id)",
+		"source_type":        "CASE WHEN ual.source_order_id IS NOT NULL THEN 'payment_order' ELSE 'redeem_code' END",
+		"inviter":            "inviter.email",
+		"invitee":            "invitee.email",
+		"order_amount":       "COALESCE(po.amount, rc.affiliate_rebate_base_amount)",
+		"pay_amount":         "po.pay_amount",
+		"rebate_base_amount": "COALESCE(rc.affiliate_rebate_base_amount, po.amount)",
+		"rebate_amount":      "ual.amount",
+		"payment_type":       "po.payment_type",
+		"order_status":       "COALESCE(po.status, rc.status)",
+		"created_at":         "ual.created_at",
 	}, "ual.created_at")
 	args = append(args, filter.PageSize, (filter.Page-1)*filter.PageSize)
 	rows, err := client.QueryContext(ctx, `
-SELECT po.id,
-       po.out_trade_no,
+SELECT COALESCE(po.id, 0),
+       COALESCE(po.out_trade_no, ''),
+       CASE WHEN ual.source_order_id IS NOT NULL THEN 'payment_order' ELSE 'redeem_code' END,
+       COALESCE(rc.id, 0),
+       COALESCE(rc.code, ''),
        ual.user_id,
        COALESCE(inviter.email, ''),
        COALESCE(inviter.username, ''),
        ual.source_user_id,
        COALESCE(invitee.email, ''),
        COALESCE(invitee.username, ''),
-       po.amount::double precision,
-       po.pay_amount::double precision,
+       COALESCE(po.amount, rc.affiliate_rebate_base_amount, 0)::double precision,
+       COALESCE(po.pay_amount, 0)::double precision,
+       COALESCE(rc.affiliate_rebate_base_amount, po.amount, 0)::double precision,
        ual.amount::double precision,
-       po.payment_type,
-       po.status,
+       COALESCE(po.payment_type, 'redeem_code'),
+       COALESCE(po.status, rc.status, ''),
        ual.created_at
 `+baseJoin+where+`
 `+orderBy+`
@@ -523,6 +604,9 @@ LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 		if err := rows.Scan(
 			&item.OrderID,
 			&item.OutTradeNo,
+			&item.SourceType,
+			&item.RedeemCodeID,
+			&item.RedeemCode,
 			&item.InviterID,
 			&item.InviterEmail,
 			&item.InviterUsername,
@@ -531,6 +615,7 @@ LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 			&item.InviteeUsername,
 			&item.OrderAmount,
 			&item.PayAmount,
+			&item.RebateBaseAmount,
 			&item.RebateAmount,
 			&item.PaymentType,
 			&item.OrderStatus,

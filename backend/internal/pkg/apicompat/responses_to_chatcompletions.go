@@ -385,6 +385,7 @@ type bufferedFuncCall struct {
 	CallID string
 	Name   string
 	Args   strings.Builder
+	Done   string
 }
 
 // BufferedResponseAccumulator collects content from Responses SSE delta events
@@ -428,6 +429,18 @@ func (a *BufferedResponseAccumulator) ProcessEvent(event *ResponsesStreamEvent) 
 				_, _ = a.funcCalls[idx].Args.WriteString(event.Delta)
 			}
 		}
+	case "response.function_call_arguments.done":
+		if event.Arguments != "" {
+			if idx, ok := a.outputIndexToFuncIdx[event.OutputIndex]; ok {
+				a.funcCalls[idx].Done = event.Arguments
+			}
+		}
+	case "response.output_item.done":
+		if event.Item != nil && event.Item.Type == "function_call" && event.Item.Arguments != "" {
+			if idx, ok := a.outputIndexToFuncIdx[event.OutputIndex]; ok {
+				a.funcCalls[idx].Done = event.Item.Arguments
+			}
+		}
 	case "response.reasoning_summary_text.delta":
 		if event.Delta != "" {
 			_, _ = a.reasoning.WriteString(event.Delta)
@@ -468,11 +481,15 @@ func (a *BufferedResponseAccumulator) BuildOutput() []ResponsesOutput {
 	}
 
 	for i := range a.funcCalls {
+		args := a.funcCalls[i].Args.String()
+		if args == "" {
+			args = a.funcCalls[i].Done
+		}
 		out = append(out, ResponsesOutput{
 			Type:      "function_call",
 			CallID:    a.funcCalls[i].CallID,
 			Name:      a.funcCalls[i].Name,
-			Arguments: a.funcCalls[i].Args.String(),
+			Arguments: args,
 		})
 	}
 

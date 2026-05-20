@@ -330,18 +330,19 @@ type ProxyAccountSummary struct {
 }
 
 type RedeemCode struct {
-	ID        int64      `json:"id"`
-	Code      string     `json:"code"`
-	Type      string     `json:"type"`
-	Value     float64    `json:"value"`
-	Status    string     `json:"status"`
-	UsedBy    *int64     `json:"used_by"`
-	UsedAt    *time.Time `json:"used_at"`
-	CreatedAt time.Time  `json:"created_at"`
-	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	ID                        int64      `json:"id"`
+	Code                      string     `json:"code"`
+	Type                      string     `json:"type"`
+	Value                     float64    `json:"value"`
+	AffiliateRebateBaseAmount float64    `json:"affiliate_rebate_base_amount"`
+	Status                    string     `json:"status"`
+	UsedBy                    *int64     `json:"used_by"`
+	UsedAt                    *time.Time `json:"used_at"`
+	CreatedAt                 time.Time  `json:"created_at"`
+	ExpiresAt                 *time.Time `json:"expires_at,omitempty"`
 
-	GroupID      *int64 `json:"group_id"`
-	ValidityDays int    `json:"validity_days"`
+	GroupID         *int64 `json:"group_id"`
+	ValidityDays    int    `json:"validity_days"`
 	QuotaResetScope string `json:"quota_reset_scope,omitempty"`
 
 	// Notes is only populated for admin_balance/admin_concurrency types

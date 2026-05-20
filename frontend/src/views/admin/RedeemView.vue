@@ -105,6 +105,12 @@
                 <span v-if="row.group" class="ml-1 text-xs text-gray-500 dark:text-gray-400">
                   ({{ row.group.name }})
                 </span>
+                <span
+                  v-if="row.affiliate_rebate_base_amount && row.affiliate_rebate_base_amount > 0"
+                  class="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                >
+                  {{ t('admin.redeem.affiliateRebateBaseShort') }} ${{ formatAmount(row.affiliate_rebate_base_amount) }}
+                </span>
               </template>
               <template v-else-if="row.type === 'subscription_quota_reset'">
                 {{ formatQuotaResetScope(row.quota_reset_scope || 'daily') }}
@@ -317,6 +323,20 @@
                   class="input"
                 />
               </div>
+              <div v-if="generateForm.type === 'subscription'">
+                <label class="input-label">{{ t('admin.redeem.affiliateRebateBase') }}</label>
+                <input
+                  v-model.number="generateForm.affiliate_rebate_base_amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  class="input"
+                  :placeholder="t('admin.redeem.affiliateRebateBasePlaceholder')"
+                />
+                <p class="mt-1 text-xs text-gray-400">
+                  {{ t('admin.redeem.affiliateRebateBaseHint') }}
+                </p>
+              </div>
               <div v-if="generateForm.type === 'subscription_quota_reset'">
                 <label class="input-label">{{ t('admin.redeem.quotaResetScope') }}</label>
                 <Select v-model="generateForm.quota_reset_scope" :options="quotaResetScopeOptions" />
@@ -525,6 +545,8 @@ const formatQuotaResetScope = (scope: string) => {
   return quotaResetScopeLabels[scope] || t(`admin.redeem.quotaResetScopes.${scope}`)
 }
 
+const formatAmount = (value: number | null | undefined) => Number(value || 0).toFixed(2)
+
 // 订阅类型分组选项
 const subscriptionGroupOptions = computed(() => {
   return subscriptionGroups.value
@@ -670,6 +692,7 @@ const generateForm = reactive({
   count: 1,
   group_id: null as number | null,
   validity_days: 30,
+  affiliate_rebate_base_amount: 0,
   quota_reset_scope: 'daily' as 'daily' | 'weekly' | 'monthly' | 'all',
   expiry_option: 'never' as RedeemCodeExpiryOption,
   custom_expiry_days: 7
@@ -804,6 +827,7 @@ const handleGenerateCodes = async () => {
         ? generateForm.group_id
         : undefined,
       generateForm.type === 'subscription' ? generateForm.validity_days : undefined,
+      generateForm.type === 'subscription' ? generateForm.affiliate_rebate_base_amount : undefined,
       generateForm.type === 'subscription_quota_reset' ? generateForm.quota_reset_scope : undefined,
       expiresInDays
     )
@@ -813,6 +837,7 @@ const handleGenerateCodes = async () => {
     // 重置表单
     generateForm.group_id = null
     generateForm.validity_days = 30
+    generateForm.affiliate_rebate_base_amount = 0
     generateForm.quota_reset_scope = 'daily'
     generateForm.expiry_option = 'never'
     generateForm.custom_expiry_days = 7

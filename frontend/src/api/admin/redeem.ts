@@ -69,6 +69,7 @@ export async function generate(
   value: number,
   groupId?: number | null,
   validityDays?: number,
+  affiliateRebateBaseAmount?: number,
   quotaResetScope?: 'daily' | 'weekly' | 'monthly' | 'all',
   expiresInDays?: number | null
 ): Promise<RedeemCode[]> {
@@ -81,6 +82,7 @@ export async function generate(
   // 订阅类型专用字段
   if (type === 'subscription') {
     payload.group_id = groupId
+    payload.affiliate_rebate_base_amount = Math.max(0, Number(affiliateRebateBaseAmount) || 0)
     if (validityDays && validityDays > 0) {
       payload.validity_days = validityDays
     }

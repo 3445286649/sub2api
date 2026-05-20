@@ -170,6 +170,63 @@ func TestAffiliateRepository_AccrueQuota_ReusesOuterTransaction(t *testing.T) {
 		"AccrueQuota must propagate the outer tx — found persisted rows after rollback")
 }
 
+func TestAffiliateRepository_AccrueQuotaFromRedeemCode_Idempotent(t *testing.T) {
+	ctx := context.Background()
+	tx := testEntTx(t)
+	txCtx := dbent.NewTxContext(ctx, tx)
+	client := tx.Client()
+
+	repo := NewAffiliateRepository(client, integrationDB)
+
+	inviter := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("affiliate-redeem-inviter-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Role:         service.RoleUser,
+		Status:       service.StatusActive,
+		Concurrency:  5,
+	})
+	invitee := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("affiliate-redeem-invitee-%d@example.com", time.Now().UnixNano()+1),
+		PasswordHash: "hash",
+		Role:         service.RoleUser,
+		Status:       service.StatusActive,
+		Concurrency:  5,
+	})
+	_, err := repo.EnsureUserAffiliate(txCtx, inviter.ID)
+	require.NoError(t, err)
+	_, err = repo.EnsureUserAffiliate(txCtx, invitee.ID)
+	require.NoError(t, err)
+
+	redeemCode, err := client.RedeemCode.Create().
+		SetCode(fmt.Sprintf("SUBAFF%09d", time.Now().UnixNano()%1_000_000_000)).
+		SetType(service.RedeemTypeSubscription).
+		SetValue(100).
+		SetAffiliateRebateBaseAmount(100).
+		SetStatus(service.StatusUsed).
+		Save(txCtx)
+	require.NoError(t, err)
+
+	applied, err := repo.AccrueQuotaFromRedeemCode(txCtx, inviter.ID, invitee.ID, 5, 0, redeemCode.ID)
+	require.NoError(t, err)
+	require.True(t, applied)
+
+	applied, err = repo.AccrueQuotaFromRedeemCode(txCtx, inviter.ID, invitee.ID, 5, 0, redeemCode.ID)
+	require.NoError(t, err)
+	require.False(t, applied, "same redeem code must not accrue twice")
+
+	quota := querySingleFloat(t, txCtx, client,
+		"SELECT aff_quota::double precision FROM user_affiliates WHERE user_id = $1", inviter.ID)
+	require.InDelta(t, 5.0, quota, 1e-9)
+	history := querySingleFloat(t, txCtx, client,
+		"SELECT aff_history_quota::double precision FROM user_affiliates WHERE user_id = $1", inviter.ID)
+	require.InDelta(t, 5.0, history, 1e-9)
+
+	ledgerCount := querySingleInt(t, txCtx, client,
+		"SELECT COUNT(*) FROM user_affiliate_ledger WHERE user_id = $1 AND source_user_id = $2 AND source_redeem_code_id = $3 AND action = 'accrue'",
+		inviter.ID, invitee.ID, redeemCode.ID)
+	require.Equal(t, 1, ledgerCount)
+}
+
 func TestAffiliateRepository_TransferQuotaToBalance_EmptyQuota(t *testing.T) {
 	ctx := context.Background()
 	tx := testEntTx(t)

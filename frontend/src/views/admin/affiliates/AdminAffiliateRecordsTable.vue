@@ -58,12 +58,22 @@
           </template>
           <template #cell-order="{ row }">
             <div class="space-y-0.5">
-              <div class="font-mono text-sm text-gray-900 dark:text-white">#{{ row.order_id }}</div>
-              <div class="max-w-56 truncate text-sm text-gray-500 dark:text-dark-400">{{ row.out_trade_no }}</div>
+              <div class="font-mono text-sm text-gray-900 dark:text-white">
+                <template v-if="row.source_type === 'redeem_code'">
+                  {{ t('admin.affiliates.records.sourceRedeemCode') }} #{{ row.redeem_code_id }}
+                </template>
+                <template v-else>#{{ row.order_id }}</template>
+              </div>
+              <div class="max-w-56 truncate text-sm text-gray-500 dark:text-dark-400">
+                {{ row.source_type === 'redeem_code' ? row.redeem_code : row.out_trade_no }}
+              </div>
             </div>
           </template>
           <template #cell-payment_type="{ row }">
-            {{ t('payment.methods.' + row.payment_type, row.payment_type || '-') }}
+            <template v-if="row.source_type === 'redeem_code'">
+              {{ t('admin.affiliates.records.sourceRedeemCode') }}
+            </template>
+            <template v-else>{{ t('payment.methods.' + row.payment_type, row.payment_type || '-') }}</template>
           </template>
           <template #cell-order_status="{ row }">
             <OrderStatusBadge :status="row.order_status" />
@@ -75,7 +85,8 @@
             <AmountText :value="row.order_amount" />
           </template>
           <template #cell-pay_amount="{ row }">
-            <span class="text-sm text-gray-900 dark:text-white">¥{{ formatAmount(row.pay_amount) }}</span>
+            <span v-if="row.source_type === 'redeem_code'" class="text-sm text-gray-500 dark:text-dark-400">-</span>
+            <span v-else class="text-sm text-gray-900 dark:text-white">¥{{ formatAmount(row.pay_amount) }}</span>
           </template>
           <template #cell-rebate_amount="{ row }">
             <AmountText :value="row.rebate_amount" strong />
@@ -191,7 +202,7 @@ const columns = computed<Column[]>(() => {
       { key: 'order', label: t('admin.affiliates.records.order'), sortable: true },
       { key: 'inviter', label: t('admin.affiliates.records.inviter'), sortable: true },
       { key: 'invitee', label: t('admin.affiliates.records.invitee'), sortable: true },
-      { key: 'order_amount', label: t('admin.affiliates.records.orderAmount'), sortable: true },
+      { key: 'order_amount', label: t('admin.affiliates.records.rebateBaseAmount'), sortable: true },
       { key: 'pay_amount', label: t('admin.affiliates.records.payAmount'), sortable: true },
       { key: 'rebate_amount', label: t('admin.affiliates.records.rebateAmount') },
       { key: 'payment_type', label: t('admin.affiliates.records.paymentType'), sortable: true },

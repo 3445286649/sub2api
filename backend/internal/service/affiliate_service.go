@@ -99,6 +99,7 @@ type AffiliateRepository interface {
 	GetAffiliateByCode(ctx context.Context, code string) (*AffiliateSummary, error)
 	BindInviter(ctx context.Context, userID, inviterID int64) (bool, error)
 	AccrueQuota(ctx context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64) (bool, error)
+	AccrueQuotaFromRedeemCode(ctx context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceRedeemCodeID int64) (bool, error)
 	GetAccruedRebateFromInvitee(ctx context.Context, inviterID, inviteeUserID int64) (float64, error)
 	ThawFrozenQuota(ctx context.Context, userID int64) (float64, error)
 	TransferQuotaToBalance(ctx context.Context, userID int64) (float64, float64, error)
@@ -157,20 +158,24 @@ type AffiliateInviteRecord struct {
 }
 
 type AffiliateRebateRecord struct {
-	OrderID         int64     `json:"order_id"`
-	OutTradeNo      string    `json:"out_trade_no"`
-	InviterID       int64     `json:"inviter_id"`
-	InviterEmail    string    `json:"inviter_email"`
-	InviterUsername string    `json:"inviter_username"`
-	InviteeID       int64     `json:"invitee_id"`
-	InviteeEmail    string    `json:"invitee_email"`
-	InviteeUsername string    `json:"invitee_username"`
-	OrderAmount     float64   `json:"order_amount"`
-	PayAmount       float64   `json:"pay_amount"`
-	RebateAmount    float64   `json:"rebate_amount"`
-	PaymentType     string    `json:"payment_type"`
-	OrderStatus     string    `json:"order_status"`
-	CreatedAt       time.Time `json:"created_at"`
+	OrderID          int64     `json:"order_id"`
+	OutTradeNo       string    `json:"out_trade_no"`
+	SourceType       string    `json:"source_type"`
+	RedeemCodeID     int64     `json:"redeem_code_id"`
+	RedeemCode       string    `json:"redeem_code"`
+	InviterID        int64     `json:"inviter_id"`
+	InviterEmail     string    `json:"inviter_email"`
+	InviterUsername  string    `json:"inviter_username"`
+	InviteeID        int64     `json:"invitee_id"`
+	InviteeEmail     string    `json:"invitee_email"`
+	InviteeUsername  string    `json:"invitee_username"`
+	OrderAmount      float64   `json:"order_amount"`
+	PayAmount        float64   `json:"pay_amount"`
+	RebateBaseAmount float64   `json:"rebate_base_amount"`
+	RebateAmount     float64   `json:"rebate_amount"`
+	PaymentType      string    `json:"payment_type"`
+	OrderStatus      string    `json:"order_status"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 type AffiliateTransferRecord struct {
@@ -377,6 +382,73 @@ func (s *AffiliateService) AccrueInviteRebateForOrder(ctx context.Context, invit
 	}
 
 	applied, err := s.repo.AccrueQuota(ctx, *inviteeSummary.InviterID, inviteeUserID, rebate, freezeHours, sourceOrderID)
+	if err != nil {
+		return 0, err
+	}
+	if !applied {
+		return 0, nil
+	}
+	return rebate, nil
+}
+
+func (s *AffiliateService) AccrueInviteRebateForRedeemCode(ctx context.Context, inviteeUserID int64, baseAmount float64, sourceRedeemCodeID int64) (float64, error) {
+	if s == nil || s.repo == nil {
+		return 0, nil
+	}
+	if sourceRedeemCodeID <= 0 || inviteeUserID <= 0 || baseAmount <= 0 || math.IsNaN(baseAmount) || math.IsInf(baseAmount, 0) {
+		return 0, nil
+	}
+	if !s.IsEnabled(ctx) {
+		return 0, nil
+	}
+
+	inviteeSummary, err := s.repo.EnsureUserAffiliate(ctx, inviteeUserID)
+	if err != nil {
+		return 0, err
+	}
+	if inviteeSummary.InviterID == nil || *inviteeSummary.InviterID <= 0 {
+		return 0, nil
+	}
+
+	inviterSummary, err := s.repo.EnsureUserAffiliate(ctx, *inviteeSummary.InviterID)
+	if err != nil {
+		return 0, err
+	}
+	if s.settingService != nil {
+		if durationDays := s.settingService.GetAffiliateRebateDurationDays(ctx); durationDays > 0 {
+			if time.Now().After(inviteeSummary.CreatedAt.AddDate(0, 0, durationDays)) {
+				return 0, nil
+			}
+		}
+	}
+
+	rebateRatePercent := s.resolveRebateRatePercent(ctx, inviterSummary)
+	rebate := roundTo(baseAmount*(rebateRatePercent/100), 8)
+	if rebate <= 0 {
+		return 0, nil
+	}
+
+	if s.settingService != nil {
+		if perInviteeCap := s.settingService.GetAffiliateRebatePerInviteeCap(ctx); perInviteeCap > 0 {
+			existing, err := s.repo.GetAccruedRebateFromInvitee(ctx, *inviteeSummary.InviterID, inviteeUserID)
+			if err != nil {
+				return 0, err
+			}
+			if existing >= perInviteeCap {
+				return 0, nil
+			}
+			if remaining := perInviteeCap - existing; rebate > remaining {
+				rebate = roundTo(remaining, 8)
+			}
+		}
+	}
+
+	var freezeHours int
+	if s.settingService != nil {
+		freezeHours = s.settingService.GetAffiliateRebateFreezeHours(ctx)
+	}
+
+	applied, err := s.repo.AccrueQuotaFromRedeemCode(ctx, *inviteeSummary.InviterID, inviteeUserID, rebate, freezeHours, sourceRedeemCodeID)
 	if err != nil {
 		return 0, err
 	}

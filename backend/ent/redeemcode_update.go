@@ -79,6 +79,27 @@ func (_u *RedeemCodeUpdate) AddValue(v float64) *RedeemCodeUpdate {
 	return _u
 }
 
+// SetAffiliateRebateBaseAmount sets the "affiliate_rebate_base_amount" field.
+func (_u *RedeemCodeUpdate) SetAffiliateRebateBaseAmount(v float64) *RedeemCodeUpdate {
+	_u.mutation.ResetAffiliateRebateBaseAmount()
+	_u.mutation.SetAffiliateRebateBaseAmount(v)
+	return _u
+}
+
+// SetNillableAffiliateRebateBaseAmount sets the "affiliate_rebate_base_amount" field if the given value is not nil.
+func (_u *RedeemCodeUpdate) SetNillableAffiliateRebateBaseAmount(v *float64) *RedeemCodeUpdate {
+	if v != nil {
+		_u.SetAffiliateRebateBaseAmount(*v)
+	}
+	return _u
+}
+
+// AddAffiliateRebateBaseAmount adds value to the "affiliate_rebate_base_amount" field.
+func (_u *RedeemCodeUpdate) AddAffiliateRebateBaseAmount(v float64) *RedeemCodeUpdate {
+	_u.mutation.AddAffiliateRebateBaseAmount(v)
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *RedeemCodeUpdate) SetStatus(v string) *RedeemCodeUpdate {
 	_u.mutation.SetStatus(v)
@@ -345,6 +366,12 @@ func (_u *RedeemCodeUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.AddedValue(); ok {
 		_spec.AddField(redeemcode.FieldValue, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.AffiliateRebateBaseAmount(); ok {
+		_spec.SetField(redeemcode.FieldAffiliateRebateBaseAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAffiliateRebateBaseAmount(); ok {
+		_spec.AddField(redeemcode.FieldAffiliateRebateBaseAmount, field.TypeFloat64, value)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(redeemcode.FieldStatus, field.TypeString, value)
 	}
@@ -499,6 +526,27 @@ func (_u *RedeemCodeUpdateOne) SetNillableValue(v *float64) *RedeemCodeUpdateOne
 // AddValue adds value to the "value" field.
 func (_u *RedeemCodeUpdateOne) AddValue(v float64) *RedeemCodeUpdateOne {
 	_u.mutation.AddValue(v)
+	return _u
+}
+
+// SetAffiliateRebateBaseAmount sets the "affiliate_rebate_base_amount" field.
+func (_u *RedeemCodeUpdateOne) SetAffiliateRebateBaseAmount(v float64) *RedeemCodeUpdateOne {
+	_u.mutation.ResetAffiliateRebateBaseAmount()
+	_u.mutation.SetAffiliateRebateBaseAmount(v)
+	return _u
+}
+
+// SetNillableAffiliateRebateBaseAmount sets the "affiliate_rebate_base_amount" field if the given value is not nil.
+func (_u *RedeemCodeUpdateOne) SetNillableAffiliateRebateBaseAmount(v *float64) *RedeemCodeUpdateOne {
+	if v != nil {
+		_u.SetAffiliateRebateBaseAmount(*v)
+	}
+	return _u
+}
+
+// AddAffiliateRebateBaseAmount adds value to the "affiliate_rebate_base_amount" field.
+func (_u *RedeemCodeUpdateOne) AddAffiliateRebateBaseAmount(v float64) *RedeemCodeUpdateOne {
+	_u.mutation.AddAffiliateRebateBaseAmount(v)
 	return _u
 }
 
@@ -797,6 +845,12 @@ func (_u *RedeemCodeUpdateOne) sqlSave(ctx context.Context) (_node *RedeemCode, 
 	}
 	if value, ok := _u.mutation.AddedValue(); ok {
 		_spec.AddField(redeemcode.FieldValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AffiliateRebateBaseAmount(); ok {
+		_spec.SetField(redeemcode.FieldAffiliateRebateBaseAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAffiliateRebateBaseAmount(); ok {
+		_spec.AddField(redeemcode.FieldAffiliateRebateBaseAmount, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(redeemcode.FieldStatus, field.TypeString, value)

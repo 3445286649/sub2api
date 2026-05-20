@@ -209,6 +209,9 @@ func (s *RedeemService) CreateCode(ctx context.Context, code *RedeemCode) error 
 	if code.Type == "" {
 		code.Type = RedeemTypeBalance
 	}
+	if code.Type != RedeemTypeSubscription || code.AffiliateRebateBaseAmount < 0 {
+		code.AffiliateRebateBaseAmount = 0
+	}
 	if code.Type != RedeemTypeInvitation && code.Type != RedeemTypeSubscriptionQuotaReset && code.Value == 0 {
 		return errors.New("value must not be zero")
 	}
@@ -426,6 +429,9 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	if redeemCode.Type == RedeemTypeBalance && redeemCode.Value > 0 {
 		s.tryAccrueAffiliateRebateForRedeem(ctx, userID, redeemCode.Value)
 	}
+	if redeemCode.Type == RedeemTypeSubscription && redeemCode.ValidityDays > 0 && redeemCode.AffiliateRebateBaseAmount > 0 {
+		s.tryAccrueAffiliateRebateForSubscriptionRedeem(ctx, userID, redeemCode.AffiliateRebateBaseAmount, redeemCode.ID)
+	}
 
 	// 重新获取更新后的兑换码
 	redeemCode, err = s.redeemRepo.GetByID(ctx, redeemCode.ID)
@@ -544,6 +550,26 @@ func (s *RedeemService) tryAccrueAffiliateRebateForRedeem(ctx context.Context, u
 	}
 	if rebate > 0 {
 		logger.LegacyPrintf("service.redeem", "[Redeem] affiliate rebate accrued %.8f for inviter of user %d", rebate, userID)
+	}
+}
+
+func (s *RedeemService) tryAccrueAffiliateRebateForSubscriptionRedeem(ctx context.Context, userID int64, baseAmount float64, redeemCodeID int64) {
+	if ctx.Value(ctxKeySkipRedeemAffiliate{}) != nil {
+		return
+	}
+	if s.affiliateService == nil {
+		return
+	}
+	if !s.affiliateService.IsEnabled(ctx) {
+		return
+	}
+	rebate, err := s.affiliateService.AccrueInviteRebateForRedeemCode(ctx, userID, baseAmount, redeemCodeID)
+	if err != nil {
+		logger.LegacyPrintf("service.redeem", "[Redeem] subscription affiliate rebate failed for user %d redeem_code_id %d base %.2f: %v", userID, redeemCodeID, baseAmount, err)
+		return
+	}
+	if rebate > 0 {
+		logger.LegacyPrintf("service.redeem", "[Redeem] subscription affiliate rebate accrued %.8f for inviter of user %d redeem_code_id %d", rebate, userID, redeemCodeID)
 	}
 }
 

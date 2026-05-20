@@ -392,13 +392,14 @@ type UpdateProxyInput struct {
 }
 
 type GenerateRedeemCodesInput struct {
-	Count           int
-	Type            string
-	Value           float64
-	GroupID         *int64 // 订阅类型专用：关联的分组ID
-	ValidityDays    int    // 订阅类型专用：有效天数
-	QuotaResetScope string // 订阅额度刷新码专用
-	ExpiresAt       *time.Time
+	Count                     int
+	Type                      string
+	Value                     float64
+	AffiliateRebateBaseAmount float64
+	GroupID                   *int64 // 订阅类型专用：关联的分组ID
+	ValidityDays              int    // 订阅类型专用：有效天数
+	QuotaResetScope           string // 订阅额度刷新码专用
+	ExpiresAt                 *time.Time
 }
 
 type ProxyBatchDeleteResult struct {
@@ -3013,11 +3014,12 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 			return nil, err
 		}
 		code := RedeemCode{
-			Code:      codeValue,
-			Type:      input.Type,
-			Value:     input.Value,
-			Status:    StatusUnused,
-			ExpiresAt: input.ExpiresAt,
+			Code:                      codeValue,
+			Type:                      input.Type,
+			Value:                     input.Value,
+			AffiliateRebateBaseAmount: input.AffiliateRebateBaseAmount,
+			Status:                    StatusUnused,
+			ExpiresAt:                 input.ExpiresAt,
 		}
 		// 订阅类型专用字段
 		if input.Type == RedeemTypeSubscription {
@@ -3026,6 +3028,11 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 			if code.ValidityDays <= 0 {
 				code.ValidityDays = 30 // 默认30天
 			}
+			if code.AffiliateRebateBaseAmount < 0 {
+				code.AffiliateRebateBaseAmount = 0
+			}
+		} else {
+			code.AffiliateRebateBaseAmount = 0
 		}
 		if input.Type == RedeemTypeSubscriptionQuotaReset {
 			code.GroupID = input.GroupID

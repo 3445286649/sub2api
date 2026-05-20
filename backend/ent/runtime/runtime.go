@@ -1375,22 +1375,26 @@ func init() {
 	redeemcodeDescValue := redeemcodeFields[2].Descriptor()
 	// redeemcode.DefaultValue holds the default value on creation for the value field.
 	redeemcode.DefaultValue = redeemcodeDescValue.Default.(float64)
+	// redeemcodeDescAffiliateRebateBaseAmount is the schema descriptor for affiliate_rebate_base_amount field.
+	redeemcodeDescAffiliateRebateBaseAmount := redeemcodeFields[3].Descriptor()
+	// redeemcode.DefaultAffiliateRebateBaseAmount holds the default value on creation for the affiliate_rebate_base_amount field.
+	redeemcode.DefaultAffiliateRebateBaseAmount = redeemcodeDescAffiliateRebateBaseAmount.Default.(float64)
 	// redeemcodeDescStatus is the schema descriptor for status field.
-	redeemcodeDescStatus := redeemcodeFields[3].Descriptor()
+	redeemcodeDescStatus := redeemcodeFields[4].Descriptor()
 	// redeemcode.DefaultStatus holds the default value on creation for the status field.
 	redeemcode.DefaultStatus = redeemcodeDescStatus.Default.(string)
 	// redeemcode.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	redeemcode.StatusValidator = redeemcodeDescStatus.Validators[0].(func(string) error)
 	// redeemcodeDescCreatedAt is the schema descriptor for created_at field.
-	redeemcodeDescCreatedAt := redeemcodeFields[7].Descriptor()
+	redeemcodeDescCreatedAt := redeemcodeFields[8].Descriptor()
 	// redeemcode.DefaultCreatedAt holds the default value on creation for the created_at field.
 	redeemcode.DefaultCreatedAt = redeemcodeDescCreatedAt.Default.(func() time.Time)
 	// redeemcodeDescValidityDays is the schema descriptor for validity_days field.
-	redeemcodeDescValidityDays := redeemcodeFields[10].Descriptor()
+	redeemcodeDescValidityDays := redeemcodeFields[11].Descriptor()
 	// redeemcode.DefaultValidityDays holds the default value on creation for the validity_days field.
 	redeemcode.DefaultValidityDays = redeemcodeDescValidityDays.Default.(int)
 	// redeemcodeDescQuotaResetScope is the schema descriptor for quota_reset_scope field.
-	redeemcodeDescQuotaResetScope := redeemcodeFields[11].Descriptor()
+	redeemcodeDescQuotaResetScope := redeemcodeFields[12].Descriptor()
 	// redeemcode.DefaultQuotaResetScope holds the default value on creation for the quota_reset_scope field.
 	redeemcode.DefaultQuotaResetScope = redeemcodeDescQuotaResetScope.Default.(string)
 	// redeemcode.QuotaResetScopeValidator is a validator for the "quota_reset_scope" field. It is called by the builders before save.

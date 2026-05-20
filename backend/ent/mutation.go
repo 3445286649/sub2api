@@ -28591,29 +28591,31 @@ func (m *ProxyMutation) ResetEdge(name string) error {
 // RedeemCodeMutation represents an operation that mutates the RedeemCode nodes in the graph.
 type RedeemCodeMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *int64
-	code              *string
-	_type             *string
-	value             *float64
-	addvalue          *float64
-	status            *string
-	used_at           *time.Time
-	notes             *string
-	created_at        *time.Time
-	expires_at        *time.Time
-	validity_days     *int
-	addvalidity_days  *int
-	quota_reset_scope *string
-	clearedFields     map[string]struct{}
-	user              *int64
-	cleareduser       bool
-	group             *int64
-	clearedgroup      bool
-	done              bool
-	oldValue          func(context.Context) (*RedeemCode, error)
-	predicates        []predicate.RedeemCode
+	op                              Op
+	typ                             string
+	id                              *int64
+	code                            *string
+	_type                           *string
+	value                           *float64
+	addvalue                        *float64
+	affiliate_rebate_base_amount    *float64
+	addaffiliate_rebate_base_amount *float64
+	status                          *string
+	used_at                         *time.Time
+	notes                           *string
+	created_at                      *time.Time
+	expires_at                      *time.Time
+	validity_days                   *int
+	addvalidity_days                *int
+	quota_reset_scope               *string
+	clearedFields                   map[string]struct{}
+	user                            *int64
+	cleareduser                     bool
+	group                           *int64
+	clearedgroup                    bool
+	done                            bool
+	oldValue                        func(context.Context) (*RedeemCode, error)
+	predicates                      []predicate.RedeemCode
 }
 
 var _ ent.Mutation = (*RedeemCodeMutation)(nil)
@@ -28840,6 +28842,62 @@ func (m *RedeemCodeMutation) AddedValue() (r float64, exists bool) {
 func (m *RedeemCodeMutation) ResetValue() {
 	m.value = nil
 	m.addvalue = nil
+}
+
+// SetAffiliateRebateBaseAmount sets the "affiliate_rebate_base_amount" field.
+func (m *RedeemCodeMutation) SetAffiliateRebateBaseAmount(f float64) {
+	m.affiliate_rebate_base_amount = &f
+	m.addaffiliate_rebate_base_amount = nil
+}
+
+// AffiliateRebateBaseAmount returns the value of the "affiliate_rebate_base_amount" field in the mutation.
+func (m *RedeemCodeMutation) AffiliateRebateBaseAmount() (r float64, exists bool) {
+	v := m.affiliate_rebate_base_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAffiliateRebateBaseAmount returns the old "affiliate_rebate_base_amount" field's value of the RedeemCode entity.
+// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeMutation) OldAffiliateRebateBaseAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAffiliateRebateBaseAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAffiliateRebateBaseAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAffiliateRebateBaseAmount: %w", err)
+	}
+	return oldValue.AffiliateRebateBaseAmount, nil
+}
+
+// AddAffiliateRebateBaseAmount adds f to the "affiliate_rebate_base_amount" field.
+func (m *RedeemCodeMutation) AddAffiliateRebateBaseAmount(f float64) {
+	if m.addaffiliate_rebate_base_amount != nil {
+		*m.addaffiliate_rebate_base_amount += f
+	} else {
+		m.addaffiliate_rebate_base_amount = &f
+	}
+}
+
+// AddedAffiliateRebateBaseAmount returns the value that was added to the "affiliate_rebate_base_amount" field in this mutation.
+func (m *RedeemCodeMutation) AddedAffiliateRebateBaseAmount() (r float64, exists bool) {
+	v := m.addaffiliate_rebate_base_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAffiliateRebateBaseAmount resets all changes to the "affiliate_rebate_base_amount" field.
+func (m *RedeemCodeMutation) ResetAffiliateRebateBaseAmount() {
+	m.affiliate_rebate_base_amount = nil
+	m.addaffiliate_rebate_base_amount = nil
 }
 
 // SetStatus sets the "status" field.
@@ -29352,7 +29410,7 @@ func (m *RedeemCodeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RedeemCodeMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.code != nil {
 		fields = append(fields, redeemcode.FieldCode)
 	}
@@ -29361,6 +29419,9 @@ func (m *RedeemCodeMutation) Fields() []string {
 	}
 	if m.value != nil {
 		fields = append(fields, redeemcode.FieldValue)
+	}
+	if m.affiliate_rebate_base_amount != nil {
+		fields = append(fields, redeemcode.FieldAffiliateRebateBaseAmount)
 	}
 	if m.status != nil {
 		fields = append(fields, redeemcode.FieldStatus)
@@ -29403,6 +29464,8 @@ func (m *RedeemCodeMutation) Field(name string) (ent.Value, bool) {
 		return m.GetType()
 	case redeemcode.FieldValue:
 		return m.Value()
+	case redeemcode.FieldAffiliateRebateBaseAmount:
+		return m.AffiliateRebateBaseAmount()
 	case redeemcode.FieldStatus:
 		return m.Status()
 	case redeemcode.FieldUsedBy:
@@ -29436,6 +29499,8 @@ func (m *RedeemCodeMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldType(ctx)
 	case redeemcode.FieldValue:
 		return m.OldValue(ctx)
+	case redeemcode.FieldAffiliateRebateBaseAmount:
+		return m.OldAffiliateRebateBaseAmount(ctx)
 	case redeemcode.FieldStatus:
 		return m.OldStatus(ctx)
 	case redeemcode.FieldUsedBy:
@@ -29483,6 +29548,13 @@ func (m *RedeemCodeMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetValue(v)
+		return nil
+	case redeemcode.FieldAffiliateRebateBaseAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAffiliateRebateBaseAmount(v)
 		return nil
 	case redeemcode.FieldStatus:
 		v, ok := value.(string)
@@ -29558,6 +29630,9 @@ func (m *RedeemCodeMutation) AddedFields() []string {
 	if m.addvalue != nil {
 		fields = append(fields, redeemcode.FieldValue)
 	}
+	if m.addaffiliate_rebate_base_amount != nil {
+		fields = append(fields, redeemcode.FieldAffiliateRebateBaseAmount)
+	}
 	if m.addvalidity_days != nil {
 		fields = append(fields, redeemcode.FieldValidityDays)
 	}
@@ -29571,6 +29646,8 @@ func (m *RedeemCodeMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case redeemcode.FieldValue:
 		return m.AddedValue()
+	case redeemcode.FieldAffiliateRebateBaseAmount:
+		return m.AddedAffiliateRebateBaseAmount()
 	case redeemcode.FieldValidityDays:
 		return m.AddedValidityDays()
 	}
@@ -29588,6 +29665,13 @@ func (m *RedeemCodeMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddValue(v)
+		return nil
+	case redeemcode.FieldAffiliateRebateBaseAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAffiliateRebateBaseAmount(v)
 		return nil
 	case redeemcode.FieldValidityDays:
 		v, ok := value.(int)
@@ -29664,6 +29748,9 @@ func (m *RedeemCodeMutation) ResetField(name string) error {
 		return nil
 	case redeemcode.FieldValue:
 		m.ResetValue()
+		return nil
+	case redeemcode.FieldAffiliateRebateBaseAmount:
+		m.ResetAffiliateRebateBaseAmount()
 		return nil
 	case redeemcode.FieldStatus:
 		m.ResetStatus()

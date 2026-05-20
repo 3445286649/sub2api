@@ -296,6 +296,30 @@ func TestResponsesToAnthropic_ToolUse(t *testing.T) {
 	assert.JSONEq(t, `{"city":"NYC"}`, string(anth.Content[1].Input))
 }
 
+func TestResponsesToAnthropic_EditToolInputPreserved(t *testing.T) {
+	resp := &ResponsesResponse{
+		ID:     "msg_test",
+		Model:  "claude-sonnet-4-6",
+		Status: "completed",
+		Output: []ResponsesOutput{
+			{
+				Type:      "function_call",
+				CallID:    "toolu_test",
+				Name:      "Edit",
+				Arguments: `{"file_path":"/tmp/a.py","old_string":"a = 1","new_string":"a = 2"}`,
+			},
+		},
+	}
+
+	anth := ResponsesToAnthropic(resp, "claude-sonnet-4-6")
+	assert.Equal(t, "tool_use", anth.StopReason)
+	require.Len(t, anth.Content, 1)
+	assert.Equal(t, "tool_use", anth.Content[0].Type)
+	assert.Equal(t, "toolu_test", anth.Content[0].ID)
+	assert.Equal(t, "Edit", anth.Content[0].Name)
+	assert.JSONEq(t, `{"file_path":"/tmp/a.py","old_string":"a = 1","new_string":"a = 2"}`, string(anth.Content[0].Input))
+}
+
 func TestResponsesToAnthropic_ToolUseStopReasonDoesNotDependOnLastBlock(t *testing.T) {
 	resp := &ResponsesResponse{
 		ID:     "resp_tool_then_text",
@@ -688,6 +712,87 @@ func TestStreamingToolCallDoneWithoutDeltaEmitsArguments(t *testing.T) {
 	assert.Equal(t, "content_block_delta", events[0].Type)
 	assert.Equal(t, "input_json_delta", events[0].Delta.Type)
 	assert.JSONEq(t, `{"command":"git -C \"/mnt/d/nodejs/other/edmt\" status --short --ignored"}`, events[0].Delta.PartialJSON)
+	assert.Equal(t, "content_block_stop", events[1].Type)
+}
+
+func TestStreamingEditToolCallInputJSONDeltaFragments(t *testing.T) {
+	state := NewResponsesEventToAnthropicState()
+
+	ResponsesEventToAnthropicEvents(&ResponsesStreamEvent{
+		Type:     "response.created",
+		Response: &ResponsesResponse{ID: "msg_test", Model: "claude-sonnet-4-6"},
+	}, state)
+
+	events := ResponsesEventToAnthropicEvents(&ResponsesStreamEvent{
+		Type:        "response.output_item.added",
+		OutputIndex: 0,
+		Item:        &ResponsesOutput{Type: "function_call", CallID: "toolu_test", Name: "Edit"},
+	}, state)
+	require.Len(t, events, 1)
+	assert.Equal(t, "content_block_start", events[0].Type)
+	assert.Equal(t, "tool_use", events[0].ContentBlock.Type)
+	assert.JSONEq(t, `{}`, string(events[0].ContentBlock.Input))
+
+	fragments := []string{
+		`{"file_path":"/tmp/a.py",`,
+		`"old_string":"a = 1",`,
+		`"new_string":"a = 2"}`,
+	}
+	var merged string
+	for _, fragment := range fragments {
+		events = ResponsesEventToAnthropicEvents(&ResponsesStreamEvent{
+			Type:        "response.function_call_arguments.delta",
+			OutputIndex: 0,
+			Delta:       fragment,
+		}, state)
+		require.Len(t, events, 1)
+		assert.Equal(t, "content_block_delta", events[0].Type)
+		assert.Equal(t, "input_json_delta", events[0].Delta.Type)
+		assert.Equal(t, fragment, events[0].Delta.PartialJSON)
+		merged += events[0].Delta.PartialJSON
+	}
+	assert.JSONEq(t, `{"file_path":"/tmp/a.py","old_string":"a = 1","new_string":"a = 2"}`, merged)
+
+	events = ResponsesEventToAnthropicEvents(&ResponsesStreamEvent{
+		Type:        "response.function_call_arguments.done",
+		OutputIndex: 0,
+		Arguments:   merged,
+	}, state)
+	require.Len(t, events, 1)
+	assert.Equal(t, "content_block_stop", events[0].Type)
+}
+
+func TestStreamingToolCallOutputItemDoneOnlyEmitsArguments(t *testing.T) {
+	state := NewResponsesEventToAnthropicState()
+
+	ResponsesEventToAnthropicEvents(&ResponsesStreamEvent{
+		Type:     "response.created",
+		Response: &ResponsesResponse{ID: "msg_done_item", Model: "claude-sonnet-4-6"},
+	}, state)
+
+	events := ResponsesEventToAnthropicEvents(&ResponsesStreamEvent{
+		Type:        "response.output_item.added",
+		OutputIndex: 0,
+		Item:        &ResponsesOutput{Type: "function_call", CallID: "toolu_test", Name: "Write"},
+	}, state)
+	require.Len(t, events, 1)
+	assert.Equal(t, "content_block_start", events[0].Type)
+	assert.JSONEq(t, `{}`, string(events[0].ContentBlock.Input))
+
+	events = ResponsesEventToAnthropicEvents(&ResponsesStreamEvent{
+		Type:        "response.output_item.done",
+		OutputIndex: 0,
+		Item: &ResponsesOutput{
+			Type:      "function_call",
+			CallID:    "toolu_test",
+			Name:      "Write",
+			Arguments: `{"file_path":"/tmp/a.py","content":"print(1)\n"}`,
+		},
+	}, state)
+	require.Len(t, events, 2)
+	assert.Equal(t, "content_block_delta", events[0].Type)
+	assert.Equal(t, "input_json_delta", events[0].Delta.Type)
+	assert.JSONEq(t, `{"file_path":"/tmp/a.py","content":"print(1)\n"}`, events[0].Delta.PartialJSON)
 	assert.Equal(t, "content_block_stop", events[1].Type)
 }
 
