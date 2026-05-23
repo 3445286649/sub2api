@@ -1300,12 +1300,13 @@ export interface RedeemCode {
   type: RedeemCodeType
   value: number
   affiliate_rebate_base_amount?: number
-  status: 'active' | 'used' | 'expired' | 'unused'
+  status: 'active' | 'used' | 'expired' | 'unused' | 'disabled'
   used_by: number | null
   used_at: string | null
   created_at: string
   expires_at?: string | null
   updated_at?: string
+  notes?: string
   group_id?: number | null // 订阅类型专用
   validity_days?: number // 订阅类型专用
   quota_reset_scope?: 'daily' | 'weekly' | 'monthly' | 'all' | null
@@ -1323,6 +1324,18 @@ export interface GenerateRedeemCodesRequest {
   quota_reset_scope?: 'daily' | 'weekly' | 'monthly' | 'all'
   expires_at?: string | null
   expires_in_days?: number
+}
+
+export interface BatchUpdateRedeemCodeFields {
+  status?: 'unused' | 'disabled'
+  expires_at?: string | null
+  notes?: string
+  group_id?: number | null
+}
+
+export interface BatchUpdateRedeemCodesRequest {
+  ids: number[]
+  fields: BatchUpdateRedeemCodeFields
 }
 
 export interface RedeemCodeRequest {
