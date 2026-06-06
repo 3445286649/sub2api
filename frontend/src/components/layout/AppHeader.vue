@@ -69,13 +69,13 @@
 
         <!-- Recharge Storefront -->
         <button
-          v-if="user"
+          v-if="showRechargeStorefront"
           type="button"
           class="hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white sm:flex"
           @click="openRechargeStorefront"
         >
           <Icon name="creditCard" size="sm" />
-          <span>{{ t('nav.rechargeStorefront') }}</span>
+          <span>{{ rechargeStorefrontButtonText }}</span>
         </button>
 
         <!-- Support Group -->
@@ -91,13 +91,13 @@
 
         <!-- Pixmo Image Studio -->
         <button
-          v-if="user"
+          v-if="showPixmoStudio"
           type="button"
           class="hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white sm:flex"
           @click="openPixmoStudio"
         >
           <Icon name="sparkles" size="sm" />
-          <span>{{ t('nav.pixmoStudio') }}</span>
+          <span>{{ pixmoStudioButtonText }}</span>
         </button>
 
         <!-- User Dropdown -->
@@ -159,9 +159,9 @@
                   {{ t('nav.apiKeys') }}
                 </router-link>
 
-                <button type="button" @click="openRechargeStorefrontFromMenu" class="dropdown-item w-full">
+                <button v-if="showRechargeStorefront" type="button" @click="openRechargeStorefrontFromMenu" class="dropdown-item w-full">
                   <Icon name="creditCard" size="sm" />
-                  {{ t('nav.rechargeStorefront') }}
+                  {{ rechargeStorefrontButtonText }}
                 </button>
 
                 <button v-if="showSupportGroup" type="button" @click="openSupportGroupFromMenu" class="dropdown-item w-full">
@@ -169,9 +169,9 @@
                   {{ supportGroupButtonText }}
                 </button>
 
-                <button type="button" @click="openPixmoStudioFromMenu" class="dropdown-item w-full">
+                <button v-if="showPixmoStudio" type="button" @click="openPixmoStudioFromMenu" class="dropdown-item w-full">
                   <Icon name="sparkles" size="sm" />
-                  {{ t('nav.pixmoStudio') }}
+                  {{ pixmoStudioButtonText }}
                 </button>
 
                 <a
@@ -330,12 +330,25 @@ const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => appStore.docUrl)
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
 const publicSettings = computed(() => appStore.cachedPublicSettings)
+const rechargeStorefrontUrl = computed(() => publicSettings.value?.recharge_storefront_url?.trim() || 'https://shop.loucer.cn/')
+const rechargeStorefrontButtonText = computed(() => publicSettings.value?.recharge_storefront_button_text?.trim() || t('nav.rechargeStorefront'))
+const showRechargeStorefront = computed(() => {
+  return !!user.value && publicSettings.value?.recharge_storefront_enabled === true && rechargeStorefrontUrl.value !== ''
+})
 const supportGroupQrCodeUrl = computed(() => publicSettings.value?.support_group_qr_code_url?.trim() || '')
+const supportGroupLinkUrl = computed(() => publicSettings.value?.support_group_link_url?.trim() || '')
 const supportGroupButtonText = computed(() => publicSettings.value?.support_group_button_text?.trim() || t('nav.supportGroup'))
 const supportGroupTitle = computed(() => publicSettings.value?.support_group_title?.trim() || t('nav.supportGroup'))
 const supportGroupDescription = computed(() => publicSettings.value?.support_group_description?.trim() || t('nav.supportGroupDescription'))
+const pixmoStudioUrl = computed(() => publicSettings.value?.pixmo_studio_url?.trim() || 'https://pixmo.loucer.cn/')
+const pixmoStudioButtonText = computed(() => publicSettings.value?.pixmo_studio_button_text?.trim() || t('nav.pixmoStudio'))
+const showPixmoStudio = computed(() => {
+  return !!user.value && publicSettings.value?.pixmo_studio_enabled === true && pixmoStudioUrl.value !== ''
+})
 const showSupportGroup = computed(() => {
-  return !!user.value && publicSettings.value?.support_group_enabled === true && supportGroupQrCodeUrl.value !== ''
+  return !!user.value
+    && publicSettings.value?.support_group_enabled === true
+    && (supportGroupLinkUrl.value !== '' || supportGroupQrCodeUrl.value !== '')
 })
 
 // 只在标准模式的管理员下显示新手引导按钮
@@ -386,9 +399,6 @@ const pageDescription = computed(() => {
   return (route.meta.description as string) || ''
 })
 
-const rechargeStorefrontUrl = 'https://shop.loucer.cn/'
-const pixmoStudioUrl = 'https://pixmo.loucer.cn/'
-
 function toggleMobileSidebar() {
   appStore.toggleMobileSidebar()
 }
@@ -402,6 +412,10 @@ function closeDropdown() {
 }
 
 function openSupportGroup() {
+  if (supportGroupLinkUrl.value) {
+    window.open(supportGroupLinkUrl.value, '_blank', 'noopener,noreferrer')
+    return
+  }
   supportGroupOpen.value = true
 }
 
@@ -415,7 +429,7 @@ function closeSupportGroup() {
 }
 
 function openRechargeStorefront() {
-  window.open(rechargeStorefrontUrl, '_blank', 'noopener,noreferrer')
+  window.open(rechargeStorefrontUrl.value, '_blank', 'noopener,noreferrer')
 }
 
 function openRechargeStorefrontFromMenu() {
@@ -424,7 +438,7 @@ function openRechargeStorefrontFromMenu() {
 }
 
 function openPixmoStudio() {
-  window.open(pixmoStudioUrl, '_blank', 'noopener,noreferrer')
+  window.open(pixmoStudioUrl.value, '_blank', 'noopener,noreferrer')
 }
 
 function openPixmoStudioFromMenu() {

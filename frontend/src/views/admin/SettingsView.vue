@@ -4712,6 +4712,48 @@
                 </p>
               </div>
 
+              <!-- Recharge Storefront -->
+              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div class="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <h3 class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ t("admin.settings.site.rechargeStorefront.title") }}
+                    </h3>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.rechargeStorefront.description") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.recharge_storefront_enabled" />
+                </div>
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.site.rechargeStorefront.buttonText") }}
+                    </label>
+                    <input
+                      v-model="form.recharge_storefront_button_text"
+                      type="text"
+                      class="input"
+                      :placeholder="t('admin.settings.site.rechargeStorefront.buttonTextPlaceholder')"
+                    />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.site.rechargeStorefront.url") }}
+                    </label>
+                    <input
+                      v-model="form.recharge_storefront_url"
+                      type="url"
+                      class="input font-mono text-sm"
+                      :placeholder="t('admin.settings.site.rechargeStorefront.urlPlaceholder')"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.rechargeStorefront.urlHint") }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <!-- Support Group -->
               <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
                 <div class="mb-4 flex items-center justify-between gap-4">
@@ -4764,6 +4806,20 @@
                   </div>
                   <div class="md:col-span-2">
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.site.supportGroup.linkUrl") }}
+                    </label>
+                    <input
+                      v-model="form.support_group_link_url"
+                      type="url"
+                      class="input font-mono text-sm"
+                      :placeholder="t('admin.settings.site.supportGroup.linkUrlPlaceholder')"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.supportGroup.linkUrlHint") }}
+                    </p>
+                  </div>
+                  <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       {{ t("admin.settings.site.supportGroup.dialogDescription") }}
                     </label>
                     <input
@@ -4772,6 +4828,48 @@
                       class="input"
                       :placeholder="t('admin.settings.site.supportGroup.dialogDescriptionPlaceholder')"
                     />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pixmo Studio -->
+              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div class="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <h3 class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ t("admin.settings.site.pixmoStudio.title") }}
+                    </h3>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.pixmoStudio.description") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.pixmo_studio_enabled" />
+                </div>
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.site.pixmoStudio.buttonText") }}
+                    </label>
+                    <input
+                      v-model="form.pixmo_studio_button_text"
+                      type="text"
+                      class="input"
+                      :placeholder="t('admin.settings.site.pixmoStudio.buttonTextPlaceholder')"
+                    />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.site.pixmoStudio.url") }}
+                    </label>
+                    <input
+                      v-model="form.pixmo_studio_url"
+                      type="url"
+                      class="input font-mono text-sm"
+                      :placeholder="t('admin.settings.site.pixmoStudio.urlPlaceholder')"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.pixmoStudio.urlHint") }}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -7103,11 +7201,18 @@ const form = reactive<SettingsForm>({
   site_subtitle: "Subscription to API Conversion Platform",
   api_base_url: "",
   contact_info: "",
+  recharge_storefront_enabled: false,
+  recharge_storefront_button_text: "充值商城",
+  recharge_storefront_url: "",
   support_group_enabled: false,
   support_group_button_text: "售后群",
   support_group_title: "售后服务群",
   support_group_description: "",
   support_group_qr_code_url: "",
+  support_group_link_url: "",
+  pixmo_studio_enabled: false,
+  pixmo_studio_button_text: "Pixmo 生图",
+  pixmo_studio_url: "",
   doc_url: "",
   home_content: "",
   backend_mode_enabled: false,
@@ -8214,9 +8319,22 @@ async function saveSettings() {
     // Optional URL fields: auto-clear invalid values so they don't cause backend 400 errors
     if (!isValidHttpUrl(form.frontend_url)) form.frontend_url = "";
     if (!isValidHttpUrl(form.doc_url)) form.doc_url = "";
+    if (!isValidHttpUrl(form.recharge_storefront_url)) {
+      form.recharge_storefront_url = "";
+      form.recharge_storefront_enabled = false;
+    }
     if (!isValidHttpUrl(form.support_group_qr_code_url)) {
       form.support_group_qr_code_url = "";
+    }
+    if (form.support_group_link_url && !isValidHttpUrl(form.support_group_link_url)) {
+      form.support_group_link_url = "";
+    }
+    if (!form.support_group_qr_code_url && !form.support_group_link_url) {
       form.support_group_enabled = false;
+    }
+    if (!isValidHttpUrl(form.pixmo_studio_url)) {
+      form.pixmo_studio_url = "";
+      form.pixmo_studio_enabled = false;
     }
     syncWeChatConnectMode();
     const wechatStoredMode = deriveWeChatConnectStoredMode(
@@ -8258,11 +8376,18 @@ async function saveSettings() {
       site_subtitle: form.site_subtitle,
       api_base_url: form.api_base_url,
       contact_info: form.contact_info,
+      recharge_storefront_enabled: form.recharge_storefront_enabled,
+      recharge_storefront_button_text: form.recharge_storefront_button_text,
+      recharge_storefront_url: form.recharge_storefront_url,
       support_group_enabled: form.support_group_enabled,
       support_group_button_text: form.support_group_button_text,
       support_group_title: form.support_group_title,
       support_group_description: form.support_group_description,
       support_group_qr_code_url: form.support_group_qr_code_url,
+      support_group_link_url: form.support_group_link_url,
+      pixmo_studio_enabled: form.pixmo_studio_enabled,
+      pixmo_studio_button_text: form.pixmo_studio_button_text,
+      pixmo_studio_url: form.pixmo_studio_url,
       doc_url: form.doc_url,
       home_content: form.home_content,
       backend_mode_enabled: form.backend_mode_enabled,

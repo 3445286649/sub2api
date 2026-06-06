@@ -206,11 +206,18 @@ export interface PublicSettings {
   site_subtitle: string
   api_base_url: string
   contact_info: string
+  recharge_storefront_enabled?: boolean
+  recharge_storefront_button_text?: string
+  recharge_storefront_url?: string
   support_group_enabled?: boolean
   support_group_button_text?: string
   support_group_title?: string
   support_group_description?: string
   support_group_qr_code_url?: string
+  support_group_link_url?: string
+  pixmo_studio_enabled?: boolean
+  pixmo_studio_button_text?: string
+  pixmo_studio_url?: string
   doc_url: string
   home_content: string
   hide_ccs_import_button: boolean

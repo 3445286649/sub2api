@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -83,10 +84,13 @@ func (s *SubscriptionService) resolveDailyQuotaResetDeduct(ctx context.Context, 
 		return 0, err
 	}
 	if !group.HasDailyLimit() {
-		return 0, ErrQuotaResetValueExceedsLimit
+		return 0, infraerrors.BadRequest("QUOTA_RESET_VALUE_EXCEEDS_LIMIT", "当前订阅不是日额度订阅，不能使用日额度刷新卡")
 	}
 	if resetValueUSD > *group.DailyLimitUSD {
-		return 0, ErrQuotaResetValueExceedsLimit
+		return 0, infraerrors.BadRequest(
+			"QUOTA_RESET_VALUE_EXCEEDS_LIMIT",
+			fmt.Sprintf("当前订阅的日额度上限为 %.0f 刀，不能使用 %.0f 刀刷新卡，请使用 %.0f 刀刷新卡。", *group.DailyLimitUSD, resetValueUSD, *group.DailyLimitUSD),
+		)
 	}
 	if resetValueUSD >= *group.DailyLimitUSD {
 		return sub.DailyUsageUSD, nil

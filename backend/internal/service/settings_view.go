@@ -132,11 +132,18 @@ type SystemSettings struct {
 	SiteSubtitle                string
 	APIBaseURL                  string
 	ContactInfo                 string
+	RechargeStorefrontEnabled   bool
+	RechargeStorefrontButtonText string
+	RechargeStorefrontURL       string
 	SupportGroupEnabled         bool
 	SupportGroupButtonText      string
 	SupportGroupTitle           string
 	SupportGroupDescription     string
 	SupportGroupQRCodeURL       string
+	SupportGroupLinkURL         string
+	PixmoStudioEnabled          bool
+	PixmoStudioButtonText       string
+	PixmoStudioURL              string
 	DocURL                      string
 	HomeContent                 string
 	HideCcsImportButton         bool
@@ -259,11 +266,18 @@ type PublicSettings struct {
 	SiteSubtitle                     string
 	APIBaseURL                       string
 	ContactInfo                      string
+	RechargeStorefrontEnabled        bool
+	RechargeStorefrontButtonText     string
+	RechargeStorefrontURL            string
 	SupportGroupEnabled              bool
 	SupportGroupButtonText           string
 	SupportGroupTitle                string
 	SupportGroupDescription          string
 	SupportGroupQRCodeURL            string
+	SupportGroupLinkURL              string
+	PixmoStudioEnabled               bool
+	PixmoStudioButtonText            string
+	PixmoStudioURL                   string
 	DocURL                           string
 	HomeContent                      string
 	HideCcsImportButton              bool

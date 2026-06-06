@@ -216,11 +216,18 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		SiteSubtitle:                           settings.SiteSubtitle,
 		APIBaseURL:                             settings.APIBaseURL,
 		ContactInfo:                            settings.ContactInfo,
+		RechargeStorefrontEnabled:              settings.RechargeStorefrontEnabled,
+		RechargeStorefrontButtonText:           settings.RechargeStorefrontButtonText,
+		RechargeStorefrontURL:                  settings.RechargeStorefrontURL,
 		SupportGroupEnabled:                    settings.SupportGroupEnabled,
 		SupportGroupButtonText:                 settings.SupportGroupButtonText,
 		SupportGroupTitle:                      settings.SupportGroupTitle,
 		SupportGroupDescription:                settings.SupportGroupDescription,
 		SupportGroupQRCodeURL:                  settings.SupportGroupQRCodeURL,
+		SupportGroupLinkURL:                    settings.SupportGroupLinkURL,
+		PixmoStudioEnabled:                     settings.PixmoStudioEnabled,
+		PixmoStudioButtonText:                  settings.PixmoStudioButtonText,
+		PixmoStudioURL:                         settings.PixmoStudioURL,
 		DocURL:                                 settings.DocURL,
 		HomeContent:                            settings.HomeContent,
 		HideCcsImportButton:                    settings.HideCcsImportButton,
@@ -502,11 +509,18 @@ type UpdateSettingsRequest struct {
 	SiteSubtitle                string                `json:"site_subtitle"`
 	APIBaseURL                  string                `json:"api_base_url"`
 	ContactInfo                 string                `json:"contact_info"`
+	RechargeStorefrontEnabled   bool                  `json:"recharge_storefront_enabled"`
+	RechargeStorefrontButtonText string               `json:"recharge_storefront_button_text"`
+	RechargeStorefrontURL       string                `json:"recharge_storefront_url"`
 	SupportGroupEnabled         bool                  `json:"support_group_enabled"`
 	SupportGroupButtonText      string                `json:"support_group_button_text"`
 	SupportGroupTitle           string                `json:"support_group_title"`
 	SupportGroupDescription     string                `json:"support_group_description"`
 	SupportGroupQRCodeURL       string                `json:"support_group_qr_code_url"`
+	SupportGroupLinkURL         string                `json:"support_group_link_url"`
+	PixmoStudioEnabled          bool                  `json:"pixmo_studio_enabled"`
+	PixmoStudioButtonText       string                `json:"pixmo_studio_button_text"`
+	PixmoStudioURL              string                `json:"pixmo_studio_url"`
 	DocURL                      string                `json:"doc_url"`
 	HomeContent                 string                `json:"home_content"`
 	HideCcsImportButton         bool                  `json:"hide_ccs_import_button"`
@@ -1577,11 +1591,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SiteSubtitle:                           req.SiteSubtitle,
 		APIBaseURL:                             req.APIBaseURL,
 		ContactInfo:                            req.ContactInfo,
+		RechargeStorefrontEnabled:              req.RechargeStorefrontEnabled,
+		RechargeStorefrontButtonText:           req.RechargeStorefrontButtonText,
+		RechargeStorefrontURL:                  req.RechargeStorefrontURL,
 		SupportGroupEnabled:                    req.SupportGroupEnabled,
 		SupportGroupButtonText:                 req.SupportGroupButtonText,
 		SupportGroupTitle:                      req.SupportGroupTitle,
 		SupportGroupDescription:                req.SupportGroupDescription,
 		SupportGroupQRCodeURL:                  req.SupportGroupQRCodeURL,
+		SupportGroupLinkURL:                    req.SupportGroupLinkURL,
+		PixmoStudioEnabled:                     req.PixmoStudioEnabled,
+		PixmoStudioButtonText:                  req.PixmoStudioButtonText,
+		PixmoStudioURL:                         req.PixmoStudioURL,
 		DocURL:                                 req.DocURL,
 		HomeContent:                            req.HomeContent,
 		HideCcsImportButton:                    req.HideCcsImportButton,
@@ -2025,11 +2046,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SiteSubtitle:                           updatedSettings.SiteSubtitle,
 		APIBaseURL:                             updatedSettings.APIBaseURL,
 		ContactInfo:                            updatedSettings.ContactInfo,
+		RechargeStorefrontEnabled:              updatedSettings.RechargeStorefrontEnabled,
+		RechargeStorefrontButtonText:           updatedSettings.RechargeStorefrontButtonText,
+		RechargeStorefrontURL:                  updatedSettings.RechargeStorefrontURL,
 		SupportGroupEnabled:                    updatedSettings.SupportGroupEnabled,
 		SupportGroupButtonText:                 updatedSettings.SupportGroupButtonText,
 		SupportGroupTitle:                      updatedSettings.SupportGroupTitle,
 		SupportGroupDescription:                updatedSettings.SupportGroupDescription,
 		SupportGroupQRCodeURL:                  updatedSettings.SupportGroupQRCodeURL,
+		SupportGroupLinkURL:                    updatedSettings.SupportGroupLinkURL,
+		PixmoStudioEnabled:                     updatedSettings.PixmoStudioEnabled,
+		PixmoStudioButtonText:                  updatedSettings.PixmoStudioButtonText,
+		PixmoStudioURL:                         updatedSettings.PixmoStudioURL,
 		DocURL:                                 updatedSettings.DocURL,
 		HomeContent:                            updatedSettings.HomeContent,
 		HideCcsImportButton:                    updatedSettings.HideCcsImportButton,
@@ -2426,6 +2454,15 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.ContactInfo != after.ContactInfo {
 		changed = append(changed, "contact_info")
 	}
+	if before.RechargeStorefrontEnabled != after.RechargeStorefrontEnabled {
+		changed = append(changed, "recharge_storefront_enabled")
+	}
+	if before.RechargeStorefrontButtonText != after.RechargeStorefrontButtonText {
+		changed = append(changed, "recharge_storefront_button_text")
+	}
+	if before.RechargeStorefrontURL != after.RechargeStorefrontURL {
+		changed = append(changed, "recharge_storefront_url")
+	}
 	if before.SupportGroupEnabled != after.SupportGroupEnabled {
 		changed = append(changed, "support_group_enabled")
 	}
@@ -2440,6 +2477,18 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.SupportGroupQRCodeURL != after.SupportGroupQRCodeURL {
 		changed = append(changed, "support_group_qr_code_url")
+	}
+	if before.SupportGroupLinkURL != after.SupportGroupLinkURL {
+		changed = append(changed, "support_group_link_url")
+	}
+	if before.PixmoStudioEnabled != after.PixmoStudioEnabled {
+		changed = append(changed, "pixmo_studio_enabled")
+	}
+	if before.PixmoStudioButtonText != after.PixmoStudioButtonText {
+		changed = append(changed, "pixmo_studio_button_text")
+	}
+	if before.PixmoStudioURL != after.PixmoStudioURL {
+		changed = append(changed, "pixmo_studio_url")
 	}
 	if before.DocURL != after.DocURL {
 		changed = append(changed, "doc_url")

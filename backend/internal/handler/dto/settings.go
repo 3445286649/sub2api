@@ -132,11 +132,18 @@ type SystemSettings struct {
 	SiteSubtitle                string           `json:"site_subtitle"`
 	APIBaseURL                  string           `json:"api_base_url"`
 	ContactInfo                 string           `json:"contact_info"`
+	RechargeStorefrontEnabled   bool             `json:"recharge_storefront_enabled"`
+	RechargeStorefrontButtonText string          `json:"recharge_storefront_button_text"`
+	RechargeStorefrontURL       string           `json:"recharge_storefront_url"`
 	SupportGroupEnabled         bool             `json:"support_group_enabled"`
 	SupportGroupButtonText      string           `json:"support_group_button_text"`
 	SupportGroupTitle           string           `json:"support_group_title"`
 	SupportGroupDescription     string           `json:"support_group_description"`
 	SupportGroupQRCodeURL       string           `json:"support_group_qr_code_url"`
+	SupportGroupLinkURL         string           `json:"support_group_link_url"`
+	PixmoStudioEnabled          bool             `json:"pixmo_studio_enabled"`
+	PixmoStudioButtonText       string           `json:"pixmo_studio_button_text"`
+	PixmoStudioURL              string           `json:"pixmo_studio_url"`
 	DocURL                      string           `json:"doc_url"`
 	HomeContent                 string           `json:"home_content"`
 	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
@@ -288,11 +295,18 @@ type PublicSettings struct {
 	SiteSubtitle                     string                   `json:"site_subtitle"`
 	APIBaseURL                       string                   `json:"api_base_url"`
 	ContactInfo                      string                   `json:"contact_info"`
+	RechargeStorefrontEnabled        bool                     `json:"recharge_storefront_enabled"`
+	RechargeStorefrontButtonText     string                   `json:"recharge_storefront_button_text"`
+	RechargeStorefrontURL            string                   `json:"recharge_storefront_url"`
 	SupportGroupEnabled              bool                     `json:"support_group_enabled"`
 	SupportGroupButtonText           string                   `json:"support_group_button_text"`
 	SupportGroupTitle                string                   `json:"support_group_title"`
 	SupportGroupDescription          string                   `json:"support_group_description"`
 	SupportGroupQRCodeURL            string                   `json:"support_group_qr_code_url"`
+	SupportGroupLinkURL              string                   `json:"support_group_link_url"`
+	PixmoStudioEnabled               bool                     `json:"pixmo_studio_enabled"`
+	PixmoStudioButtonText            string                   `json:"pixmo_studio_button_text"`
+	PixmoStudioURL                   string                   `json:"pixmo_studio_url"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`

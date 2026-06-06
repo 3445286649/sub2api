@@ -715,11 +715,18 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeySiteSubtitle,
 		SettingKeyAPIBaseURL,
 		SettingKeyContactInfo,
+		SettingKeyRechargeStorefrontEnabled,
+		SettingKeyRechargeStorefrontText,
+		SettingKeyRechargeStorefrontURL,
 		SettingKeySupportGroupEnabled,
 		SettingKeySupportGroupButtonText,
 		SettingKeySupportGroupTitle,
 		SettingKeySupportGroupDescription,
 		SettingKeySupportGroupQRCodeURL,
+		SettingKeySupportGroupLinkURL,
+		SettingKeyPixmoStudioEnabled,
+		SettingKeyPixmoStudioButtonText,
+		SettingKeyPixmoStudioURL,
 		SettingKeyDocURL,
 		SettingKeyHomeContent,
 		SettingKeyHideCcsImportButton,
@@ -845,11 +852,18 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SiteSubtitle:                     s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
 		APIBaseURL:                       settings[SettingKeyAPIBaseURL],
 		ContactInfo:                      settings[SettingKeyContactInfo],
+		RechargeStorefrontEnabled:        settings[SettingKeyRechargeStorefrontEnabled] == "true",
+		RechargeStorefrontButtonText:     s.getStringOrDefault(settings, SettingKeyRechargeStorefrontText, "充值商城"),
+		RechargeStorefrontURL:            strings.TrimSpace(firstNonEmpty(settings[SettingKeyRechargeStorefrontURL], "https://shop.loucer.cn/")),
 		SupportGroupEnabled:              settings[SettingKeySupportGroupEnabled] == "true",
 		SupportGroupButtonText:           s.getStringOrDefault(settings, SettingKeySupportGroupButtonText, "售后群"),
 		SupportGroupTitle:                s.getStringOrDefault(settings, SettingKeySupportGroupTitle, "售后服务群"),
 		SupportGroupDescription:          settings[SettingKeySupportGroupDescription],
 		SupportGroupQRCodeURL:            strings.TrimSpace(settings[SettingKeySupportGroupQRCodeURL]),
+		SupportGroupLinkURL:              strings.TrimSpace(settings[SettingKeySupportGroupLinkURL]),
+		PixmoStudioEnabled:               settings[SettingKeyPixmoStudioEnabled] == "true",
+		PixmoStudioButtonText:            s.getStringOrDefault(settings, SettingKeyPixmoStudioButtonText, "Pixmo 生图"),
+		PixmoStudioURL:                   strings.TrimSpace(firstNonEmpty(settings[SettingKeyPixmoStudioURL], "https://pixmo.loucer.cn/")),
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
@@ -1164,11 +1178,18 @@ type PublicSettingsInjectionPayload struct {
 	SiteSubtitle                     string                   `json:"site_subtitle"`
 	APIBaseURL                       string                   `json:"api_base_url"`
 	ContactInfo                      string                   `json:"contact_info"`
+	RechargeStorefrontEnabled        bool                     `json:"recharge_storefront_enabled"`
+	RechargeStorefrontButtonText     string                   `json:"recharge_storefront_button_text"`
+	RechargeStorefrontURL            string                   `json:"recharge_storefront_url"`
 	SupportGroupEnabled              bool                     `json:"support_group_enabled"`
 	SupportGroupButtonText           string                   `json:"support_group_button_text"`
 	SupportGroupTitle                string                   `json:"support_group_title"`
 	SupportGroupDescription          string                   `json:"support_group_description"`
 	SupportGroupQRCodeURL            string                   `json:"support_group_qr_code_url"`
+	SupportGroupLinkURL              string                   `json:"support_group_link_url"`
+	PixmoStudioEnabled               bool                     `json:"pixmo_studio_enabled"`
+	PixmoStudioButtonText            string                   `json:"pixmo_studio_button_text"`
+	PixmoStudioURL                   string                   `json:"pixmo_studio_url"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
@@ -1235,11 +1256,18 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		SiteSubtitle:                     settings.SiteSubtitle,
 		APIBaseURL:                       settings.APIBaseURL,
 		ContactInfo:                      settings.ContactInfo,
+		RechargeStorefrontEnabled:        settings.RechargeStorefrontEnabled,
+		RechargeStorefrontButtonText:     settings.RechargeStorefrontButtonText,
+		RechargeStorefrontURL:            settings.RechargeStorefrontURL,
 		SupportGroupEnabled:              settings.SupportGroupEnabled,
 		SupportGroupButtonText:           settings.SupportGroupButtonText,
 		SupportGroupTitle:                settings.SupportGroupTitle,
 		SupportGroupDescription:          settings.SupportGroupDescription,
 		SupportGroupQRCodeURL:            settings.SupportGroupQRCodeURL,
+		SupportGroupLinkURL:              settings.SupportGroupLinkURL,
+		PixmoStudioEnabled:               settings.PixmoStudioEnabled,
+		PixmoStudioButtonText:            settings.PixmoStudioButtonText,
+		PixmoStudioURL:                   settings.PixmoStudioURL,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
 		HideCcsImportButton:              settings.HideCcsImportButton,
@@ -1833,11 +1861,18 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeySiteSubtitle] = settings.SiteSubtitle
 	updates[SettingKeyAPIBaseURL] = settings.APIBaseURL
 	updates[SettingKeyContactInfo] = settings.ContactInfo
+	updates[SettingKeyRechargeStorefrontEnabled] = strconv.FormatBool(settings.RechargeStorefrontEnabled)
+	updates[SettingKeyRechargeStorefrontText] = strings.TrimSpace(settings.RechargeStorefrontButtonText)
+	updates[SettingKeyRechargeStorefrontURL] = strings.TrimSpace(settings.RechargeStorefrontURL)
 	updates[SettingKeySupportGroupEnabled] = strconv.FormatBool(settings.SupportGroupEnabled)
 	updates[SettingKeySupportGroupButtonText] = strings.TrimSpace(settings.SupportGroupButtonText)
 	updates[SettingKeySupportGroupTitle] = strings.TrimSpace(settings.SupportGroupTitle)
 	updates[SettingKeySupportGroupDescription] = strings.TrimSpace(settings.SupportGroupDescription)
 	updates[SettingKeySupportGroupQRCodeURL] = strings.TrimSpace(settings.SupportGroupQRCodeURL)
+	updates[SettingKeySupportGroupLinkURL] = strings.TrimSpace(settings.SupportGroupLinkURL)
+	updates[SettingKeyPixmoStudioEnabled] = strconv.FormatBool(settings.PixmoStudioEnabled)
+	updates[SettingKeyPixmoStudioButtonText] = strings.TrimSpace(settings.PixmoStudioButtonText)
+	updates[SettingKeyPixmoStudioURL] = strings.TrimSpace(settings.PixmoStudioURL)
 	updates[SettingKeyDocURL] = settings.DocURL
 	updates[SettingKeyHomeContent] = settings.HomeContent
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)
@@ -2908,11 +2943,18 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		SiteSubtitle:                     s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
 		APIBaseURL:                       settings[SettingKeyAPIBaseURL],
 		ContactInfo:                      settings[SettingKeyContactInfo],
+		RechargeStorefrontEnabled:        settings[SettingKeyRechargeStorefrontEnabled] == "true",
+		RechargeStorefrontButtonText:     s.getStringOrDefault(settings, SettingKeyRechargeStorefrontText, "充值商城"),
+		RechargeStorefrontURL:            strings.TrimSpace(firstNonEmpty(settings[SettingKeyRechargeStorefrontURL], "https://shop.loucer.cn/")),
 		SupportGroupEnabled:              settings[SettingKeySupportGroupEnabled] == "true",
 		SupportGroupButtonText:           s.getStringOrDefault(settings, SettingKeySupportGroupButtonText, "售后群"),
 		SupportGroupTitle:                s.getStringOrDefault(settings, SettingKeySupportGroupTitle, "售后服务群"),
 		SupportGroupDescription:          settings[SettingKeySupportGroupDescription],
 		SupportGroupQRCodeURL:            strings.TrimSpace(settings[SettingKeySupportGroupQRCodeURL]),
+		SupportGroupLinkURL:              strings.TrimSpace(settings[SettingKeySupportGroupLinkURL]),
+		PixmoStudioEnabled:               settings[SettingKeyPixmoStudioEnabled] == "true",
+		PixmoStudioButtonText:            s.getStringOrDefault(settings, SettingKeyPixmoStudioButtonText, "Pixmo 生图"),
+		PixmoStudioURL:                   strings.TrimSpace(firstNonEmpty(settings[SettingKeyPixmoStudioURL], "https://pixmo.loucer.cn/")),
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",

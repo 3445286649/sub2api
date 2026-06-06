@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -261,6 +262,7 @@ func TestResetQuotaUsageDailyValueAboveLimitRejects(t *testing.T) {
 	_, err := svc.ResetQuotaUsage(context.Background(), 8, QuotaResetScopeDaily, 200, now)
 
 	require.ErrorIs(t, err, ErrQuotaResetValueExceedsLimit)
+	require.Equal(t, "当前订阅的日额度上限为 100 刀，不能使用 200 刀刷新卡，请使用 100 刀刷新卡。", infraerrors.Message(err))
 	require.Equal(t, 0, repo.updateCalls)
 }
 
