@@ -27,6 +27,7 @@ const messages: Record<string, string> = {
   'usage.serviceTierPriority': 'Fast',
   'usage.serviceTierFlex': 'Flex',
   'usage.serviceTierStandard': 'Standard',
+  'usage.cacheHitRate': 'Cache hit rate',
   'usage.rate': 'Rate',
   'usage.original': 'Original',
   'usage.billed': 'Billed',
