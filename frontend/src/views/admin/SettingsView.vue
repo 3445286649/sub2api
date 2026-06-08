@@ -4739,16 +4739,30 @@
                   </div>
                   <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.site.rechargeStorefront.url") }}
+                      {{ t("admin.settings.site.rechargeStorefront.primaryUrl") }}
                     </label>
                     <input
                       v-model="form.recharge_storefront_url"
                       type="url"
                       class="input font-mono text-sm"
-                      :placeholder="t('admin.settings.site.rechargeStorefront.urlPlaceholder')"
+                      :placeholder="t('admin.settings.site.rechargeStorefront.primaryUrlPlaceholder')"
                     />
                     <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.site.rechargeStorefront.urlHint") }}
+                      {{ t("admin.settings.site.rechargeStorefront.primaryUrlHint") }}
+                    </p>
+                  </div>
+                  <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.site.rechargeStorefront.backupUrl") }}
+                    </label>
+                    <input
+                      v-model="form.recharge_storefront_backup_url"
+                      type="url"
+                      class="input font-mono text-sm"
+                      :placeholder="t('admin.settings.site.rechargeStorefront.backupUrlPlaceholder')"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.rechargeStorefront.backupUrlHint") }}
                     </p>
                   </div>
                 </div>
@@ -7204,6 +7218,7 @@ const form = reactive<SettingsForm>({
   recharge_storefront_enabled: false,
   recharge_storefront_button_text: "充值商城",
   recharge_storefront_url: "",
+  recharge_storefront_backup_url: "",
   support_group_enabled: false,
   support_group_button_text: "售后群",
   support_group_title: "售后服务群",
@@ -8321,6 +8336,11 @@ async function saveSettings() {
     if (!isValidHttpUrl(form.doc_url)) form.doc_url = "";
     if (!isValidHttpUrl(form.recharge_storefront_url)) {
       form.recharge_storefront_url = "";
+    }
+    if (form.recharge_storefront_backup_url && !isValidHttpUrl(form.recharge_storefront_backup_url)) {
+      form.recharge_storefront_backup_url = "";
+    }
+    if (!form.recharge_storefront_url && !form.recharge_storefront_backup_url) {
       form.recharge_storefront_enabled = false;
     }
     if (!isValidHttpUrl(form.support_group_qr_code_url)) {
@@ -8379,6 +8399,7 @@ async function saveSettings() {
       recharge_storefront_enabled: form.recharge_storefront_enabled,
       recharge_storefront_button_text: form.recharge_storefront_button_text,
       recharge_storefront_url: form.recharge_storefront_url,
+      recharge_storefront_backup_url: form.recharge_storefront_backup_url,
       support_group_enabled: form.support_group_enabled,
       support_group_button_text: form.support_group_button_text,
       support_group_title: form.support_group_title,

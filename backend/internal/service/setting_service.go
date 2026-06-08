@@ -718,6 +718,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyRechargeStorefrontEnabled,
 		SettingKeyRechargeStorefrontText,
 		SettingKeyRechargeStorefrontURL,
+		SettingKeyRechargeStorefrontBackupURL,
 		SettingKeySupportGroupEnabled,
 		SettingKeySupportGroupButtonText,
 		SettingKeySupportGroupTitle,
@@ -855,6 +856,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		RechargeStorefrontEnabled:        settings[SettingKeyRechargeStorefrontEnabled] == "true",
 		RechargeStorefrontButtonText:     s.getStringOrDefault(settings, SettingKeyRechargeStorefrontText, "充值商城"),
 		RechargeStorefrontURL:            strings.TrimSpace(firstNonEmpty(settings[SettingKeyRechargeStorefrontURL], "https://shop.loucer.cn/")),
+		RechargeStorefrontBackupURL:      strings.TrimSpace(settings[SettingKeyRechargeStorefrontBackupURL]),
 		SupportGroupEnabled:              settings[SettingKeySupportGroupEnabled] == "true",
 		SupportGroupButtonText:           s.getStringOrDefault(settings, SettingKeySupportGroupButtonText, "售后群"),
 		SupportGroupTitle:                s.getStringOrDefault(settings, SettingKeySupportGroupTitle, "售后服务群"),
@@ -1181,6 +1183,7 @@ type PublicSettingsInjectionPayload struct {
 	RechargeStorefrontEnabled        bool                     `json:"recharge_storefront_enabled"`
 	RechargeStorefrontButtonText     string                   `json:"recharge_storefront_button_text"`
 	RechargeStorefrontURL            string                   `json:"recharge_storefront_url"`
+	RechargeStorefrontBackupURL      string                   `json:"recharge_storefront_backup_url"`
 	SupportGroupEnabled              bool                     `json:"support_group_enabled"`
 	SupportGroupButtonText           string                   `json:"support_group_button_text"`
 	SupportGroupTitle                string                   `json:"support_group_title"`
@@ -1259,6 +1262,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		RechargeStorefrontEnabled:        settings.RechargeStorefrontEnabled,
 		RechargeStorefrontButtonText:     settings.RechargeStorefrontButtonText,
 		RechargeStorefrontURL:            settings.RechargeStorefrontURL,
+		RechargeStorefrontBackupURL:      settings.RechargeStorefrontBackupURL,
 		SupportGroupEnabled:              settings.SupportGroupEnabled,
 		SupportGroupButtonText:           settings.SupportGroupButtonText,
 		SupportGroupTitle:                settings.SupportGroupTitle,
@@ -1864,6 +1868,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyRechargeStorefrontEnabled] = strconv.FormatBool(settings.RechargeStorefrontEnabled)
 	updates[SettingKeyRechargeStorefrontText] = strings.TrimSpace(settings.RechargeStorefrontButtonText)
 	updates[SettingKeyRechargeStorefrontURL] = strings.TrimSpace(settings.RechargeStorefrontURL)
+	updates[SettingKeyRechargeStorefrontBackupURL] = strings.TrimSpace(settings.RechargeStorefrontBackupURL)
 	updates[SettingKeySupportGroupEnabled] = strconv.FormatBool(settings.SupportGroupEnabled)
 	updates[SettingKeySupportGroupButtonText] = strings.TrimSpace(settings.SupportGroupButtonText)
 	updates[SettingKeySupportGroupTitle] = strings.TrimSpace(settings.SupportGroupTitle)
@@ -2946,6 +2951,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		RechargeStorefrontEnabled:        settings[SettingKeyRechargeStorefrontEnabled] == "true",
 		RechargeStorefrontButtonText:     s.getStringOrDefault(settings, SettingKeyRechargeStorefrontText, "充值商城"),
 		RechargeStorefrontURL:            strings.TrimSpace(firstNonEmpty(settings[SettingKeyRechargeStorefrontURL], "https://shop.loucer.cn/")),
+		RechargeStorefrontBackupURL:      strings.TrimSpace(settings[SettingKeyRechargeStorefrontBackupURL]),
 		SupportGroupEnabled:              settings[SettingKeySupportGroupEnabled] == "true",
 		SupportGroupButtonText:           s.getStringOrDefault(settings, SettingKeySupportGroupButtonText, "售后群"),
 		SupportGroupTitle:                s.getStringOrDefault(settings, SettingKeySupportGroupTitle, "售后服务群"),

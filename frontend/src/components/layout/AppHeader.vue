@@ -261,6 +261,73 @@
     <teleport to="body">
       <transition name="support-modal">
         <div
+          v-if="rechargeStorefrontOpen"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="t('nav.rechargeStorefrontPickerTitle')"
+          @click.self="closeRechargeStorefront"
+        >
+          <div class="w-full max-w-[min(28rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-dark-700 dark:bg-dark-900">
+            <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+              <div>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                  {{ t('nav.rechargeStorefrontPickerTitle') }}
+                </h2>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('nav.rechargeStorefrontPickerDescription') }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-dark-800 dark:hover:text-gray-200"
+                :aria-label="t('common.close')"
+                @click="closeRechargeStorefront"
+              >
+                <Icon name="x" size="sm" />
+              </button>
+            </div>
+            <div class="space-y-3 p-4 sm:p-5">
+              <button
+                v-if="rechargeStorefrontPrimaryUrl"
+                type="button"
+                class="group flex w-full items-start justify-between gap-3 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3 text-left transition-all hover:border-primary-300 hover:bg-primary-100/80 dark:border-primary-500/20 dark:bg-primary-500/10 dark:hover:bg-primary-500/15"
+                @click="openRechargeStorefrontLink(rechargeStorefrontPrimaryUrl)"
+              >
+                <div>
+                  <div class="flex items-center gap-2 text-sm font-semibold text-primary-700 dark:text-primary-300">
+                    <Icon name="creditCard" size="sm" />
+                    <span>{{ t('nav.rechargeStorefrontPrimary') }}</span>
+                  </div>
+                  <p class="mt-1 text-xs text-primary-600/80 dark:text-primary-300/70">
+                    {{ t('nav.rechargeStorefrontPrimaryHint') }}
+                  </p>
+                </div>
+                <Icon name="chevronRight" size="sm" class="mt-0.5 text-primary-500 transition-transform group-hover:translate-x-0.5 dark:text-primary-300" />
+              </button>
+              <button
+                v-if="rechargeStorefrontBackupUrl"
+                type="button"
+                class="group flex w-full items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-left transition-all hover:border-gray-300 hover:bg-gray-100 dark:border-dark-700 dark:bg-dark-800 dark:hover:bg-dark-700"
+                @click="openRechargeStorefrontLink(rechargeStorefrontBackupUrl)"
+              >
+                <div>
+                  <div class="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                    <Icon name="creditCard" size="sm" />
+                    <span>{{ t('nav.rechargeStorefrontBackup') }}</span>
+                  </div>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('nav.rechargeStorefrontBackupHint') }}
+                  </p>
+                </div>
+                <Icon name="chevronRight" size="sm" class="mt-0.5 text-gray-400 transition-transform group-hover:translate-x-0.5 dark:text-gray-500" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
+      <transition name="support-modal">
+        <div
           v-if="supportGroupOpen"
           class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
           role="dialog"
@@ -324,16 +391,20 @@ const onboardingStore = useOnboardingStore()
 
 const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
+const rechargeStorefrontOpen = ref(false)
 const supportGroupOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => appStore.docUrl)
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
 const publicSettings = computed(() => appStore.cachedPublicSettings)
-const rechargeStorefrontUrl = computed(() => publicSettings.value?.recharge_storefront_url?.trim() || 'https://shop.loucer.cn/')
+const rechargeStorefrontPrimaryUrl = computed(() => publicSettings.value?.recharge_storefront_url?.trim() || '')
+const rechargeStorefrontBackupUrl = computed(() => publicSettings.value?.recharge_storefront_backup_url?.trim() || '')
 const rechargeStorefrontButtonText = computed(() => publicSettings.value?.recharge_storefront_button_text?.trim() || t('nav.rechargeStorefront'))
 const showRechargeStorefront = computed(() => {
-  return !!user.value && publicSettings.value?.recharge_storefront_enabled === true && rechargeStorefrontUrl.value !== ''
+  return !!user.value
+    && publicSettings.value?.recharge_storefront_enabled === true
+    && (rechargeStorefrontPrimaryUrl.value !== '' || rechargeStorefrontBackupUrl.value !== '')
 })
 const supportGroupQrCodeUrl = computed(() => publicSettings.value?.support_group_qr_code_url?.trim() || '')
 const supportGroupLinkUrl = computed(() => publicSettings.value?.support_group_link_url?.trim() || '')
@@ -429,12 +500,21 @@ function closeSupportGroup() {
 }
 
 function openRechargeStorefront() {
-  window.open(rechargeStorefrontUrl.value, '_blank', 'noopener,noreferrer')
+  rechargeStorefrontOpen.value = true
 }
 
 function openRechargeStorefrontFromMenu() {
   closeDropdown()
   openRechargeStorefront()
+}
+
+function closeRechargeStorefront() {
+  rechargeStorefrontOpen.value = false
+}
+
+function openRechargeStorefrontLink(url: string) {
+  window.open(url, '_blank', 'noopener,noreferrer')
+  closeRechargeStorefront()
 }
 
 function openPixmoStudio() {

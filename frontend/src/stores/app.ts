@@ -335,6 +335,7 @@ export const useAppStore = defineStore('app', () => {
         recharge_storefront_enabled: false,
         recharge_storefront_button_text: '',
         recharge_storefront_url: '',
+        recharge_storefront_backup_url: '',
         support_group_enabled: false,
         support_group_button_text: '',
         support_group_title: '',

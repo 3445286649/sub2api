@@ -376,6 +376,12 @@ export default {
     logout: 'Logout',
     github: 'GitHub',
     rechargeStorefront: 'Recharge Store',
+    rechargeStorefrontPickerTitle: 'Choose Recharge Channel',
+    rechargeStorefrontPickerDescription: 'If the primary store is unavailable, switch to the backup store.',
+    rechargeStorefrontPrimary: 'Primary Store',
+    rechargeStorefrontPrimaryHint: 'Recommended by default. Use the main recharge channel first.',
+    rechargeStorefrontBackup: 'Backup Store',
+    rechargeStorefrontBackupHint: 'Use this when the primary route is temporarily unavailable.',
     supportGroup: 'Support Group',
     supportGroupDescription: 'Scan to join the support group for orders, redeem codes, and usage issues',
     supportGroupQrAlt: 'Support group QR code',
@@ -5788,9 +5794,12 @@ export default {
           description: 'Show a recharge store entry in the header with custom button text and destination URL.',
           buttonText: 'Button Text',
           buttonTextPlaceholder: 'Recharge Store',
-          url: 'Destination URL',
-          urlPlaceholder: 'https://shop.example.com',
-          urlHint: 'A full http(s) URL is required when enabled.'
+          primaryUrl: 'Primary Store URL',
+          primaryUrlPlaceholder: 'https://shop.example.com',
+          primaryUrlHint: 'Main recharge channel URL. Use a full http(s) address.',
+          backupUrl: 'Backup Store URL',
+          backupUrlPlaceholder: 'https://backup-shop.example.com',
+          backupUrlHint: 'Optional. When filled, clicking Recharge Store opens a picker card with primary and backup options.'
         },
         supportGroup: {
           title: 'Support Group',

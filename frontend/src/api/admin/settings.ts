@@ -433,6 +433,7 @@ export interface SystemSettings {
   recharge_storefront_enabled: boolean;
   recharge_storefront_button_text: string;
   recharge_storefront_url: string;
+  recharge_storefront_backup_url: string;
   support_group_enabled: boolean;
   support_group_button_text: string;
   support_group_title: string;
@@ -703,6 +704,7 @@ export interface UpdateSettingsRequest {
   recharge_storefront_enabled?: boolean;
   recharge_storefront_button_text?: string;
   recharge_storefront_url?: string;
+  recharge_storefront_backup_url?: string;
   support_group_enabled?: boolean;
   support_group_button_text?: string;
   support_group_title?: string;

@@ -135,6 +135,7 @@ type SystemSettings struct {
 	RechargeStorefrontEnabled   bool
 	RechargeStorefrontButtonText string
 	RechargeStorefrontURL       string
+	RechargeStorefrontBackupURL string
 	SupportGroupEnabled         bool
 	SupportGroupButtonText      string
 	SupportGroupTitle           string
@@ -269,6 +270,7 @@ type PublicSettings struct {
 	RechargeStorefrontEnabled        bool
 	RechargeStorefrontButtonText     string
 	RechargeStorefrontURL            string
+	RechargeStorefrontBackupURL      string
 	SupportGroupEnabled              bool
 	SupportGroupButtonText           string
 	SupportGroupTitle                string

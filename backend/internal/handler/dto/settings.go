@@ -135,6 +135,7 @@ type SystemSettings struct {
 	RechargeStorefrontEnabled   bool             `json:"recharge_storefront_enabled"`
 	RechargeStorefrontButtonText string          `json:"recharge_storefront_button_text"`
 	RechargeStorefrontURL       string           `json:"recharge_storefront_url"`
+	RechargeStorefrontBackupURL string           `json:"recharge_storefront_backup_url"`
 	SupportGroupEnabled         bool             `json:"support_group_enabled"`
 	SupportGroupButtonText      string           `json:"support_group_button_text"`
 	SupportGroupTitle           string           `json:"support_group_title"`
@@ -298,6 +299,7 @@ type PublicSettings struct {
 	RechargeStorefrontEnabled        bool                     `json:"recharge_storefront_enabled"`
 	RechargeStorefrontButtonText     string                   `json:"recharge_storefront_button_text"`
 	RechargeStorefrontURL            string                   `json:"recharge_storefront_url"`
+	RechargeStorefrontBackupURL      string                   `json:"recharge_storefront_backup_url"`
 	SupportGroupEnabled              bool                     `json:"support_group_enabled"`
 	SupportGroupButtonText           string                   `json:"support_group_button_text"`
 	SupportGroupTitle                string                   `json:"support_group_title"`

@@ -256,6 +256,7 @@ const (
 	SettingKeyRechargeStorefrontEnabled   = "recharge_storefront_enabled"   // 是否展示充值商城入口
 	SettingKeyRechargeStorefrontText      = "recharge_storefront_button_text" // 充值商城入口按钮文字
 	SettingKeyRechargeStorefrontURL       = "recharge_storefront_url"       // 充值商城跳转链接
+	SettingKeyRechargeStorefrontBackupURL = "recharge_storefront_backup_url" // 充值商城备用卡网跳转链接
 	SettingKeySupportGroupEnabled         = "support_group_enabled"         // 是否展示售后群入口
 	SettingKeySupportGroupButtonText      = "support_group_button_text"     // 售后群入口按钮文字
 	SettingKeySupportGroupTitle           = "support_group_title"           // 售后群弹窗标题

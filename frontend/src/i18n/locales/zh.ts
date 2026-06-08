@@ -376,6 +376,12 @@ export default {
     logout: '退出登录',
     github: 'GitHub',
     rechargeStorefront: '充值商城',
+    rechargeStorefrontPickerTitle: '选择充值渠道',
+    rechargeStorefrontPickerDescription: '如主卡网异常，可切换备用卡网继续充值。',
+    rechargeStorefrontPrimary: '主卡网',
+    rechargeStorefrontPrimaryHint: '默认推荐，优先使用主充值通道。',
+    rechargeStorefrontBackup: '备用卡网',
+    rechargeStorefrontBackupHint: '主线路异常时，可切换备用通道。',
     supportGroup: '售后群',
     supportGroupDescription: '扫码加入售后群，处理订单、兑换码和使用问题',
     supportGroupQrAlt: '售后群二维码',
@@ -5947,9 +5953,12 @@ export default {
           description: '在顶部导航展示充值商城入口，支持自定义按钮文字和跳转链接',
           buttonText: '按钮文字',
           buttonTextPlaceholder: '充值商城',
-          url: '跳转链接',
-          urlPlaceholder: 'https://shop.example.com',
-          urlHint: '启用后必须填写完整的 http(s) 链接'
+          primaryUrl: '主卡网链接',
+          primaryUrlPlaceholder: 'https://shop.example.com',
+          primaryUrlHint: '主充值通道链接，建议填写完整的 http(s) 地址',
+          backupUrl: '备用卡网链接',
+          backupUrlPlaceholder: 'https://backup-shop.example.com',
+          backupUrlHint: '可选。填写后，用户点击充值商城会先弹出主卡网 / 备用卡网选择卡片'
         },
         supportGroup: {
           title: '售后群',
