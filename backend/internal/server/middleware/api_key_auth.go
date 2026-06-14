@@ -13,6 +13,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	userFacingInsufficientBalanceMessage = "余额不足，请前往站内充值。充值成功后可立即恢复使用。"
+	userFacingSubscriptionExpiredMessage = "当前订阅已到期，请续费，或切换到余额组继续使用。"
+	userFacingSubscriptionQuotaMessage   = "本周期额度已用完，请等待重置，或切换到余额组继续使用。"
+)
+
 // NewAPIKeyAuthMiddleware 创建 API Key 认证中间件
 func NewAPIKeyAuthMiddleware(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config) APIKeyAuthMiddleware {
 	return APIKeyAuthMiddleware(apiKeyAuthWithSubscription(apiKeyService, subscriptionService, cfg))
@@ -154,7 +160,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			)
 			if subErr != nil {
 				if !skipBilling {
-					AbortWithError(c, 403, "SUBSCRIPTION_NOT_FOUND", "No active subscription found for this group")
+					AbortWithError(c, 403, "SUBSCRIPTION_NOT_FOUND", userFacingSubscriptionExpiredMessage)
 					return
 				}
 				// skipBilling: 订阅不存在也放行，handler 会返回可用的数据
@@ -198,7 +204,11 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 						code = "USAGE_LIMIT_EXCEEDED"
 						status = 429
 					}
-					AbortWithError(c, status, code, validateErr.Error())
+					message := userFacingSubscriptionExpiredMessage
+					if code == "USAGE_LIMIT_EXCEEDED" {
+						message = userFacingSubscriptionQuotaMessage
+					}
+					AbortWithError(c, status, code, message)
 					return
 				}
 
@@ -210,7 +220,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			} else {
 				// 非订阅模式 或 订阅模式但 subscriptionService 未注入：回退到余额检查
 				if apiKey.User.Balance <= 0 {
-					AbortWithError(c, 403, "INSUFFICIENT_BALANCE", "Insufficient account balance")
+					AbortWithError(c, 403, "INSUFFICIENT_BALANCE", userFacingInsufficientBalanceMessage)
 					return
 				}
 			}

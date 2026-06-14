@@ -48,11 +48,25 @@ func TestBillingErrorDetails_BillingServiceUnavailableMapsTo503(t *testing.T) {
 	require.Equal(t, 0, retryAfter, "non-RPM errors should not set Retry-After")
 }
 
-func TestBillingErrorDetails_UnknownErrorFallsBackTo403(t *testing.T) {
+func TestBillingErrorDetails_InsufficientBalanceUsesFriendlyMessage(t *testing.T) {
 	status, code, msg, _ := billingErrorDetails(service.ErrInsufficientBalance)
 	require.Equal(t, http.StatusForbidden, status)
 	require.Equal(t, "billing_error", code)
-	require.NotEmpty(t, msg)
+	require.Equal(t, "余额不足，请前往站内充值。充值成功后可立即恢复使用。", msg)
+}
+
+func TestBillingErrorDetails_SubscriptionInvalidUsesFriendlyMessage(t *testing.T) {
+	status, code, msg, _ := billingErrorDetails(service.ErrSubscriptionInvalid)
+	require.Equal(t, http.StatusForbidden, status)
+	require.Equal(t, "billing_error", code)
+	require.Equal(t, "当前订阅已到期，请续费，或切换到余额组继续使用。", msg)
+}
+
+func TestBillingErrorDetails_SubscriptionQuotaExceededUsesFriendlyMessage(t *testing.T) {
+	status, code, msg, _ := billingErrorDetails(service.ErrDailyLimitExceeded)
+	require.Equal(t, http.StatusForbidden, status)
+	require.Equal(t, "billing_error", code)
+	require.Equal(t, "本周期额度已用完，请等待重置，或切换到余额组继续使用。", msg)
 }
 
 func TestExtractQuotaResetSeconds_T19_HappyPath(t *testing.T) {

@@ -36,6 +36,12 @@ const gatewayCompatibilityMetricsLogInterval = 1024
 
 var gatewayCompatibilityMetricsLogCounter atomic.Uint64
 
+const (
+	userFacingInsufficientBalanceMessage = "余额不足，请前往站内充值。充值成功后可立即恢复使用。"
+	userFacingSubscriptionExpiredMessage = "当前订阅已到期，请续费，或切换到余额组继续使用。"
+	userFacingSubscriptionQuotaMessage   = "本周期额度已用完，请等待重置，或切换到余额组继续使用。"
+)
+
 // GatewayHandler handles API gateway requests
 type GatewayHandler struct {
 	gatewayService            *service.GatewayService
@@ -2085,6 +2091,19 @@ func billingErrorDetails(err error) (status int, code, message string, retryAfte
 		// 错误码用 rate_limit_exceeded 与 OpenAI 兼容客户端一致；细分类型由 ErrCode + window_resets_at metadata 区分。
 		msg := pkgerrors.Message(err)
 		return http.StatusTooManyRequests, "rate_limit_exceeded", msg, extractQuotaResetSeconds(err)
+	}
+	if errors.Is(err, service.ErrInsufficientBalance) {
+		return http.StatusForbidden, "billing_error", userFacingInsufficientBalanceMessage, 0
+	}
+	if errors.Is(err, service.ErrSubscriptionInvalid) ||
+		errors.Is(err, service.ErrSubscriptionExpired) ||
+		errors.Is(err, service.ErrSubscriptionNotFound) {
+		return http.StatusForbidden, "billing_error", userFacingSubscriptionExpiredMessage, 0
+	}
+	if errors.Is(err, service.ErrDailyLimitExceeded) ||
+		errors.Is(err, service.ErrWeeklyLimitExceeded) ||
+		errors.Is(err, service.ErrMonthlyLimitExceeded) {
+		return http.StatusForbidden, "billing_error", userFacingSubscriptionQuotaMessage, 0
 	}
 	msg := pkgerrors.Message(err)
 	if msg == "" {
