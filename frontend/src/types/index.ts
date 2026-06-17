@@ -1221,7 +1221,7 @@ export type RedeemCodeType =
   | 'subscription'
   | 'subscription_quota_reset'
   | 'invitation'
-export type UsageRequestType = 'unknown' | 'sync' | 'stream' | 'ws_v2'
+export type UsageRequestType = 'unknown' | 'sync' | 'stream' | 'ws_v2' | 'cyber'
 export type ImageSizeSource = 'output' | 'input' | 'default' | 'legacy'
 export type ImageSizeBreakdown = Record<string, number>
 
