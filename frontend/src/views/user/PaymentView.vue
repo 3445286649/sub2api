@@ -22,6 +22,10 @@
             :pay-url="paymentState.payUrl"
             :order-type="paymentState.orderType"
             :currency="paymentState.currency || selectedCurrency"
+            :crypto-amount="paymentState.cryptoAmount"
+            :crypto-currency="paymentState.cryptoCurrency"
+            :crypto-network="paymentState.cryptoNetwork"
+            :receive-address="paymentState.receiveAddress"
             @done="onPaymentDone"
             @success="onPaymentSuccess"
             @settled="onPaymentSettled"
@@ -339,6 +343,10 @@ function emptyPaymentState(): PaymentRecoverySnapshot {
     currency: '',
     countryCode: '',
     paymentEnv: '',
+    cryptoAmount: '',
+    cryptoCurrency: '',
+    cryptoNetwork: '',
+    receiveAddress: '',
     payAmount: 0,
     orderType: '',
     paymentMode: '',

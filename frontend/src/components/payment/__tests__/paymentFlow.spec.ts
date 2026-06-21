@@ -39,6 +39,7 @@ describe('getVisibleMethods', () => {
       wxpay: methodLimit({ single_max: 100 }),
       stripe: methodLimit({ fee_rate: 3 }),
       airwallex: methodLimit({ single_min: 10 }),
+      usdt_bsc: methodLimit({ single_min: 10 }),
     })
 
     expect(visible).toEqual({
@@ -46,6 +47,7 @@ describe('getVisibleMethods', () => {
       wxpay: methodLimit({ single_max: 100 }),
       stripe: methodLimit({ fee_rate: 3 }),
       airwallex: methodLimit({ single_min: 10 }),
+      usdt_bsc: methodLimit({ single_min: 10 }),
     })
   })
 
@@ -127,6 +129,27 @@ describe('decidePaymentLaunch', () => {
     expect(decision.paymentState.currency).toBe('CNY')
     expect(decision.paymentState.countryCode).toBe('CN')
     expect(decision.paymentState.paymentEnv).toBe('demo')
+  })
+
+  it('keeps USDT-BSC crypto fields in the QR waiting state', () => {
+    const decision = decidePaymentLaunch(createOrderResult({
+      payment_type: 'usdt_bsc',
+      qr_code: '0x3b210bdc924c685fDd10Ae96b7f95D0E14536106',
+      crypto_amount: '10.000123',
+      crypto_currency: 'USDT',
+      crypto_network: 'BSC',
+      receive_address: '0x3b210bdc924c685fDd10Ae96b7f95D0E14536106',
+    }), {
+      visibleMethod: 'usdt_bsc',
+      orderType: 'balance',
+      isMobile: false,
+    })
+
+    expect(decision.kind).toBe('qr_waiting')
+    expect(decision.paymentState.cryptoAmount).toBe('10.000123')
+    expect(decision.paymentState.cryptoCurrency).toBe('USDT')
+    expect(decision.paymentState.cryptoNetwork).toBe('BSC')
+    expect(decision.paymentState.receiveAddress).toBe('0x3b210bdc924c685fDd10Ae96b7f95D0E14536106')
   })
 
   it('keeps hosted redirect metadata for recovery flows', () => {
@@ -335,6 +358,10 @@ describe('readPaymentRecoverySnapshot', () => {
       currency: '',
       countryCode: '',
       paymentEnv: '',
+      cryptoAmount: '',
+      cryptoCurrency: '',
+      cryptoNetwork: '',
+      receiveAddress: '',
       payAmount: 18,
       orderType: 'balance',
       paymentMode: 'popup',
@@ -364,6 +391,10 @@ describe('readPaymentRecoverySnapshot', () => {
       currency: '',
       countryCode: '',
       paymentEnv: '',
+      cryptoAmount: '',
+      cryptoCurrency: '',
+      cryptoNetwork: '',
+      receiveAddress: '',
       payAmount: 18,
       orderType: 'balance',
       paymentMode: 'popup',

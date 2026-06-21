@@ -781,6 +781,96 @@ func TestPaymentOrderAllowsRegistryFallbackOnlyForLegacyOrdersWithoutPinnedProvi
 	}))
 }
 
+func TestReconcilePendingCryptoOrdersFulfillsBalanceRecharge(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+
+	user, err := client.User.Create().
+		SetEmail("crypto-user@example.com").
+		SetUsername("crypto-user").
+		SetPasswordHash("hash").
+		Save(ctx)
+	require.NoError(t, err)
+
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(10).
+		SetPayAmount(10).
+		SetFeeRate(0).
+		SetRechargeCode("CRYPTO-RECHARGE-10").
+		SetOutTradeNo("sub2_crypto_paid").
+		SetPaymentType(payment.TypeUSDTBSC).
+		SetPaymentTradeNo("usdt_bsc|sub2_crypto_paid|10.00|10.000123|0x3b210bdc924c685fDd10Ae96b7f95D0E14536106").
+		SetOrderType(payment.OrderTypeBalance).
+		SetStatus(OrderStatusPending).
+		SetExpiresAt(time.Now().Add(time.Hour)).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("api.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	userRepo := &mockUserRepo{
+		getByIDUser: &User{
+			ID:       user.ID,
+			Email:    user.Email,
+			Username: user.Username,
+			Balance:  0,
+		},
+	}
+	userRepo.updateBalanceFn = func(ctx context.Context, id int64, amount float64) error {
+		require.Equal(t, user.ID, id)
+		userRepo.getByIDUser.Balance += amount
+		return nil
+	}
+	redeemRepo := &paymentOrderLifecycleRedeemRepo{
+		codesByCode: map[string]*RedeemCode{
+			order.RechargeCode: {
+				ID:     1,
+				Code:   order.RechargeCode,
+				Type:   RedeemTypeBalance,
+				Value:  order.Amount,
+				Status: StatusUnused,
+			},
+		},
+	}
+	redeemService := NewRedeemService(redeemRepo, userRepo, nil, nil, nil, client, nil, nil)
+	registry := payment.NewRegistry()
+	provider := &paymentOrderLifecycleQueryProvider{
+		key: payment.TypeUSDTBSC,
+		resp: &payment.QueryOrderResponse{
+			TradeNo: "0xcrypto-paid",
+			Status:  payment.ProviderStatusPaid,
+			Amount:  10,
+			Metadata: map[string]string{
+				"tx_hash":       "0xcrypto-paid",
+				"confirmations": "21",
+			},
+		},
+	}
+	registry.Register(provider)
+
+	svc := &PaymentService{
+		entClient:       client,
+		registry:        registry,
+		redeemService:   redeemService,
+		userRepo:        userRepo,
+		providersLoaded: true,
+	}
+
+	recovered, err := svc.ReconcilePendingCryptoOrders(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, recovered)
+	require.Equal(t, "usdt_bsc|sub2_crypto_paid|10.00|10.000123|0x3b210bdc924c685fDd10Ae96b7f95D0E14536106", provider.lastQueryTradeNo)
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusCompleted, reloaded.Status)
+	require.Equal(t, "0xcrypto-paid", reloaded.PaymentTradeNo)
+	require.Equal(t, 10.0, userRepo.getByIDUser.Balance)
+}
+
 func TestPaymentOrderQueryReferenceUsesOutTradeNoForOfficialProviders(t *testing.T) {
 	t.Parallel()
 

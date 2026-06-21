@@ -77,13 +77,58 @@
           <div :class="['relative rounded-lg border-2 p-4', qrBorderClass]">
             <canvas ref="qrCanvas" class="mx-auto"></canvas>
             <!-- Brand logo overlay -->
-            <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div v-if="showQrLogo" class="pointer-events-none absolute inset-0 flex items-center justify-center">
               <span :class="['rounded-full p-2 shadow ring-2 ring-white', qrLogoBgClass]">
-                <img :src="isAlipay ? alipayIcon : wxpayIcon" alt="" class="h-5 w-5 brightness-0 invert" />
+                <img :src="qrLogoIcon" alt="" class="h-5 w-5 brightness-0 invert" />
               </span>
             </div>
           </div>
           <p v-if="scanHint" class="text-center text-sm text-gray-500 dark:text-gray-400">{{ scanHint }}</p>
+          <div v-if="isUsdtBsc" class="w-full space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-left dark:border-emerald-800/70 dark:bg-emerald-950/20">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p class="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                  {{ t('payment.crypto.networkLabel') }}
+                </p>
+                <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                  {{ t('payment.crypto.usdtBscNetwork') }}
+                </p>
+              </div>
+              <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200">
+                USDT-BEP20
+              </span>
+            </div>
+            <div v-if="cryptoPayAmountDisplay" class="rounded-lg bg-white p-3 shadow-sm dark:bg-dark-800">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {{ t('payment.crypto.payAmount') }}
+              </p>
+              <p class="mt-1 font-mono text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                {{ cryptoPayAmountDisplay }}
+              </p>
+              <p class="mt-2 text-xs leading-5 text-amber-700 dark:text-amber-300">
+                {{ t('payment.crypto.feeWarning') }}
+              </p>
+            </div>
+            <div class="rounded-lg bg-white p-3 shadow-sm dark:bg-dark-800">
+              <div class="mb-2 flex items-center justify-between gap-3">
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {{ t('payment.crypto.walletAddress') }}
+                </span>
+                <button
+                  type="button"
+                  class="wallet-address-copy inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                  @click="copyWalletAddress"
+                >
+                  <Icon name="copy" size="sm" />
+                  {{ addressCopied ? t('payment.crypto.copied') : t('payment.crypto.copyAddress') }}
+                </button>
+              </div>
+              <p class="break-all font-mono text-sm text-gray-900 dark:text-gray-100">{{ walletAddress }}</p>
+            </div>
+            <p class="text-xs leading-5 text-emerald-800 dark:text-emerald-200">
+              {{ t('payment.crypto.usdtBscWarning') }}
+            </p>
+          </div>
           <button v-if="payUrl" class="btn btn-secondary text-sm" @click="reopenPopup">
             {{ t('payment.qr.openPayWindow') }}
           </button>
@@ -130,6 +175,7 @@ import { paymentAPI } from '@/api/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { getPaymentPopupFeatures } from '@/components/payment/providerConfig'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { useClipboard } from '@/composables/useClipboard'
 import type { PaymentOrder } from '@/types/payment'
 import Icon from '@/components/icons/Icon.vue'
 import QRCode from 'qrcode'
@@ -144,6 +190,10 @@ const props = defineProps<{
   payUrl?: string
   orderType?: string
   currency?: string
+  cryptoAmount?: string
+  cryptoCurrency?: string
+  cryptoNetwork?: string
+  receiveAddress?: string
 }>()
 
 type PaymentOutcome = 'success' | 'cancelled' | 'expired'
@@ -154,6 +204,7 @@ const i18n = useI18n()
 const { t } = i18n
 const paymentStore = usePaymentStore()
 const appStore = useAppStore()
+const { copied: addressCopied, copyToClipboard } = useClipboard()
 
 const qrCanvas = ref<HTMLCanvasElement | null>(null)
 const qrUrl = ref('')
@@ -183,6 +234,20 @@ const VERIFY_RETRY_MAX_ATTEMPTS = 6
 
 const isAlipay = computed(() => props.paymentType.includes('alipay'))
 const isWxpay = computed(() => props.paymentType.includes('wxpay'))
+const isUsdtBsc = computed(() => {
+  const normalized = props.paymentType.trim().toLowerCase()
+  return normalized === 'usdt_bsc' || (normalized.includes('usdt') && normalized.includes('bsc'))
+})
+const showQrLogo = computed(() => isAlipay.value || isWxpay.value)
+const qrLogoIcon = computed(() => isAlipay.value ? alipayIcon : wxpayIcon)
+const walletAddress = computed(() => (props.receiveAddress || qrUrl.value).trim())
+const activelyVerifiable = computed(() => isWxpay.value || isUsdtBsc.value)
+const cryptoPayAmountDisplay = computed(() => {
+  const amount = (props.cryptoAmount || '').trim()
+  if (!amount) return ''
+  const currency = (props.cryptoCurrency || 'USDT').trim()
+  return `${amount} ${currency}`
+})
 
 const qrBorderClass = computed(() => {
   if (isAlipay.value) return 'border-[#00AEEF] bg-blue-50 dark:border-[#00AEEF]/70 dark:bg-blue-950/20'
@@ -197,12 +262,14 @@ const qrLogoBgClass = computed(() => {
 })
 
 const scanTitle = computed(() => {
+  if (isUsdtBsc.value) return t('payment.crypto.scanUsdtBsc')
   if (isAlipay.value) return t('payment.qr.scanAlipay')
   if (isWxpay.value) return t('payment.qr.scanWxpay')
   return t('payment.qr.scanToPay')
 })
 
 const scanHint = computed(() => {
+  if (isUsdtBsc.value) return t('payment.crypto.scanUsdtBscHint')
   if (isAlipay.value) return t('payment.qr.scanAlipayHint')
   if (isWxpay.value) return t('payment.qr.scanWxpayHint')
   return ''
@@ -231,6 +298,10 @@ function reopenPopup() {
   }
 }
 
+async function copyWalletAddress() {
+  await copyToClipboard(walletAddress.value, t('payment.crypto.addressCopied'))
+}
+
 function setOutcome(next: PaymentOutcome) {
   if (outcome.value === next) return
   outcome.value = next
@@ -247,7 +318,7 @@ async function renderQR() {
 }
 
 async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder> {
-  if (!isWxpay.value) return order
+  if (!activelyVerifiable.value) return order
   const outTradeNo = String(order.out_trade_no || '').trim()
   if (!outTradeNo) return order
   const normalizedStatus = String(order.status || '').trim().toUpperCase()

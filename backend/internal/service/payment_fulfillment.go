@@ -105,7 +105,34 @@ func (s *PaymentService) confirmPayment(ctx context.Context, oid int64, tradeNo 
 		s.writeAuditLog(ctx, o.ID, "PAYMENT_AMOUNT_MISMATCH", pk, map[string]any{"expected": o.PayAmount, "paid": paid, "tradeNo": tradeNo})
 		return fmt.Errorf("amount mismatch: expected %s, got %s", strconv.FormatFloat(o.PayAmount, 'f', -1, 64), strconv.FormatFloat(paid, 'f', -1, 64))
 	}
+	if strings.EqualFold(strings.TrimSpace(pk), payment.TypeUSDTBSC) {
+		if err := s.ensureCryptoTradeNotReused(ctx, o.ID, tradeNo, pk); err != nil {
+			return err
+		}
+	}
 	return s.toPaid(ctx, o, tradeNo, paid, pk)
+}
+
+func (s *PaymentService) ensureCryptoTradeNotReused(ctx context.Context, orderID int64, tradeNo string, pk string) error {
+	tradeNo = strings.TrimSpace(tradeNo)
+	if tradeNo == "" {
+		return fmt.Errorf("crypto payment trade no is empty")
+	}
+	count, err := s.entClient.PaymentOrder.Query().
+		Where(
+			paymentorder.IDNEQ(orderID),
+			paymentorder.PaymentTradeNoEQ(tradeNo),
+			paymentorder.StatusIn(OrderStatusPaid, OrderStatusRecharging, OrderStatusCompleted),
+		).
+		Count(ctx)
+	if err != nil {
+		return fmt.Errorf("check crypto trade reuse: %w", err)
+	}
+	if count > 0 {
+		s.writeAuditLog(ctx, orderID, "CRYPTO_TRADE_REUSED", pk, map[string]any{"tradeNo": tradeNo})
+		return fmt.Errorf("crypto trade already used: %s", tradeNo)
+	}
+	return nil
 }
 
 func paymentAmountToleranceForCurrency(currency string) float64 {

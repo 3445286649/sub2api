@@ -27,7 +27,8 @@ const (
 	checkPaidResultAlreadyPaid = "already_paid"
 	checkPaidResultCancelled   = "cancelled"
 
-	pendingWxpayReconcileLimit = 20
+	pendingWxpayReconcileLimit  = 20
+	pendingCryptoReconcileLimit = 30
 )
 
 type checkPaidOptions struct {
@@ -179,7 +180,11 @@ func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.Paym
 			resp = retriedResp
 		}
 		notificationTradeNo := o.PaymentTradeNo
-		if upstreamTradeNo := strings.TrimSpace(resp.TradeNo); paymentOrderShouldPersistUpstreamTradeNo(queryRef, upstreamTradeNo, notificationTradeNo) {
+		if upstreamTradeNo := strings.TrimSpace(resp.TradeNo); prov.ProviderKey() == payment.TypeUSDTBSC {
+			if upstreamTradeNo != "" {
+				notificationTradeNo = upstreamTradeNo
+			}
+		} else if paymentOrderShouldPersistUpstreamTradeNo(queryRef, upstreamTradeNo, notificationTradeNo) {
 			if _, updateErr := s.entClient.PaymentOrder.Update().
 				Where(paymentorder.IDEQ(o.ID)).
 				SetPaymentTradeNo(upstreamTradeNo).
@@ -317,6 +322,36 @@ func (s *PaymentService) ReconcilePendingWxpayOrders(ctx context.Context) (int, 
 		All(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("query pending wxpay orders: %w", err)
+	}
+
+	recovered := 0
+	for _, order := range orders {
+		if s.reconcilePaid(ctx, order) == checkPaidResultAlreadyPaid {
+			recovered++
+		}
+	}
+	return recovered, nil
+}
+
+// ReconcilePendingCryptoOrders actively checks pending on-chain payment orders.
+// Blockchain providers do not send webhooks in the first implementation, so
+// this periodic reconciliation is the authoritative auto-credit path.
+func (s *PaymentService) ReconcilePendingCryptoOrders(ctx context.Context) (int, error) {
+	now := time.Now()
+	orders, err := s.entClient.PaymentOrder.Query().
+		Where(
+			paymentorder.StatusEQ(OrderStatusPending),
+			paymentorder.ExpiresAtGT(now),
+			paymentorder.Or(
+				paymentorder.PaymentTypeEQ(payment.TypeUSDTBSC),
+				paymentorder.ProviderKeyEQ(payment.TypeUSDTBSC),
+			),
+		).
+		Order(dbent.Asc(paymentorder.FieldCreatedAt)).
+		Limit(pendingCryptoReconcileLimit).
+		All(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("query pending crypto orders: %w", err)
 	}
 
 	recovered := 0

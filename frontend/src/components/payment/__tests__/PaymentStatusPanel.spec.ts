@@ -6,6 +6,7 @@ const cancelOrder = vi.hoisted(() => vi.fn())
 const verifyOrder = vi.hoisted(() => vi.fn())
 const showError = vi.hoisted(() => vi.fn())
 const toCanvas = vi.hoisted(() => vi.fn())
+const copyToClipboard = vi.hoisted(() => vi.fn())
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -34,6 +35,13 @@ vi.mock('@/api/payment', () => ({
     cancelOrder,
     verifyOrder,
   },
+}))
+
+vi.mock('@/composables/useClipboard', () => ({
+  useClipboard: () => ({
+    copied: false,
+    copyToClipboard,
+  }),
 }))
 
 vi.mock('qrcode', () => ({
@@ -66,6 +74,7 @@ describe('PaymentStatusPanel', () => {
     cancelOrder.mockReset()
     verifyOrder.mockReset()
     showError.mockReset()
+    copyToClipboard.mockReset().mockResolvedValue(true)
     toCanvas.mockReset().mockResolvedValue(undefined)
   })
 
@@ -130,6 +139,41 @@ describe('PaymentStatusPanel', () => {
     )
 
     openSpy.mockRestore()
+  })
+
+  it('renders USDT-BSC QR details and copies the wallet address', async () => {
+    const address = '0x3b210bdc924c685fDd10Ae96b7f95D0E14536106'
+
+    const wrapper = mount(PaymentStatusPanel, {
+      props: {
+        orderId: 42,
+        qrCode: address,
+        expiresAt: '2099-01-01T12:30:00Z',
+        paymentType: 'usdt_bsc',
+        orderType: 'balance',
+        cryptoAmount: '10.000123',
+        cryptoCurrency: 'USDT',
+        cryptoNetwork: 'BSC',
+        receiveAddress: address,
+      },
+      global: {
+        stubs: {
+          Icon: true,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('payment.crypto.scanUsdtBsc')
+    expect(wrapper.text()).toContain('payment.crypto.walletAddress')
+    expect(wrapper.text()).toContain('payment.crypto.feeWarning')
+    expect(wrapper.text()).toContain('10.000123 USDT')
+    expect(wrapper.text()).toContain(address)
+    expect(toCanvas).toHaveBeenCalledWith(expect.anything(), address, expect.any(Object))
+
+    await wrapper.get('button.wallet-address-copy').trigger('click')
+    expect(copyToClipboard).toHaveBeenCalledWith(address, 'payment.crypto.addressCopied')
   })
 
   it('actively verifies a stuck pending order and settles it when upstream confirms payment', async () => {

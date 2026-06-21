@@ -106,6 +106,15 @@ func (s *PaymentOrderExpiryService) runOnce() {
 		slog.Info("[PaymentOrderExpiry] reconciled paid wxpay orders", "count", recovered)
 	}
 
+	cryptoCtx, cancel := context.WithTimeout(context.Background(), expiryCheckTimeout)
+	cryptoRecovered, err := s.paymentSvc.ReconcilePendingCryptoOrders(cryptoCtx)
+	cancel()
+	if err != nil {
+		slog.Warn("[PaymentOrderExpiry] failed to reconcile pending crypto orders", "error", err)
+	} else if cryptoRecovered > 0 {
+		slog.Info("[PaymentOrderExpiry] reconciled paid crypto orders", "count", cryptoRecovered)
+	}
+
 	expireCtx, cancel := context.WithTimeout(context.Background(), expiryCheckTimeout)
 	defer cancel()
 	expired, err := s.paymentSvc.ExpireTimedOutOrders(expireCtx)

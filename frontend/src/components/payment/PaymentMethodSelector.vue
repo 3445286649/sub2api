@@ -20,7 +20,8 @@
         @click="method.available && emit('select', method.type)"
       >
         <span class="flex items-center gap-2">
-          <img :src="methodIcon(method.type)" :alt="t(`payment.methods.${method.type}`)" class="h-7 w-7 object-contain" />
+          <span v-if="method.type === 'usdt_bsc'" class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white shadow-sm">USDT</span>
+          <img v-else :src="methodIcon(method.type)" :alt="t(`payment.methods.${method.type}`)" class="h-7 w-7 object-contain" />
           <span class="flex flex-col items-start leading-none">
             <span class="text-base font-semibold">{{ t(`payment.methods.${method.type}`) }}</span>
             <span
@@ -90,6 +91,7 @@ function methodSelectedClass(type: string): string {
   if (type.includes('wxpay')) return 'border-[#09BB07] bg-green-50 text-gray-900 shadow-sm dark:bg-green-950 dark:text-gray-100'
   if (type === 'stripe') return 'border-[#676BE5] bg-indigo-50 text-gray-900 shadow-sm dark:bg-indigo-950 dark:text-gray-100'
   if (type === 'airwallex') return 'border-[#FF6B3D] bg-orange-50 text-gray-900 shadow-sm dark:border-[#FF8E3C] dark:bg-orange-950 dark:text-gray-100'
+  if (type === 'usdt_bsc') return 'border-emerald-500 bg-emerald-50 text-gray-900 shadow-sm dark:border-emerald-500 dark:bg-emerald-950 dark:text-gray-100'
   return 'border-primary-500 bg-primary-50 text-gray-900 shadow-sm dark:bg-primary-950 dark:text-gray-100'
 }
 </script>
