@@ -42,7 +42,8 @@ type USDTBSC struct {
 	tokenContract  string
 	bscscanAPIBase string
 	bscscanAPIKey  string
-	rpcURL         string
+	rpcURLs        []string
+	rpcDisabled    bool
 	cnyPerUSDT     *big.Rat
 	confirmations  int64
 	httpClient     *http.Client
@@ -79,9 +80,11 @@ func NewUSDTBSC(instanceID string, config map[string]string) (*USDTBSC, error) {
 	if apiBase == "" {
 		apiBase = defaultBscScanAPIBase
 	}
-	rpcURL := strings.TrimSpace(configValue(config, "rpcUrl", "bscRpcUrl", "rpc_url"))
-	if rpcURL == "" {
-		rpcURL = defaultUSDTBSCRPCURL
+	rpcRaw := configValue(config, "rpcUrl", "bscRpcUrl", "rpc_url")
+	rpcDisabled := rpcURLDisabled(rpcRaw)
+	rpcURLs := parseRPCURLs(rpcRaw)
+	if len(rpcURLs) == 0 && !rpcDisabled {
+		rpcURLs = []string{defaultUSDTBSCRPCURL}
 	}
 	return &USDTBSC{
 		instanceID:     instanceID,
@@ -89,7 +92,8 @@ func NewUSDTBSC(instanceID string, config map[string]string) (*USDTBSC, error) {
 		tokenContract:  strings.ToLower(tokenContract),
 		bscscanAPIBase: strings.TrimRight(apiBase, "?"),
 		bscscanAPIKey:  strings.TrimSpace(configValue(config, "bscscanApiKey", "apiKey")),
-		rpcURL:         strings.TrimRight(rpcURL, "/"),
+		rpcURLs:        rpcURLs,
+		rpcDisabled:    rpcDisabled,
 		cnyPerUSDT:     rate,
 		confirmations:  confirmations,
 		httpClient:     &http.Client{Timeout: 12 * time.Second},
@@ -229,13 +233,17 @@ type bscScanTokenTx struct {
 }
 
 func (p *USDTBSC) fetchTokenTransfers(ctx context.Context, address string, expectedRaw *big.Int) ([]bscScanTokenTx, error) {
-	if strings.TrimSpace(p.rpcURL) != "" {
-		events, err := p.fetchTokenTransfersByRPC(ctx, address, expectedRaw)
-		if err == nil {
-			return events, nil
+	if len(p.rpcURLs) > 0 && !p.rpcDisabled {
+		var lastErr error
+		for _, rpcURL := range p.rpcURLs {
+			events, err := p.fetchTokenTransfersByRPC(ctx, rpcURL, address, expectedRaw)
+			if err == nil {
+				return events, nil
+			}
+			lastErr = err
 		}
-		if p.bscscanAPIBase == "" {
-			return nil, err
+		if lastErr != nil {
+			return nil, lastErr
 		}
 	}
 	u, err := url.Parse(p.bscscanAPIBase)
@@ -315,8 +323,8 @@ type rpcLog struct {
 	LogIndex         string   `json:"logIndex"`
 }
 
-func (p *USDTBSC) fetchTokenTransfersByRPC(ctx context.Context, address string, expectedRaw *big.Int) ([]bscScanTokenTx, error) {
-	latestHex, err := p.rpcCall(ctx, "eth_blockNumber", []any{})
+func (p *USDTBSC) fetchTokenTransfersByRPC(ctx context.Context, rpcURL string, address string, expectedRaw *big.Int) ([]bscScanTokenTx, error) {
+	latestHex, err := p.rpcCall(ctx, rpcURL, "eth_blockNumber", []any{})
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +348,7 @@ func (p *USDTBSC) fetchTokenTransfersByRPC(ctx context.Context, address string, 
 		if from < start {
 			from = start
 		}
-		rawLogs, err := p.rpcCall(ctx, "eth_getLogs", []any{map[string]any{
+		rawLogs, err := p.rpcCall(ctx, rpcURL, "eth_getLogs", []any{map[string]any{
 			"address":   p.tokenContract,
 			"fromBlock": int64ToHex(from),
 			"toBlock":   int64ToHex(end),
@@ -373,12 +381,12 @@ func (p *USDTBSC) fetchTokenTransfersByRPC(ctx context.Context, address string, 
 	return events, nil
 }
 
-func (p *USDTBSC) rpcCall(ctx context.Context, method string, params any) (json.RawMessage, error) {
+func (p *USDTBSC) rpcCall(ctx context.Context, rpcURL string, method string, params any) (json.RawMessage, error) {
 	payload, err := json.Marshal(rpcRequest{JSONRPC: "2.0", ID: 1, Method: method, Params: params})
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.rpcURL, strings.NewReader(string(payload)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rpcURL, strings.NewReader(string(payload)))
 	if err != nil {
 		return nil, err
 	}
@@ -451,6 +459,32 @@ func parseInt64Config(raw string, fallback int64) int64 {
 		return fallback
 	}
 	return v
+}
+
+func parseRPCURLs(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	if rpcURLDisabled(raw) {
+		return []string{}
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r' || r == '\t' || r == ' '
+	})
+	urls := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimRight(strings.TrimSpace(part), "/")
+		if part != "" {
+			urls = append(urls, part)
+		}
+	}
+	return urls
+}
+
+func rpcURLDisabled(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	return strings.EqualFold(raw, "disabled") || strings.EqualFold(raw, "none") || raw == "-"
 }
 
 func ratToFixed(r *big.Rat, decimals int) string {
