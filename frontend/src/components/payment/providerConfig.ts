@@ -152,6 +152,7 @@ export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
     { key: 'receiveAddress', label: '', sensitive: false, hintKey: 'admin.settings.payment.field_usdtReceiveAddressHint' },
     { key: 'cnyPerUsdt', label: '', sensitive: false, defaultValue: '7.2', hintKey: 'admin.settings.payment.field_usdtCnyPerUsdtHint' },
     { key: 'confirmations', label: '', sensitive: false, defaultValue: '20', hintKey: 'admin.settings.payment.field_usdtConfirmationsHint' },
+    { key: 'rpcUrl', label: '', sensitive: false, optional: true, defaultValue: 'https://1rpc.io/bnb', hintKey: 'admin.settings.payment.field_usdtRpcUrlHint' },
     { key: 'bscscanApiKey', label: '', sensitive: true, optional: true, clearable: true, hintKey: 'admin.settings.payment.field_usdtBscscanApiKeyHint' },
     { key: 'bscscanApiBase', label: '', sensitive: false, optional: true, defaultValue: 'https://api.bscscan.com/api', hintKey: 'admin.settings.payment.field_usdtBscscanApiBaseHint' },
     { key: 'tokenContract', label: '', sensitive: false, optional: true, defaultValue: '0x55d398326f99059ff775485246999027b3197955', hintKey: 'admin.settings.payment.field_usdtTokenContractHint' },

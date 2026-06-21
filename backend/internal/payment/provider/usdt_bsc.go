@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
 	"net/http"
@@ -21,9 +22,13 @@ import (
 const (
 	defaultUSDTBSCContract      = "0x55d398326f99059ff775485246999027b3197955"
 	defaultBscScanAPIBase       = "https://api.bscscan.com/api"
+	defaultUSDTBSCRPCURL        = "https://1rpc.io/bnb"
 	defaultUSDTBSCConfirmations = 20
 	usdtBSCIntentPrefix         = "usdt_bsc"
 	usdtBSCTokenDecimals        = 18
+	usdtBSCTransferTopic        = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	usdtBSCDefaultLookback      = int64(3600)
+	usdtBSCRPCWindowBlocks      = int64(50)
 )
 
 var evmAddressPattern = regexp.MustCompile(`^0x[0-9a-fA-F]{40}$`)
@@ -37,6 +42,7 @@ type USDTBSC struct {
 	tokenContract  string
 	bscscanAPIBase string
 	bscscanAPIKey  string
+	rpcURL         string
 	cnyPerUSDT     *big.Rat
 	confirmations  int64
 	httpClient     *http.Client
@@ -73,12 +79,17 @@ func NewUSDTBSC(instanceID string, config map[string]string) (*USDTBSC, error) {
 	if apiBase == "" {
 		apiBase = defaultBscScanAPIBase
 	}
+	rpcURL := strings.TrimSpace(configValue(config, "rpcUrl", "bscRpcUrl", "rpc_url"))
+	if rpcURL == "" {
+		rpcURL = defaultUSDTBSCRPCURL
+	}
 	return &USDTBSC{
 		instanceID:     instanceID,
 		receiveAddress: checksumPreservingAddress(receiveAddress),
 		tokenContract:  strings.ToLower(tokenContract),
 		bscscanAPIBase: strings.TrimRight(apiBase, "?"),
 		bscscanAPIKey:  strings.TrimSpace(configValue(config, "bscscanApiKey", "apiKey")),
+		rpcURL:         strings.TrimRight(rpcURL, "/"),
 		cnyPerUSDT:     rate,
 		confirmations:  confirmations,
 		httpClient:     &http.Client{Timeout: 12 * time.Second},
@@ -118,11 +129,11 @@ func (p *USDTBSC) QueryOrder(ctx context.Context, queryRef string) (*payment.Que
 	if err != nil {
 		return nil, err
 	}
-	events, err := p.fetchTokenTransfers(ctx, intent.ReceiveAddress)
+	expectedRaw, err := decimalToRaw(intent.TokenAmount, usdtBSCTokenDecimals)
 	if err != nil {
 		return nil, err
 	}
-	expectedRaw, err := decimalToRaw(intent.TokenAmount, usdtBSCTokenDecimals)
+	events, err := p.fetchTokenTransfers(ctx, intent.ReceiveAddress, expectedRaw)
 	if err != nil {
 		return nil, err
 	}
@@ -201,9 +212,9 @@ func parseUSDTBSCIntent(raw string) (usdtBSCIntent, error) {
 }
 
 type bscScanTokenTxResponse struct {
-	Status  string           `json:"status"`
-	Message string           `json:"message"`
-	Result  []bscScanTokenTx `json:"result"`
+	Status  string          `json:"status"`
+	Message string          `json:"message"`
+	Result  json.RawMessage `json:"result"`
 }
 
 type bscScanTokenTx struct {
@@ -217,7 +228,16 @@ type bscScanTokenTx struct {
 	Confirmations   string `json:"confirmations"`
 }
 
-func (p *USDTBSC) fetchTokenTransfers(ctx context.Context, address string) ([]bscScanTokenTx, error) {
+func (p *USDTBSC) fetchTokenTransfers(ctx context.Context, address string, expectedRaw *big.Int) ([]bscScanTokenTx, error) {
+	if strings.TrimSpace(p.rpcURL) != "" {
+		events, err := p.fetchTokenTransfersByRPC(ctx, address, expectedRaw)
+		if err == nil {
+			return events, nil
+		}
+		if p.bscscanAPIBase == "" {
+			return nil, err
+		}
+	}
 	u, err := url.Parse(p.bscscanAPIBase)
 	if err != nil {
 		return nil, fmt.Errorf("parse bscscan api base: %w", err)
@@ -253,7 +273,161 @@ func (p *USDTBSC) fetchTokenTransfers(ctx context.Context, address string) ([]bs
 	if parsed.Status == "0" && strings.EqualFold(parsed.Message, "No transactions found") {
 		return nil, nil
 	}
+	resultText := strings.TrimSpace(string(parsed.Result))
+	if strings.HasPrefix(resultText, `"`) {
+		var message string
+		if err := json.Unmarshal(parsed.Result, &message); err == nil {
+			return nil, fmt.Errorf("bscscan response error: %s", message)
+		}
+	}
+	var events []bscScanTokenTx
+	if err := json.Unmarshal(parsed.Result, &events); err != nil {
+		return nil, fmt.Errorf("decode bscscan result: %w", err)
+	}
+	return events, nil
+}
+
+type rpcRequest struct {
+	JSONRPC string `json:"jsonrpc"`
+	ID      int    `json:"id"`
+	Method  string `json:"method"`
+	Params  any    `json:"params"`
+}
+
+type rpcResponse struct {
+	Result json.RawMessage `json:"result"`
+	Error  *rpcError       `json:"error,omitempty"`
+}
+
+type rpcError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+type rpcLog struct {
+	Address          string   `json:"address"`
+	BlockNumber      string   `json:"blockNumber"`
+	TransactionHash  string   `json:"transactionHash"`
+	Topics           []string `json:"topics"`
+	Data             string   `json:"data"`
+	Removed          bool     `json:"removed"`
+	TransactionIndex string   `json:"transactionIndex"`
+	LogIndex         string   `json:"logIndex"`
+}
+
+func (p *USDTBSC) fetchTokenTransfersByRPC(ctx context.Context, address string, expectedRaw *big.Int) ([]bscScanTokenTx, error) {
+	latestHex, err := p.rpcCall(ctx, "eth_blockNumber", []any{})
+	if err != nil {
+		return nil, err
+	}
+	var latestNumber string
+	if err := json.Unmarshal(latestHex, &latestNumber); err != nil {
+		return nil, fmt.Errorf("decode rpc block number: %w", err)
+	}
+	latest, err := parseHexInt64(latestNumber)
+	if err != nil {
+		return nil, fmt.Errorf("parse rpc block number: %w", err)
+	}
+
+	toTopic := evmAddressTopic(address)
+	events := make([]bscScanTokenTx, 0)
+	start := latest - usdtBSCDefaultLookback
+	if start < 0 {
+		start = 0
+	}
+	for end := latest; end >= start; end -= usdtBSCRPCWindowBlocks {
+		from := end - usdtBSCRPCWindowBlocks + 1
+		if from < start {
+			from = start
+		}
+		rawLogs, err := p.rpcCall(ctx, "eth_getLogs", []any{map[string]any{
+			"address":   p.tokenContract,
+			"fromBlock": int64ToHex(from),
+			"toBlock":   int64ToHex(end),
+			"topics":    []any{usdtBSCTransferTopic, nil, toTopic},
+		}})
+		if err != nil {
+			return nil, err
+		}
+		var logs []rpcLog
+		if err := json.Unmarshal(rawLogs, &logs); err != nil {
+			return nil, fmt.Errorf("decode rpc logs: %w", err)
+		}
+		for _, log := range logs {
+			if log.Removed {
+				continue
+			}
+			event, ok := rpcLogToTokenTx(log, latest)
+			if !ok {
+				continue
+			}
+			events = append(events, event)
+			if expectedRaw != nil && strings.TrimSpace(event.Value) == expectedRaw.String() {
+				return events, nil
+			}
+		}
+		if from == 0 {
+			break
+		}
+	}
+	return events, nil
+}
+
+func (p *USDTBSC) rpcCall(ctx context.Context, method string, params any) (json.RawMessage, error) {
+	payload, err := json.Marshal(rpcRequest{JSONRPC: "2.0", ID: 1, Method: method, Params: params})
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.rpcURL, strings.NewReader(string(payload)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("query bsc rpc: %w", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("bsc rpc status %d", resp.StatusCode)
+	}
+	var parsed rpcResponse
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return nil, fmt.Errorf("decode bsc rpc response: %w", err)
+	}
+	if parsed.Error != nil {
+		return nil, fmt.Errorf("bsc rpc error %d: %s", parsed.Error.Code, parsed.Error.Message)
+	}
 	return parsed.Result, nil
+}
+
+func rpcLogToTokenTx(log rpcLog, latestBlock int64) (bscScanTokenTx, bool) {
+	if len(log.Topics) < 3 {
+		return bscScanTokenTx{}, false
+	}
+	blockNumber, err := parseHexInt64(log.BlockNumber)
+	if err != nil {
+		return bscScanTokenTx{}, false
+	}
+	value, ok := hexQuantityToDecimal(log.Data)
+	if !ok {
+		return bscScanTokenTx{}, false
+	}
+	confirmations := latestBlock - blockNumber + 1
+	if confirmations < 0 {
+		confirmations = 0
+	}
+	return bscScanTokenTx{
+		BlockNumber:     strconv.FormatInt(blockNumber, 10),
+		Hash:            log.TransactionHash,
+		From:            topicToAddress(log.Topics[1]),
+		To:              topicToAddress(log.Topics[2]),
+		ContractAddress: log.Address,
+		Value:           value,
+		TokenDecimal:    strconv.Itoa(usdtBSCTokenDecimals),
+		Confirmations:   strconv.FormatInt(confirmations, 10),
+	}, true
 }
 
 func configValue(config map[string]string, keys ...string) string {
@@ -308,6 +482,49 @@ func decimalToRaw(decimal string, decimals int64) (*big.Int, error) {
 		return nil, fmt.Errorf("decimal amount has too many digits")
 	}
 	return scaled.Num(), nil
+}
+
+func parseHexInt64(raw string) (int64, error) {
+	raw = strings.TrimSpace(strings.TrimPrefix(raw, "0x"))
+	if raw == "" {
+		return 0, fmt.Errorf("empty hex")
+	}
+	return strconv.ParseInt(raw, 16, 64)
+}
+
+func int64ToHex(v int64) string {
+	if v < 0 {
+		v = 0
+	}
+	return "0x" + strconv.FormatInt(v, 16)
+}
+
+func evmAddressTopic(address string) string {
+	address = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(address)), "0x")
+	if len(address) > 40 {
+		address = address[len(address)-40:]
+	}
+	return "0x" + strings.Repeat("0", 64-len(address)) + address
+}
+
+func topicToAddress(topic string) string {
+	topic = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(topic)), "0x")
+	if len(topic) < 40 {
+		return ""
+	}
+	return "0x" + topic[len(topic)-40:]
+}
+
+func hexQuantityToDecimal(raw string) (string, bool) {
+	raw = strings.TrimSpace(strings.TrimPrefix(raw, "0x"))
+	if raw == "" {
+		return "", false
+	}
+	value := new(big.Int)
+	if _, ok := value.SetString(raw, 16); !ok {
+		return "", false
+	}
+	return value.String(), true
 }
 
 func checksumPreservingAddress(address string) string {

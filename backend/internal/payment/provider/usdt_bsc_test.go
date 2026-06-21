@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -114,6 +115,72 @@ func TestUSDTBSCQueryOrderMatchesConfirmedTokenTransfer(t *testing.T) {
 	}
 	if resp.Metadata["tx_hash"] != "0xpaid" || resp.Metadata["confirmations"] != "21" {
 		t.Fatalf("metadata = %+v", resp.Metadata)
+	}
+}
+
+func TestUSDTBSCQueryOrderMatchesConfirmedTokenTransferByRPC(t *testing.T) {
+	const address = "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Method string            `json:"method"`
+			Params []json.RawMessage `json:"params"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode rpc request: %v", err)
+		}
+		switch req.Method {
+		case "eth_blockNumber":
+			fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":"0x100"}`)
+		case "eth_getLogs":
+			fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":[{"address":"0x55d398326f99059ff775485246999027b3197955","blockNumber":"0xf0","transactionHash":"0xrpcpaid","topics":["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","0x000000000000000000000000161ba15a00000000000000000076fbb64576fbb645","0x0000000000000000000000003b210bdc924c685fdd10ae96b7f95d0e14536106"],"data":"0x134655017ebcb000","removed":false}]}`)
+		default:
+			t.Fatalf("unexpected rpc method: %s", req.Method)
+		}
+	}))
+	defer server.Close()
+
+	p, err := NewUSDTBSC("1", map[string]string{
+		"receiveAddress": "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
+		"cnyPerUsdt":     "7.2",
+		"confirmations":  "16",
+		"rpcUrl":         server.URL,
+		"bscscanApiBase": "",
+	})
+	if err != nil {
+		t.Fatalf("NewUSDTBSC() error = %v", err)
+	}
+
+	resp, err := p.QueryOrder(context.Background(), "usdt_bsc|sub2_order|10.00|1.388891|"+address)
+	if err != nil {
+		t.Fatalf("QueryOrder() error = %v", err)
+	}
+	if resp.Status != payment.ProviderStatusPaid {
+		t.Fatalf("Status = %q, want paid", resp.Status)
+	}
+	if resp.TradeNo != "0xrpcpaid" || resp.Metadata["network"] != "BSC" {
+		t.Fatalf("response = %+v", resp)
+	}
+}
+
+func TestUSDTBSCQueryOrderReturnsReadableBscScanStringError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"status":"0","message":"NOTOK","result":"You are using a deprecated V1 endpoint"}`)
+	}))
+	defer server.Close()
+
+	p, err := NewUSDTBSC("1", map[string]string{
+		"receiveAddress": "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
+		"cnyPerUsdt":     "7.2",
+		"rpcUrl":         " ",
+		"bscscanApiBase": server.URL + "/api",
+	})
+	if err != nil {
+		t.Fatalf("NewUSDTBSC() error = %v", err)
+	}
+
+	_, err = p.QueryOrder(context.Background(), "usdt_bsc|sub2_order|10.00|1.388891|0x3b210bdc924c685fDd10Ae96b7f95D0E14536106")
+	if err == nil || !strings.Contains(err.Error(), "deprecated V1 endpoint") {
+		t.Fatalf("QueryOrder() error = %v, want readable bscscan error", err)
 	}
 }
 
