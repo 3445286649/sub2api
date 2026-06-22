@@ -99,14 +99,27 @@
               </span>
             </div>
             <div v-if="cryptoPayAmountDisplay" class="rounded-lg bg-white p-3 shadow-sm dark:bg-dark-800">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                {{ t('payment.crypto.payAmount') }}
-              </p>
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {{ t('payment.crypto.payAmount') }}
+                </p>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                  @click="copyPayAmount"
+                >
+                  <Icon name="copy" size="sm" />
+                  {{ amountCopied ? t('payment.crypto.copied') : t('payment.crypto.copyAmount') }}
+                </button>
+              </div>
               <p class="mt-1 font-mono text-2xl font-bold text-emerald-700 dark:text-emerald-300">
                 {{ cryptoPayAmountDisplay }}
               </p>
               <p class="mt-2 text-xs leading-5 text-amber-700 dark:text-amber-300">
                 {{ t('payment.crypto.feeWarning') }}
+              </p>
+              <p class="mt-1 text-xs leading-5 text-amber-700 dark:text-amber-300">
+                {{ t('payment.crypto.exchangeWithdrawalWarning') }}
               </p>
             </div>
             <div class="rounded-lg bg-white p-3 shadow-sm dark:bg-dark-800">
@@ -204,7 +217,8 @@ const i18n = useI18n()
 const { t } = i18n
 const paymentStore = usePaymentStore()
 const appStore = useAppStore()
-const { copied: addressCopied, copyToClipboard } = useClipboard()
+const { copied: addressCopied, copyToClipboard: copyAddressToClipboard } = useClipboard()
+const { copied: amountCopied, copyToClipboard: copyAmountToClipboard } = useClipboard()
 
 const qrCanvas = ref<HTMLCanvasElement | null>(null)
 const qrUrl = ref('')
@@ -299,7 +313,13 @@ function reopenPopup() {
 }
 
 async function copyWalletAddress() {
-  await copyToClipboard(walletAddress.value, t('payment.crypto.addressCopied'))
+  await copyAddressToClipboard(walletAddress.value, t('payment.crypto.addressCopied'))
+}
+
+async function copyPayAmount() {
+  const amount = (props.cryptoAmount || '').trim()
+  if (!amount) return
+  await copyAmountToClipboard(amount, t('payment.crypto.amountCopied'))
 }
 
 function setOutcome(next: PaymentOutcome) {
