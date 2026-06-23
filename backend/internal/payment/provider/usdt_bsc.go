@@ -24,10 +24,13 @@ const (
 	defaultUSDTBSCContract      = "0x55d398326f99059ff775485246999027b3197955"
 	defaultBscScanAPIBase       = "https://api.bscscan.com/api"
 	defaultUSDTBSCRPCURL        = "https://1rpc.io/bnb"
-	defaultUSDTBSCRateAPIURL    = "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=cny"
+	defaultUSDTBSCRateAPIURL    = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 	defaultUSDTBSCRateJSONPath  = "tether.cny"
 	defaultUSDTBSCRateCacheSecs = int64(300)
 	defaultUSDTBSCConfirmations = 20
+	usdtBSCRateSourceBinanceP2P = "binance_p2p_cny_sell"
+	usdtBSCRateSourceCustomAPI  = "custom_api"
+	usdtBSCRateSourceManual     = "manual"
 	usdtBSCIntentPrefix         = "usdt_bsc"
 	usdtBSCTokenDecimals        = 18
 	usdtBSCTransferTopic        = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
@@ -53,6 +56,7 @@ type USDTBSC struct {
 	rateMode             string
 	rateAPIURL           string
 	rateJSONPath         string
+	rateSource           string
 	rateFallbackToManual bool
 	rateCacheTTL         time.Duration
 	rateCacheMu          sync.Mutex
@@ -85,8 +89,21 @@ func NewUSDTBSC(instanceID string, config map[string]string) (*USDTBSC, error) {
 		return nil, fmt.Errorf("usdt_bsc cnyPerUsdt is required")
 	}
 	rateAPIURL := strings.TrimSpace(configValue(config, "rateApiUrl", "rate_api_url"))
+	rateSource := ""
+	if rateAPIURL == "" {
+		if binanceURL := strings.TrimSpace(configValue(config, "binanceP2PRateApiUrl", "binance_p2p_rate_api_url")); binanceURL != "" {
+			rateAPIURL = binanceURL
+			rateSource = usdtBSCRateSourceBinanceP2P
+		}
+	}
 	if rateAPIURL == "" {
 		rateAPIURL = defaultUSDTBSCRateAPIURL
+		rateSource = usdtBSCRateSourceBinanceP2P
+	} else if rateSource == "" {
+		rateSource = usdtBSCRateSourceCustomAPI
+		if strings.Contains(strings.ToLower(rateAPIURL), "p2p.binance.com/") {
+			rateSource = usdtBSCRateSourceBinanceP2P
+		}
 	}
 	if rateMode == "auto" {
 		if err := validateHTTPURL(rateAPIURL, "usdt_bsc rateApiUrl"); err != nil {
@@ -134,6 +151,7 @@ func NewUSDTBSC(instanceID string, config map[string]string) (*USDTBSC, error) {
 		rateMode:             rateMode,
 		rateAPIURL:           rateAPIURL,
 		rateJSONPath:         rateJSONPath,
+		rateSource:           rateSource,
 		rateFallbackToManual: rateFallbackToManual,
 		rateCacheTTL:         time.Duration(rateCacheSecs) * time.Second,
 		confirmations:        confirmations,
@@ -154,14 +172,15 @@ func (p *USDTBSC) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 	if !ok || cnyAmount.Sign() <= 0 {
 		return nil, fmt.Errorf("invalid usdt_bsc payment amount")
 	}
-	rate, err := p.resolveCNYPerUSDT(ctx)
+	rate, rateSource, err := p.resolveCNYPerUSDT(ctx)
 	if err != nil {
 		return nil, err
 	}
 	base := new(big.Rat).Quo(cnyAmount, rate)
 	baseAmount := ratToFixed(base, 6)
 	amountWithTail := addUniqueMicroTail(baseAmount, req.OrderID)
-	intent := encodeUSDTBSCIntent(req.OrderID, req.Amount, amountWithTail, p.receiveAddress, rate, time.Now().UTC())
+	lockedAt := time.Now().UTC()
+	intent := encodeUSDTBSCIntent(req.OrderID, req.Amount, amountWithTail, p.receiveAddress, rate, lockedAt)
 	if len(intent) > usdtBSCMaxIntentLength {
 		return nil, fmt.Errorf("usdt_bsc locked payment intent is too long")
 	}
@@ -173,6 +192,7 @@ func (p *USDTBSC) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 		CryptoCurrency: "USDT",
 		CryptoNetwork:  "BSC",
 		ReceiveAddress: p.receiveAddress,
+		Metadata:       buildUSDTBSCCreateMetadata(req.Amount, amountWithTail, intent, rate, rateSource, lockedAt.UTC().Format(time.RFC3339)),
 	}, nil
 }
 
@@ -325,21 +345,35 @@ type bscScanTokenTx struct {
 	Confirmations   string `json:"confirmations"`
 }
 
-func (p *USDTBSC) resolveCNYPerUSDT(ctx context.Context) (*big.Rat, error) {
+func buildUSDTBSCCreateMetadata(cnyAmount, tokenAmount, intent string, lockedRate *big.Rat, rateSource string, lockedAt string) map[string]string {
+	metadata := map[string]string{
+		"intent_trade_no":     intent,
+		"cny_amount":          strings.TrimSpace(cnyAmount),
+		"token_amount":        strings.TrimSpace(tokenAmount),
+		"locked_cny_per_usdt": ratToFixed(lockedRate, 6),
+		"locked_at":           lockedAt,
+		"rate_source":         strings.TrimSpace(rateSource),
+		"crypto_currency":     "USDT",
+		"network":             "BSC",
+	}
+	return metadata
+}
+
+func (p *USDTBSC) resolveCNYPerUSDT(ctx context.Context) (*big.Rat, string, error) {
 	if p.rateMode != "auto" {
 		if p.cnyPerUSDT == nil {
-			return nil, fmt.Errorf("usdt_bsc cnyPerUsdt is required")
+			return nil, "", fmt.Errorf("usdt_bsc cnyPerUsdt is required")
 		}
-		return new(big.Rat).Set(p.cnyPerUSDT), nil
+		return new(big.Rat).Set(p.cnyPerUSDT), usdtBSCRateSourceManual, nil
 	}
 	rate, err := p.fetchAutoCNYPerUSDT(ctx)
 	if err == nil {
-		return rate, nil
+		return rate, p.rateSource, nil
 	}
 	if p.rateFallbackToManual && p.cnyPerUSDT != nil {
-		return new(big.Rat).Set(p.cnyPerUSDT), nil
+		return new(big.Rat).Set(p.cnyPerUSDT), usdtBSCRateSourceManual, nil
 	}
-	return nil, fmt.Errorf("fetch usdt_bsc cny/usdt rate: %w", err)
+	return nil, "", fmt.Errorf("fetch usdt_bsc cny/usdt rate: %w", err)
 }
 
 func (p *USDTBSC) fetchAutoCNYPerUSDT(ctx context.Context) (*big.Rat, error) {
@@ -356,6 +390,12 @@ func (p *USDTBSC) fetchAutoCNYPerUSDT(ctx context.Context) (*big.Rat, error) {
 	if err != nil {
 		return nil, err
 	}
+	if p.rateSource == usdtBSCRateSourceBinanceP2P {
+		req, err = newBinanceP2PRateRequest(ctx, p.rateAPIURL)
+		if err != nil {
+			return nil, err
+		}
+	}
 	req.Header.Set("Accept", "application/json")
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
@@ -371,7 +411,7 @@ func (p *USDTBSC) fetchAutoCNYPerUSDT(ctx context.Context) (*big.Rat, error) {
 	if err := decoder.Decode(&payload); err != nil {
 		return nil, fmt.Errorf("decode rate api response: %w", err)
 	}
-	rate, err := extractPositiveRate(payload, p.rateJSONPath)
+	rate, err := p.extractAutoRate(payload)
 	if err != nil {
 		return nil, err
 	}
@@ -385,6 +425,50 @@ func (p *USDTBSC) fetchAutoCNYPerUSDT(ctx context.Context) (*big.Rat, error) {
 	}
 	p.rateCacheMu.Unlock()
 	return rate, nil
+}
+
+func newBinanceP2PRateRequest(ctx context.Context, rawURL string) (*http.Request, error) {
+	payload := `{"asset":"USDT","fiat":"CNY","tradeType":"SELL","page":1,"rows":5,"payTypes":[],"publisherType":null}`
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rawURL, strings.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "sub2api-usdt-bsc-rate/1.0")
+	return req, nil
+}
+
+func (p *USDTBSC) extractAutoRate(payload any) (*big.Rat, error) {
+	if p.rateSource == usdtBSCRateSourceBinanceP2P {
+		return extractBinanceP2PCNYRate(payload)
+	}
+	return extractPositiveRate(payload, p.rateJSONPath)
+}
+
+func extractBinanceP2PCNYRate(payload any) (*big.Rat, error) {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("binance p2p response is not an object")
+	}
+	data, ok := root["data"].([]any)
+	if !ok || len(data) == 0 {
+		return nil, fmt.Errorf("binance p2p response has no data")
+	}
+	for _, item := range data {
+		obj, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		adv, ok := obj["adv"].(map[string]any)
+		if !ok {
+			continue
+		}
+		rate, err := rateFromJSONValue(adv["price"])
+		if err == nil {
+			return rate, nil
+		}
+	}
+	return nil, fmt.Errorf("binance p2p response has no valid price")
 }
 
 func extractPositiveRate(payload any, path string) (*big.Rat, error) {
@@ -403,8 +487,12 @@ func extractPositiveRate(payload any, path string) (*big.Rat, error) {
 			return nil, fmt.Errorf("rate api path %q not found", path)
 		}
 	}
+	return rateFromJSONValue(current)
+}
+
+func rateFromJSONValue(value any) (*big.Rat, error) {
 	var raw string
-	switch v := current.(type) {
+	switch v := value.(type) {
 	case json.Number:
 		raw = v.String()
 	case float64:
@@ -412,11 +500,11 @@ func extractPositiveRate(payload any, path string) (*big.Rat, error) {
 	case string:
 		raw = strings.TrimSpace(v)
 	default:
-		return nil, fmt.Errorf("rate api value at %q is not numeric", path)
+		return nil, fmt.Errorf("rate api value is not numeric")
 	}
 	rate, ok := new(big.Rat).SetString(raw)
 	if !ok || rate.Sign() <= 0 {
-		return nil, fmt.Errorf("rate api value at %q must be positive", path)
+		return nil, fmt.Errorf("rate api value must be positive")
 	}
 	return rate, nil
 }

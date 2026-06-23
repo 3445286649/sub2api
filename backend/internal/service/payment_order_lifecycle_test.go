@@ -781,6 +781,31 @@ func TestPaymentOrderAllowsRegistryFallbackOnlyForLegacyOrdersWithoutPinnedProvi
 	}))
 }
 
+func TestMergePaymentProviderMetadataStoresUSDTBSCAuditFields(t *testing.T) {
+	t.Parallel()
+
+	snapshot := mergePaymentProviderMetadata(map[string]any{
+		"schema_version":       2,
+		"provider_instance_id": "2",
+		"provider_key":         payment.TypeUSDTBSC,
+	}, payment.TypeUSDTBSC, map[string]string{
+		"intent_trade_no":     "usdt_bsc|sub2_order|67.70|10.000123|0x3b210bdc924c685fDd10Ae96b7f95D0E14536106|6.770000|1782201600",
+		"token_amount":        "10.000123",
+		"locked_cny_per_usdt": "6.770000",
+		"locked_at":           "2026-06-23T08:00:00Z",
+		"rate_source":         "binance_p2p_cny_sell",
+	})
+
+	require.Equal(t, 2, snapshot["schema_version"])
+	require.Equal(t, "2", snapshot["provider_instance_id"])
+	usdtSnapshot, ok := snapshot["usdt_bsc"].(map[string]any)
+	require.True(t, ok, "snapshot = %+v", snapshot)
+	require.Equal(t, "10.000123", usdtSnapshot["token_amount"])
+	require.Equal(t, "6.770000", usdtSnapshot["locked_cny_per_usdt"])
+	require.Equal(t, "2026-06-23T08:00:00Z", usdtSnapshot["locked_at"])
+	require.Equal(t, "binance_p2p_cny_sell", usdtSnapshot["rate_source"])
+}
+
 func TestReconcilePendingCryptoOrdersFulfillsBalanceRecharge(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentOrderLifecycleTestClient(t)
@@ -869,6 +894,116 @@ func TestReconcilePendingCryptoOrdersFulfillsBalanceRecharge(t *testing.T) {
 	require.Equal(t, OrderStatusCompleted, reloaded.Status)
 	require.Equal(t, "0xcrypto-paid", reloaded.PaymentTradeNo)
 	require.Equal(t, 10.0, userRepo.getByIDUser.Balance)
+}
+
+func TestReconcilePendingCryptoOrdersPreservesUSDTBSCAuditMetadata(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+
+	user, err := client.User.Create().
+		SetEmail("crypto-audit@example.com").
+		SetUsername("crypto-audit").
+		SetPasswordHash("hash").
+		Save(ctx)
+	require.NoError(t, err)
+
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(67.7).
+		SetPayAmount(67.7).
+		SetFeeRate(0).
+		SetRechargeCode("CRYPTO-AUDIT-10").
+		SetOutTradeNo("sub2_crypto_audit").
+		SetPaymentType(payment.TypeUSDTBSC).
+		SetPaymentTradeNo("usdt_bsc|sub2_crypto_audit|67.70|10.000123|0x3b210bdc924c685fDd10Ae96b7f95D0E14536106|6.770000|1782201600").
+		SetProviderSnapshot(map[string]any{
+			"usdt_bsc": map[string]any{
+				"intent_trade_no":     "usdt_bsc|sub2_crypto_audit|67.70|10.000123|0x3b210bdc924c685fDd10Ae96b7f95D0E14536106|6.770000|1782201600",
+				"locked_cny_per_usdt": "6.770000",
+				"locked_at":           "2026-06-23T08:00:00Z",
+				"rate_source":         "binance_p2p_cny_sell",
+				"token_amount":        "10.000123",
+			},
+		}).
+		SetOrderType(payment.OrderTypeBalance).
+		SetStatus(OrderStatusPending).
+		SetExpiresAt(time.Now().Add(time.Hour)).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("api.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	userRepo := &mockUserRepo{
+		getByIDUser: &User{
+			ID:       user.ID,
+			Email:    user.Email,
+			Username: user.Username,
+			Balance:  0,
+		},
+	}
+	userRepo.updateBalanceFn = func(ctx context.Context, id int64, amount float64) error {
+		require.Equal(t, user.ID, id)
+		userRepo.getByIDUser.Balance += amount
+		return nil
+	}
+	redeemRepo := &paymentOrderLifecycleRedeemRepo{
+		codesByCode: map[string]*RedeemCode{
+			order.RechargeCode: {
+				ID:     1,
+				Code:   order.RechargeCode,
+				Type:   RedeemTypeBalance,
+				Value:  order.Amount,
+				Status: StatusUnused,
+			},
+		},
+	}
+	redeemService := NewRedeemService(redeemRepo, userRepo, nil, nil, nil, client, nil, nil)
+	registry := payment.NewRegistry()
+	provider := &paymentOrderLifecycleQueryProvider{
+		key: payment.TypeUSDTBSC,
+		resp: &payment.QueryOrderResponse{
+			TradeNo: "0xcrypto-audit-paid",
+			Status:  payment.ProviderStatusPaid,
+			Amount:  67.7,
+			Metadata: map[string]string{
+				"tx_hash":             "0xcrypto-audit-paid",
+				"confirmations":       "21",
+				"network":             "BSC",
+				"token_amount":        "10.000123",
+				"locked_cny_per_usdt": "6.770000",
+				"locked_at":           "2026-06-23T08:00:00Z",
+			},
+		},
+	}
+	registry.Register(provider)
+
+	svc := &PaymentService{
+		entClient:       client,
+		registry:        registry,
+		redeemService:   redeemService,
+		userRepo:        userRepo,
+		providersLoaded: true,
+	}
+
+	recovered, err := svc.ReconcilePendingCryptoOrders(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, recovered)
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusCompleted, reloaded.Status)
+	require.Equal(t, "0xcrypto-audit-paid", reloaded.PaymentTradeNo)
+	usdtSnapshot, ok := reloaded.ProviderSnapshot["usdt_bsc"].(map[string]any)
+	require.True(t, ok, "snapshot = %+v", reloaded.ProviderSnapshot)
+	require.Equal(t, "6.770000", usdtSnapshot["locked_cny_per_usdt"])
+	require.Equal(t, "2026-06-23T08:00:00Z", usdtSnapshot["locked_at"])
+	require.Equal(t, "binance_p2p_cny_sell", usdtSnapshot["rate_source"])
+	require.Equal(t, "10.000123", usdtSnapshot["token_amount"])
+	require.Equal(t, "0xcrypto-audit-paid", usdtSnapshot["tx_hash"])
+	require.Equal(t, "21", usdtSnapshot["confirmations"])
+	require.Equal(t, "BSC", usdtSnapshot["network"])
 }
 
 func TestPaymentOrderQueryReferenceUsesOutTradeNoForOfficialProviders(t *testing.T) {

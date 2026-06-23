@@ -139,6 +139,71 @@ func TestUSDTBSCCreatePaymentUsesAutoCNYPerUSDTRate(t *testing.T) {
 	}
 }
 
+func TestUSDTBSCCreatePaymentUsesDefaultBinanceP2PRate(t *testing.T) {
+	rateAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		var req struct {
+			Asset     string `json:"asset"`
+			Fiat      string `json:"fiat"`
+			TradeType string `json:"tradeType"`
+			Page      int    `json:"page"`
+			Rows      int    `json:"rows"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode binance p2p request: %v", err)
+		}
+		if req.Asset != "USDT" || req.Fiat != "CNY" || req.TradeType != "SELL" || req.Page != 1 || req.Rows != 5 {
+			t.Fatalf("unexpected binance p2p request: %+v", req)
+		}
+		fmt.Fprint(w, `{"code":"000000","data":[{"adv":{"price":"6.77"}},{"adv":{"price":"6.78"}}]}`)
+	}))
+	defer rateAPI.Close()
+
+	p, err := NewUSDTBSC("1", map[string]string{
+		"receiveAddress":           "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
+		"cnyPerUsdt":               "7.2",
+		"rateMode":                 "auto",
+		"binanceP2PRateApiUrl":     rateAPI.URL,
+		"rateFallbackToManual":     "true",
+		"rateCacheSeconds":         "0",
+		"usdtBscRateSourceForTest": "ignored",
+	})
+	if err != nil {
+		t.Fatalf("NewUSDTBSC() error = %v", err)
+	}
+
+	resp, err := p.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID: "sub2_20260623_binance_rate",
+		Amount:  "67.70",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment() error = %v", err)
+	}
+
+	amount, err := strconv.ParseFloat(resp.CryptoAmount, 64)
+	if err != nil {
+		t.Fatalf("CryptoAmount = %q is not numeric: %v", resp.CryptoAmount, err)
+	}
+	if amount < 10 || amount >= 10.001 {
+		t.Fatalf("CryptoAmount = %q, want about 10 USDT plus unique micro tail from Binance P2P rate", resp.CryptoAmount)
+	}
+	intent, err := parseUSDTBSCIntent(resp.TradeNo)
+	if err != nil {
+		t.Fatalf("parseUSDTBSCIntent() error = %v", err)
+	}
+	if intent.LockedRate != "6.770000" {
+		t.Fatalf("locked rate = %q, want 6.770000", intent.LockedRate)
+	}
+	if resp.Metadata["locked_cny_per_usdt"] != "6.770000" || resp.Metadata["rate_source"] != "binance_p2p_cny_sell" {
+		t.Fatalf("metadata = %+v", resp.Metadata)
+	}
+	if resp.Metadata["token_amount"] != resp.CryptoAmount || resp.Metadata["intent_trade_no"] != resp.TradeNo {
+		t.Fatalf("metadata should preserve intent and token amount, got %+v", resp.Metadata)
+	}
+}
+
 func TestUSDTBSCCreatePaymentFallsBackToManualRateWhenAutoRateFails(t *testing.T) {
 	rateAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "rate unavailable", http.StatusBadGateway)

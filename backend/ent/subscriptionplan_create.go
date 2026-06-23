@@ -48,6 +48,20 @@ func (_c *SubscriptionPlanCreate) SetNillableDescription(v *string) *Subscriptio
 	return _c
 }
 
+// SetPlanType sets the "plan_type" field.
+func (_c *SubscriptionPlanCreate) SetPlanType(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetPlanType(v)
+	return _c
+}
+
+// SetNillablePlanType sets the "plan_type" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillablePlanType(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetPlanType(*v)
+	}
+	return _c
+}
+
 // SetPrice sets the "price" field.
 func (_c *SubscriptionPlanCreate) SetPrice(v float64) *SubscriptionPlanCreate {
 	_c.mutation.SetPrice(v)
@@ -120,6 +134,34 @@ func (_c *SubscriptionPlanCreate) SetProductName(v string) *SubscriptionPlanCrea
 func (_c *SubscriptionPlanCreate) SetNillableProductName(v *string) *SubscriptionPlanCreate {
 	if v != nil {
 		_c.SetProductName(*v)
+	}
+	return _c
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (_c *SubscriptionPlanCreate) SetQuotaResetScope(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetQuotaResetScope(v)
+	return _c
+}
+
+// SetNillableQuotaResetScope sets the "quota_reset_scope" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableQuotaResetScope(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetQuotaResetScope(*v)
+	}
+	return _c
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (_c *SubscriptionPlanCreate) SetQuotaResetValue(v float64) *SubscriptionPlanCreate {
+	_c.mutation.SetQuotaResetValue(v)
+	return _c
+}
+
+// SetNillableQuotaResetValue sets the "quota_reset_value" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableQuotaResetValue(v *float64) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetQuotaResetValue(*v)
 	}
 	return _c
 }
@@ -219,6 +261,10 @@ func (_c *SubscriptionPlanCreate) defaults() {
 		v := subscriptionplan.DefaultDescription
 		_c.mutation.SetDescription(v)
 	}
+	if _, ok := _c.mutation.PlanType(); !ok {
+		v := subscriptionplan.DefaultPlanType
+		_c.mutation.SetPlanType(v)
+	}
 	if _, ok := _c.mutation.ValidityDays(); !ok {
 		v := subscriptionplan.DefaultValidityDays
 		_c.mutation.SetValidityDays(v)
@@ -234,6 +280,14 @@ func (_c *SubscriptionPlanCreate) defaults() {
 	if _, ok := _c.mutation.ProductName(); !ok {
 		v := subscriptionplan.DefaultProductName
 		_c.mutation.SetProductName(v)
+	}
+	if _, ok := _c.mutation.QuotaResetScope(); !ok {
+		v := subscriptionplan.DefaultQuotaResetScope
+		_c.mutation.SetQuotaResetScope(v)
+	}
+	if _, ok := _c.mutation.QuotaResetValue(); !ok {
+		v := subscriptionplan.DefaultQuotaResetValue
+		_c.mutation.SetQuotaResetValue(v)
 	}
 	if _, ok := _c.mutation.ForSale(); !ok {
 		v := subscriptionplan.DefaultForSale
@@ -269,6 +323,14 @@ func (_c *SubscriptionPlanCreate) check() error {
 	if _, ok := _c.mutation.Description(); !ok {
 		return &ValidationError{Name: "description", err: errors.New(`ent: missing required field "SubscriptionPlan.description"`)}
 	}
+	if _, ok := _c.mutation.PlanType(); !ok {
+		return &ValidationError{Name: "plan_type", err: errors.New(`ent: missing required field "SubscriptionPlan.plan_type"`)}
+	}
+	if v, ok := _c.mutation.PlanType(); ok {
+		if err := subscriptionplan.PlanTypeValidator(v); err != nil {
+			return &ValidationError{Name: "plan_type", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.plan_type": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Price(); !ok {
 		return &ValidationError{Name: "price", err: errors.New(`ent: missing required field "SubscriptionPlan.price"`)}
 	}
@@ -293,6 +355,17 @@ func (_c *SubscriptionPlanCreate) check() error {
 		if err := subscriptionplan.ProductNameValidator(v); err != nil {
 			return &ValidationError{Name: "product_name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.product_name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.QuotaResetScope(); !ok {
+		return &ValidationError{Name: "quota_reset_scope", err: errors.New(`ent: missing required field "SubscriptionPlan.quota_reset_scope"`)}
+	}
+	if v, ok := _c.mutation.QuotaResetScope(); ok {
+		if err := subscriptionplan.QuotaResetScopeValidator(v); err != nil {
+			return &ValidationError{Name: "quota_reset_scope", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.quota_reset_scope": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.QuotaResetValue(); !ok {
+		return &ValidationError{Name: "quota_reset_value", err: errors.New(`ent: missing required field "SubscriptionPlan.quota_reset_value"`)}
 	}
 	if _, ok := _c.mutation.ForSale(); !ok {
 		return &ValidationError{Name: "for_sale", err: errors.New(`ent: missing required field "SubscriptionPlan.for_sale"`)}
@@ -345,6 +418,10 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 		_spec.SetField(subscriptionplan.FieldDescription, field.TypeString, value)
 		_node.Description = value
 	}
+	if value, ok := _c.mutation.PlanType(); ok {
+		_spec.SetField(subscriptionplan.FieldPlanType, field.TypeString, value)
+		_node.PlanType = value
+	}
 	if value, ok := _c.mutation.Price(); ok {
 		_spec.SetField(subscriptionplan.FieldPrice, field.TypeFloat64, value)
 		_node.Price = value
@@ -368,6 +445,14 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.ProductName(); ok {
 		_spec.SetField(subscriptionplan.FieldProductName, field.TypeString, value)
 		_node.ProductName = value
+	}
+	if value, ok := _c.mutation.QuotaResetScope(); ok {
+		_spec.SetField(subscriptionplan.FieldQuotaResetScope, field.TypeString, value)
+		_node.QuotaResetScope = value
+	}
+	if value, ok := _c.mutation.QuotaResetValue(); ok {
+		_spec.SetField(subscriptionplan.FieldQuotaResetValue, field.TypeFloat64, value)
+		_node.QuotaResetValue = value
 	}
 	if value, ok := _c.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
@@ -479,6 +564,18 @@ func (u *SubscriptionPlanUpsert) UpdateDescription() *SubscriptionPlanUpsert {
 	return u
 }
 
+// SetPlanType sets the "plan_type" field.
+func (u *SubscriptionPlanUpsert) SetPlanType(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldPlanType, v)
+	return u
+}
+
+// UpdatePlanType sets the "plan_type" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdatePlanType() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldPlanType)
+	return u
+}
+
 // SetPrice sets the "price" field.
 func (u *SubscriptionPlanUpsert) SetPrice(v float64) *SubscriptionPlanUpsert {
 	u.Set(subscriptionplan.FieldPrice, v)
@@ -572,6 +669,36 @@ func (u *SubscriptionPlanUpsert) SetProductName(v string) *SubscriptionPlanUpser
 // UpdateProductName sets the "product_name" field to the value that was provided on create.
 func (u *SubscriptionPlanUpsert) UpdateProductName() *SubscriptionPlanUpsert {
 	u.SetExcluded(subscriptionplan.FieldProductName)
+	return u
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (u *SubscriptionPlanUpsert) SetQuotaResetScope(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldQuotaResetScope, v)
+	return u
+}
+
+// UpdateQuotaResetScope sets the "quota_reset_scope" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateQuotaResetScope() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldQuotaResetScope)
+	return u
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (u *SubscriptionPlanUpsert) SetQuotaResetValue(v float64) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldQuotaResetValue, v)
+	return u
+}
+
+// UpdateQuotaResetValue sets the "quota_reset_value" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateQuotaResetValue() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldQuotaResetValue)
+	return u
+}
+
+// AddQuotaResetValue adds v to the "quota_reset_value" field.
+func (u *SubscriptionPlanUpsert) AddQuotaResetValue(v float64) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldQuotaResetValue, v)
 	return u
 }
 
@@ -711,6 +838,20 @@ func (u *SubscriptionPlanUpsertOne) UpdateDescription() *SubscriptionPlanUpsertO
 	})
 }
 
+// SetPlanType sets the "plan_type" field.
+func (u *SubscriptionPlanUpsertOne) SetPlanType(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetPlanType(v)
+	})
+}
+
+// UpdatePlanType sets the "plan_type" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdatePlanType() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdatePlanType()
+	})
+}
+
 // SetPrice sets the "price" field.
 func (u *SubscriptionPlanUpsertOne) SetPrice(v float64) *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
@@ -820,6 +961,41 @@ func (u *SubscriptionPlanUpsertOne) SetProductName(v string) *SubscriptionPlanUp
 func (u *SubscriptionPlanUpsertOne) UpdateProductName() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateProductName()
+	})
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (u *SubscriptionPlanUpsertOne) SetQuotaResetScope(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetQuotaResetScope(v)
+	})
+}
+
+// UpdateQuotaResetScope sets the "quota_reset_scope" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateQuotaResetScope() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateQuotaResetScope()
+	})
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (u *SubscriptionPlanUpsertOne) SetQuotaResetValue(v float64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetQuotaResetValue(v)
+	})
+}
+
+// AddQuotaResetValue adds v to the "quota_reset_value" field.
+func (u *SubscriptionPlanUpsertOne) AddQuotaResetValue(v float64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddQuotaResetValue(v)
+	})
+}
+
+// UpdateQuotaResetValue sets the "quota_reset_value" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateQuotaResetValue() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateQuotaResetValue()
 	})
 }
 
@@ -1132,6 +1308,20 @@ func (u *SubscriptionPlanUpsertBulk) UpdateDescription() *SubscriptionPlanUpsert
 	})
 }
 
+// SetPlanType sets the "plan_type" field.
+func (u *SubscriptionPlanUpsertBulk) SetPlanType(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetPlanType(v)
+	})
+}
+
+// UpdatePlanType sets the "plan_type" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdatePlanType() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdatePlanType()
+	})
+}
+
 // SetPrice sets the "price" field.
 func (u *SubscriptionPlanUpsertBulk) SetPrice(v float64) *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
@@ -1241,6 +1431,41 @@ func (u *SubscriptionPlanUpsertBulk) SetProductName(v string) *SubscriptionPlanU
 func (u *SubscriptionPlanUpsertBulk) UpdateProductName() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateProductName()
+	})
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (u *SubscriptionPlanUpsertBulk) SetQuotaResetScope(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetQuotaResetScope(v)
+	})
+}
+
+// UpdateQuotaResetScope sets the "quota_reset_scope" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateQuotaResetScope() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateQuotaResetScope()
+	})
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (u *SubscriptionPlanUpsertBulk) SetQuotaResetValue(v float64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetQuotaResetValue(v)
+	})
+}
+
+// AddQuotaResetValue adds v to the "quota_reset_value" field.
+func (u *SubscriptionPlanUpsertBulk) AddQuotaResetValue(v float64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddQuotaResetValue(v)
+	})
+}
+
+// UpdateQuotaResetValue sets the "quota_reset_value" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateQuotaResetValue() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateQuotaResetValue()
 	})
 }
 

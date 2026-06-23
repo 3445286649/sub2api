@@ -112,7 +112,7 @@ func (s *PaymentService) confirmPayment(ctx context.Context, oid int64, tradeNo 
 			return err
 		}
 	}
-	return s.toPaid(ctx, o, tradeNo, paid, pk)
+	return s.toPaid(ctx, o, tradeNo, paid, pk, metadata)
 }
 
 func (s *PaymentService) ensureCryptoTradeNotReused(ctx context.Context, orderID int64, tradeNo string, pk string) error {
@@ -168,11 +168,11 @@ func expectedNotificationProviderKey(registry *payment.Registry, orderPaymentTyp
 	return strings.TrimSpace(orderPaymentType)
 }
 
-func (s *PaymentService) toPaid(ctx context.Context, o *dbent.PaymentOrder, tradeNo string, paid float64, pk string) error {
+func (s *PaymentService) toPaid(ctx context.Context, o *dbent.PaymentOrder, tradeNo string, paid float64, pk string, metadata map[string]string) error {
 	previousStatus := o.Status
 	now := time.Now()
 	grace := now.Add(-paymentGraceMinutes * time.Minute)
-	c, err := s.entClient.PaymentOrder.Update().Where(
+	update := s.entClient.PaymentOrder.Update().Where(
 		paymentorder.IDEQ(o.ID),
 		paymentorder.Or(
 			paymentorder.StatusEQ(OrderStatusPending),
@@ -182,7 +182,11 @@ func (s *PaymentService) toPaid(ctx context.Context, o *dbent.PaymentOrder, trad
 				paymentorder.UpdatedAtGTE(grace),
 			),
 		),
-	).SetStatus(OrderStatusPaid).SetPayAmount(paid).SetPaymentTradeNo(tradeNo).SetPaidAt(now).ClearFailedAt().ClearFailedReason().Save(ctx)
+	).SetStatus(OrderStatusPaid).SetPayAmount(paid).SetPaymentTradeNo(tradeNo).SetPaidAt(now).ClearFailedAt().ClearFailedReason()
+	if providerSnapshot := mergePaymentProviderMetadata(o.ProviderSnapshot, pk, metadata); providerSnapshot != nil {
+		update.SetProviderSnapshot(providerSnapshot)
+	}
+	c, err := update.Save(ctx)
 	if err != nil {
 		return fmt.Errorf("update to PAID: %w", err)
 	}
@@ -452,6 +456,9 @@ func (s *PaymentService) ExecuteSubscriptionFulfillment(ctx context.Context, oid
 }
 
 func (s *PaymentService) doSub(ctx context.Context, o *dbent.PaymentOrder) error {
+	if normalizeSubscriptionPlanType(o.SubscriptionPlanType) == SubscriptionPlanTypeQuotaReset {
+		return s.doQuotaResetSub(ctx, o)
+	}
 	gid := *o.SubscriptionGroupID
 	days := *o.SubscriptionDays
 	g, err := s.groupRepo.GetByID(ctx, gid)
@@ -476,6 +483,73 @@ func (s *PaymentService) doSub(ctx context.Context, o *dbent.PaymentOrder) error
 		return err
 	}
 	return s.markCompleted(ctx, o, "SUBSCRIPTION_SUCCESS")
+}
+
+func (s *PaymentService) doQuotaResetSub(ctx context.Context, o *dbent.PaymentOrder) error {
+	gid := *o.SubscriptionGroupID
+	scope := strings.TrimSpace(o.QuotaResetScope)
+	value := o.QuotaResetValue
+	if scope == "" || value <= 0 {
+		return infraerrors.BadRequest("INVALID_STATUS", "missing quota reset order snapshot")
+	}
+	if s.hasAuditLog(ctx, o.ID, "PAYMENT_QUOTA_RESET_SUCCESS") {
+		slog.Info("subscription quota reset already applied for order, skipping", "orderID", o.ID, "groupID", gid)
+		return s.markCompleted(ctx, o, "SUBSCRIPTION_SUCCESS")
+	}
+	activeSub, err := s.resolvePaymentQuotaResetSubscription(ctx, o.UserID, gid, value)
+	if err != nil {
+		return fmt.Errorf("resolve quota reset subscription: %w", err)
+	}
+	_, err = s.subscriptionSvc.ResetQuotaUsage(ctx, activeSub.ID, scope, value, time.Now())
+	if err != nil {
+		return fmt.Errorf("reset quota usage: %w", err)
+	}
+	s.writeAuditLog(ctx, o.ID, "PAYMENT_QUOTA_RESET_SUCCESS", "system", map[string]any{
+		"subscription_id": activeSub.ID,
+		"group_id":        activeSub.GroupID,
+		"scope":           scope,
+		"reset_value":     value,
+	})
+	return s.markCompleted(ctx, o, "SUBSCRIPTION_SUCCESS")
+}
+
+func (s *PaymentService) resolvePaymentQuotaResetSubscription(ctx context.Context, userID, groupID int64, resetValueUSD float64) (*UserSubscription, error) {
+	if resetValueUSD <= 0 {
+		return nil, infraerrors.BadRequest("QUOTA_RESET_VALUE_INVALID", "quota reset value must be > 0")
+	}
+	if activeSub, err := s.subscriptionSvc.userSubRepo.GetActiveByUserIDAndGroupID(ctx, userID, groupID); err == nil {
+		if ok, checkErr := s.subscriptionAcceptsQuotaResetValue(ctx, activeSub, resetValueUSD); checkErr != nil {
+			return nil, checkErr
+		} else if ok {
+			return activeSub, nil
+		}
+	}
+	activeSubs, err := s.subscriptionSvc.userSubRepo.ListActiveByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list active subscriptions: %w", err)
+	}
+	for i := range activeSubs {
+		sub := activeSubs[i]
+		ok, checkErr := s.subscriptionAcceptsQuotaResetValue(ctx, &sub, resetValueUSD)
+		if checkErr != nil {
+			return nil, checkErr
+		}
+		if ok {
+			return &sub, nil
+		}
+	}
+	return nil, ErrQuotaResetValueExceedsLimit
+}
+
+func (s *PaymentService) subscriptionAcceptsQuotaResetValue(ctx context.Context, sub *UserSubscription, resetValueUSD float64) (bool, error) {
+	if sub == nil || resetValueUSD <= 0 {
+		return false, nil
+	}
+	group, err := s.subscriptionSvc.groupRepo.GetByID(ctx, sub.GroupID)
+	if err != nil {
+		return false, err
+	}
+	return group.HasDailyLimit() && resetValueUSD <= *group.DailyLimitUSD, nil
 }
 
 func (s *PaymentService) hasAuditLog(ctx context.Context, orderID int64, action string) bool {
@@ -568,7 +642,12 @@ func affiliateRebateBaseAmount(o *dbent.PaymentOrder) float64 {
 		return 0
 	}
 	switch o.OrderType {
-	case payment.OrderTypeBalance, payment.OrderTypeSubscription:
+	case payment.OrderTypeSubscription:
+		if normalizeSubscriptionPlanType(o.SubscriptionPlanType) == SubscriptionPlanTypeQuotaReset {
+			return 0
+		}
+		return o.Amount
+	case payment.OrderTypeBalance:
 		return o.Amount
 	default:
 		return 0

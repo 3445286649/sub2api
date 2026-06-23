@@ -87,6 +87,15 @@ func (PaymentOrder) Fields() []ent.Field {
 		field.Int("subscription_days").
 			Optional().
 			Nillable(),
+		field.String("subscription_plan_type").
+			MaxLen(30).
+			Default("subscription"),
+		field.String("quota_reset_scope").
+			MaxLen(20).
+			Default(""),
+		field.Float("quota_reset_value").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}).
+			Default(0),
 		field.String("provider_instance_id").
 			Optional().
 			Nillable().

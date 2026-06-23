@@ -21,6 +21,8 @@ export type OrderStatus =
 export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex' | 'usdt_bsc'
 
 export type OrderType = 'balance' | 'subscription'
+export type SubscriptionPlanType = 'subscription' | 'quota_reset'
+export type QuotaResetScope = 'daily' | 'weekly' | 'monthly' | 'all' | ''
 
 // ==================== Configuration ====================
 
@@ -111,6 +113,7 @@ export interface SubscriptionPlan {
   weekly_limit_usd?: number | null
   monthly_limit_usd?: number | null
   supported_model_scopes?: string[]
+  plan_type?: SubscriptionPlanType
   name: string
   description: string
   price: number
@@ -119,6 +122,9 @@ export interface SubscriptionPlan {
   validity_unit: string
   /** Stored as JSON string in backend; API layer should parse before use */
   features: string[]
+  product_name?: string
+  quota_reset_scope?: QuotaResetScope
+  quota_reset_value?: number
   for_sale: boolean
   sort_order: number
 }
@@ -198,6 +204,8 @@ export interface CreateOrderResult {
   crypto_amount?: string
   crypto_currency?: string
   crypto_network?: string
+  crypto_rate?: string
+  crypto_rate_source?: string
   receive_address?: string
   pay_amount: number
   fee_rate: number

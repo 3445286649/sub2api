@@ -225,6 +225,62 @@ func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey str
 	return nil
 }
 
+func mergePaymentProviderMetadata(snapshot map[string]any, providerKey string, metadata map[string]string) map[string]any {
+	if len(metadata) == 0 {
+		return nil
+	}
+	if strings.TrimSpace(providerKey) != payment.TypeUSDTBSC {
+		return nil
+	}
+	next := cloneProviderSnapshot(snapshot)
+	usdt := map[string]any{}
+	if existing, ok := next["usdt_bsc"].(map[string]any); ok {
+		for k, v := range existing {
+			usdt[k] = v
+		}
+	}
+	for _, key := range []string{
+		"intent_trade_no",
+		"cny_amount",
+		"token_amount",
+		"locked_cny_per_usdt",
+		"locked_at",
+		"rate_source",
+		"crypto_currency",
+		"network",
+		"tx_hash",
+		"block_number",
+		"from_address",
+		"to_address",
+		"confirmations",
+	} {
+		if value := strings.TrimSpace(metadata[key]); value != "" {
+			usdt[key] = value
+		}
+	}
+	if len(usdt) == 0 {
+		return nil
+	}
+	next["usdt_bsc"] = usdt
+	return next
+}
+
+func cloneProviderSnapshot(snapshot map[string]any) map[string]any {
+	next := map[string]any{}
+	for k, v := range snapshot {
+		if nested, ok := v.(map[string]any); ok {
+			cloned := map[string]any{}
+			for nk, nv := range nested {
+				cloned[nk] = nv
+			}
+			next[k] = cloned
+			continue
+		}
+		next[k] = v
+	}
+	return next
+}
+
 func providerMerchantIdentityMetadata(prov payment.Provider) map[string]string {
 	if prov == nil {
 		return nil

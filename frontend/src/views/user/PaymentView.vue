@@ -25,6 +25,8 @@
             :crypto-amount="paymentState.cryptoAmount"
             :crypto-currency="paymentState.cryptoCurrency"
             :crypto-network="paymentState.cryptoNetwork"
+            :crypto-rate="paymentState.cryptoRate"
+            :crypto-rate-source="paymentState.cryptoRateSource"
             :receive-address="paymentState.receiveAddress"
             @done="onPaymentDone"
             @success="onPaymentSuccess"
@@ -111,7 +113,7 @@
                     {{ formatSelectedPaymentAmount(selectedPlan.original_price) }}
                   </span>
                   <span :class="['text-3xl font-bold', planTextClass]">{{ formatSelectedPaymentAmount(selectedPlan.price) }}</span>
-                  <span class="text-sm text-gray-500 dark:text-gray-400">/ {{ planValiditySuffix }}</span>
+                  <span class="text-sm text-gray-500 dark:text-gray-400">/ {{ selectedPlanSuffix }}</span>
                 </div>
                 <!-- Description -->
                 <p v-if="selectedPlan.description" class="mt-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
@@ -119,6 +121,12 @@
                 </p>
                 <!-- Rate + Limits grid -->
                 <div class="mt-3 grid grid-cols-2 gap-3">
+                  <div v-if="isSelectedQuotaResetPlan" class="col-span-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
+                    <span class="text-xs text-amber-700 dark:text-amber-300">{{ t('payment.quotaReset.resetValue') }}</span>
+                    <div class="text-lg font-semibold text-amber-800 dark:text-amber-200">
+                      ${{ selectedPlan.quota_reset_value || 0 }} / {{ quotaResetScopeLabel(selectedPlan.quota_reset_scope || 'daily') }}
+                    </div>
+                  </div>
                   <div>
                     <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.planCard.rate') }}</span>
                     <div class="flex items-baseline">
@@ -177,12 +185,34 @@
             </template>
             <!-- Plan list -->
             <template v-else>
-              <div v-if="checkout.plans.length === 0" class="card py-16 text-center">
+              <div v-if="subscriptionPlans.length === 0 && visibleQuotaResetPlans.length === 0" class="card py-16 text-center">
                 <Icon name="gift" size="xl" class="mx-auto mb-3 text-gray-300 dark:text-dark-600" />
                 <p class="text-gray-500 dark:text-gray-400">{{ t('payment.noPlans') }}</p>
               </div>
-              <div v-else :class="planGridClass">
-                <SubscriptionPlanCard v-for="plan in checkout.plans" :key="plan.id" :plan="plan" :active-subscriptions="activeSubscriptions" @select="selectPlan" />
+              <div v-else class="space-y-6">
+                <section v-if="subscriptionPlans.length > 0 && purchaseMode !== 'reset'" class="space-y-3">
+                  <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ t('payment.subscriptionPlans') }}</h2>
+                  </div>
+                  <div :class="planGridClass(subscriptionPlans.length)">
+                    <SubscriptionPlanCard v-for="plan in subscriptionPlans" :key="plan.id" :plan="plan" :active-subscriptions="activeSubscriptions" @select="selectPlan" />
+                  </div>
+                </section>
+                <section v-if="visibleQuotaResetPlans.length > 0" class="space-y-3">
+                  <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ t('payment.quotaReset.sectionTitle') }}</h2>
+                    <button v-if="purchaseMode === 'reset'" class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="clearResetFilter">
+                      {{ t('payment.quotaReset.showAll') }}
+                    </button>
+                  </div>
+                  <div :class="planGridClass(visibleQuotaResetPlans.length)">
+                    <SubscriptionPlanCard v-for="plan in visibleQuotaResetPlans" :key="plan.id" :plan="plan" :active-subscriptions="activeSubscriptions" @select="selectPlan" />
+                  </div>
+                </section>
+                <div v-else-if="purchaseMode === 'reset'" class="card py-12 text-center">
+                  <Icon name="refresh" size="xl" class="mx-auto mb-3 text-gray-300 dark:text-dark-600" />
+                  <p class="text-gray-500 dark:text-gray-400">{{ t('payment.quotaReset.noAvailableResetPlans') }}</p>
+                </div>
               </div>
               <!-- Active subscriptions (compact, below plan list) -->
               <div v-if="activeSubscriptions.length > 0">
@@ -306,6 +336,8 @@ const submitting = ref(false)
 const errorMessage = ref('')
 const errorHintMessage = ref('')
 const activeTab = ref<'recharge' | 'subscription'>('recharge')
+const purchaseMode = ref<'subscription' | 'reset'>('subscription')
+const resetGroupId = ref<number | null>(null)
 const amount = ref<number | null>(null)
 const selectedMethod = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
@@ -346,6 +378,8 @@ function emptyPaymentState(): PaymentRecoverySnapshot {
     cryptoAmount: '',
     cryptoCurrency: '',
     cryptoNetwork: '',
+    cryptoRate: '',
+    cryptoRateSource: '',
     receiveAddress: '',
     payAmount: 0,
     orderType: '',
@@ -505,12 +539,44 @@ const balanceRechargeMultiplier = computed(() => {
 })
 const creditedAmount = computed(() => Math.round((validAmount.value * balanceRechargeMultiplier.value) * 100) / 100)
 
+function isQuotaResetPlan(plan: SubscriptionPlan): boolean {
+  return plan.plan_type === 'quota_reset'
+}
+
+const subscriptionPlans = computed(() => checkout.value.plans.filter(plan => !isQuotaResetPlan(plan)))
+const quotaResetPlans = computed(() => checkout.value.plans.filter(isQuotaResetPlan))
+
+function activeSubscriptionForPlan(plan: SubscriptionPlan) {
+  return activeSubscriptions.value.find(sub => sub.status === 'active' && sub.group_id === plan.group_id)
+}
+
+function canUseQuotaResetPlan(plan: SubscriptionPlan): boolean {
+  const resetValue = plan.quota_reset_value || 0
+  if (resetValue <= 0) return false
+  const exactSub = activeSubscriptionForPlan(plan)
+  if (exactSub?.group?.daily_limit_usd && resetValue <= exactSub.group.daily_limit_usd) return true
+  return activeSubscriptions.value.some(sub =>
+    sub.status === 'active'
+    && !!sub.group?.daily_limit_usd
+    && resetValue <= sub.group.daily_limit_usd
+  )
+}
+
+const visibleQuotaResetPlans = computed(() => {
+  const plans = quotaResetPlans.value.filter(canUseQuotaResetPlan)
+  if (purchaseMode.value !== 'reset' || resetGroupId.value == null) return plans
+  const currentSub = activeSubscriptions.value.find(sub => sub.status === 'active' && sub.group_id === resetGroupId.value)
+  const currentDailyLimit = currentSub?.group?.daily_limit_usd || 0
+  if (currentDailyLimit <= 0) return []
+  return plans.filter(plan => (plan.quota_reset_value || 0) <= currentDailyLimit)
+})
+
 // Adaptive grid: center single card, 2-col for 2 plans, 3-col for 3+
-const planGridClass = computed(() => {
-  const n = checkout.value.plans.length
+function planGridClass(count: number): string {
+  const n = count
   if (n <= 2) return 'grid grid-cols-1 gap-5 sm:grid-cols-2'
   return 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'
-})
+}
 
 // Check if an amount fits a method's [min, max]. 0 = no limit.
 function amountFitsMethod(amt: number, methodType: string): boolean {
@@ -648,13 +714,14 @@ const paymentButtonClass = computed(() => {
 // Subscription confirm: platform accent colors (clean card, no gradient)
 const planBadgeClass = computed(() => platformBadgeClass(selectedPlan.value?.group_platform || ''))
 const planTextClass = computed(() => platformTextClass(selectedPlan.value?.group_platform || ''))
+const isSelectedQuotaResetPlan = computed(() => selectedPlan.value?.plan_type === 'quota_reset')
 
 // Renewal modal state
 const showRenewalModal = ref(false)
 const renewGroupId = ref<number | null>(null)
 const renewalPlans = computed(() => {
   if (renewGroupId.value == null) return []
-  return checkout.value.plans.filter(p => p.group_id === renewGroupId.value)
+  return subscriptionPlans.value.filter(p => p.group_id === renewGroupId.value)
 })
 
 const planValiditySuffix = computed(() => {
@@ -664,6 +731,14 @@ const planValiditySuffix = computed(() => {
   if (u === 'year') return t('payment.perYear')
   return `${selectedPlan.value.validity_days}${t('payment.days')}`
 })
+const selectedPlanSuffix = computed(() => isSelectedQuotaResetPlan.value ? t('payment.quotaReset.once') : planValiditySuffix.value)
+
+function quotaResetScopeLabel(scope: string): string {
+  if (scope === 'weekly') return t('payment.quotaReset.weekly')
+  if (scope === 'monthly') return t('payment.quotaReset.monthly')
+  if (scope === 'all') return t('payment.quotaReset.all')
+  return t('payment.quotaReset.daily')
+}
 
 function selectPlan(plan: SubscriptionPlan) {
   selectedPlan.value = plan
@@ -680,6 +755,12 @@ function selectPlanFromModal(plan: SubscriptionPlan) {
 function closeRenewalModal() {
   showRenewalModal.value = false
   renewGroupId.value = null
+}
+
+function clearResetFilter() {
+  purchaseMode.value = 'subscription'
+  resetGroupId.value = null
+  router.replace({ path: route.path, query: { ...route.query, mode: undefined, group: undefined } }).catch(() => {})
 }
 
 async function handleSubmitRecharge() {
@@ -1023,6 +1104,7 @@ async function resumeWechatPaymentFromQuery() {
 }
 
 onMounted(async () => {
+  let loadedActiveSubscriptionsForReset = false
   try {
     const res = await paymentAPI.getCheckoutInfo()
     checkout.value = res.data
@@ -1060,26 +1142,37 @@ onMounted(async () => {
       }
     }
     await resumeWechatPaymentFromQuery()
+    if (route.query.tab === 'subscription' && route.query.mode === 'reset') {
+      await subscriptionStore.fetchActiveSubscriptions(true)
+      loadedActiveSubscriptionsForReset = true
+    }
     if (checkout.value.balance_disabled) {
       activeTab.value = 'subscription'
     }
     // Handle renewal navigation: ?tab=subscription&group=123
     if (route.query.tab === 'subscription') {
       activeTab.value = 'subscription'
+      purchaseMode.value = route.query.mode === 'reset' ? 'reset' : 'subscription'
       if (route.query.group) {
         const groupId = Number(route.query.group)
-        const groupPlans = checkout.value.plans.filter(p => p.group_id === groupId)
-        if (groupPlans.length === 1) {
-          selectedPlan.value = groupPlans[0]
-        } else if (groupPlans.length > 1) {
-          renewGroupId.value = groupId
-          showRenewalModal.value = true
+        if (purchaseMode.value === 'reset') {
+          resetGroupId.value = Number.isFinite(groupId) ? groupId : null
+        } else {
+          const groupPlans = subscriptionPlans.value.filter(p => p.group_id === groupId)
+          if (groupPlans.length === 1) {
+            selectedPlan.value = groupPlans[0]
+          } else if (groupPlans.length > 1) {
+            renewGroupId.value = groupId
+            showRenewalModal.value = true
+          }
         }
       }
     }
   } catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
   finally { loading.value = false }
   // Fetch active subscriptions (uses cache, non-blocking)
-  subscriptionStore.fetchActiveSubscriptions().catch(() => {})
+  if (!loadedActiveSubscriptionsForReset) {
+    subscriptionStore.fetchActiveSubscriptions().catch(() => {})
+  }
 })
 </script>

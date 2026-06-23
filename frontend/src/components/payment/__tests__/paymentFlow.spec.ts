@@ -138,6 +138,8 @@ describe('decidePaymentLaunch', () => {
       crypto_amount: '10.000123',
       crypto_currency: 'USDT',
       crypto_network: 'BSC',
+      crypto_rate: '6.770000',
+      crypto_rate_source: 'binance_p2p_cny_sell',
       receive_address: '0x3b210bdc924c685fDd10Ae96b7f95D0E14536106',
     }), {
       visibleMethod: 'usdt_bsc',
@@ -149,6 +151,8 @@ describe('decidePaymentLaunch', () => {
     expect(decision.paymentState.cryptoAmount).toBe('10.000123')
     expect(decision.paymentState.cryptoCurrency).toBe('USDT')
     expect(decision.paymentState.cryptoNetwork).toBe('BSC')
+    expect(decision.paymentState.cryptoRate).toBe('6.770000')
+    expect(decision.paymentState.cryptoRateSource).toBe('binance_p2p_cny_sell')
     expect(decision.paymentState.receiveAddress).toBe('0x3b210bdc924c685fDd10Ae96b7f95D0E14536106')
   })
 

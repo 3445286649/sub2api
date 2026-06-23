@@ -145,6 +145,21 @@ func SubscriptionDays(v int) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldSubscriptionDays, v))
 }
 
+// SubscriptionPlanType applies equality check predicate on the "subscription_plan_type" field. It's identical to SubscriptionPlanTypeEQ.
+func SubscriptionPlanType(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldSubscriptionPlanType, v))
+}
+
+// QuotaResetScope applies equality check predicate on the "quota_reset_scope" field. It's identical to QuotaResetScopeEQ.
+func QuotaResetScope(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldQuotaResetScope, v))
+}
+
+// QuotaResetValue applies equality check predicate on the "quota_reset_value" field. It's identical to QuotaResetValueEQ.
+func QuotaResetValue(v float64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldQuotaResetValue, v))
+}
+
 // ProviderInstanceID applies equality check predicate on the "provider_instance_id" field. It's identical to ProviderInstanceIDEQ.
 func ProviderInstanceID(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldProviderInstanceID, v))
@@ -1288,6 +1303,176 @@ func SubscriptionDaysIsNil() predicate.PaymentOrder {
 // SubscriptionDaysNotNil applies the NotNil predicate on the "subscription_days" field.
 func SubscriptionDaysNotNil() predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldNotNull(FieldSubscriptionDays))
+}
+
+// SubscriptionPlanTypeEQ applies the EQ predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeEQ(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldSubscriptionPlanType, v))
+}
+
+// SubscriptionPlanTypeNEQ applies the NEQ predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeNEQ(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldSubscriptionPlanType, v))
+}
+
+// SubscriptionPlanTypeIn applies the In predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeIn(vs ...string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldSubscriptionPlanType, vs...))
+}
+
+// SubscriptionPlanTypeNotIn applies the NotIn predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeNotIn(vs ...string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldSubscriptionPlanType, vs...))
+}
+
+// SubscriptionPlanTypeGT applies the GT predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeGT(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldSubscriptionPlanType, v))
+}
+
+// SubscriptionPlanTypeGTE applies the GTE predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeGTE(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldSubscriptionPlanType, v))
+}
+
+// SubscriptionPlanTypeLT applies the LT predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeLT(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldSubscriptionPlanType, v))
+}
+
+// SubscriptionPlanTypeLTE applies the LTE predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeLTE(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldSubscriptionPlanType, v))
+}
+
+// SubscriptionPlanTypeContains applies the Contains predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeContains(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldContains(FieldSubscriptionPlanType, v))
+}
+
+// SubscriptionPlanTypeHasPrefix applies the HasPrefix predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeHasPrefix(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldHasPrefix(FieldSubscriptionPlanType, v))
+}
+
+// SubscriptionPlanTypeHasSuffix applies the HasSuffix predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeHasSuffix(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldHasSuffix(FieldSubscriptionPlanType, v))
+}
+
+// SubscriptionPlanTypeEqualFold applies the EqualFold predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeEqualFold(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEqualFold(FieldSubscriptionPlanType, v))
+}
+
+// SubscriptionPlanTypeContainsFold applies the ContainsFold predicate on the "subscription_plan_type" field.
+func SubscriptionPlanTypeContainsFold(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldContainsFold(FieldSubscriptionPlanType, v))
+}
+
+// QuotaResetScopeEQ applies the EQ predicate on the "quota_reset_scope" field.
+func QuotaResetScopeEQ(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeNEQ applies the NEQ predicate on the "quota_reset_scope" field.
+func QuotaResetScopeNEQ(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeIn applies the In predicate on the "quota_reset_scope" field.
+func QuotaResetScopeIn(vs ...string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldQuotaResetScope, vs...))
+}
+
+// QuotaResetScopeNotIn applies the NotIn predicate on the "quota_reset_scope" field.
+func QuotaResetScopeNotIn(vs ...string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldQuotaResetScope, vs...))
+}
+
+// QuotaResetScopeGT applies the GT predicate on the "quota_reset_scope" field.
+func QuotaResetScopeGT(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeGTE applies the GTE predicate on the "quota_reset_scope" field.
+func QuotaResetScopeGTE(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeLT applies the LT predicate on the "quota_reset_scope" field.
+func QuotaResetScopeLT(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeLTE applies the LTE predicate on the "quota_reset_scope" field.
+func QuotaResetScopeLTE(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeContains applies the Contains predicate on the "quota_reset_scope" field.
+func QuotaResetScopeContains(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldContains(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeHasPrefix applies the HasPrefix predicate on the "quota_reset_scope" field.
+func QuotaResetScopeHasPrefix(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldHasPrefix(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeHasSuffix applies the HasSuffix predicate on the "quota_reset_scope" field.
+func QuotaResetScopeHasSuffix(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldHasSuffix(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeEqualFold applies the EqualFold predicate on the "quota_reset_scope" field.
+func QuotaResetScopeEqualFold(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEqualFold(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeContainsFold applies the ContainsFold predicate on the "quota_reset_scope" field.
+func QuotaResetScopeContainsFold(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldContainsFold(FieldQuotaResetScope, v))
+}
+
+// QuotaResetValueEQ applies the EQ predicate on the "quota_reset_value" field.
+func QuotaResetValueEQ(v float64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldQuotaResetValue, v))
+}
+
+// QuotaResetValueNEQ applies the NEQ predicate on the "quota_reset_value" field.
+func QuotaResetValueNEQ(v float64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldQuotaResetValue, v))
+}
+
+// QuotaResetValueIn applies the In predicate on the "quota_reset_value" field.
+func QuotaResetValueIn(vs ...float64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldQuotaResetValue, vs...))
+}
+
+// QuotaResetValueNotIn applies the NotIn predicate on the "quota_reset_value" field.
+func QuotaResetValueNotIn(vs ...float64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldQuotaResetValue, vs...))
+}
+
+// QuotaResetValueGT applies the GT predicate on the "quota_reset_value" field.
+func QuotaResetValueGT(v float64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldQuotaResetValue, v))
+}
+
+// QuotaResetValueGTE applies the GTE predicate on the "quota_reset_value" field.
+func QuotaResetValueGTE(v float64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldQuotaResetValue, v))
+}
+
+// QuotaResetValueLT applies the LT predicate on the "quota_reset_value" field.
+func QuotaResetValueLT(v float64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldQuotaResetValue, v))
+}
+
+// QuotaResetValueLTE applies the LTE predicate on the "quota_reset_value" field.
+func QuotaResetValueLTE(v float64) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldQuotaResetValue, v))
 }
 
 // ProviderInstanceIDEQ applies the EQ predicate on the "provider_instance_id" field.

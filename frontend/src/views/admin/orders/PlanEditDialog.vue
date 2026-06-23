@@ -3,6 +3,10 @@
     <form id="plan-form" @submit.prevent="handleSavePlan" class="space-y-4">
       <div class="grid grid-cols-2 gap-4">
         <div>
+          <label class="input-label">{{ t('payment.admin.planType') }} <span class="text-red-500">*</span></label>
+          <Select v-model="planForm.plan_type" :options="planTypeOptions" />
+        </div>
+        <div>
           <label class="input-label">{{ t('payment.admin.planName') }} <span class="text-red-500">*</span></label>
           <input v-model="planForm.name" type="text" class="input" required />
         </div>
@@ -38,7 +42,17 @@
         <div><label class="input-label">{{ t('payment.admin.price') }} <span class="text-red-500">*</span></label><input v-model.number="planForm.price" type="number" step="0.01" min="0.01" class="input" required /></div>
         <div><label class="input-label">{{ t('payment.admin.originalPrice') }}</label><input v-model.number="planForm.original_price" type="number" step="0.01" min="0" class="input" /></div>
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div v-if="isQuotaResetPlan" class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="input-label">{{ t('payment.admin.quotaResetScope') }} <span class="text-red-500">*</span></label>
+          <Select v-model="planForm.quota_reset_scope" :options="quotaResetScopeOptions" />
+        </div>
+        <div>
+          <label class="input-label">{{ t('payment.admin.quotaResetValue') }} <span class="text-red-500">*</span></label>
+          <input v-model.number="planForm.quota_reset_value" type="number" step="0.01" min="0.01" class="input" required />
+        </div>
+      </div>
+      <div v-else class="grid grid-cols-2 gap-4">
         <div><label class="input-label">{{ t('payment.admin.validityDays') }} <span class="text-red-500">*</span></label><input v-model.number="planForm.validity_days" type="number" min="1" class="input" required /></div>
         <div><label class="input-label">{{ t('payment.admin.validityUnit') }} <span class="text-red-500">*</span></label><Select v-model="planForm.validity_unit" :options="validityUnitOptions" /></div>
       </div>
@@ -105,13 +119,37 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 const saving = ref(false)
-const planForm = reactive({ name: '', group_id: null as number | null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
+const planForm = reactive({
+  plan_type: 'subscription' as 'subscription' | 'quota_reset',
+  name: '',
+  group_id: null as number | null,
+  description: '',
+  price: 0,
+  original_price: 0,
+  validity_days: 30,
+  validity_unit: 'days',
+  quota_reset_scope: 'daily' as 'daily',
+  quota_reset_value: 100,
+  sort_order: 0,
+  for_sale: true,
+})
 const planFeaturesText = ref('')
+
+const isQuotaResetPlan = computed(() => planForm.plan_type === 'quota_reset')
+
+const planTypeOptions = computed(() => [
+  { value: 'subscription', label: t('payment.admin.planTypeSubscription') },
+  { value: 'quota_reset', label: t('payment.admin.planTypeQuotaReset') },
+])
 
 const validityUnitOptions = computed(() => [
   { value: 'days', label: t('payment.admin.days') },
   { value: 'weeks', label: t('payment.admin.weeks') },
   { value: 'months', label: t('payment.admin.months') },
+])
+
+const quotaResetScopeOptions = computed(() => [
+  { value: 'daily', label: t('payment.admin.quotaResetDaily') },
 ])
 
 const groupOptions = computed(() =>
@@ -133,10 +171,23 @@ const selectedGroupInfo = computed(() => {
 watch(() => props.show, (visible) => {
   if (!visible) return
   if (props.plan) {
-    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price, original_price: props.plan.original_price || 0, validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale })
+    Object.assign(planForm, {
+      plan_type: props.plan.plan_type || 'subscription',
+      name: props.plan.name,
+      group_id: props.plan.group_id,
+      description: props.plan.description,
+      price: props.plan.price,
+      original_price: props.plan.original_price || 0,
+      validity_days: props.plan.validity_days,
+      validity_unit: props.plan.validity_unit || 'days',
+      quota_reset_scope: props.plan.quota_reset_scope || 'daily',
+      quota_reset_value: props.plan.quota_reset_value || 100,
+      sort_order: props.plan.sort_order || 0,
+      for_sale: props.plan.for_sale,
+    })
     planFeaturesText.value = (props.plan.features || []).join('\n')
   } else {
-    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
+    Object.assign(planForm, { plan_type: 'subscription', name: '', group_id: null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', quota_reset_scope: 'daily', quota_reset_value: 100, sort_order: 0, for_sale: true })
     planFeaturesText.value = ''
   }
 })
@@ -147,6 +198,7 @@ function buildPlanPayload() {
   return {
     name: planForm.name,
     group_id: planForm.group_id,
+    plan_type: planForm.plan_type,
     description: planForm.description,
     price: planForm.price,
     original_price: planForm.original_price || 0,
@@ -155,6 +207,8 @@ function buildPlanPayload() {
     sort_order: planForm.sort_order,
     for_sale: planForm.for_sale,
     features,
+    quota_reset_scope: isQuotaResetPlan.value ? planForm.quota_reset_scope : '',
+    quota_reset_value: isQuotaResetPlan.value ? planForm.quota_reset_value : 0,
   }
 }
 
@@ -169,6 +223,10 @@ async function handleSavePlan() {
   }
   if (!planForm.validity_days || planForm.validity_days < 1) {
     appStore.showError(t('payment.admin.validityDaysRequired'))
+    return
+  }
+  if (isQuotaResetPlan.value && (!planForm.quota_reset_value || planForm.quota_reset_value <= 0)) {
+    appStore.showError(t('payment.admin.quotaResetValueRequired'))
     return
   }
   saving.value = true

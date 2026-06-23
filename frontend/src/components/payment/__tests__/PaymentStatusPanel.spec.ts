@@ -154,6 +154,7 @@ describe('PaymentStatusPanel', () => {
         cryptoAmount: '10.000123',
         cryptoCurrency: 'USDT',
         cryptoNetwork: 'BSC',
+        cryptoRate: '6.770000',
         receiveAddress: address,
       },
       global: {
@@ -169,6 +170,8 @@ describe('PaymentStatusPanel', () => {
     expect(wrapper.text()).toContain('payment.crypto.walletAddress')
     expect(wrapper.text()).toContain('payment.crypto.feeWarning')
     expect(wrapper.text()).toContain('10.000123 USDT')
+    expect(wrapper.text()).toContain('payment.crypto.exchangeRate')
+    expect(wrapper.text()).toContain('payment.crypto.exchangeRateValue')
     expect(wrapper.text()).toContain(address)
     expect(toCanvas).toHaveBeenCalledWith(expect.anything(), address, expect.any(Object))
 

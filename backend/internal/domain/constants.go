@@ -44,6 +44,11 @@ const (
 )
 
 const (
+	SubscriptionPlanTypeSubscription = "subscription"
+	SubscriptionPlanTypeQuotaReset   = "quota_reset"
+)
+
+const (
 	QuotaResetScopeDaily   = "daily"
 	QuotaResetScopeWeekly  = "weekly"
 	QuotaResetScopeMonthly = "monthly"

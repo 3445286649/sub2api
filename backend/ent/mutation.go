@@ -20709,6 +20709,10 @@ type PaymentOrderMutation struct {
 	addsubscription_group_id *int64
 	subscription_days        *int
 	addsubscription_days     *int
+	subscription_plan_type   *string
+	quota_reset_scope        *string
+	quota_reset_value        *float64
+	addquota_reset_value     *float64
 	provider_instance_id     *string
 	provider_key             *string
 	provider_snapshot        *map[string]interface{}
@@ -21697,6 +21701,134 @@ func (m *PaymentOrderMutation) ResetSubscriptionDays() {
 	m.subscription_days = nil
 	m.addsubscription_days = nil
 	delete(m.clearedFields, paymentorder.FieldSubscriptionDays)
+}
+
+// SetSubscriptionPlanType sets the "subscription_plan_type" field.
+func (m *PaymentOrderMutation) SetSubscriptionPlanType(s string) {
+	m.subscription_plan_type = &s
+}
+
+// SubscriptionPlanType returns the value of the "subscription_plan_type" field in the mutation.
+func (m *PaymentOrderMutation) SubscriptionPlanType() (r string, exists bool) {
+	v := m.subscription_plan_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionPlanType returns the old "subscription_plan_type" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldSubscriptionPlanType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionPlanType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionPlanType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionPlanType: %w", err)
+	}
+	return oldValue.SubscriptionPlanType, nil
+}
+
+// ResetSubscriptionPlanType resets all changes to the "subscription_plan_type" field.
+func (m *PaymentOrderMutation) ResetSubscriptionPlanType() {
+	m.subscription_plan_type = nil
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (m *PaymentOrderMutation) SetQuotaResetScope(s string) {
+	m.quota_reset_scope = &s
+}
+
+// QuotaResetScope returns the value of the "quota_reset_scope" field in the mutation.
+func (m *PaymentOrderMutation) QuotaResetScope() (r string, exists bool) {
+	v := m.quota_reset_scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuotaResetScope returns the old "quota_reset_scope" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldQuotaResetScope(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuotaResetScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuotaResetScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuotaResetScope: %w", err)
+	}
+	return oldValue.QuotaResetScope, nil
+}
+
+// ResetQuotaResetScope resets all changes to the "quota_reset_scope" field.
+func (m *PaymentOrderMutation) ResetQuotaResetScope() {
+	m.quota_reset_scope = nil
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (m *PaymentOrderMutation) SetQuotaResetValue(f float64) {
+	m.quota_reset_value = &f
+	m.addquota_reset_value = nil
+}
+
+// QuotaResetValue returns the value of the "quota_reset_value" field in the mutation.
+func (m *PaymentOrderMutation) QuotaResetValue() (r float64, exists bool) {
+	v := m.quota_reset_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuotaResetValue returns the old "quota_reset_value" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldQuotaResetValue(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuotaResetValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuotaResetValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuotaResetValue: %w", err)
+	}
+	return oldValue.QuotaResetValue, nil
+}
+
+// AddQuotaResetValue adds f to the "quota_reset_value" field.
+func (m *PaymentOrderMutation) AddQuotaResetValue(f float64) {
+	if m.addquota_reset_value != nil {
+		*m.addquota_reset_value += f
+	} else {
+		m.addquota_reset_value = &f
+	}
+}
+
+// AddedQuotaResetValue returns the value that was added to the "quota_reset_value" field in this mutation.
+func (m *PaymentOrderMutation) AddedQuotaResetValue() (r float64, exists bool) {
+	v := m.addquota_reset_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetQuotaResetValue resets all changes to the "quota_reset_value" field.
+func (m *PaymentOrderMutation) ResetQuotaResetValue() {
+	m.quota_reset_value = nil
+	m.addquota_reset_value = nil
 }
 
 // SetProviderInstanceID sets the "provider_instance_id" field.
@@ -22705,7 +22837,7 @@ func (m *PaymentOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PaymentOrderMutation) Fields() []string {
-	fields := make([]string, 0, 39)
+	fields := make([]string, 0, 42)
 	if m.user != nil {
 		fields = append(fields, paymentorder.FieldUserID)
 	}
@@ -22759,6 +22891,15 @@ func (m *PaymentOrderMutation) Fields() []string {
 	}
 	if m.subscription_days != nil {
 		fields = append(fields, paymentorder.FieldSubscriptionDays)
+	}
+	if m.subscription_plan_type != nil {
+		fields = append(fields, paymentorder.FieldSubscriptionPlanType)
+	}
+	if m.quota_reset_scope != nil {
+		fields = append(fields, paymentorder.FieldQuotaResetScope)
+	}
+	if m.quota_reset_value != nil {
+		fields = append(fields, paymentorder.FieldQuotaResetValue)
 	}
 	if m.provider_instance_id != nil {
 		fields = append(fields, paymentorder.FieldProviderInstanceID)
@@ -22867,6 +23008,12 @@ func (m *PaymentOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.SubscriptionGroupID()
 	case paymentorder.FieldSubscriptionDays:
 		return m.SubscriptionDays()
+	case paymentorder.FieldSubscriptionPlanType:
+		return m.SubscriptionPlanType()
+	case paymentorder.FieldQuotaResetScope:
+		return m.QuotaResetScope()
+	case paymentorder.FieldQuotaResetValue:
+		return m.QuotaResetValue()
 	case paymentorder.FieldProviderInstanceID:
 		return m.ProviderInstanceID()
 	case paymentorder.FieldProviderKey:
@@ -22954,6 +23101,12 @@ func (m *PaymentOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldSubscriptionGroupID(ctx)
 	case paymentorder.FieldSubscriptionDays:
 		return m.OldSubscriptionDays(ctx)
+	case paymentorder.FieldSubscriptionPlanType:
+		return m.OldSubscriptionPlanType(ctx)
+	case paymentorder.FieldQuotaResetScope:
+		return m.OldQuotaResetScope(ctx)
+	case paymentorder.FieldQuotaResetValue:
+		return m.OldQuotaResetValue(ctx)
 	case paymentorder.FieldProviderInstanceID:
 		return m.OldProviderInstanceID(ctx)
 	case paymentorder.FieldProviderKey:
@@ -23131,6 +23284,27 @@ func (m *PaymentOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSubscriptionDays(v)
 		return nil
+	case paymentorder.FieldSubscriptionPlanType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionPlanType(v)
+		return nil
+	case paymentorder.FieldQuotaResetScope:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuotaResetScope(v)
+		return nil
+	case paymentorder.FieldQuotaResetValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuotaResetValue(v)
+		return nil
 	case paymentorder.FieldProviderInstanceID:
 		v, ok := value.(string)
 		if !ok {
@@ -23304,6 +23478,9 @@ func (m *PaymentOrderMutation) AddedFields() []string {
 	if m.addsubscription_days != nil {
 		fields = append(fields, paymentorder.FieldSubscriptionDays)
 	}
+	if m.addquota_reset_value != nil {
+		fields = append(fields, paymentorder.FieldQuotaResetValue)
+	}
 	if m.addrefund_amount != nil {
 		fields = append(fields, paymentorder.FieldRefundAmount)
 	}
@@ -23327,6 +23504,8 @@ func (m *PaymentOrderMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedSubscriptionGroupID()
 	case paymentorder.FieldSubscriptionDays:
 		return m.AddedSubscriptionDays()
+	case paymentorder.FieldQuotaResetValue:
+		return m.AddedQuotaResetValue()
 	case paymentorder.FieldRefundAmount:
 		return m.AddedRefundAmount()
 	}
@@ -23379,6 +23558,13 @@ func (m *PaymentOrderMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddSubscriptionDays(v)
+		return nil
+	case paymentorder.FieldQuotaResetValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddQuotaResetValue(v)
 		return nil
 	case paymentorder.FieldRefundAmount:
 		v, ok := value.(float64)
@@ -23590,6 +23776,15 @@ func (m *PaymentOrderMutation) ResetField(name string) error {
 		return nil
 	case paymentorder.FieldSubscriptionDays:
 		m.ResetSubscriptionDays()
+		return nil
+	case paymentorder.FieldSubscriptionPlanType:
+		m.ResetSubscriptionPlanType()
+		return nil
+	case paymentorder.FieldQuotaResetScope:
+		m.ResetQuotaResetScope()
+		return nil
+	case paymentorder.FieldQuotaResetValue:
+		m.ResetQuotaResetValue()
 		return nil
 	case paymentorder.FieldProviderInstanceID:
 		m.ResetProviderInstanceID()
@@ -31491,31 +31686,35 @@ func (m *SettingMutation) ResetEdge(name string) error {
 // SubscriptionPlanMutation represents an operation that mutates the SubscriptionPlan nodes in the graph.
 type SubscriptionPlanMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *int64
-	group_id          *int64
-	addgroup_id       *int64
-	name              *string
-	description       *string
-	price             *float64
-	addprice          *float64
-	original_price    *float64
-	addoriginal_price *float64
-	validity_days     *int
-	addvalidity_days  *int
-	validity_unit     *string
-	features          *string
-	product_name      *string
-	for_sale          *bool
-	sort_order        *int
-	addsort_order     *int
-	created_at        *time.Time
-	updated_at        *time.Time
-	clearedFields     map[string]struct{}
-	done              bool
-	oldValue          func(context.Context) (*SubscriptionPlan, error)
-	predicates        []predicate.SubscriptionPlan
+	op                   Op
+	typ                  string
+	id                   *int64
+	group_id             *int64
+	addgroup_id          *int64
+	name                 *string
+	description          *string
+	plan_type            *string
+	price                *float64
+	addprice             *float64
+	original_price       *float64
+	addoriginal_price    *float64
+	validity_days        *int
+	addvalidity_days     *int
+	validity_unit        *string
+	features             *string
+	product_name         *string
+	quota_reset_scope    *string
+	quota_reset_value    *float64
+	addquota_reset_value *float64
+	for_sale             *bool
+	sort_order           *int
+	addsort_order        *int
+	created_at           *time.Time
+	updated_at           *time.Time
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*SubscriptionPlan, error)
+	predicates           []predicate.SubscriptionPlan
 }
 
 var _ ent.Mutation = (*SubscriptionPlanMutation)(nil)
@@ -31742,6 +31941,42 @@ func (m *SubscriptionPlanMutation) OldDescription(ctx context.Context) (v string
 // ResetDescription resets all changes to the "description" field.
 func (m *SubscriptionPlanMutation) ResetDescription() {
 	m.description = nil
+}
+
+// SetPlanType sets the "plan_type" field.
+func (m *SubscriptionPlanMutation) SetPlanType(s string) {
+	m.plan_type = &s
+}
+
+// PlanType returns the value of the "plan_type" field in the mutation.
+func (m *SubscriptionPlanMutation) PlanType() (r string, exists bool) {
+	v := m.plan_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlanType returns the old "plan_type" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldPlanType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlanType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlanType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlanType: %w", err)
+	}
+	return oldValue.PlanType, nil
+}
+
+// ResetPlanType resets all changes to the "plan_type" field.
+func (m *SubscriptionPlanMutation) ResetPlanType() {
+	m.plan_type = nil
 }
 
 // SetPrice sets the "price" field.
@@ -32034,6 +32269,98 @@ func (m *SubscriptionPlanMutation) ResetProductName() {
 	m.product_name = nil
 }
 
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (m *SubscriptionPlanMutation) SetQuotaResetScope(s string) {
+	m.quota_reset_scope = &s
+}
+
+// QuotaResetScope returns the value of the "quota_reset_scope" field in the mutation.
+func (m *SubscriptionPlanMutation) QuotaResetScope() (r string, exists bool) {
+	v := m.quota_reset_scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuotaResetScope returns the old "quota_reset_scope" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldQuotaResetScope(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuotaResetScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuotaResetScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuotaResetScope: %w", err)
+	}
+	return oldValue.QuotaResetScope, nil
+}
+
+// ResetQuotaResetScope resets all changes to the "quota_reset_scope" field.
+func (m *SubscriptionPlanMutation) ResetQuotaResetScope() {
+	m.quota_reset_scope = nil
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (m *SubscriptionPlanMutation) SetQuotaResetValue(f float64) {
+	m.quota_reset_value = &f
+	m.addquota_reset_value = nil
+}
+
+// QuotaResetValue returns the value of the "quota_reset_value" field in the mutation.
+func (m *SubscriptionPlanMutation) QuotaResetValue() (r float64, exists bool) {
+	v := m.quota_reset_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuotaResetValue returns the old "quota_reset_value" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldQuotaResetValue(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuotaResetValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuotaResetValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuotaResetValue: %w", err)
+	}
+	return oldValue.QuotaResetValue, nil
+}
+
+// AddQuotaResetValue adds f to the "quota_reset_value" field.
+func (m *SubscriptionPlanMutation) AddQuotaResetValue(f float64) {
+	if m.addquota_reset_value != nil {
+		*m.addquota_reset_value += f
+	} else {
+		m.addquota_reset_value = &f
+	}
+}
+
+// AddedQuotaResetValue returns the value that was added to the "quota_reset_value" field in this mutation.
+func (m *SubscriptionPlanMutation) AddedQuotaResetValue() (r float64, exists bool) {
+	v := m.addquota_reset_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetQuotaResetValue resets all changes to the "quota_reset_value" field.
+func (m *SubscriptionPlanMutation) ResetQuotaResetValue() {
+	m.quota_reset_value = nil
+	m.addquota_reset_value = nil
+}
+
 // SetForSale sets the "for_sale" field.
 func (m *SubscriptionPlanMutation) SetForSale(b bool) {
 	m.for_sale = &b
@@ -32232,7 +32559,7 @@ func (m *SubscriptionPlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SubscriptionPlanMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 16)
 	if m.group_id != nil {
 		fields = append(fields, subscriptionplan.FieldGroupID)
 	}
@@ -32241,6 +32568,9 @@ func (m *SubscriptionPlanMutation) Fields() []string {
 	}
 	if m.description != nil {
 		fields = append(fields, subscriptionplan.FieldDescription)
+	}
+	if m.plan_type != nil {
+		fields = append(fields, subscriptionplan.FieldPlanType)
 	}
 	if m.price != nil {
 		fields = append(fields, subscriptionplan.FieldPrice)
@@ -32259,6 +32589,12 @@ func (m *SubscriptionPlanMutation) Fields() []string {
 	}
 	if m.product_name != nil {
 		fields = append(fields, subscriptionplan.FieldProductName)
+	}
+	if m.quota_reset_scope != nil {
+		fields = append(fields, subscriptionplan.FieldQuotaResetScope)
+	}
+	if m.quota_reset_value != nil {
+		fields = append(fields, subscriptionplan.FieldQuotaResetValue)
 	}
 	if m.for_sale != nil {
 		fields = append(fields, subscriptionplan.FieldForSale)
@@ -32286,6 +32622,8 @@ func (m *SubscriptionPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case subscriptionplan.FieldDescription:
 		return m.Description()
+	case subscriptionplan.FieldPlanType:
+		return m.PlanType()
 	case subscriptionplan.FieldPrice:
 		return m.Price()
 	case subscriptionplan.FieldOriginalPrice:
@@ -32298,6 +32636,10 @@ func (m *SubscriptionPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.Features()
 	case subscriptionplan.FieldProductName:
 		return m.ProductName()
+	case subscriptionplan.FieldQuotaResetScope:
+		return m.QuotaResetScope()
+	case subscriptionplan.FieldQuotaResetValue:
+		return m.QuotaResetValue()
 	case subscriptionplan.FieldForSale:
 		return m.ForSale()
 	case subscriptionplan.FieldSortOrder:
@@ -32321,6 +32663,8 @@ func (m *SubscriptionPlanMutation) OldField(ctx context.Context, name string) (e
 		return m.OldName(ctx)
 	case subscriptionplan.FieldDescription:
 		return m.OldDescription(ctx)
+	case subscriptionplan.FieldPlanType:
+		return m.OldPlanType(ctx)
 	case subscriptionplan.FieldPrice:
 		return m.OldPrice(ctx)
 	case subscriptionplan.FieldOriginalPrice:
@@ -32333,6 +32677,10 @@ func (m *SubscriptionPlanMutation) OldField(ctx context.Context, name string) (e
 		return m.OldFeatures(ctx)
 	case subscriptionplan.FieldProductName:
 		return m.OldProductName(ctx)
+	case subscriptionplan.FieldQuotaResetScope:
+		return m.OldQuotaResetScope(ctx)
+	case subscriptionplan.FieldQuotaResetValue:
+		return m.OldQuotaResetValue(ctx)
 	case subscriptionplan.FieldForSale:
 		return m.OldForSale(ctx)
 	case subscriptionplan.FieldSortOrder:
@@ -32370,6 +32718,13 @@ func (m *SubscriptionPlanMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDescription(v)
+		return nil
+	case subscriptionplan.FieldPlanType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlanType(v)
 		return nil
 	case subscriptionplan.FieldPrice:
 		v, ok := value.(float64)
@@ -32412,6 +32767,20 @@ func (m *SubscriptionPlanMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetProductName(v)
+		return nil
+	case subscriptionplan.FieldQuotaResetScope:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuotaResetScope(v)
+		return nil
+	case subscriptionplan.FieldQuotaResetValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuotaResetValue(v)
 		return nil
 	case subscriptionplan.FieldForSale:
 		v, ok := value.(bool)
@@ -32461,6 +32830,9 @@ func (m *SubscriptionPlanMutation) AddedFields() []string {
 	if m.addvalidity_days != nil {
 		fields = append(fields, subscriptionplan.FieldValidityDays)
 	}
+	if m.addquota_reset_value != nil {
+		fields = append(fields, subscriptionplan.FieldQuotaResetValue)
+	}
 	if m.addsort_order != nil {
 		fields = append(fields, subscriptionplan.FieldSortOrder)
 	}
@@ -32480,6 +32852,8 @@ func (m *SubscriptionPlanMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedOriginalPrice()
 	case subscriptionplan.FieldValidityDays:
 		return m.AddedValidityDays()
+	case subscriptionplan.FieldQuotaResetValue:
+		return m.AddedQuotaResetValue()
 	case subscriptionplan.FieldSortOrder:
 		return m.AddedSortOrder()
 	}
@@ -32518,6 +32892,13 @@ func (m *SubscriptionPlanMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddValidityDays(v)
+		return nil
+	case subscriptionplan.FieldQuotaResetValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddQuotaResetValue(v)
 		return nil
 	case subscriptionplan.FieldSortOrder:
 		v, ok := value.(int)
@@ -32571,6 +32952,9 @@ func (m *SubscriptionPlanMutation) ResetField(name string) error {
 	case subscriptionplan.FieldDescription:
 		m.ResetDescription()
 		return nil
+	case subscriptionplan.FieldPlanType:
+		m.ResetPlanType()
+		return nil
 	case subscriptionplan.FieldPrice:
 		m.ResetPrice()
 		return nil
@@ -32588,6 +32972,12 @@ func (m *SubscriptionPlanMutation) ResetField(name string) error {
 		return nil
 	case subscriptionplan.FieldProductName:
 		m.ResetProductName()
+		return nil
+	case subscriptionplan.FieldQuotaResetScope:
+		m.ResetQuotaResetScope()
+		return nil
+	case subscriptionplan.FieldQuotaResetValue:
+		m.ResetQuotaResetValue()
 		return nil
 	case subscriptionplan.FieldForSale:
 		m.ResetForSale()

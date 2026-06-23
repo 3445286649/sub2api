@@ -211,6 +211,48 @@ func (_c *PaymentOrderCreate) SetNillableSubscriptionDays(v *int) *PaymentOrderC
 	return _c
 }
 
+// SetSubscriptionPlanType sets the "subscription_plan_type" field.
+func (_c *PaymentOrderCreate) SetSubscriptionPlanType(v string) *PaymentOrderCreate {
+	_c.mutation.SetSubscriptionPlanType(v)
+	return _c
+}
+
+// SetNillableSubscriptionPlanType sets the "subscription_plan_type" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableSubscriptionPlanType(v *string) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetSubscriptionPlanType(*v)
+	}
+	return _c
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (_c *PaymentOrderCreate) SetQuotaResetScope(v string) *PaymentOrderCreate {
+	_c.mutation.SetQuotaResetScope(v)
+	return _c
+}
+
+// SetNillableQuotaResetScope sets the "quota_reset_scope" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableQuotaResetScope(v *string) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetQuotaResetScope(*v)
+	}
+	return _c
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (_c *PaymentOrderCreate) SetQuotaResetValue(v float64) *PaymentOrderCreate {
+	_c.mutation.SetQuotaResetValue(v)
+	return _c
+}
+
+// SetNillableQuotaResetValue sets the "quota_reset_value" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableQuotaResetValue(v *float64) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetQuotaResetValue(*v)
+	}
+	return _c
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (_c *PaymentOrderCreate) SetProviderInstanceID(v string) *PaymentOrderCreate {
 	_c.mutation.SetProviderInstanceID(v)
@@ -525,6 +567,18 @@ func (_c *PaymentOrderCreate) defaults() {
 		v := paymentorder.DefaultOrderType
 		_c.mutation.SetOrderType(v)
 	}
+	if _, ok := _c.mutation.SubscriptionPlanType(); !ok {
+		v := paymentorder.DefaultSubscriptionPlanType
+		_c.mutation.SetSubscriptionPlanType(v)
+	}
+	if _, ok := _c.mutation.QuotaResetScope(); !ok {
+		v := paymentorder.DefaultQuotaResetScope
+		_c.mutation.SetQuotaResetScope(v)
+	}
+	if _, ok := _c.mutation.QuotaResetValue(); !ok {
+		v := paymentorder.DefaultQuotaResetValue
+		_c.mutation.SetQuotaResetValue(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := paymentorder.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -616,6 +670,25 @@ func (_c *PaymentOrderCreate) check() error {
 		if err := paymentorder.OrderTypeValidator(v); err != nil {
 			return &ValidationError{Name: "order_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.order_type": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.SubscriptionPlanType(); !ok {
+		return &ValidationError{Name: "subscription_plan_type", err: errors.New(`ent: missing required field "PaymentOrder.subscription_plan_type"`)}
+	}
+	if v, ok := _c.mutation.SubscriptionPlanType(); ok {
+		if err := paymentorder.SubscriptionPlanTypeValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_plan_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.subscription_plan_type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.QuotaResetScope(); !ok {
+		return &ValidationError{Name: "quota_reset_scope", err: errors.New(`ent: missing required field "PaymentOrder.quota_reset_scope"`)}
+	}
+	if v, ok := _c.mutation.QuotaResetScope(); ok {
+		if err := paymentorder.QuotaResetScopeValidator(v); err != nil {
+			return &ValidationError{Name: "quota_reset_scope", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.quota_reset_scope": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.QuotaResetValue(); !ok {
+		return &ValidationError{Name: "quota_reset_value", err: errors.New(`ent: missing required field "PaymentOrder.quota_reset_value"`)}
 	}
 	if v, ok := _c.mutation.ProviderInstanceID(); ok {
 		if err := paymentorder.ProviderInstanceIDValidator(v); err != nil {
@@ -768,6 +841,18 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.SubscriptionDays(); ok {
 		_spec.SetField(paymentorder.FieldSubscriptionDays, field.TypeInt, value)
 		_node.SubscriptionDays = &value
+	}
+	if value, ok := _c.mutation.SubscriptionPlanType(); ok {
+		_spec.SetField(paymentorder.FieldSubscriptionPlanType, field.TypeString, value)
+		_node.SubscriptionPlanType = value
+	}
+	if value, ok := _c.mutation.QuotaResetScope(); ok {
+		_spec.SetField(paymentorder.FieldQuotaResetScope, field.TypeString, value)
+		_node.QuotaResetScope = value
+	}
+	if value, ok := _c.mutation.QuotaResetValue(); ok {
+		_spec.SetField(paymentorder.FieldQuotaResetValue, field.TypeFloat64, value)
+		_node.QuotaResetValue = value
 	}
 	if value, ok := _c.mutation.ProviderInstanceID(); ok {
 		_spec.SetField(paymentorder.FieldProviderInstanceID, field.TypeString, value)
@@ -1213,6 +1298,48 @@ func (u *PaymentOrderUpsert) AddSubscriptionDays(v int) *PaymentOrderUpsert {
 // ClearSubscriptionDays clears the value of the "subscription_days" field.
 func (u *PaymentOrderUpsert) ClearSubscriptionDays() *PaymentOrderUpsert {
 	u.SetNull(paymentorder.FieldSubscriptionDays)
+	return u
+}
+
+// SetSubscriptionPlanType sets the "subscription_plan_type" field.
+func (u *PaymentOrderUpsert) SetSubscriptionPlanType(v string) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldSubscriptionPlanType, v)
+	return u
+}
+
+// UpdateSubscriptionPlanType sets the "subscription_plan_type" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateSubscriptionPlanType() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldSubscriptionPlanType)
+	return u
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (u *PaymentOrderUpsert) SetQuotaResetScope(v string) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldQuotaResetScope, v)
+	return u
+}
+
+// UpdateQuotaResetScope sets the "quota_reset_scope" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateQuotaResetScope() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldQuotaResetScope)
+	return u
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (u *PaymentOrderUpsert) SetQuotaResetValue(v float64) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldQuotaResetValue, v)
+	return u
+}
+
+// UpdateQuotaResetValue sets the "quota_reset_value" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateQuotaResetValue() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldQuotaResetValue)
+	return u
+}
+
+// AddQuotaResetValue adds v to the "quota_reset_value" field.
+func (u *PaymentOrderUpsert) AddQuotaResetValue(v float64) *PaymentOrderUpsert {
+	u.Add(paymentorder.FieldQuotaResetValue, v)
 	return u
 }
 
@@ -1925,6 +2052,55 @@ func (u *PaymentOrderUpsertOne) UpdateSubscriptionDays() *PaymentOrderUpsertOne 
 func (u *PaymentOrderUpsertOne) ClearSubscriptionDays() *PaymentOrderUpsertOne {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.ClearSubscriptionDays()
+	})
+}
+
+// SetSubscriptionPlanType sets the "subscription_plan_type" field.
+func (u *PaymentOrderUpsertOne) SetSubscriptionPlanType(v string) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetSubscriptionPlanType(v)
+	})
+}
+
+// UpdateSubscriptionPlanType sets the "subscription_plan_type" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateSubscriptionPlanType() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateSubscriptionPlanType()
+	})
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (u *PaymentOrderUpsertOne) SetQuotaResetScope(v string) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetQuotaResetScope(v)
+	})
+}
+
+// UpdateQuotaResetScope sets the "quota_reset_scope" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateQuotaResetScope() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateQuotaResetScope()
+	})
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (u *PaymentOrderUpsertOne) SetQuotaResetValue(v float64) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetQuotaResetValue(v)
+	})
+}
+
+// AddQuotaResetValue adds v to the "quota_reset_value" field.
+func (u *PaymentOrderUpsertOne) AddQuotaResetValue(v float64) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddQuotaResetValue(v)
+	})
+}
+
+// UpdateQuotaResetValue sets the "quota_reset_value" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateQuotaResetValue() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateQuotaResetValue()
 	})
 }
 
@@ -2857,6 +3033,55 @@ func (u *PaymentOrderUpsertBulk) UpdateSubscriptionDays() *PaymentOrderUpsertBul
 func (u *PaymentOrderUpsertBulk) ClearSubscriptionDays() *PaymentOrderUpsertBulk {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.ClearSubscriptionDays()
+	})
+}
+
+// SetSubscriptionPlanType sets the "subscription_plan_type" field.
+func (u *PaymentOrderUpsertBulk) SetSubscriptionPlanType(v string) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetSubscriptionPlanType(v)
+	})
+}
+
+// UpdateSubscriptionPlanType sets the "subscription_plan_type" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateSubscriptionPlanType() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateSubscriptionPlanType()
+	})
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (u *PaymentOrderUpsertBulk) SetQuotaResetScope(v string) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetQuotaResetScope(v)
+	})
+}
+
+// UpdateQuotaResetScope sets the "quota_reset_scope" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateQuotaResetScope() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateQuotaResetScope()
+	})
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (u *PaymentOrderUpsertBulk) SetQuotaResetValue(v float64) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetQuotaResetValue(v)
+	})
+}
+
+// AddQuotaResetValue adds v to the "quota_reset_value" field.
+func (u *PaymentOrderUpsertBulk) AddQuotaResetValue(v float64) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddQuotaResetValue(v)
+	})
+}
+
+// UpdateQuotaResetValue sets the "quota_reset_value" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateQuotaResetValue() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateQuotaResetValue()
 	})
 }
 

@@ -65,6 +65,13 @@
                 {{ t(`userSubscriptions.status.${subscription.status}`) }}
               </span>
               <button
+                v-if="canResetSubscription(subscription)"
+                class="rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-900/20"
+                @click="router.push({ path: '/purchase', query: { tab: 'subscription', group: String(subscription.group_id), mode: 'reset' } })"
+              >
+                {{ t('payment.quotaReset.resetAction') }}
+              </button>
+              <button
                 v-if="subscription.status === 'active'"
                 :class="['rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors', platformButtonClass(subscription.group?.platform || '')]"
                 @click="router.push({ path: '/purchase', query: { tab: 'subscription', group: String(subscription.group_id) } })"
@@ -295,6 +302,15 @@ function getProgressBarClass(used: number | undefined, limit: number | null | un
   if (percentage >= 90) return 'bg-red-500'
   if (percentage >= 70) return 'bg-orange-500'
   return 'bg-green-500'
+}
+
+function canResetSubscription(subscription: UserSubscription): boolean {
+  if (subscription.status !== 'active') return false
+  return !!(
+    subscription.group?.daily_limit_usd
+    || subscription.group?.weekly_limit_usd
+    || subscription.group?.monthly_limit_usd
+  )
 }
 
 function formatExpirationDate(expiresAt: string): string {

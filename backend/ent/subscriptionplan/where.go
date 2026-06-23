@@ -69,6 +69,11 @@ func Description(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldDescription, v))
 }
 
+// PlanType applies equality check predicate on the "plan_type" field. It's identical to PlanTypeEQ.
+func PlanType(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldPlanType, v))
+}
+
 // Price applies equality check predicate on the "price" field. It's identical to PriceEQ.
 func Price(v float64) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldPrice, v))
@@ -97,6 +102,16 @@ func Features(v string) predicate.SubscriptionPlan {
 // ProductName applies equality check predicate on the "product_name" field. It's identical to ProductNameEQ.
 func ProductName(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldProductName, v))
+}
+
+// QuotaResetScope applies equality check predicate on the "quota_reset_scope" field. It's identical to QuotaResetScopeEQ.
+func QuotaResetScope(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaResetScope, v))
+}
+
+// QuotaResetValue applies equality check predicate on the "quota_reset_value" field. It's identical to QuotaResetValueEQ.
+func QuotaResetValue(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaResetValue, v))
 }
 
 // ForSale applies equality check predicate on the "for_sale" field. It's identical to ForSaleEQ.
@@ -287,6 +302,71 @@ func DescriptionEqualFold(v string) predicate.SubscriptionPlan {
 // DescriptionContainsFold applies the ContainsFold predicate on the "description" field.
 func DescriptionContainsFold(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldDescription, v))
+}
+
+// PlanTypeEQ applies the EQ predicate on the "plan_type" field.
+func PlanTypeEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldPlanType, v))
+}
+
+// PlanTypeNEQ applies the NEQ predicate on the "plan_type" field.
+func PlanTypeNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldPlanType, v))
+}
+
+// PlanTypeIn applies the In predicate on the "plan_type" field.
+func PlanTypeIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldPlanType, vs...))
+}
+
+// PlanTypeNotIn applies the NotIn predicate on the "plan_type" field.
+func PlanTypeNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldPlanType, vs...))
+}
+
+// PlanTypeGT applies the GT predicate on the "plan_type" field.
+func PlanTypeGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldPlanType, v))
+}
+
+// PlanTypeGTE applies the GTE predicate on the "plan_type" field.
+func PlanTypeGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldPlanType, v))
+}
+
+// PlanTypeLT applies the LT predicate on the "plan_type" field.
+func PlanTypeLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldPlanType, v))
+}
+
+// PlanTypeLTE applies the LTE predicate on the "plan_type" field.
+func PlanTypeLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldPlanType, v))
+}
+
+// PlanTypeContains applies the Contains predicate on the "plan_type" field.
+func PlanTypeContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldPlanType, v))
+}
+
+// PlanTypeHasPrefix applies the HasPrefix predicate on the "plan_type" field.
+func PlanTypeHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldPlanType, v))
+}
+
+// PlanTypeHasSuffix applies the HasSuffix predicate on the "plan_type" field.
+func PlanTypeHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldPlanType, v))
+}
+
+// PlanTypeEqualFold applies the EqualFold predicate on the "plan_type" field.
+func PlanTypeEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldPlanType, v))
+}
+
+// PlanTypeContainsFold applies the ContainsFold predicate on the "plan_type" field.
+func PlanTypeContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldPlanType, v))
 }
 
 // PriceEQ applies the EQ predicate on the "price" field.
@@ -612,6 +692,111 @@ func ProductNameEqualFold(v string) predicate.SubscriptionPlan {
 // ProductNameContainsFold applies the ContainsFold predicate on the "product_name" field.
 func ProductNameContainsFold(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldProductName, v))
+}
+
+// QuotaResetScopeEQ applies the EQ predicate on the "quota_reset_scope" field.
+func QuotaResetScopeEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeNEQ applies the NEQ predicate on the "quota_reset_scope" field.
+func QuotaResetScopeNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeIn applies the In predicate on the "quota_reset_scope" field.
+func QuotaResetScopeIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldQuotaResetScope, vs...))
+}
+
+// QuotaResetScopeNotIn applies the NotIn predicate on the "quota_reset_scope" field.
+func QuotaResetScopeNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldQuotaResetScope, vs...))
+}
+
+// QuotaResetScopeGT applies the GT predicate on the "quota_reset_scope" field.
+func QuotaResetScopeGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeGTE applies the GTE predicate on the "quota_reset_scope" field.
+func QuotaResetScopeGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeLT applies the LT predicate on the "quota_reset_scope" field.
+func QuotaResetScopeLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeLTE applies the LTE predicate on the "quota_reset_scope" field.
+func QuotaResetScopeLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeContains applies the Contains predicate on the "quota_reset_scope" field.
+func QuotaResetScopeContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeHasPrefix applies the HasPrefix predicate on the "quota_reset_scope" field.
+func QuotaResetScopeHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeHasSuffix applies the HasSuffix predicate on the "quota_reset_scope" field.
+func QuotaResetScopeHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeEqualFold applies the EqualFold predicate on the "quota_reset_scope" field.
+func QuotaResetScopeEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldQuotaResetScope, v))
+}
+
+// QuotaResetScopeContainsFold applies the ContainsFold predicate on the "quota_reset_scope" field.
+func QuotaResetScopeContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldQuotaResetScope, v))
+}
+
+// QuotaResetValueEQ applies the EQ predicate on the "quota_reset_value" field.
+func QuotaResetValueEQ(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaResetValue, v))
+}
+
+// QuotaResetValueNEQ applies the NEQ predicate on the "quota_reset_value" field.
+func QuotaResetValueNEQ(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldQuotaResetValue, v))
+}
+
+// QuotaResetValueIn applies the In predicate on the "quota_reset_value" field.
+func QuotaResetValueIn(vs ...float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldQuotaResetValue, vs...))
+}
+
+// QuotaResetValueNotIn applies the NotIn predicate on the "quota_reset_value" field.
+func QuotaResetValueNotIn(vs ...float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldQuotaResetValue, vs...))
+}
+
+// QuotaResetValueGT applies the GT predicate on the "quota_reset_value" field.
+func QuotaResetValueGT(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldQuotaResetValue, v))
+}
+
+// QuotaResetValueGTE applies the GTE predicate on the "quota_reset_value" field.
+func QuotaResetValueGTE(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldQuotaResetValue, v))
+}
+
+// QuotaResetValueLT applies the LT predicate on the "quota_reset_value" field.
+func QuotaResetValueLT(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldQuotaResetValue, v))
+}
+
+// QuotaResetValueLTE applies the LTE predicate on the "quota_reset_value" field.
+func QuotaResetValueLTE(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldQuotaResetValue, v))
 }
 
 // ForSaleEQ applies the EQ predicate on the "for_sale" field.

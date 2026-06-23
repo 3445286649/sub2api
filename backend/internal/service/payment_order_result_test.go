@@ -91,6 +91,41 @@ func TestBuildCreateOrderResponseCopiesJSAPIPayload(t *testing.T) {
 	}
 }
 
+func TestBuildCreateOrderResponseCopiesCryptoRateMetadata(t *testing.T) {
+	t.Parallel()
+
+	resp := buildCreateOrderResponse(
+		&dbent.PaymentOrder{
+			ID:         89,
+			Amount:     67.7,
+			FeeRate:    0,
+			ExpiresAt:  time.Date(2026, 6, 23, 10, 0, 0, 0, time.UTC),
+			OutTradeNo: "sub2_usdt_rate",
+		},
+		CreateOrderRequest{PaymentType: payment.TypeUSDTBSC},
+		67.7,
+		&payment.InstanceSelection{PaymentMode: "qrcode"},
+		&payment.CreatePaymentResponse{
+			TradeNo:        "usdt_bsc|sub2_usdt_rate|67.70|10.000123|0x3b210bdc924c685fDd10Ae96b7f95D0E14536106|6.770000|1782201600",
+			CryptoAmount:   "10.000123",
+			CryptoCurrency: "USDT",
+			CryptoNetwork:  "BSC",
+			Metadata: map[string]string{
+				"locked_cny_per_usdt": "6.770000",
+				"rate_source":         "binance_p2p_cny_sell",
+			},
+		},
+		payment.CreatePaymentResultOrderCreated,
+	)
+
+	if resp.CryptoRate != "6.770000" {
+		t.Fatalf("crypto_rate = %q, want 6.770000", resp.CryptoRate)
+	}
+	if resp.CryptoRateSrc != "binance_p2p_cny_sell" {
+		t.Fatalf("crypto_rate_source = %q, want binance_p2p_cny_sell", resp.CryptoRateSrc)
+	}
+}
+
 func TestValidateSelectedCreateOrderAmountCurrencyRejectsFractionalZeroDecimal(t *testing.T) {
 	t.Parallel()
 

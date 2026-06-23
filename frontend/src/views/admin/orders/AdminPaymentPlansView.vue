@@ -14,6 +14,16 @@
         <template #cell-name="{ value, row }">
           <span class="text-sm font-medium" :class="getPlanNameClass(row.group_id)">{{ value }}</span>
         </template>
+        <template #cell-plan_type="{ row }">
+          <span :class="[
+            'rounded-full px-2 py-0.5 text-xs font-medium',
+            row.plan_type === 'quota_reset'
+              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+              : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+          ]">
+            {{ formatPlanType(row) }}
+          </span>
+        </template>
         <template #cell-group_id="{ value }">
           <span v-if="isGroupMissing(value)" class="text-sm">
             <span class="text-gray-400">#{{ value }}</span>
@@ -117,6 +127,13 @@ function getPlanNameClass(groupId: number): string {
   return group ? platformTextClass(group.platform) : 'text-gray-900 dark:text-white'
 }
 
+function formatPlanType(plan: SubscriptionPlan): string {
+  if (plan.plan_type === 'quota_reset') {
+    return t('payment.admin.planTypeQuotaResetWithValue', { value: plan.quota_reset_value || 0 })
+  }
+  return t('payment.admin.planTypeSubscription')
+}
+
 
 // ==================== Plans ====================
 
@@ -130,6 +147,7 @@ const deletingPlanId = ref<number | null>(null)
 const planColumns = computed((): Column[] => [
   { key: 'id', label: 'ID' },
   { key: 'name', label: t('payment.admin.planName') },
+  { key: 'plan_type', label: t('payment.admin.planType') },
   { key: 'group_id', label: t('payment.admin.group') },
   { key: 'price', label: t('payment.admin.price') },
   { key: 'validity_days', label: t('payment.admin.validityDays') },
@@ -145,6 +163,7 @@ async function loadPlans() {
     // Backend returns features as newline-separated string; parse to array
     plans.value = (res.data || []).map((p: Omit<SubscriptionPlan, 'features'> & { features: string | string[] }) => ({
       ...p,
+      plan_type: p.plan_type || 'subscription',
       features: typeof p.features === 'string'
         ? p.features.split('\n').map((f: string) => f.trim()).filter(Boolean)
         : (p.features || []),

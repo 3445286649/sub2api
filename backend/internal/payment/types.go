@@ -154,6 +154,7 @@ type CreatePaymentResponse struct {
 	CryptoCurrency string                  // 加密货币币种（如 USDT）
 	CryptoNetwork  string                  // 加密货币网络（如 BSC）
 	ReceiveAddress string                  // 链上收款地址
+	Metadata       map[string]string       // Non-sensitive provider metadata to persist with the order
 	ResultType     CreatePaymentResultType // Typed result contract for frontend flows
 	OAuth          *WechatOAuthInfo        // WeChat OAuth bootstrap payload when required
 	JSAPI          *WechatJSAPIPayload     // WeChat JSAPI invocation payload when ready

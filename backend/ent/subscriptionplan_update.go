@@ -77,6 +77,20 @@ func (_u *SubscriptionPlanUpdate) SetNillableDescription(v *string) *Subscriptio
 	return _u
 }
 
+// SetPlanType sets the "plan_type" field.
+func (_u *SubscriptionPlanUpdate) SetPlanType(v string) *SubscriptionPlanUpdate {
+	_u.mutation.SetPlanType(v)
+	return _u
+}
+
+// SetNillablePlanType sets the "plan_type" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillablePlanType(v *string) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetPlanType(*v)
+	}
+	return _u
+}
+
 // SetPrice sets the "price" field.
 func (_u *SubscriptionPlanUpdate) SetPrice(v float64) *SubscriptionPlanUpdate {
 	_u.mutation.ResetPrice()
@@ -188,6 +202,41 @@ func (_u *SubscriptionPlanUpdate) SetNillableProductName(v *string) *Subscriptio
 	return _u
 }
 
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (_u *SubscriptionPlanUpdate) SetQuotaResetScope(v string) *SubscriptionPlanUpdate {
+	_u.mutation.SetQuotaResetScope(v)
+	return _u
+}
+
+// SetNillableQuotaResetScope sets the "quota_reset_scope" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableQuotaResetScope(v *string) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetQuotaResetScope(*v)
+	}
+	return _u
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (_u *SubscriptionPlanUpdate) SetQuotaResetValue(v float64) *SubscriptionPlanUpdate {
+	_u.mutation.ResetQuotaResetValue()
+	_u.mutation.SetQuotaResetValue(v)
+	return _u
+}
+
+// SetNillableQuotaResetValue sets the "quota_reset_value" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableQuotaResetValue(v *float64) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetQuotaResetValue(*v)
+	}
+	return _u
+}
+
+// AddQuotaResetValue adds value to the "quota_reset_value" field.
+func (_u *SubscriptionPlanUpdate) AddQuotaResetValue(v float64) *SubscriptionPlanUpdate {
+	_u.mutation.AddQuotaResetValue(v)
+	return _u
+}
+
 // SetForSale sets the "for_sale" field.
 func (_u *SubscriptionPlanUpdate) SetForSale(v bool) *SubscriptionPlanUpdate {
 	_u.mutation.SetForSale(v)
@@ -277,6 +326,11 @@ func (_u *SubscriptionPlanUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PlanType(); ok {
+		if err := subscriptionplan.PlanTypeValidator(v); err != nil {
+			return &ValidationError{Name: "plan_type", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.plan_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ValidityUnit(); ok {
 		if err := subscriptionplan.ValidityUnitValidator(v); err != nil {
 			return &ValidationError{Name: "validity_unit", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.validity_unit": %w`, err)}
@@ -285,6 +339,11 @@ func (_u *SubscriptionPlanUpdate) check() error {
 	if v, ok := _u.mutation.ProductName(); ok {
 		if err := subscriptionplan.ProductNameValidator(v); err != nil {
 			return &ValidationError{Name: "product_name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.product_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.QuotaResetScope(); ok {
+		if err := subscriptionplan.QuotaResetScopeValidator(v); err != nil {
+			return &ValidationError{Name: "quota_reset_scope", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.quota_reset_scope": %w`, err)}
 		}
 	}
 	return nil
@@ -313,6 +372,9 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.Description(); ok {
 		_spec.SetField(subscriptionplan.FieldDescription, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PlanType(); ok {
+		_spec.SetField(subscriptionplan.FieldPlanType, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Price(); ok {
 		_spec.SetField(subscriptionplan.FieldPrice, field.TypeFloat64, value)
@@ -343,6 +405,15 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.ProductName(); ok {
 		_spec.SetField(subscriptionplan.FieldProductName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.QuotaResetScope(); ok {
+		_spec.SetField(subscriptionplan.FieldQuotaResetScope, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.QuotaResetValue(); ok {
+		_spec.SetField(subscriptionplan.FieldQuotaResetValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedQuotaResetValue(); ok {
+		_spec.AddField(subscriptionplan.FieldQuotaResetValue, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
@@ -421,6 +492,20 @@ func (_u *SubscriptionPlanUpdateOne) SetDescription(v string) *SubscriptionPlanU
 func (_u *SubscriptionPlanUpdateOne) SetNillableDescription(v *string) *SubscriptionPlanUpdateOne {
 	if v != nil {
 		_u.SetDescription(*v)
+	}
+	return _u
+}
+
+// SetPlanType sets the "plan_type" field.
+func (_u *SubscriptionPlanUpdateOne) SetPlanType(v string) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetPlanType(v)
+	return _u
+}
+
+// SetNillablePlanType sets the "plan_type" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillablePlanType(v *string) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetPlanType(*v)
 	}
 	return _u
 }
@@ -536,6 +621,41 @@ func (_u *SubscriptionPlanUpdateOne) SetNillableProductName(v *string) *Subscrip
 	return _u
 }
 
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (_u *SubscriptionPlanUpdateOne) SetQuotaResetScope(v string) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetQuotaResetScope(v)
+	return _u
+}
+
+// SetNillableQuotaResetScope sets the "quota_reset_scope" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableQuotaResetScope(v *string) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetQuotaResetScope(*v)
+	}
+	return _u
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (_u *SubscriptionPlanUpdateOne) SetQuotaResetValue(v float64) *SubscriptionPlanUpdateOne {
+	_u.mutation.ResetQuotaResetValue()
+	_u.mutation.SetQuotaResetValue(v)
+	return _u
+}
+
+// SetNillableQuotaResetValue sets the "quota_reset_value" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableQuotaResetValue(v *float64) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetQuotaResetValue(*v)
+	}
+	return _u
+}
+
+// AddQuotaResetValue adds value to the "quota_reset_value" field.
+func (_u *SubscriptionPlanUpdateOne) AddQuotaResetValue(v float64) *SubscriptionPlanUpdateOne {
+	_u.mutation.AddQuotaResetValue(v)
+	return _u
+}
+
 // SetForSale sets the "for_sale" field.
 func (_u *SubscriptionPlanUpdateOne) SetForSale(v bool) *SubscriptionPlanUpdateOne {
 	_u.mutation.SetForSale(v)
@@ -638,6 +758,11 @@ func (_u *SubscriptionPlanUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PlanType(); ok {
+		if err := subscriptionplan.PlanTypeValidator(v); err != nil {
+			return &ValidationError{Name: "plan_type", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.plan_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ValidityUnit(); ok {
 		if err := subscriptionplan.ValidityUnitValidator(v); err != nil {
 			return &ValidationError{Name: "validity_unit", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.validity_unit": %w`, err)}
@@ -646,6 +771,11 @@ func (_u *SubscriptionPlanUpdateOne) check() error {
 	if v, ok := _u.mutation.ProductName(); ok {
 		if err := subscriptionplan.ProductNameValidator(v); err != nil {
 			return &ValidationError{Name: "product_name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.product_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.QuotaResetScope(); ok {
+		if err := subscriptionplan.QuotaResetScopeValidator(v); err != nil {
+			return &ValidationError{Name: "quota_reset_scope", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.quota_reset_scope": %w`, err)}
 		}
 	}
 	return nil
@@ -692,6 +822,9 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	if value, ok := _u.mutation.Description(); ok {
 		_spec.SetField(subscriptionplan.FieldDescription, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PlanType(); ok {
+		_spec.SetField(subscriptionplan.FieldPlanType, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Price(); ok {
 		_spec.SetField(subscriptionplan.FieldPrice, field.TypeFloat64, value)
 	}
@@ -721,6 +854,15 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	}
 	if value, ok := _u.mutation.ProductName(); ok {
 		_spec.SetField(subscriptionplan.FieldProductName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.QuotaResetScope(); ok {
+		_spec.SetField(subscriptionplan.FieldQuotaResetScope, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.QuotaResetValue(); ok {
+		_spec.SetField(subscriptionplan.FieldQuotaResetValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedQuotaResetValue(); ok {
+		_spec.AddField(subscriptionplan.FieldQuotaResetValue, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)

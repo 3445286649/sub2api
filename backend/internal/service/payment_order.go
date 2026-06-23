@@ -144,6 +144,20 @@ func (s *PaymentService) validateSubOrder(ctx context.Context, req CreateOrderRe
 	if !group.IsSubscriptionType() {
 		return nil, infraerrors.BadRequest("GROUP_TYPE_MISMATCH", "group is not a subscription type")
 	}
+	if normalizeSubscriptionPlanType(plan.PlanType) == SubscriptionPlanTypeQuotaReset {
+		if err := validateQuotaResetPlanFields(plan.PlanType, plan.QuotaResetScope, plan.QuotaResetValue); err != nil {
+			return nil, err
+		}
+		if plan.QuotaResetScope != QuotaResetScopeDaily {
+			return nil, infraerrors.BadRequest("INVALID_QUOTA_RESET_SCOPE", "only daily quota reset plans are supported")
+		}
+		if !group.HasDailyLimit() {
+			return nil, infraerrors.BadRequest("QUOTA_RESET_VALUE_EXCEEDS_LIMIT", "quota reset plan group must have a daily limit")
+		}
+		if _, err := s.resolvePaymentQuotaResetSubscription(ctx, req.UserID, plan.GroupID, plan.QuotaResetValue); err != nil {
+			return nil, err
+		}
+	}
 	return plan, nil
 }
 
@@ -205,7 +219,14 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		b.SetProviderSnapshot(providerSnapshot)
 	}
 	if plan != nil {
-		b.SetPlanID(plan.ID).SetSubscriptionGroupID(plan.GroupID).SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit))
+		planType := normalizeSubscriptionPlanType(plan.PlanType)
+		b.SetPlanID(plan.ID).
+			SetSubscriptionGroupID(plan.GroupID).
+			SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit)).
+			SetSubscriptionPlanType(planType)
+		if planType == SubscriptionPlanTypeQuotaReset {
+			b.SetQuotaResetScope(plan.QuotaResetScope).SetQuotaResetValue(plan.QuotaResetValue)
+		}
 	}
 	order, err := b.Save(ctx)
 	if err != nil {
@@ -452,13 +473,17 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 		}
 		return nil, classifyCreatePaymentError(req, sel.ProviderKey, err)
 	}
-	_, err = s.entClient.PaymentOrder.UpdateOneID(order.ID).
+	providerSnapshot := mergePaymentProviderMetadata(order.ProviderSnapshot, sel.ProviderKey, pr.Metadata)
+	update := s.entClient.PaymentOrder.UpdateOneID(order.ID).
 		SetNillablePaymentTradeNo(psNilIfEmpty(pr.TradeNo)).
 		SetNillablePayURL(psNilIfEmpty(pr.PayURL)).
 		SetNillableQrCode(psNilIfEmpty(pr.QRCode)).
 		SetNillableProviderInstanceID(psNilIfEmpty(sel.InstanceID)).
-		SetNillableProviderKey(psNilIfEmpty(sel.ProviderKey)).
-		Save(ctx)
+		SetNillableProviderKey(psNilIfEmpty(sel.ProviderKey))
+	if providerSnapshot != nil {
+		update.SetProviderSnapshot(providerSnapshot)
+	}
+	_, err = update.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("update order with payment details: %w", err)
 	}
@@ -696,6 +721,8 @@ func buildCreateOrderResponse(order *dbent.PaymentOrder, req CreateOrderRequest,
 		CryptoAmount:   pr.CryptoAmount,
 		CryptoCurrency: pr.CryptoCurrency,
 		CryptoNetwork:  pr.CryptoNetwork,
+		CryptoRate:     strings.TrimSpace(pr.Metadata["locked_cny_per_usdt"]),
+		CryptoRateSrc:  strings.TrimSpace(pr.Metadata["rate_source"]),
 		ReceiveAddress: pr.ReceiveAddress,
 		OAuth:          pr.OAuth,
 		JSAPI:          pr.JSAPI,

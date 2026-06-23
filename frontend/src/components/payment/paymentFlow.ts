@@ -47,6 +47,8 @@ export interface PaymentRecoverySnapshot {
   cryptoAmount: string
   cryptoCurrency: string
   cryptoNetwork: string
+  cryptoRate: string
+  cryptoRateSource: string
   receiveAddress: string
   payAmount: number
   orderType: OrderType | ''
@@ -166,6 +168,8 @@ export function decidePaymentLaunch(
     cryptoAmount: result.crypto_amount || '',
     cryptoCurrency: result.crypto_currency || '',
     cryptoNetwork: result.crypto_network || '',
+    cryptoRate: result.crypto_rate || '',
+    cryptoRateSource: result.crypto_rate_source || '',
     receiveAddress: result.receive_address || '',
     payAmount: result.pay_amount,
     orderType: context.orderType,
@@ -288,6 +292,8 @@ export function readPaymentRecoverySnapshot(
       || (parsed.cryptoAmount != null && typeof parsed.cryptoAmount !== 'string')
       || (parsed.cryptoCurrency != null && typeof parsed.cryptoCurrency !== 'string')
       || (parsed.cryptoNetwork != null && typeof parsed.cryptoNetwork !== 'string')
+      || (parsed.cryptoRate != null && typeof parsed.cryptoRate !== 'string')
+      || (parsed.cryptoRateSource != null && typeof parsed.cryptoRateSource !== 'string')
       || (parsed.receiveAddress != null && typeof parsed.receiveAddress !== 'string')
       || typeof parsed.payAmount !== 'number'
       || typeof parsed.paymentMode !== 'string'
@@ -322,6 +328,8 @@ export function readPaymentRecoverySnapshot(
       cryptoAmount: parsed.cryptoAmount || '',
       cryptoCurrency: parsed.cryptoCurrency || '',
       cryptoNetwork: parsed.cryptoNetwork || '',
+      cryptoRate: parsed.cryptoRate || '',
+      cryptoRateSource: parsed.cryptoRateSource || '',
       receiveAddress: parsed.receiveAddress || '',
       payAmount: parsed.payAmount,
       orderType: parsed.orderType === 'subscription' ? 'subscription' : 'balance',

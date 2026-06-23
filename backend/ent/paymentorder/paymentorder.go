@@ -50,6 +50,12 @@ const (
 	FieldSubscriptionGroupID = "subscription_group_id"
 	// FieldSubscriptionDays holds the string denoting the subscription_days field in the database.
 	FieldSubscriptionDays = "subscription_days"
+	// FieldSubscriptionPlanType holds the string denoting the subscription_plan_type field in the database.
+	FieldSubscriptionPlanType = "subscription_plan_type"
+	// FieldQuotaResetScope holds the string denoting the quota_reset_scope field in the database.
+	FieldQuotaResetScope = "quota_reset_scope"
+	// FieldQuotaResetValue holds the string denoting the quota_reset_value field in the database.
+	FieldQuotaResetValue = "quota_reset_value"
 	// FieldProviderInstanceID holds the string denoting the provider_instance_id field in the database.
 	FieldProviderInstanceID = "provider_instance_id"
 	// FieldProviderKey holds the string denoting the provider_key field in the database.
@@ -126,6 +132,9 @@ var Columns = []string{
 	FieldPlanID,
 	FieldSubscriptionGroupID,
 	FieldSubscriptionDays,
+	FieldSubscriptionPlanType,
+	FieldQuotaResetScope,
+	FieldQuotaResetValue,
 	FieldProviderInstanceID,
 	FieldProviderKey,
 	FieldProviderSnapshot,
@@ -180,6 +189,16 @@ var (
 	DefaultOrderType string
 	// OrderTypeValidator is a validator for the "order_type" field. It is called by the builders before save.
 	OrderTypeValidator func(string) error
+	// DefaultSubscriptionPlanType holds the default value on creation for the "subscription_plan_type" field.
+	DefaultSubscriptionPlanType string
+	// SubscriptionPlanTypeValidator is a validator for the "subscription_plan_type" field. It is called by the builders before save.
+	SubscriptionPlanTypeValidator func(string) error
+	// DefaultQuotaResetScope holds the default value on creation for the "quota_reset_scope" field.
+	DefaultQuotaResetScope string
+	// QuotaResetScopeValidator is a validator for the "quota_reset_scope" field. It is called by the builders before save.
+	QuotaResetScopeValidator func(string) error
+	// DefaultQuotaResetValue holds the default value on creation for the "quota_reset_value" field.
+	DefaultQuotaResetValue float64
 	// ProviderInstanceIDValidator is a validator for the "provider_instance_id" field. It is called by the builders before save.
 	ProviderInstanceIDValidator func(string) error
 	// ProviderKeyValidator is a validator for the "provider_key" field. It is called by the builders before save.
@@ -302,6 +321,21 @@ func BySubscriptionGroupID(opts ...sql.OrderTermOption) OrderOption {
 // BySubscriptionDays orders the results by the subscription_days field.
 func BySubscriptionDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSubscriptionDays, opts...).ToFunc()
+}
+
+// BySubscriptionPlanType orders the results by the subscription_plan_type field.
+func BySubscriptionPlanType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionPlanType, opts...).ToFunc()
+}
+
+// ByQuotaResetScope orders the results by the quota_reset_scope field.
+func ByQuotaResetScope(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldQuotaResetScope, opts...).ToFunc()
+}
+
+// ByQuotaResetValue orders the results by the quota_reset_value field.
+func ByQuotaResetValue(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldQuotaResetValue, opts...).ToFunc()
 }
 
 // ByProviderInstanceID orders the results by the provider_instance_id field.

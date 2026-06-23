@@ -84,6 +84,11 @@ const (
 )
 
 const (
+	SubscriptionPlanTypeSubscription = domain.SubscriptionPlanTypeSubscription
+	SubscriptionPlanTypeQuotaReset   = domain.SubscriptionPlanTypeQuotaReset
+)
+
+const (
 	QuotaResetScopeDaily   = domain.QuotaResetScopeDaily
 	QuotaResetScopeWeekly  = domain.QuotaResetScopeWeekly
 	QuotaResetScopeMonthly = domain.QuotaResetScopeMonthly
@@ -250,33 +255,33 @@ const (
 	SettingKeyGoogleOAuthFrontendRedirectURL = "google_oauth_frontend_redirect_url"
 
 	// OEM设置
-	SettingKeySiteName                    = "site_name"                     // 网站名称
-	SettingKeySiteLogo                    = "site_logo"                     // 网站Logo (base64)
-	SettingKeySiteSubtitle                = "site_subtitle"                 // 网站副标题
-	SettingKeyAPIBaseURL                  = "api_base_url"                  // API端点地址（用于客户端配置和导入）
-	SettingKeyContactInfo                 = "contact_info"                  // 客服联系方式
-	SettingKeyRechargeStorefrontEnabled   = "recharge_storefront_enabled"   // 是否展示充值商城入口
+	SettingKeySiteName                    = "site_name"                       // 网站名称
+	SettingKeySiteLogo                    = "site_logo"                       // 网站Logo (base64)
+	SettingKeySiteSubtitle                = "site_subtitle"                   // 网站副标题
+	SettingKeyAPIBaseURL                  = "api_base_url"                    // API端点地址（用于客户端配置和导入）
+	SettingKeyContactInfo                 = "contact_info"                    // 客服联系方式
+	SettingKeyRechargeStorefrontEnabled   = "recharge_storefront_enabled"     // 是否展示充值商城入口
 	SettingKeyRechargeStorefrontText      = "recharge_storefront_button_text" // 充值商城入口按钮文字
-	SettingKeyRechargeStorefrontURL       = "recharge_storefront_url"       // 充值商城跳转链接
-	SettingKeyRechargeStorefrontBackupURL = "recharge_storefront_backup_url" // 充值商城备用卡网跳转链接
-	SettingKeySupportGroupEnabled         = "support_group_enabled"         // 是否展示售后群入口
-	SettingKeySupportGroupButtonText      = "support_group_button_text"     // 售后群入口按钮文字
-	SettingKeySupportGroupTitle           = "support_group_title"           // 售后群弹窗标题
-	SettingKeySupportGroupDescription     = "support_group_description"     // 售后群弹窗说明
-	SettingKeySupportGroupQRCodeURL       = "support_group_qr_code_url"     // 售后群二维码图片 URL
-	SettingKeySupportGroupLinkURL         = "support_group_link_url"        // 售后群直达链接
-	SettingKeyPixmoStudioEnabled          = "pixmo_studio_enabled"          // 是否展示 Pixmo 生图入口
-	SettingKeyPixmoStudioButtonText       = "pixmo_studio_button_text"      // Pixmo 生图按钮文字
-	SettingKeyPixmoStudioURL              = "pixmo_studio_url"              // Pixmo 生图跳转链接
-	SettingKeyDocURL                      = "doc_url"                       // 文档链接
-	SettingKeyHomeContent                 = "home_content"                  // 首页内容（支持 Markdown/HTML，或 URL 作为 iframe src）
-	SettingKeyHideCcsImportButton         = "hide_ccs_import_button"        // 是否隐藏 API Keys 页面的导入 CCS 按钮
-	SettingKeyPurchaseSubscriptionEnabled = "purchase_subscription_enabled" // 是否展示"购买订阅"页面入口
-	SettingKeyPurchaseSubscriptionURL     = "purchase_subscription_url"     // "购买订阅"页面 URL（作为 iframe src）
-	SettingKeyTableDefaultPageSize        = "table_default_page_size"       // 表格默认每页条数
-	SettingKeyTablePageSizeOptions        = "table_page_size_options"       // 表格可选每页条数（JSON 数组）
-	SettingKeyCustomMenuItems             = "custom_menu_items"             // 自定义菜单项（JSON 数组）
-	SettingKeyCustomEndpoints             = "custom_endpoints"              // 自定义端点列表（JSON 数组）
+	SettingKeyRechargeStorefrontURL       = "recharge_storefront_url"         // 充值商城跳转链接
+	SettingKeyRechargeStorefrontBackupURL = "recharge_storefront_backup_url"  // 充值商城备用卡网跳转链接
+	SettingKeySupportGroupEnabled         = "support_group_enabled"           // 是否展示售后群入口
+	SettingKeySupportGroupButtonText      = "support_group_button_text"       // 售后群入口按钮文字
+	SettingKeySupportGroupTitle           = "support_group_title"             // 售后群弹窗标题
+	SettingKeySupportGroupDescription     = "support_group_description"       // 售后群弹窗说明
+	SettingKeySupportGroupQRCodeURL       = "support_group_qr_code_url"       // 售后群二维码图片 URL
+	SettingKeySupportGroupLinkURL         = "support_group_link_url"          // 售后群直达链接
+	SettingKeyPixmoStudioEnabled          = "pixmo_studio_enabled"            // 是否展示 Pixmo 生图入口
+	SettingKeyPixmoStudioButtonText       = "pixmo_studio_button_text"        // Pixmo 生图按钮文字
+	SettingKeyPixmoStudioURL              = "pixmo_studio_url"                // Pixmo 生图跳转链接
+	SettingKeyDocURL                      = "doc_url"                         // 文档链接
+	SettingKeyHomeContent                 = "home_content"                    // 首页内容（支持 Markdown/HTML，或 URL 作为 iframe src）
+	SettingKeyHideCcsImportButton         = "hide_ccs_import_button"          // 是否隐藏 API Keys 页面的导入 CCS 按钮
+	SettingKeyPurchaseSubscriptionEnabled = "purchase_subscription_enabled"   // 是否展示"购买订阅"页面入口
+	SettingKeyPurchaseSubscriptionURL     = "purchase_subscription_url"       // "购买订阅"页面 URL（作为 iframe src）
+	SettingKeyTableDefaultPageSize        = "table_default_page_size"         // 表格默认每页条数
+	SettingKeyTablePageSizeOptions        = "table_page_size_options"         // 表格可选每页条数（JSON 数组）
+	SettingKeyCustomMenuItems             = "custom_menu_items"               // 自定义菜单项（JSON 数组）
+	SettingKeyCustomEndpoints             = "custom_endpoints"                // 自定义端点列表（JSON 数组）
 
 	// 默认配置
 	SettingKeyDefaultConcurrency   = "default_concurrency"    // 新用户默认并发量

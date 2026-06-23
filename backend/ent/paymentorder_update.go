@@ -365,6 +365,55 @@ func (_u *PaymentOrderUpdate) ClearSubscriptionDays() *PaymentOrderUpdate {
 	return _u
 }
 
+// SetSubscriptionPlanType sets the "subscription_plan_type" field.
+func (_u *PaymentOrderUpdate) SetSubscriptionPlanType(v string) *PaymentOrderUpdate {
+	_u.mutation.SetSubscriptionPlanType(v)
+	return _u
+}
+
+// SetNillableSubscriptionPlanType sets the "subscription_plan_type" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableSubscriptionPlanType(v *string) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetSubscriptionPlanType(*v)
+	}
+	return _u
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (_u *PaymentOrderUpdate) SetQuotaResetScope(v string) *PaymentOrderUpdate {
+	_u.mutation.SetQuotaResetScope(v)
+	return _u
+}
+
+// SetNillableQuotaResetScope sets the "quota_reset_scope" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableQuotaResetScope(v *string) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetQuotaResetScope(*v)
+	}
+	return _u
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (_u *PaymentOrderUpdate) SetQuotaResetValue(v float64) *PaymentOrderUpdate {
+	_u.mutation.ResetQuotaResetValue()
+	_u.mutation.SetQuotaResetValue(v)
+	return _u
+}
+
+// SetNillableQuotaResetValue sets the "quota_reset_value" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableQuotaResetValue(v *float64) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetQuotaResetValue(*v)
+	}
+	return _u
+}
+
+// AddQuotaResetValue adds value to the "quota_reset_value" field.
+func (_u *PaymentOrderUpdate) AddQuotaResetValue(v float64) *PaymentOrderUpdate {
+	_u.mutation.AddQuotaResetValue(v)
+	return _u
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (_u *PaymentOrderUpdate) SetProviderInstanceID(v string) *PaymentOrderUpdate {
 	_u.mutation.SetProviderInstanceID(v)
@@ -803,6 +852,16 @@ func (_u *PaymentOrderUpdate) check() error {
 			return &ValidationError{Name: "order_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.order_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SubscriptionPlanType(); ok {
+		if err := paymentorder.SubscriptionPlanTypeValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_plan_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.subscription_plan_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.QuotaResetScope(); ok {
+		if err := paymentorder.QuotaResetScopeValidator(v); err != nil {
+			return &ValidationError{Name: "quota_reset_scope", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.quota_reset_scope": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ProviderInstanceID(); ok {
 		if err := paymentorder.ProviderInstanceIDValidator(v); err != nil {
 			return &ValidationError{Name: "provider_instance_id", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.provider_instance_id": %w`, err)}
@@ -940,6 +999,18 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.SubscriptionDaysCleared() {
 		_spec.ClearField(paymentorder.FieldSubscriptionDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.SubscriptionPlanType(); ok {
+		_spec.SetField(paymentorder.FieldSubscriptionPlanType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.QuotaResetScope(); ok {
+		_spec.SetField(paymentorder.FieldQuotaResetScope, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.QuotaResetValue(); ok {
+		_spec.SetField(paymentorder.FieldQuotaResetValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedQuotaResetValue(); ok {
+		_spec.AddField(paymentorder.FieldQuotaResetValue, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.ProviderInstanceID(); ok {
 		_spec.SetField(paymentorder.FieldProviderInstanceID, field.TypeString, value)
@@ -1428,6 +1499,55 @@ func (_u *PaymentOrderUpdateOne) ClearSubscriptionDays() *PaymentOrderUpdateOne 
 	return _u
 }
 
+// SetSubscriptionPlanType sets the "subscription_plan_type" field.
+func (_u *PaymentOrderUpdateOne) SetSubscriptionPlanType(v string) *PaymentOrderUpdateOne {
+	_u.mutation.SetSubscriptionPlanType(v)
+	return _u
+}
+
+// SetNillableSubscriptionPlanType sets the "subscription_plan_type" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableSubscriptionPlanType(v *string) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionPlanType(*v)
+	}
+	return _u
+}
+
+// SetQuotaResetScope sets the "quota_reset_scope" field.
+func (_u *PaymentOrderUpdateOne) SetQuotaResetScope(v string) *PaymentOrderUpdateOne {
+	_u.mutation.SetQuotaResetScope(v)
+	return _u
+}
+
+// SetNillableQuotaResetScope sets the "quota_reset_scope" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableQuotaResetScope(v *string) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetQuotaResetScope(*v)
+	}
+	return _u
+}
+
+// SetQuotaResetValue sets the "quota_reset_value" field.
+func (_u *PaymentOrderUpdateOne) SetQuotaResetValue(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.ResetQuotaResetValue()
+	_u.mutation.SetQuotaResetValue(v)
+	return _u
+}
+
+// SetNillableQuotaResetValue sets the "quota_reset_value" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableQuotaResetValue(v *float64) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetQuotaResetValue(*v)
+	}
+	return _u
+}
+
+// AddQuotaResetValue adds value to the "quota_reset_value" field.
+func (_u *PaymentOrderUpdateOne) AddQuotaResetValue(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.AddQuotaResetValue(v)
+	return _u
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (_u *PaymentOrderUpdateOne) SetProviderInstanceID(v string) *PaymentOrderUpdateOne {
 	_u.mutation.SetProviderInstanceID(v)
@@ -1879,6 +1999,16 @@ func (_u *PaymentOrderUpdateOne) check() error {
 			return &ValidationError{Name: "order_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.order_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SubscriptionPlanType(); ok {
+		if err := paymentorder.SubscriptionPlanTypeValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_plan_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.subscription_plan_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.QuotaResetScope(); ok {
+		if err := paymentorder.QuotaResetScopeValidator(v); err != nil {
+			return &ValidationError{Name: "quota_reset_scope", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.quota_reset_scope": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ProviderInstanceID(); ok {
 		if err := paymentorder.ProviderInstanceIDValidator(v); err != nil {
 			return &ValidationError{Name: "provider_instance_id", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.provider_instance_id": %w`, err)}
@@ -2033,6 +2163,18 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	}
 	if _u.mutation.SubscriptionDaysCleared() {
 		_spec.ClearField(paymentorder.FieldSubscriptionDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.SubscriptionPlanType(); ok {
+		_spec.SetField(paymentorder.FieldSubscriptionPlanType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.QuotaResetScope(); ok {
+		_spec.SetField(paymentorder.FieldQuotaResetScope, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.QuotaResetValue(); ok {
+		_spec.SetField(paymentorder.FieldQuotaResetValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedQuotaResetValue(); ok {
+		_spec.AddField(paymentorder.FieldQuotaResetValue, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.ProviderInstanceID(); ok {
 		_spec.SetField(paymentorder.FieldProviderInstanceID, field.TypeString, value)

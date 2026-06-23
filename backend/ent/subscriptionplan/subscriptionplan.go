@@ -19,6 +19,8 @@ const (
 	FieldName = "name"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
+	// FieldPlanType holds the string denoting the plan_type field in the database.
+	FieldPlanType = "plan_type"
 	// FieldPrice holds the string denoting the price field in the database.
 	FieldPrice = "price"
 	// FieldOriginalPrice holds the string denoting the original_price field in the database.
@@ -31,6 +33,10 @@ const (
 	FieldFeatures = "features"
 	// FieldProductName holds the string denoting the product_name field in the database.
 	FieldProductName = "product_name"
+	// FieldQuotaResetScope holds the string denoting the quota_reset_scope field in the database.
+	FieldQuotaResetScope = "quota_reset_scope"
+	// FieldQuotaResetValue holds the string denoting the quota_reset_value field in the database.
+	FieldQuotaResetValue = "quota_reset_value"
 	// FieldForSale holds the string denoting the for_sale field in the database.
 	FieldForSale = "for_sale"
 	// FieldSortOrder holds the string denoting the sort_order field in the database.
@@ -49,12 +55,15 @@ var Columns = []string{
 	FieldGroupID,
 	FieldName,
 	FieldDescription,
+	FieldPlanType,
 	FieldPrice,
 	FieldOriginalPrice,
 	FieldValidityDays,
 	FieldValidityUnit,
 	FieldFeatures,
 	FieldProductName,
+	FieldQuotaResetScope,
+	FieldQuotaResetValue,
 	FieldForSale,
 	FieldSortOrder,
 	FieldCreatedAt,
@@ -76,6 +85,10 @@ var (
 	NameValidator func(string) error
 	// DefaultDescription holds the default value on creation for the "description" field.
 	DefaultDescription string
+	// DefaultPlanType holds the default value on creation for the "plan_type" field.
+	DefaultPlanType string
+	// PlanTypeValidator is a validator for the "plan_type" field. It is called by the builders before save.
+	PlanTypeValidator func(string) error
 	// DefaultValidityDays holds the default value on creation for the "validity_days" field.
 	DefaultValidityDays int
 	// DefaultValidityUnit holds the default value on creation for the "validity_unit" field.
@@ -88,6 +101,12 @@ var (
 	DefaultProductName string
 	// ProductNameValidator is a validator for the "product_name" field. It is called by the builders before save.
 	ProductNameValidator func(string) error
+	// DefaultQuotaResetScope holds the default value on creation for the "quota_reset_scope" field.
+	DefaultQuotaResetScope string
+	// QuotaResetScopeValidator is a validator for the "quota_reset_scope" field. It is called by the builders before save.
+	QuotaResetScopeValidator func(string) error
+	// DefaultQuotaResetValue holds the default value on creation for the "quota_reset_value" field.
+	DefaultQuotaResetValue float64
 	// DefaultForSale holds the default value on creation for the "for_sale" field.
 	DefaultForSale bool
 	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
@@ -123,6 +142,11 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescription, opts...).ToFunc()
 }
 
+// ByPlanType orders the results by the plan_type field.
+func ByPlanType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPlanType, opts...).ToFunc()
+}
+
 // ByPrice orders the results by the price field.
 func ByPrice(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPrice, opts...).ToFunc()
@@ -151,6 +175,16 @@ func ByFeatures(opts ...sql.OrderTermOption) OrderOption {
 // ByProductName orders the results by the product_name field.
 func ByProductName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProductName, opts...).ToFunc()
+}
+
+// ByQuotaResetScope orders the results by the quota_reset_scope field.
+func ByQuotaResetScope(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldQuotaResetScope, opts...).ToFunc()
+}
+
+// ByQuotaResetValue orders the results by the quota_reset_value field.
+func ByQuotaResetValue(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldQuotaResetValue, opts...).ToFunc()
 }
 
 // ByForSale orders the results by the for_sale field.

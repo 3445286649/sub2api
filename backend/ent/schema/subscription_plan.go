@@ -37,6 +37,9 @@ func (SubscriptionPlan) Fields() []ent.Field {
 		field.String("description").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Default(""),
+		field.String("plan_type").
+			MaxLen(30).
+			Default("subscription"),
 		field.Float("price").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}),
 		field.Float("original_price").
@@ -54,6 +57,12 @@ func (SubscriptionPlan) Fields() []ent.Field {
 		field.String("product_name").
 			MaxLen(100).
 			Default(""),
+		field.String("quota_reset_scope").
+			MaxLen(20).
+			Default(""),
+		field.Float("quota_reset_value").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}).
+			Default(0),
 		field.Bool("for_sale").
 			Default(true),
 		field.Int("sort_order").

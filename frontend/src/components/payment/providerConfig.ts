@@ -155,7 +155,7 @@ export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
       { value: 'manual', label: 'Manual' },
     ] },
     { key: 'cnyPerUsdt', label: '', sensitive: false, defaultValue: '7.2', hintKey: 'admin.settings.payment.field_usdtCnyPerUsdtHint' },
-    { key: 'rateApiUrl', label: '', sensitive: false, optional: true, defaultValue: 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=cny', hintKey: 'admin.settings.payment.field_usdtRateApiUrlHint' },
+    { key: 'rateApiUrl', label: '', sensitive: false, optional: true, defaultValue: '', hintKey: 'admin.settings.payment.field_usdtRateApiUrlHint' },
     { key: 'rateJSONPath', label: '', sensitive: false, optional: true, defaultValue: 'tether.cny', hintKey: 'admin.settings.payment.field_usdtRateJSONPathHint' },
     { key: 'rateCacheSeconds', label: '', sensitive: false, optional: true, defaultValue: '300', hintKey: 'admin.settings.payment.field_usdtRateCacheSecondsHint' },
     { key: 'rateFallbackToManual', label: '', sensitive: false, optional: true, defaultValue: 'true', hintKey: 'admin.settings.payment.field_usdtRateFallbackToManualHint', options: [

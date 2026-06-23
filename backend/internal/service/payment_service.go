@@ -105,6 +105,8 @@ type CreateOrderResponse struct {
 	CryptoAmount   string                          `json:"crypto_amount,omitempty"`
 	CryptoCurrency string                          `json:"crypto_currency,omitempty"`
 	CryptoNetwork  string                          `json:"crypto_network,omitempty"`
+	CryptoRate     string                          `json:"crypto_rate,omitempty"`
+	CryptoRateSrc  string                          `json:"crypto_rate_source,omitempty"`
 	ReceiveAddress string                          `json:"receive_address,omitempty"`
 	OAuth          *payment.WechatOAuthInfo        `json:"oauth,omitempty"`
 	JSAPI          *payment.WechatJSAPIPayload     `json:"jsapi,omitempty"`

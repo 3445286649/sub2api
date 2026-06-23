@@ -18,6 +18,14 @@ const i18n = createI18n({
           rate: "Rate",
           unlimited: "Unlimited",
         },
+        quotaReset: {
+          buyReset: "Buy Reset",
+          daily: "Daily quota",
+          once: "time",
+          resetValue: "Reset Value",
+          typeLabel: "Reset",
+        },
+        renewNow: "Renew",
         subscribeNow: "Subscribe now",
       },
     },
@@ -31,6 +39,7 @@ const mountPlanCard = (groupPlatform: string) =>
         id: 1,
         group_id: 10,
         group_platform: groupPlatform,
+        plan_type: "subscription",
         name: "Pro",
         price: 10,
         amount: 1000,
@@ -60,5 +69,36 @@ describe("SubscriptionPlanCard", () => {
     expect(text).toContain("Claude");
     expect(text).toContain("Gemini");
     expect(text).toContain("Imagen");
+  });
+
+  it("uses reset copy for quota reset plans", () => {
+    const wrapper = mount(SubscriptionPlanCard, {
+      props: {
+        plan: {
+          id: 2,
+          group_id: 10,
+          group_platform: "openai",
+          plan_type: "quota_reset",
+          name: "Daily Reset 100",
+          price: 3,
+          description: "",
+          features: [],
+          rate_multiplier: 1,
+          validity_days: 1,
+          validity_unit: "days",
+          quota_reset_scope: "daily",
+          quota_reset_value: 100,
+          for_sale: true,
+          sort_order: 0,
+        },
+      },
+      global: { plugins: [i18n] },
+    });
+
+    const text = wrapper.text();
+    expect(text).toContain("payment.quotaReset.buyReset");
+    expect(text).toContain("payment.quotaReset.resetValue");
+    expect(text).not.toContain("Subscribe now");
+    expect(text).not.toContain("Renew");
   });
 });

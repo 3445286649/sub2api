@@ -112,9 +112,15 @@
                   {{ amountCopied ? t('payment.crypto.copied') : t('payment.crypto.copyAmount') }}
                 </button>
               </div>
-              <p class="mt-1 font-mono text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                {{ cryptoPayAmountDisplay }}
-              </p>
+              <div class="mt-1 flex flex-wrap items-end justify-between gap-3">
+                <p class="font-mono text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                  {{ cryptoPayAmountDisplay }}
+                </p>
+                <div v-if="cryptoRateDisplay" class="inline-flex items-center gap-2 rounded-md border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-800 dark:border-emerald-800/70 dark:bg-emerald-950/40 dark:text-emerald-200">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.crypto.exchangeRate') }}</span>
+                  <span class="font-mono">{{ cryptoRateDisplay }}</span>
+                </div>
+              </div>
               <p class="mt-2 text-xs leading-5 text-amber-700 dark:text-amber-300">
                 {{ t('payment.crypto.feeWarning') }}
               </p>
@@ -206,6 +212,8 @@ const props = defineProps<{
   cryptoAmount?: string
   cryptoCurrency?: string
   cryptoNetwork?: string
+  cryptoRate?: string
+  cryptoRateSource?: string
   receiveAddress?: string
 }>()
 
@@ -261,6 +269,13 @@ const cryptoPayAmountDisplay = computed(() => {
   if (!amount) return ''
   const currency = (props.cryptoCurrency || 'USDT').trim()
   return `${amount} ${currency}`
+})
+const cryptoRateDisplay = computed(() => {
+  const rate = (props.cryptoRate || '').trim()
+  if (!rate) return ''
+  const numeric = Number(rate)
+  const formatted = Number.isFinite(numeric) && numeric > 0 ? numeric.toFixed(4).replace(/0+$/, '').replace(/\.$/, '') : rate
+  return t('payment.crypto.exchangeRateValue', { rate: formatted })
 })
 
 const qrBorderClass = computed(() => {

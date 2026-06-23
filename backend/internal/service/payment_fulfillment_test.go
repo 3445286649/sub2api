@@ -91,6 +91,10 @@ func (r *paymentFulfillmentAffiliateRepoStub) AccrueQuota(_ context.Context, inv
 	return true, nil
 }
 
+func (r *paymentFulfillmentAffiliateRepoStub) AccrueQuotaFromRedeemCode(context.Context, int64, int64, float64, int, int64) (bool, error) {
+	panic("unexpected AccrueQuotaFromRedeemCode call")
+}
+
 func (r *paymentFulfillmentAffiliateRepoStub) GetAccruedRebateFromInvitee(context.Context, int64, int64) (float64, error) {
 	return 0, nil
 }

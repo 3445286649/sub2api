@@ -19,6 +19,9 @@
             <span :class="['shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', badgeLightClass]">
               {{ pLabel }}
             </span>
+            <span v-if="isQuotaResetPlan" class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              {{ t('payment.quotaReset.typeLabel') }}
+            </span>
           </div>
           <p v-if="plan.description" class="mt-0.5 text-xs leading-relaxed text-gray-500 dark:text-dark-400 line-clamp-2">
             {{ plan.description }}
@@ -29,7 +32,7 @@
             <span class="text-xs text-gray-400 dark:text-dark-500">$</span>
             <span :class="['text-2xl font-extrabold tracking-tight', textClass]">{{ plan.price }}</span>
           </div>
-          <span class="text-[11px] text-gray-400 dark:text-dark-500">/ {{ validitySuffix }}</span>
+          <span class="text-[11px] text-gray-400 dark:text-dark-500">/ {{ cardSuffix }}</span>
           <div v-if="plan.original_price" class="mt-0.5 flex items-center justify-end gap-1.5">
             <span class="text-xs text-gray-400 line-through dark:text-dark-500">${{ plan.original_price }}</span>
             <span :class="['rounded px-1 py-0.5 text-[10px] font-semibold', discountClass]">{{ discountText }}</span>
@@ -39,6 +42,10 @@
 
       <!-- Group quota info (compact) -->
       <div class="mb-3 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-gray-50 px-3 py-2 text-xs dark:bg-dark-700/50">
+        <div v-if="isQuotaResetPlan" class="col-span-2 flex items-center justify-between">
+          <span class="text-gray-400 dark:text-dark-500">{{ t('payment.quotaReset.resetValue') }}</span>
+          <span class="font-semibold text-amber-700 dark:text-amber-300">${{ plan.quota_reset_value || 0 }} / {{ quotaResetScopeLabel }}</span>
+        </div>
         <div class="flex items-center justify-between">
           <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.rate') }}</span>
           <span class="font-medium text-gray-700 dark:text-gray-300">{{ rateDisplay }}</span>
@@ -88,7 +95,7 @@
         :class="['w-full rounded-xl py-2.5 text-sm font-semibold transition-all active:scale-[0.98]', btnClass]"
         @click="emit('select', plan)"
       >
-        {{ isRenewal ? t('payment.renewNow') : t('payment.subscribeNow') }}
+        {{ buttonLabel }}
       </button>
     </div>
   </div>
@@ -115,6 +122,7 @@ const emit = defineEmits<{ select: [plan: SubscriptionPlan] }>()
 const { t } = useI18n()
 
 const platform = computed(() => props.plan.group_platform || '')
+const isQuotaResetPlan = computed(() => props.plan.plan_type === 'quota_reset')
 const isRenewal = computed(() =>
   props.activeSubscriptions?.some(s => s.group_id === props.plan.group_id && s.status === 'active') ?? false
 )
@@ -158,5 +166,18 @@ const validitySuffix = computed(() => {
   if (u === 'month') return t('payment.perMonth')
   if (u === 'year') return t('payment.perYear')
   return `${props.plan.validity_days}${t('payment.days')}`
+})
+
+const quotaResetScopeLabel = computed(() => {
+  if (props.plan.quota_reset_scope === 'weekly') return t('payment.quotaReset.weekly')
+  if (props.plan.quota_reset_scope === 'monthly') return t('payment.quotaReset.monthly')
+  if (props.plan.quota_reset_scope === 'all') return t('payment.quotaReset.all')
+  return t('payment.quotaReset.daily')
+})
+
+const cardSuffix = computed(() => isQuotaResetPlan.value ? t('payment.quotaReset.once') : validitySuffix.value)
+const buttonLabel = computed(() => {
+  if (isQuotaResetPlan.value) return t('payment.quotaReset.buyReset')
+  return isRenewal.value ? t('payment.renewNow') : t('payment.subscribeNow')
 })
 </script>

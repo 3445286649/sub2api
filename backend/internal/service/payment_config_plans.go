@@ -34,6 +34,46 @@ func validatePlanRequired(name string, groupID int64, price float64, validityDay
 	return nil
 }
 
+func normalizeSubscriptionPlanType(planType string) string {
+	planType = strings.TrimSpace(planType)
+	if planType == "" {
+		return SubscriptionPlanTypeSubscription
+	}
+	return planType
+}
+
+func NormalizeSubscriptionPlanTypeForResponse(planType string) string {
+	return normalizeSubscriptionPlanType(planType)
+}
+
+func validateSubscriptionPlanType(planType string) error {
+	switch normalizeSubscriptionPlanType(planType) {
+	case SubscriptionPlanTypeSubscription, SubscriptionPlanTypeQuotaReset:
+		return nil
+	default:
+		return infraerrors.BadRequest("PLAN_TYPE_INVALID", "plan type is invalid")
+	}
+}
+
+func validateQuotaResetPlanFields(planType, scope string, value float64) error {
+	if err := validateSubscriptionPlanType(planType); err != nil {
+		return err
+	}
+	if normalizeSubscriptionPlanType(planType) != SubscriptionPlanTypeQuotaReset {
+		return nil
+	}
+	if !IsValidQuotaResetScope(scope) {
+		return ErrInvalidQuotaResetScope
+	}
+	if scope != QuotaResetScopeDaily {
+		return infraerrors.BadRequest("INVALID_QUOTA_RESET_SCOPE", "only daily quota reset plans are supported")
+	}
+	if value <= 0 {
+		return infraerrors.BadRequest("QUOTA_RESET_VALUE_INVALID", "quota reset value must be > 0")
+	}
+	return nil
+}
+
 // validatePlanPatch validates only the non-nil fields in a patch update.
 func validatePlanPatch(req UpdatePlanRequest) error {
 	if req.Name != nil && strings.TrimSpace(*req.Name) == "" {
@@ -53,6 +93,14 @@ func validatePlanPatch(req UpdatePlanRequest) error {
 	}
 	if req.OriginalPrice != nil && *req.OriginalPrice < 0 {
 		return infraerrors.BadRequest("PLAN_ORIGINAL_PRICE_INVALID", "original price must be >= 0")
+	}
+	if req.PlanType != nil {
+		if err := validateSubscriptionPlanType(*req.PlanType); err != nil {
+			return err
+		}
+	}
+	if req.QuotaResetValue != nil && *req.QuotaResetValue < 0 {
+		return infraerrors.BadRequest("QUOTA_RESET_VALUE_INVALID", "quota reset value must be >= 0")
 	}
 	return nil
 }
@@ -124,10 +172,22 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 	if err := validatePlanRequired(req.Name, req.GroupID, req.Price, req.ValidityDays, req.ValidityUnit, req.OriginalPrice); err != nil {
 		return nil, err
 	}
+	planType := normalizeSubscriptionPlanType(req.PlanType)
+	if err := validateQuotaResetPlanFields(planType, req.QuotaResetScope, req.QuotaResetValue); err != nil {
+		return nil, err
+	}
+	quotaResetScope := ""
+	quotaResetValue := 0.0
+	if planType == SubscriptionPlanTypeQuotaReset {
+		quotaResetScope = strings.TrimSpace(req.QuotaResetScope)
+		quotaResetValue = req.QuotaResetValue
+	}
 	b := s.entClient.SubscriptionPlan.Create().
 		SetGroupID(req.GroupID).SetName(req.Name).SetDescription(req.Description).
+		SetPlanType(planType).
 		SetPrice(req.Price).SetValidityDays(req.ValidityDays).SetValidityUnit(req.ValidityUnit).
 		SetFeatures(req.Features).SetProductName(req.ProductName).
+		SetQuotaResetScope(quotaResetScope).SetQuotaResetValue(quotaResetValue).
 		SetForSale(req.ForSale).SetSortOrder(req.SortOrder)
 	if req.OriginalPrice != nil {
 		b.SetOriginalPrice(*req.OriginalPrice)
@@ -142,7 +202,33 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id int64, req Upd
 	if err := validatePlanPatch(req); err != nil {
 		return nil, err
 	}
+	existing, err := s.entClient.SubscriptionPlan.Get(ctx, id)
+	if err != nil {
+		return nil, infraerrors.NotFound("PLAN_NOT_FOUND", "subscription plan not found")
+	}
+	nextPlanType := normalizeSubscriptionPlanType(existing.PlanType)
+	if req.PlanType != nil {
+		nextPlanType = normalizeSubscriptionPlanType(*req.PlanType)
+	}
+	nextScope := existing.QuotaResetScope
+	if req.QuotaResetScope != nil {
+		nextScope = strings.TrimSpace(*req.QuotaResetScope)
+	}
+	nextValue := existing.QuotaResetValue
+	if req.QuotaResetValue != nil {
+		nextValue = *req.QuotaResetValue
+	}
+	if nextPlanType == SubscriptionPlanTypeSubscription {
+		nextScope = ""
+		nextValue = 0
+	}
+	if err := validateQuotaResetPlanFields(nextPlanType, nextScope, nextValue); err != nil {
+		return nil, err
+	}
 	u := s.entClient.SubscriptionPlan.UpdateOneID(id)
+	if req.PlanType != nil {
+		u.SetPlanType(nextPlanType)
+	}
 	if req.GroupID != nil {
 		u.SetGroupID(*req.GroupID)
 	}
@@ -169,6 +255,12 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id int64, req Upd
 	}
 	if req.ProductName != nil {
 		u.SetProductName(*req.ProductName)
+	}
+	if req.PlanType != nil || req.QuotaResetScope != nil {
+		u.SetQuotaResetScope(nextScope)
+	}
+	if req.PlanType != nil || req.QuotaResetValue != nil {
+		u.SetQuotaResetValue(nextValue)
 	}
 	if req.ForSale != nil {
 		u.SetForSale(*req.ForSale)
