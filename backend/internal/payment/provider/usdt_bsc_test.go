@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 )
@@ -17,6 +18,7 @@ func TestUSDTBSCCreatePaymentBuildsUniqueAmountAndAddressQR(t *testing.T) {
 	p, err := NewUSDTBSC("1", map[string]string{
 		"receiveAddress": "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
 		"cnyPerUsdt":     "7.2",
+		"rateMode":       "manual",
 		"confirmations":  "20",
 	})
 	if err != nil {
@@ -46,11 +48,28 @@ func TestUSDTBSCCreatePaymentBuildsUniqueAmountAndAddressQR(t *testing.T) {
 	if resp.CryptoAmount == "1.388889" {
 		t.Fatalf("CryptoAmount should include unique tail, got %q", resp.CryptoAmount)
 	}
+	intent, err := parseUSDTBSCIntent(resp.TradeNo)
+	if err != nil {
+		t.Fatalf("parseUSDTBSCIntent() error = %v", err)
+	}
+	if intent.TokenAmount != resp.CryptoAmount {
+		t.Fatalf("locked token amount = %q, want %q", intent.TokenAmount, resp.CryptoAmount)
+	}
+	if intent.LockedRate != "7.200000" {
+		t.Fatalf("locked rate = %q, want 7.200000", intent.LockedRate)
+	}
+	if len(resp.TradeNo) > 128 {
+		t.Fatalf("TradeNo length = %d, want <= 128", len(resp.TradeNo))
+	}
+	if _, err := time.Parse(time.RFC3339, intent.LockedAt); err != nil {
+		t.Fatalf("locked_at = %q is not RFC3339: %v", intent.LockedAt, err)
+	}
 }
 
 func TestUSDTBSCRequiresExplicitCNYPerUSDTRate(t *testing.T) {
 	_, err := NewUSDTBSC("1", map[string]string{
 		"receiveAddress": "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
+		"rateMode":       "manual",
 	})
 	if err == nil || !strings.Contains(err.Error(), "cnyPerUsdt is required") {
 		t.Fatalf("NewUSDTBSC() error = %v, want cnyPerUsdt required", err)
@@ -61,6 +80,7 @@ func TestUSDTBSCCreatePaymentConvertsCNYAmountByRate(t *testing.T) {
 	p, err := NewUSDTBSC("1", map[string]string{
 		"receiveAddress": "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
 		"cnyPerUsdt":     "7.2",
+		"rateMode":       "manual",
 	})
 	if err != nil {
 		t.Fatalf("NewUSDTBSC() error = %v", err)
@@ -80,6 +100,145 @@ func TestUSDTBSCCreatePaymentConvertsCNYAmountByRate(t *testing.T) {
 	}
 	if amount < 10 || amount >= 10.001 {
 		t.Fatalf("CryptoAmount = %q, want about 10 USDT plus unique micro tail", resp.CryptoAmount)
+	}
+}
+
+func TestUSDTBSCCreatePaymentUsesAutoCNYPerUSDTRate(t *testing.T) {
+	rateAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/simple/price" || r.URL.Query().Get("ids") != "tether" || r.URL.Query().Get("vs_currencies") != "cny" {
+			t.Fatalf("unexpected rate request: %s", r.URL.String())
+		}
+		fmt.Fprint(w, `{"tether":{"cny":7.25}}`)
+	}))
+	defer rateAPI.Close()
+
+	p, err := NewUSDTBSC("1", map[string]string{
+		"receiveAddress": "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
+		"cnyPerUsdt":     "7.2",
+		"rateMode":       "auto",
+		"rateApiUrl":     rateAPI.URL + "/simple/price?ids=tether&vs_currencies=cny",
+	})
+	if err != nil {
+		t.Fatalf("NewUSDTBSC() error = %v", err)
+	}
+
+	resp, err := p.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID: "sub2_20260623_auto_rate",
+		Amount:  "72.50",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment() error = %v", err)
+	}
+
+	amount, err := strconv.ParseFloat(resp.CryptoAmount, 64)
+	if err != nil {
+		t.Fatalf("CryptoAmount = %q is not numeric: %v", resp.CryptoAmount, err)
+	}
+	if amount < 10 || amount >= 10.001 {
+		t.Fatalf("CryptoAmount = %q, want about 10 USDT plus unique micro tail from auto rate", resp.CryptoAmount)
+	}
+}
+
+func TestUSDTBSCCreatePaymentFallsBackToManualRateWhenAutoRateFails(t *testing.T) {
+	rateAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "rate unavailable", http.StatusBadGateway)
+	}))
+	defer rateAPI.Close()
+
+	p, err := NewUSDTBSC("1", map[string]string{
+		"receiveAddress":       "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
+		"cnyPerUsdt":           "7.2",
+		"rateMode":             "auto",
+		"rateApiUrl":           rateAPI.URL,
+		"rateFallbackToManual": "true",
+	})
+	if err != nil {
+		t.Fatalf("NewUSDTBSC() error = %v", err)
+	}
+
+	resp, err := p.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID: "sub2_20260623_auto_rate_fallback",
+		Amount:  "72.00",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment() error = %v", err)
+	}
+	amount, err := strconv.ParseFloat(resp.CryptoAmount, 64)
+	if err != nil {
+		t.Fatalf("CryptoAmount = %q is not numeric: %v", resp.CryptoAmount, err)
+	}
+	if amount < 10 || amount >= 10.001 {
+		t.Fatalf("CryptoAmount = %q, want manual fallback about 10 USDT plus unique micro tail", resp.CryptoAmount)
+	}
+}
+
+func TestUSDTBSCCreatePaymentFailsWhenAutoRateFailsWithoutFallback(t *testing.T) {
+	rateAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "rate unavailable", http.StatusBadGateway)
+	}))
+	defer rateAPI.Close()
+
+	p, err := NewUSDTBSC("1", map[string]string{
+		"receiveAddress":       "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
+		"cnyPerUsdt":           "7.2",
+		"rateMode":             "auto",
+		"rateApiUrl":           rateAPI.URL,
+		"rateFallbackToManual": "false",
+	})
+	if err != nil {
+		t.Fatalf("NewUSDTBSC() error = %v", err)
+	}
+
+	_, err = p.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID: "sub2_20260623_auto_rate_no_fallback",
+		Amount:  "72.00",
+	})
+	if err == nil || !strings.Contains(err.Error(), "fetch usdt_bsc cny/usdt rate") {
+		t.Fatalf("CreatePayment() error = %v, want auto rate failure", err)
+	}
+}
+
+func TestUSDTBSCCreatePaymentUsesAutoRateWithoutManualFallbackConfig(t *testing.T) {
+	rateAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"tether":{"cny":7.25}}`)
+	}))
+	defer rateAPI.Close()
+
+	p, err := NewUSDTBSC("1", map[string]string{
+		"receiveAddress":       "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
+		"rateMode":             "auto",
+		"rateApiUrl":           rateAPI.URL,
+		"rateFallbackToManual": "false",
+	})
+	if err != nil {
+		t.Fatalf("NewUSDTBSC() error = %v", err)
+	}
+
+	resp, err := p.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID: "sub2_20260623_auto_rate_no_manual",
+		Amount:  "72.50",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment() error = %v", err)
+	}
+	amount, err := strconv.ParseFloat(resp.CryptoAmount, 64)
+	if err != nil {
+		t.Fatalf("CryptoAmount = %q is not numeric: %v", resp.CryptoAmount, err)
+	}
+	if amount < 10 || amount >= 10.001 {
+		t.Fatalf("CryptoAmount = %q, want about 10 USDT plus unique micro tail", resp.CryptoAmount)
+	}
+}
+
+func TestUSDTBSCAutoRateRequiresHTTPURL(t *testing.T) {
+	_, err := NewUSDTBSC("1", map[string]string{
+		"receiveAddress":       "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
+		"rateMode":             "auto",
+		"rateApiUrl":           "file:///etc/passwd",
+		"rateFallbackToManual": "false",
+	})
+	if err == nil || !strings.Contains(err.Error(), "http(s) URL") {
+		t.Fatalf("NewUSDTBSC() error = %v, want http(s) URL validation", err)
 	}
 }
 
@@ -115,6 +274,37 @@ func TestUSDTBSCQueryOrderMatchesConfirmedTokenTransfer(t *testing.T) {
 		t.Fatalf("response = %+v", resp)
 	}
 	if resp.Metadata["tx_hash"] != "0xpaid" || resp.Metadata["confirmations"] != "21" {
+		t.Fatalf("metadata = %+v", resp.Metadata)
+	}
+}
+
+func TestUSDTBSCQueryOrderKeepsLockedRateMetadata(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"status":"1","message":"OK","result":[{"blockNumber":"123","hash":"0xpaid","from":"0xfrom","contractAddress":"0x55d398326f99059ff775485246999027b3197955","to":"0x3b210bdc924c685fdd10ae96b7f95d0e14536106","value":"10000123000000000000","tokenDecimal":"18","confirmations":"21"}]}`)
+	}))
+	defer server.Close()
+
+	p, err := NewUSDTBSC("1", map[string]string{
+		"receiveAddress": "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
+		"cnyPerUsdt":     "7.2",
+		"rateMode":       "manual",
+		"confirmations":  "20",
+		"bscscanApiBase": server.URL + "/api",
+		"rpcUrl":         "disabled",
+	})
+	if err != nil {
+		t.Fatalf("NewUSDTBSC() error = %v", err)
+	}
+
+	queryRef := "usdt_bsc|sub2_order|72.00|10.000123|0x3b210bdc924c685fDd10Ae96b7f95D0E14536106|7.200000|1782201600"
+	resp, err := p.QueryOrder(context.Background(), queryRef)
+	if err != nil {
+		t.Fatalf("QueryOrder() error = %v", err)
+	}
+	if resp.Status != payment.ProviderStatusPaid {
+		t.Fatalf("Status = %q, want paid", resp.Status)
+	}
+	if resp.Metadata["token_amount"] != "10.000123" || resp.Metadata["locked_cny_per_usdt"] != "7.200000" || resp.Metadata["locked_at"] != "2026-06-23T08:00:00Z" {
 		t.Fatalf("metadata = %+v", resp.Metadata)
 	}
 }

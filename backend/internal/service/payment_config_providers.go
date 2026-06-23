@@ -128,7 +128,7 @@ var providerPendingOrderProtectedConfigFields = map[string]map[string]struct{}{
 	payment.TypeWxpay:     {"privatekey": {}, "apiv3key": {}, "publickey": {}, "appid": {}, "mpappid": {}, "mchid": {}, "publickeyid": {}, "certserial": {}},
 	payment.TypeStripe:    {"secretkey": {}, "webhooksecret": {}, "currency": {}},
 	payment.TypeAirwallex: {"clientid": {}, "apikey": {}, "webhooksecret": {}, "apibase": {}, "accountid": {}, "currency": {}},
-	payment.TypeUSDTBSC:   {"receiveaddress": {}, "tokencontract": {}, "cnyperusdt": {}, "confirmations": {}, "bscscanapibase": {}, "bscscanapikey": {}, "apikey": {}},
+	payment.TypeUSDTBSC:   {"receiveaddress": {}, "tokencontract": {}, "cnyperusdt": {}, "ratemode": {}, "rateapiurl": {}, "ratejsonpath": {}, "ratecacheseconds": {}, "ratefallbacktomanual": {}, "confirmations": {}, "bscscanapibase": {}, "bscscanapikey": {}, "apikey": {}},
 }
 
 func isSensitiveProviderConfigField(providerKey, fieldName string) bool {

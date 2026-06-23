@@ -41,6 +41,17 @@ describe('PROVIDER_CONFIG_FIELDS.airwallex', () => {
   })
 })
 
+describe('PROVIDER_CONFIG_FIELDS.usdt_bsc', () => {
+  it('defaults to automatic CNY/USDT rates with manual fallback', () => {
+    expect(findField('usdt_bsc', 'rateMode')?.defaultValue).toBe('auto')
+    expect(findField('usdt_bsc', 'rateApiUrl')?.defaultValue).toContain('api.coingecko.com')
+    expect(findField('usdt_bsc', 'rateJSONPath')?.defaultValue).toBe('tether.cny')
+    expect(findField('usdt_bsc', 'rateCacheSeconds')?.defaultValue).toBe('300')
+    expect(findField('usdt_bsc', 'rateFallbackToManual')?.defaultValue).toBe('true')
+    expect(findField('usdt_bsc', 'cnyPerUsdt')?.hintKey).toBe('admin.settings.payment.field_usdtCnyPerUsdtHint')
+  })
+})
+
 describe('PROVIDER_CONFIG_FIELDS.stripe', () => {
   it('adds currency config with CNY as the default', () => {
     const currency = findField('stripe', 'currency')
