@@ -77,12 +77,20 @@
                   <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
                   <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatSelectedPaymentAmount(totalAmount) }}</span>
                 </div>
-                <div v-if="balanceRechargeMultiplier !== 1" class="flex justify-between" :class="{ 'border-t border-gray-200 pt-2 dark:border-dark-600': feeRate <= 0 }">
+                <div v-if="rechargeBonusEnabled" class="flex justify-between" :class="{ 'border-t border-gray-200 pt-2 dark:border-dark-600': feeRate <= 0 }">
                   <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalance') }}</span>
                   <span class="text-gray-900 dark:text-white">${{ creditedAmount.toFixed(2) }}</span>
                 </div>
-                <p v-if="balanceRechargeMultiplier !== 1" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
-                  {{ t('payment.rechargeRatePreview', { usd: balanceRechargeMultiplier.toFixed(2) }) }}
+                <p v-if="rechargeBonusEnabled" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
+                  <span class="font-medium text-primary-600 dark:text-primary-400">
+                    {{ t('payment.rechargeBonusBanner', { percent: rechargeBonusPercent }) }}
+                  </span>
+                  <span class="mt-1 block">
+                    {{ t('payment.rechargeBonusPreview', {
+                      pay: formatSelectedPaymentAmount(validAmount),
+                      credit: `$${creditedAmount.toFixed(2)}`,
+                    }) }}
+                  </span>
                 </p>
               </div>
             </div>
@@ -520,7 +528,7 @@ function onPaymentSettled() {
 // All checkout data from single API call
 const checkout = ref<CheckoutInfoResponse>({
   methods: {}, global_min: 0, global_max: 0,
-  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
+  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, balance_recharge_bonus_display_enabled: false, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
 })
 
 const tabs = computed(() => {
@@ -538,6 +546,14 @@ const balanceRechargeMultiplier = computed(() => {
   return multiplier > 0 ? multiplier : 1
 })
 const creditedAmount = computed(() => Math.round((validAmount.value * balanceRechargeMultiplier.value) * 100) / 100)
+const rechargeBonusEnabled = computed(() =>
+  checkout.value.balance_recharge_bonus_display_enabled === true &&
+  balanceRechargeMultiplier.value > 1
+)
+const rechargeBonusPercent = computed(() => {
+  const percent = Math.round((balanceRechargeMultiplier.value - 1) * 10000) / 100
+  return Number.isInteger(percent) ? String(percent) : percent.toFixed(2).replace(/\.?0+$/, '')
+})
 
 function isQuotaResetPlan(plan: SubscriptionPlan): boolean {
   return plan.plan_type === 'quota_reset'

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, shallowMount } from '@vue/test-utils'
+import { defineComponent, h } from 'vue'
 import PaymentView from '../PaymentView.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 
@@ -103,6 +104,7 @@ function checkoutInfoFixture() {
       plans: [],
       balance_disabled: false,
       balance_recharge_multiplier: 1,
+      balance_recharge_bonus_display_enabled: false,
       recharge_fee_rate: 0,
       help_text: '',
       help_image_url: '',
@@ -178,6 +180,39 @@ function oauthOrderFixture() {
       redirect_url: '/auth/wechat/payment/callback',
     },
   }
+}
+
+function mountPaymentView() {
+  return shallowMount(PaymentView, {
+    global: {
+      stubs: {
+        AppLayout: defineComponent({
+          setup(_props, { slots }) {
+            return () => h('div', slots.default?.())
+          },
+        }),
+        Teleport: true,
+        Transition: false,
+        AmountInput: defineComponent({
+          props: {
+            modelValue: Number,
+          },
+          emits: ['update:modelValue'],
+          setup(_props, { emit }) {
+            return () =>
+              h('input', {
+                class: 'amount-input-stub',
+                type: 'number',
+                onInput: (event: Event) => {
+                  emit('update:modelValue', Number((event.target as HTMLInputElement).value))
+                },
+              })
+          },
+        }),
+        PaymentMethodSelector: true,
+      },
+    },
+  })
 }
 
 describe('PaymentView WeChat JSAPI flow', () => {
@@ -414,5 +449,61 @@ describe('PaymentView WeChat JSAPI flow', () => {
     expect(showWarning).toHaveBeenCalledWith('payment.errors.mobilePaymentFallbackToQr')
     expect(showError).not.toHaveBeenCalled()
     expect(window.localStorage.getItem(PAYMENT_RECOVERY_STORAGE_KEY)).toContain('weixin://wxpay/bizpayurl?pr=fallback-native')
+  })
+})
+
+describe('PaymentView recharge bonus campaign', () => {
+  beforeEach(() => {
+    routeState.path = '/purchase'
+    routeState.query = {}
+    routerReplace.mockReset().mockResolvedValue(undefined)
+    routerPush.mockReset().mockResolvedValue(undefined)
+    routerResolve.mockClear()
+    createOrder.mockReset()
+    refreshUser.mockReset()
+    fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+    showError.mockReset()
+    showInfo.mockReset()
+    showWarning.mockReset()
+    bridgeInvoke.mockReset()
+    window.localStorage.clear()
+    ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = undefined
+  })
+
+  it('shows bonus percent and credited amount when display switch is enabled and multiplier is greater than 1', async () => {
+    getCheckoutInfo.mockResolvedValue({
+      data: {
+        ...checkoutInfoFixture().data,
+        balance_recharge_multiplier: 1.1,
+        balance_recharge_bonus_display_enabled: true,
+      },
+    })
+
+    const wrapper = mountPaymentView()
+    await flushPromises()
+    await wrapper.get('.amount-input-stub').setValue('100')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('payment.rechargeBonusBanner')
+    expect(wrapper.text()).toContain('payment.rechargeBonusPreview')
+    expect(wrapper.text()).toContain('$110.00')
+  })
+
+  it('does not show recharge bonus campaign when display switch is disabled even if multiplier is greater than 1', async () => {
+    getCheckoutInfo.mockResolvedValue({
+      data: {
+        ...checkoutInfoFixture().data,
+        balance_recharge_multiplier: 1.1,
+        balance_recharge_bonus_display_enabled: false,
+      },
+    })
+
+    const wrapper = mountPaymentView()
+    await flushPromises()
+    await wrapper.get('.amount-input-stub').setValue('100')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('payment.rechargeBonusBanner')
+    expect(wrapper.text()).not.toContain('payment.rechargeBonusPreview')
   })
 })

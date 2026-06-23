@@ -67,6 +67,7 @@ export interface CheckoutInfoResponse {
   plans: SubscriptionPlan[]
   balance_disabled: boolean
   balance_recharge_multiplier: number
+  balance_recharge_bonus_display_enabled?: boolean
   recharge_fee_rate: number
   help_text: string
   help_image_url: string

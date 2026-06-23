@@ -127,33 +127,33 @@ type SystemSettings struct {
 	GoogleOAuthRedirectURL            string `json:"google_oauth_redirect_url"`
 	GoogleOAuthFrontendRedirectURL    string `json:"google_oauth_frontend_redirect_url"`
 
-	SiteName                    string           `json:"site_name"`
-	SiteLogo                    string           `json:"site_logo"`
-	SiteSubtitle                string           `json:"site_subtitle"`
-	APIBaseURL                  string           `json:"api_base_url"`
-	ContactInfo                 string           `json:"contact_info"`
-	RechargeStorefrontEnabled   bool             `json:"recharge_storefront_enabled"`
-	RechargeStorefrontButtonText string          `json:"recharge_storefront_button_text"`
-	RechargeStorefrontURL       string           `json:"recharge_storefront_url"`
-	RechargeStorefrontBackupURL string           `json:"recharge_storefront_backup_url"`
-	SupportGroupEnabled         bool             `json:"support_group_enabled"`
-	SupportGroupButtonText      string           `json:"support_group_button_text"`
-	SupportGroupTitle           string           `json:"support_group_title"`
-	SupportGroupDescription     string           `json:"support_group_description"`
-	SupportGroupQRCodeURL       string           `json:"support_group_qr_code_url"`
-	SupportGroupLinkURL         string           `json:"support_group_link_url"`
-	PixmoStudioEnabled          bool             `json:"pixmo_studio_enabled"`
-	PixmoStudioButtonText       string           `json:"pixmo_studio_button_text"`
-	PixmoStudioURL              string           `json:"pixmo_studio_url"`
-	DocURL                      string           `json:"doc_url"`
-	HomeContent                 string           `json:"home_content"`
-	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
-	PurchaseSubscriptionEnabled bool             `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL     string           `json:"purchase_subscription_url"`
-	TableDefaultPageSize        int              `json:"table_default_page_size"`
-	TablePageSizeOptions        []int            `json:"table_page_size_options"`
-	CustomMenuItems             []CustomMenuItem `json:"custom_menu_items"`
-	CustomEndpoints             []CustomEndpoint `json:"custom_endpoints"`
+	SiteName                     string           `json:"site_name"`
+	SiteLogo                     string           `json:"site_logo"`
+	SiteSubtitle                 string           `json:"site_subtitle"`
+	APIBaseURL                   string           `json:"api_base_url"`
+	ContactInfo                  string           `json:"contact_info"`
+	RechargeStorefrontEnabled    bool             `json:"recharge_storefront_enabled"`
+	RechargeStorefrontButtonText string           `json:"recharge_storefront_button_text"`
+	RechargeStorefrontURL        string           `json:"recharge_storefront_url"`
+	RechargeStorefrontBackupURL  string           `json:"recharge_storefront_backup_url"`
+	SupportGroupEnabled          bool             `json:"support_group_enabled"`
+	SupportGroupButtonText       string           `json:"support_group_button_text"`
+	SupportGroupTitle            string           `json:"support_group_title"`
+	SupportGroupDescription      string           `json:"support_group_description"`
+	SupportGroupQRCodeURL        string           `json:"support_group_qr_code_url"`
+	SupportGroupLinkURL          string           `json:"support_group_link_url"`
+	PixmoStudioEnabled           bool             `json:"pixmo_studio_enabled"`
+	PixmoStudioButtonText        string           `json:"pixmo_studio_button_text"`
+	PixmoStudioURL               string           `json:"pixmo_studio_url"`
+	DocURL                       string           `json:"doc_url"`
+	HomeContent                  string           `json:"home_content"`
+	HideCcsImportButton          bool             `json:"hide_ccs_import_button"`
+	PurchaseSubscriptionEnabled  bool             `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL      string           `json:"purchase_subscription_url"`
+	TableDefaultPageSize         int              `json:"table_default_page_size"`
+	TablePageSizeOptions         []int            `json:"table_page_size_options"`
+	CustomMenuItems              []CustomMenuItem `json:"custom_menu_items"`
+	CustomEndpoints              []CustomEndpoint `json:"custom_endpoints"`
 
 	DefaultConcurrency           int                          `json:"default_concurrency"`
 	DefaultBalance               float64                      `json:"default_balance"`
@@ -216,21 +216,22 @@ type SystemSettings struct {
 	OpenAIAdvancedSchedulerEnabled bool `json:"openai_advanced_scheduler_enabled"`
 
 	// Payment configuration
-	PaymentEnabled                   bool     `json:"payment_enabled"`
-	PaymentMinAmount                 float64  `json:"payment_min_amount"`
-	PaymentMaxAmount                 float64  `json:"payment_max_amount"`
-	PaymentDailyLimit                float64  `json:"payment_daily_limit"`
-	PaymentOrderTimeoutMin           int      `json:"payment_order_timeout_minutes"`
-	PaymentMaxPendingOrders          int      `json:"payment_max_pending_orders"`
-	PaymentEnabledTypes              []string `json:"payment_enabled_types"`
-	PaymentBalanceDisabled           bool     `json:"payment_balance_disabled"`
-	PaymentBalanceRechargeMultiplier float64  `json:"payment_balance_recharge_multiplier"`
-	PaymentRechargeFeeRate           float64  `json:"payment_recharge_fee_rate"`
-	PaymentLoadBalanceStrat          string   `json:"payment_load_balance_strategy"`
-	PaymentProductNamePrefix         string   `json:"payment_product_name_prefix"`
-	PaymentProductNameSuffix         string   `json:"payment_product_name_suffix"`
-	PaymentHelpImageURL              string   `json:"payment_help_image_url"`
-	PaymentHelpText                  string   `json:"payment_help_text"`
+	PaymentEnabled                            bool     `json:"payment_enabled"`
+	PaymentMinAmount                          float64  `json:"payment_min_amount"`
+	PaymentMaxAmount                          float64  `json:"payment_max_amount"`
+	PaymentDailyLimit                         float64  `json:"payment_daily_limit"`
+	PaymentOrderTimeoutMin                    int      `json:"payment_order_timeout_minutes"`
+	PaymentMaxPendingOrders                   int      `json:"payment_max_pending_orders"`
+	PaymentEnabledTypes                       []string `json:"payment_enabled_types"`
+	PaymentBalanceDisabled                    bool     `json:"payment_balance_disabled"`
+	PaymentBalanceRechargeMultiplier          float64  `json:"payment_balance_recharge_multiplier"`
+	PaymentBalanceRechargeBonusDisplayEnabled bool     `json:"payment_balance_recharge_bonus_display_enabled"`
+	PaymentRechargeFeeRate                    float64  `json:"payment_recharge_fee_rate"`
+	PaymentLoadBalanceStrat                   string   `json:"payment_load_balance_strategy"`
+	PaymentProductNamePrefix                  string   `json:"payment_product_name_prefix"`
+	PaymentProductNameSuffix                  string   `json:"payment_product_name_suffix"`
+	PaymentHelpImageURL                       string   `json:"payment_help_image_url"`
+	PaymentHelpText                           string   `json:"payment_help_text"`
 
 	// Cancel rate limit
 	PaymentCancelRateLimitEnabled bool   `json:"payment_cancel_rate_limit_enabled"`

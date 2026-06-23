@@ -6318,6 +6318,38 @@
                         })
                       }}
                     </p>
+                    <div class="mt-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+                      <div class="flex items-start justify-between gap-4">
+                        <div>
+                          <label class="input-label">{{
+                            t("admin.settings.payment.rechargeBonusDisplay")
+                          }}</label>
+                          <p class="mt-0.5 text-xs text-gray-400">
+                            {{
+                              t(
+                                "admin.settings.payment.rechargeBonusDisplayHint",
+                              )
+                            }}
+                          </p>
+                          <p
+                            v-if="form.payment_balance_recharge_multiplier > 1"
+                            class="mt-1 text-xs font-medium text-primary-600 dark:text-primary-400"
+                          >
+                            {{
+                              t("admin.settings.payment.rechargeBonusDisplayPreview", {
+                                percent: rechargeBonusPercent,
+                              })
+                            }}
+                          </p>
+                        </div>
+                        <Toggle
+                          v-model="form.payment_balance_recharge_bonus_display_enabled"
+                          :aria-label="
+                            t('admin.settings.payment.rechargeBonusDisplay')
+                          "
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <label class="input-label">{{
@@ -7205,6 +7237,17 @@ const paymentMethodsHref = computed(() =>
     : "https://github.com/Wei-Shaw/sub2api/blob/main/docs/PAYMENT.md#supported-payment-methods",
 );
 
+function roundToTwo(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function formatRechargeBonusPercent(multiplier: number): string {
+  const percent = roundToTwo(Math.max(0, (Number(multiplier) - 1) * 100));
+  return Number.isInteger(percent)
+    ? String(percent)
+    : percent.toFixed(2).replace(/\.?0+$/, "");
+}
+
 type SettingsTab =
   | "general"
   | "agreement"
@@ -7871,6 +7914,7 @@ const form = reactive<SettingsForm>({
   payment_order_timeout_minutes: 30,
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_balance_recharge_bonus_display_enabled: false,
   payment_recharge_fee_rate: 0,
   payment_enabled_types: [],
   payment_help_image_url: "",
@@ -8044,6 +8088,10 @@ const form = reactive<SettingsForm>({
   // Allow user view error requests
   allow_user_view_error_requests: false,
 });
+
+const rechargeBonusPercent = computed(() =>
+  formatRechargeBonusPercent(form.payment_balance_recharge_multiplier),
+);
 
 const authSourceDefaults = reactive<AuthSourceDefaultsState>(
   buildAuthSourceDefaultsState({}),
@@ -9206,6 +9254,8 @@ async function saveSettings() {
       payment_balance_disabled: form.payment_balance_disabled,
       payment_balance_recharge_multiplier:
         Number(form.payment_balance_recharge_multiplier) || 1,
+      payment_balance_recharge_bonus_display_enabled:
+        form.payment_balance_recharge_bonus_display_enabled,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,
       payment_enabled_types: form.payment_enabled_types,
       payment_load_balance_strategy: form.payment_load_balance_strategy,

@@ -432,6 +432,27 @@ func TestUpdatePaymentConfig_PersistsVisibleMethodRouting(t *testing.T) {
 	}
 }
 
+func TestUpdatePaymentConfig_PersistsBalanceRechargeBonusDisplay(t *testing.T) {
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{}}
+	svc := &PaymentConfigService{settingRepo: repo}
+
+	enabled := true
+	err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{
+		BalanceRechargeBonusDisplayEnabled: &enabled,
+	})
+	if err != nil {
+		t.Fatalf("UpdatePaymentConfig returned error: %v", err)
+	}
+
+	if repo.values[SettingBalanceRechargeBonusDisplay] != "true" {
+		t.Fatalf("bonus display enabled = %q, want true", repo.values[SettingBalanceRechargeBonusDisplay])
+	}
+	cfg := svc.parsePaymentConfig(repo.values)
+	if !cfg.BalanceRechargeBonusDisplayEnabled {
+		t.Fatal("BalanceRechargeBonusDisplayEnabled = false, want true")
+	}
+}
+
 func paymentConfigStrPtr(value string) *string {
 	return &value
 }

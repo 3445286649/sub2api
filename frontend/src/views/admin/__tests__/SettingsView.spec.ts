@@ -159,6 +159,12 @@ vi.mock("vue-i18n", async () => {
     "admin.settings.paymentVisibleMethods.sourceRequiredError": "{title} 已启用，请先选择支付来源。",
     "admin.settings.payment.configGuide": "查看支付配置说明",
     "admin.settings.payment.findProvider": "查看支持的支付方式",
+    "admin.settings.payment.balanceRechargeMultiplier": "余额充值倍率",
+    "admin.settings.payment.balanceRechargeMultiplierHint": "用户每支付 1 CNY 可获得多少 USD 余额",
+    "admin.settings.payment.balanceRechargePreview": "预览：1 CNY = {usd} USD",
+    "admin.settings.payment.rechargeBonusDisplay": "前端展示充值活动",
+    "admin.settings.payment.rechargeBonusDisplayHint": "仅控制用户充值页是否展示活动文案；实际到账仍按上方倍率计算。",
+    "admin.settings.payment.rechargeBonusDisplayPreview": "当前会展示为：赠送 {percent}%",
     "admin.settings.openaiExperimentalScheduler.title": "OpenAI 实验调度策略",
     "admin.settings.openaiExperimentalScheduler.description": "默认关闭。开启后仅影响本网关在 OpenAI 账号间的实验性调度选择逻辑，不代表上游 OpenAI 官方能力。",
     "admin.settings.site.uploadImage": "上传图片",
@@ -394,6 +400,7 @@ const baseSettingsResponse = {
   payment_enabled_types: [],
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
+  payment_balance_recharge_bonus_display_enabled: false,
   payment_recharge_fee_rate: 0,
   payment_load_balance_strategy: "round-robin",
   payment_product_name_prefix: "",
@@ -603,6 +610,60 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_source");
     expect(payload).not.toHaveProperty("payment_visible_method_alipay_enabled");
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_enabled");
+  });
+
+  it("keeps balance recharge multiplier editable and submits the bonus display switch separately", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      payment_balance_recharge_multiplier: 1.1,
+      payment_balance_recharge_bonus_display_enabled: true,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+
+    expect(wrapper.text()).toContain("余额充值倍率");
+    expect(wrapper.text()).toContain("前端展示充值活动");
+    expect(wrapper.text()).toContain("当前会展示为：赠送 10%");
+
+    const multiplierInput = wrapper
+      .findAll("input")
+      .find((node) => (node.element as HTMLInputElement).value === "1.1");
+    expect(multiplierInput).toBeDefined();
+    await multiplierInput!.setValue("1.2");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_balance_recharge_multiplier: 1.2,
+        payment_balance_recharge_bonus_display_enabled: true,
+      }),
+    );
+  });
+
+  it("does not reset multiplier when recharge bonus display switch is disabled", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      payment_balance_recharge_multiplier: 1.1,
+      payment_balance_recharge_bonus_display_enabled: true,
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+    const bonusToggle = wrapper.find('input[aria-label="前端展示充值活动"]');
+    await bonusToggle.setValue(false);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_balance_recharge_multiplier: 1.1,
+        payment_balance_recharge_bonus_display_enabled: false,
+      }),
+    );
   });
 
   it("submits Anthropic cache TTL injection gateway setting", async () => {
