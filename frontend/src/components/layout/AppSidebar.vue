@@ -88,7 +88,12 @@
             >
               <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
               <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-              <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
+              <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
+                <span class="min-w-0 truncate">{{ item.label }}</span>
+                <span v-if="item.badge && !sidebarCollapsed" class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+                  {{ item.badge > 99 ? '99+' : item.badge }}
+                </span>
+              </span>
             </router-link>
           </template>
         </div>
@@ -113,7 +118,12 @@
           >
             <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
             <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-            <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
+            <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
+              <span class="min-w-0 truncate">{{ item.label }}</span>
+              <span v-if="item.badge && !sidebarCollapsed" class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+                {{ item.badge > 99 ? '99+' : item.badge }}
+              </span>
+            </span>
           </router-link>
         </div>
       </template>
@@ -133,7 +143,12 @@
           >
             <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
             <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-            <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
+            <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
+              <span class="min-w-0 truncate">{{ item.label }}</span>
+              <span v-if="item.badge && !sidebarCollapsed" class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+                {{ item.badge > 99 ? '99+' : item.badge }}
+              </span>
+            </span>
           </router-link>
         </div>
       </template>
@@ -180,11 +195,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, ref, watch } from 'vue'
+import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import VersionBadge from '@/components/common/VersionBadge.vue'
+import { supportAPI } from '@/api'
+import { adminAPI } from '@/api/admin'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 
@@ -207,6 +224,7 @@ interface NavItem {
    * 开关切换时菜单自动更新。
    */
   featureFlag?: () => boolean | undefined
+  badge?: number
 }
 
 // applyFeatureFlags 递归过滤掉 featureFlag() === false 的节点（含子节点）。
@@ -246,6 +264,9 @@ const siteName = computed(() => appStore.siteName)
 const siteLogo = computed(() => appStore.siteLogo)
 const siteVersion = computed(() => appStore.siteVersion)
 const settingsLoaded = computed(() => appStore.publicSettingsLoaded)
+const supportUnreadCount = ref(0)
+const adminSupportUnreadCount = ref(0)
+let supportBadgeTimer: number | null = null
 
 // SVG Icon Components
 const DashboardIcon = {
@@ -649,6 +670,7 @@ const ChevronDownIcon = {
 const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
+const flagSupportTickets = makeSidebarFlag(FeatureFlags.supportTickets)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
@@ -673,6 +695,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/purchase', label: t('nav.buySubscription'), icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
+    { path: '/support', label: t('nav.support'), icon: BellIcon, hideInSimpleMode: true, featureFlag: flagSupportTickets, badge: supportUnreadCount.value },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
@@ -734,6 +757,7 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
+    { path: '/admin/support', label: t('nav.supportManagement'), icon: TicketIcon, featureFlag: flagSupportTickets, badge: adminSupportUnreadCount.value },
     { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
     { path: '/admin/risk-control', label: t('nav.riskControl'), icon: ShieldIcon, hideInSimpleMode: true, featureFlag: flagRiskControl },
     { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
@@ -864,6 +888,29 @@ function handleGroupClick(item: NavItem) {
   }
 }
 
+async function refreshSupportBadges() {
+  if (!flagSupportTickets()) {
+    supportUnreadCount.value = 0
+    adminSupportUnreadCount.value = 0
+    return
+  }
+  try {
+    if (isAdmin.value) {
+      const result = await adminAPI.support.list(1, 1, { unread_only: true })
+      adminSupportUnreadCount.value = result.total
+      supportUnreadCount.value = 0
+      return
+    }
+    if (authStore.isAuthenticated) {
+      const result = await supportAPI.list(1, 1, { unread_only: true })
+      supportUnreadCount.value = result.total
+      adminSupportUnreadCount.value = 0
+    }
+  } catch {
+    // Sidebar badges are best-effort only; page-level loading still reports errors.
+  }
+}
+
 // Initialize theme
 const savedTheme = localStorage.getItem('theme')
 if (
@@ -889,6 +936,14 @@ onMounted(() => {
   if (isAdmin.value) {
     adminSettingsStore.fetch()
   }
+  void refreshSupportBadges()
+  supportBadgeTimer = window.setInterval(() => {
+    void refreshSupportBadges()
+  }, 30000)
+})
+
+onUnmounted(() => {
+  if (supportBadgeTimer) window.clearInterval(supportBadgeTimer)
 })
 </script>
 

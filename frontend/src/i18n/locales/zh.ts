@@ -376,6 +376,8 @@ export default {
   nav: {
     dashboard: '仪表盘',
     announcements: '公告',
+    support: '工单',
+    supportManagement: '工单管理',
     apiKeys: 'API 密钥',
     usage: '使用记录',
     redeem: '兑换',
@@ -4720,6 +4722,19 @@ export default {
       deleteConfirm: '确定要删除该公告吗？此操作无法撤销。'
     },
 
+    support: {
+      title: '工单管理',
+      description: '处理用户一对一咨询与问题闭环',
+      searchPlaceholder: '搜索用户邮箱、昵称、UID 或标题',
+      unreadOnly: '只看未读',
+      empty: '暂无工单',
+      disabledTitle: '工单模块已关闭',
+      disabledDescription: '可在系统设置的功能开关中启用站内工单；历史工单数据仍会保留。',
+      noSelection: '选择一个工单',
+      noSelectionHint: '左侧队列中选择工单后即可查看消息并回复。',
+      replyPlaceholder: '输入管理员回复...'
+    },
+
     // Promo Codes
     promo: {
       title: '优惠码管理',
@@ -5647,6 +5662,13 @@ export default {
           configureLink: '前往 渠道管理 > 渠道定价 配置模型价格',
           enabled: '启用可用渠道',
           enabledHint: '关闭后用户端侧边栏入口隐藏，接口返回空数组。',
+        },
+        supportTickets: {
+          title: '站内工单',
+          description: '控制用户工单和后台工单管理入口。关闭后入口隐藏，接口拒绝访问，历史工单数据保留。',
+          configureLink: '前往 工单管理 查看工单队列',
+          enabled: '启用站内工单',
+          enabledHint: '关闭后用户和管理员都无法进入工单页面，已有消息不会被删除。',
         },
         riskControl: {
           title: '风控中心',
@@ -6962,6 +6984,61 @@ export default {
     emptyDescription: '暂时没有任何系统公告',
     readStatus: '您已阅读此公告',
     markReadHint: '点击"已读"标记此公告'
+  },
+
+  // Support Tickets Page
+  support: {
+    title: '工单',
+    description: '创建工单并与管理员一对一沟通',
+    newTicket: '新建工单',
+    create: '创建工单',
+    send: '发送',
+    sending: '发送中...',
+    close: '关闭',
+    reopen: '重开',
+    empty: '暂无工单',
+    disabledTitle: '工单暂未开放',
+    disabledDescription: '当前站点未启用站内工单，请通过其他客服入口联系管理员。',
+    noSelection: '选择一个工单',
+    noSelectionHint: '选择左侧工单查看沟通记录，或新建一个工单。',
+    replyPlaceholder: '输入回复内容...',
+    closedHint: '工单已关闭，重开后才能继续回复',
+    failed: '操作失败，请稍后重试',
+    filters: {
+      all: '全部工单',
+      allStatus: '全部状态',
+      allCategory: '全部分类',
+      allPriority: '全部优先级'
+    },
+    form: {
+      title: '标题',
+      category: '分类',
+      content: '问题描述'
+    },
+    status: {
+      open: '打开',
+      pending_admin: '待管理员处理',
+      pending_user: '待用户回复',
+      closed: '已关闭'
+    },
+    category: {
+      general: '普通问题',
+      recharge: '充值问题',
+      subscription: '订阅问题',
+      api_issue: 'API 异常',
+      account: '账号问题'
+    },
+    priority: {
+      low: '低',
+      normal: '普通',
+      high: '高',
+      urgent: '紧急'
+    },
+    sender: {
+      user: '用户',
+      admin: '管理员',
+      system: '系统'
+    }
   },
 
   // User Subscriptions Page

@@ -100,6 +100,19 @@ func RegisterUserRoutes(
 			announcements.POST("/:id/read", h.Announcement.MarkRead)
 		}
 
+		// 工单（用户与管理员一对一沟通）
+		support := authenticated.Group("/support/tickets")
+		{
+			support.GET("", h.Support.List)
+			support.POST("", h.Support.Create)
+			support.GET("/:id", h.Support.GetByID)
+			support.GET("/:id/messages", h.Support.ListMessages)
+			support.POST("/:id/messages", h.Support.CreateMessage)
+			support.POST("/:id/read", h.Support.MarkRead)
+			support.POST("/:id/close", h.Support.Close)
+			support.POST("/:id/reopen", h.Support.Reopen)
+		}
+
 		// 卡密兑换
 		redeem := authenticated.Group("/redeem")
 		{

@@ -122,6 +122,10 @@ func (User) Edges() []ent.Edge {
 		edge.To("subscriptions", UserSubscription.Type),
 		edge.To("assigned_subscriptions", UserSubscription.Type),
 		edge.To("announcement_reads", AnnouncementRead.Type),
+		edge.To("support_tickets", SupportTicket.Type),
+		edge.To("assigned_support_tickets", SupportTicket.Type),
+		edge.To("closed_support_tickets", SupportTicket.Type),
+		edge.To("support_ticket_messages", SupportTicketMessage.Type),
 		edge.To("allowed_groups", Group.Type).
 			Through("user_allowed_groups", UserAllowedGroup.Type),
 		edge.To("usage_logs", UsageLog.Type),

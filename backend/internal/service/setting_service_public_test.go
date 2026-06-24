@@ -4,14 +4,17 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
 type settingPublicRepoStub struct {
 	values map[string]string
+	err    error
 }
 
 func (s *settingPublicRepoStub) Get(ctx context.Context, key string) (*Setting, error) {
@@ -27,6 +30,9 @@ func (s *settingPublicRepoStub) Set(ctx context.Context, key, value string) erro
 }
 
 func (s *settingPublicRepoStub) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
 	out := make(map[string]string, len(keys))
 	for _, key := range keys {
 		if value, ok := s.values[key]; ok {
@@ -102,6 +108,30 @@ func TestSettingService_GetPublicSettings_ExposesAllowUserViewErrorRequests(t *t
 	settings, err := svc.GetPublicSettings(context.Background())
 	require.NoError(t, err)
 	require.True(t, settings.AllowUserViewErrorRequests)
+}
+
+func TestSettingService_GetPublicSettings_SupportTicketsDefaultEnabled(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{values: map[string]string{}}, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.True(t, settings.SupportTicketsEnabled)
+}
+
+func TestSettingService_EnsureSupportTicketsEnabled_Disabled(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{values: map[string]string{
+		SettingKeySupportTicketsEnabled: "false",
+	}}, &config.Config{})
+
+	err := svc.EnsureSupportTicketsEnabled(context.Background())
+	require.Error(t, err)
+	require.Equal(t, "SUPPORT_TICKETS_DISABLED", infraerrors.Reason(err))
+}
+
+func TestSettingService_EnsureSupportTicketsEnabled_FailOpen(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{err: errors.New("settings unavailable")}, &config.Config{})
+
+	require.NoError(t, svc.EnsureSupportTicketsEnabled(context.Background()))
 }
 
 func TestSettingService_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {

@@ -315,6 +315,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 
+		SupportTicketsEnabled: settings.SupportTicketsEnabled,
+
 		AffiliateEnabled: settings.AffiliateEnabled,
 
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
@@ -526,6 +528,7 @@ type UpdateSettingsRequest struct {
 	SupportGroupDescription      string                `json:"support_group_description"`
 	SupportGroupQRCodeURL        string                `json:"support_group_qr_code_url"`
 	SupportGroupLinkURL          string                `json:"support_group_link_url"`
+	SupportTicketsEnabled        *bool                 `json:"support_tickets_enabled"`
 	PixmoStudioEnabled           bool                  `json:"pixmo_studio_enabled"`
 	PixmoStudioButtonText        string                `json:"pixmo_studio_button_text"`
 	PixmoStudioURL               string                `json:"pixmo_studio_url"`
@@ -1834,6 +1837,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AvailableChannelsEnabled
 		}(),
+		SupportTicketsEnabled: func() bool {
+			if req.SupportTicketsEnabled != nil {
+				return *req.SupportTicketsEnabled
+			}
+			return previousSettings.SupportTicketsEnabled
+		}(),
 		AffiliateEnabled: func() bool {
 			if req.AffiliateEnabled != nil {
 				return *req.AffiliateEnabled
@@ -2194,6 +2203,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: updatedSettings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
+
+		SupportTicketsEnabled: updatedSettings.SupportTicketsEnabled,
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 
@@ -2724,6 +2735,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.AvailableChannelsEnabled != after.AvailableChannelsEnabled {
 		changed = append(changed, "available_channels_enabled")
+	}
+	if before.SupportTicketsEnabled != after.SupportTicketsEnabled {
+		changed = append(changed, "support_tickets_enabled")
 	}
 	if before.AffiliateEnabled != after.AffiliateEnabled {
 		changed = append(changed, "affiliate_enabled")

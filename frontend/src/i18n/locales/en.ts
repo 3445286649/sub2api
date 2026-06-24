@@ -376,6 +376,8 @@ export default {
   nav: {
     dashboard: 'Dashboard',
     announcements: 'Announcements',
+    support: 'Tickets',
+    supportManagement: 'Support Tickets',
     apiKeys: 'API Keys',
     usage: 'Usage',
     redeem: 'Redeem',
@@ -4561,6 +4563,19 @@ export default {
       deleteConfirm: 'Are you sure you want to delete this announcement? This action cannot be undone.'
     },
 
+    support: {
+      title: 'Support Tickets',
+      description: 'Handle one-to-one user issues through trackable tickets',
+      searchPlaceholder: 'Search email, username, UID, or title',
+      unreadOnly: 'Unread only',
+      empty: 'No tickets',
+      disabledTitle: 'Ticket module disabled',
+      disabledDescription: 'Enable Support Tickets in System Settings > Feature Switches. Existing ticket data is preserved.',
+      noSelection: 'Select a ticket',
+      noSelectionHint: 'Choose a ticket from the queue to view messages and reply.',
+      replyPlaceholder: 'Type an admin reply...'
+    },
+
     // Promo Codes
     promo: {
       title: 'Promo Code Management',
@@ -5481,6 +5496,13 @@ export default {
           configureLink: 'Configure model pricing in Channel Management > Channel Pricing',
           enabled: 'Enable Available Channels',
           enabledHint: 'When off, the sidebar entry is hidden and the endpoint returns an empty list.',
+        },
+        supportTickets: {
+          title: 'Support Tickets',
+          description: 'Control user tickets and the admin ticket queue. When off, entries are hidden, APIs return forbidden, and existing data is preserved.',
+          configureLink: 'Open Support Tickets queue',
+          enabled: 'Enable Support Tickets',
+          enabledHint: 'When off, users and admins cannot enter ticket pages; existing messages are not deleted.',
         },
         riskControl: {
           title: 'Risk Control',
@@ -6802,6 +6824,61 @@ export default {
     emptyDescription: 'There are no system announcements at this time',
     readStatus: 'You have read this announcement',
     markReadHint: 'Click "Mark as read" to mark this announcement'
+  },
+
+  // Support Tickets Page
+  support: {
+    title: 'Tickets',
+    description: 'Create support tickets and chat with administrators',
+    newTicket: 'New Ticket',
+    create: 'Create Ticket',
+    send: 'Send',
+    sending: 'Sending...',
+    close: 'Close',
+    reopen: 'Reopen',
+    empty: 'No tickets',
+    disabledTitle: 'Tickets are not available',
+    disabledDescription: 'The site ticket module is currently disabled. Please use another support channel.',
+    noSelection: 'Select a ticket',
+    noSelectionHint: 'Choose a ticket to view the conversation or create a new one.',
+    replyPlaceholder: 'Type a reply...',
+    closedHint: 'This ticket is closed. Reopen it before replying.',
+    failed: 'Operation failed. Please try again later.',
+    filters: {
+      all: 'All tickets',
+      allStatus: 'All status',
+      allCategory: 'All categories',
+      allPriority: 'All priorities'
+    },
+    form: {
+      title: 'Title',
+      category: 'Category',
+      content: 'Description'
+    },
+    status: {
+      open: 'Open',
+      pending_admin: 'Pending admin',
+      pending_user: 'Pending user',
+      closed: 'Closed'
+    },
+    category: {
+      general: 'General',
+      recharge: 'Recharge',
+      subscription: 'Subscription',
+      api_issue: 'API issue',
+      account: 'Account'
+    },
+    priority: {
+      low: 'Low',
+      normal: 'Normal',
+      high: 'High',
+      urgent: 'Urgent'
+    },
+    sender: {
+      user: 'User',
+      admin: 'Admin',
+      system: 'System'
+    }
   },
 
   // User Subscriptions Page

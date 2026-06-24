@@ -230,6 +230,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/support',
+    name: 'Support',
+    component: () => import('@/views/user/SupportView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Support',
+      titleKey: 'support.title',
+      descriptionKey: 'support.description'
+    }
+  },
+  {
     path: '/affiliate',
     name: 'Affiliate',
     component: () => import('@/views/user/AffiliateView.vue'),
@@ -499,6 +511,18 @@ const routes: RouteRecordRaw[] = [
       title: 'Announcements',
       titleKey: 'admin.announcements.title',
       descriptionKey: 'admin.announcements.description'
+    }
+  },
+  {
+    path: '/admin/support',
+    name: 'AdminSupport',
+    component: () => import('@/views/admin/SupportView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Support Tickets',
+      titleKey: 'admin.support.title',
+      descriptionKey: 'admin.support.description'
     }
   },
   {

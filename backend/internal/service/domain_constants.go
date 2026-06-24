@@ -270,6 +270,7 @@ const (
 	SettingKeySupportGroupDescription     = "support_group_description"       // 售后群弹窗说明
 	SettingKeySupportGroupQRCodeURL       = "support_group_qr_code_url"       // 售后群二维码图片 URL
 	SettingKeySupportGroupLinkURL         = "support_group_link_url"          // 售后群直达链接
+	SettingKeySupportTicketsEnabled       = "support_tickets_enabled"         // 是否启用站内工单功能
 	SettingKeyPixmoStudioEnabled          = "pixmo_studio_enabled"            // 是否展示 Pixmo 生图入口
 	SettingKeyPixmoStudioButtonText       = "pixmo_studio_button_text"        // Pixmo 生图按钮文字
 	SettingKeyPixmoStudioURL              = "pixmo_studio_url"                // Pixmo 生图跳转链接

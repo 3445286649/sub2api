@@ -127,33 +127,34 @@ type SystemSettings struct {
 	GoogleOAuthRedirectURL            string
 	GoogleOAuthFrontendRedirectURL    string
 
-	SiteName                    string
-	SiteLogo                    string
-	SiteSubtitle                string
-	APIBaseURL                  string
-	ContactInfo                 string
-	RechargeStorefrontEnabled   bool
+	SiteName                     string
+	SiteLogo                     string
+	SiteSubtitle                 string
+	APIBaseURL                   string
+	ContactInfo                  string
+	RechargeStorefrontEnabled    bool
 	RechargeStorefrontButtonText string
-	RechargeStorefrontURL       string
-	RechargeStorefrontBackupURL string
-	SupportGroupEnabled         bool
-	SupportGroupButtonText      string
-	SupportGroupTitle           string
-	SupportGroupDescription     string
-	SupportGroupQRCodeURL       string
-	SupportGroupLinkURL         string
-	PixmoStudioEnabled          bool
-	PixmoStudioButtonText       string
-	PixmoStudioURL              string
-	DocURL                      string
-	HomeContent                 string
-	HideCcsImportButton         bool
-	PurchaseSubscriptionEnabled bool
-	PurchaseSubscriptionURL     string
-	TableDefaultPageSize        int
-	TablePageSizeOptions        []int
-	CustomMenuItems             string // JSON array of custom menu items
-	CustomEndpoints             string // JSON array of custom endpoints
+	RechargeStorefrontURL        string
+	RechargeStorefrontBackupURL  string
+	SupportGroupEnabled          bool
+	SupportGroupButtonText       string
+	SupportGroupTitle            string
+	SupportGroupDescription      string
+	SupportGroupQRCodeURL        string
+	SupportGroupLinkURL          string
+	SupportTicketsEnabled        bool
+	PixmoStudioEnabled           bool
+	PixmoStudioButtonText        string
+	PixmoStudioURL               string
+	DocURL                       string
+	HomeContent                  string
+	HideCcsImportButton          bool
+	PurchaseSubscriptionEnabled  bool
+	PurchaseSubscriptionURL      string
+	TableDefaultPageSize         int
+	TablePageSizeOptions         []int
+	CustomMenuItems              string // JSON array of custom menu items
+	CustomEndpoints              string // JSON array of custom endpoints
 
 	DefaultConcurrency           int
 	DefaultBalance               float64
@@ -282,6 +283,7 @@ type PublicSettings struct {
 	SupportGroupDescription          string
 	SupportGroupQRCodeURL            string
 	SupportGroupLinkURL              string
+	SupportTicketsEnabled            bool
 	PixmoStudioEnabled               bool
 	PixmoStudioButtonText            string
 	PixmoStudioURL                   string

@@ -71,6 +71,14 @@ const (
 	EdgeAssignedSubscriptions = "assigned_subscriptions"
 	// EdgeAnnouncementReads holds the string denoting the announcement_reads edge name in mutations.
 	EdgeAnnouncementReads = "announcement_reads"
+	// EdgeSupportTickets holds the string denoting the support_tickets edge name in mutations.
+	EdgeSupportTickets = "support_tickets"
+	// EdgeAssignedSupportTickets holds the string denoting the assigned_support_tickets edge name in mutations.
+	EdgeAssignedSupportTickets = "assigned_support_tickets"
+	// EdgeClosedSupportTickets holds the string denoting the closed_support_tickets edge name in mutations.
+	EdgeClosedSupportTickets = "closed_support_tickets"
+	// EdgeSupportTicketMessages holds the string denoting the support_ticket_messages edge name in mutations.
+	EdgeSupportTicketMessages = "support_ticket_messages"
 	// EdgeAllowedGroups holds the string denoting the allowed_groups edge name in mutations.
 	EdgeAllowedGroups = "allowed_groups"
 	// EdgeUsageLogs holds the string denoting the usage_logs edge name in mutations.
@@ -126,6 +134,34 @@ const (
 	AnnouncementReadsInverseTable = "announcement_reads"
 	// AnnouncementReadsColumn is the table column denoting the announcement_reads relation/edge.
 	AnnouncementReadsColumn = "user_id"
+	// SupportTicketsTable is the table that holds the support_tickets relation/edge.
+	SupportTicketsTable = "support_tickets"
+	// SupportTicketsInverseTable is the table name for the SupportTicket entity.
+	// It exists in this package in order to avoid circular dependency with the "supportticket" package.
+	SupportTicketsInverseTable = "support_tickets"
+	// SupportTicketsColumn is the table column denoting the support_tickets relation/edge.
+	SupportTicketsColumn = "user_id"
+	// AssignedSupportTicketsTable is the table that holds the assigned_support_tickets relation/edge.
+	AssignedSupportTicketsTable = "support_tickets"
+	// AssignedSupportTicketsInverseTable is the table name for the SupportTicket entity.
+	// It exists in this package in order to avoid circular dependency with the "supportticket" package.
+	AssignedSupportTicketsInverseTable = "support_tickets"
+	// AssignedSupportTicketsColumn is the table column denoting the assigned_support_tickets relation/edge.
+	AssignedSupportTicketsColumn = "assigned_admin_id"
+	// ClosedSupportTicketsTable is the table that holds the closed_support_tickets relation/edge.
+	ClosedSupportTicketsTable = "support_tickets"
+	// ClosedSupportTicketsInverseTable is the table name for the SupportTicket entity.
+	// It exists in this package in order to avoid circular dependency with the "supportticket" package.
+	ClosedSupportTicketsInverseTable = "support_tickets"
+	// ClosedSupportTicketsColumn is the table column denoting the closed_support_tickets relation/edge.
+	ClosedSupportTicketsColumn = "closed_by"
+	// SupportTicketMessagesTable is the table that holds the support_ticket_messages relation/edge.
+	SupportTicketMessagesTable = "support_ticket_messages"
+	// SupportTicketMessagesInverseTable is the table name for the SupportTicketMessage entity.
+	// It exists in this package in order to avoid circular dependency with the "supportticketmessage" package.
+	SupportTicketMessagesInverseTable = "support_ticket_messages"
+	// SupportTicketMessagesColumn is the table column denoting the support_ticket_messages relation/edge.
+	SupportTicketMessagesColumn = "sender_id"
 	// AllowedGroupsTable is the table that holds the allowed_groups relation/edge. The primary key declared below.
 	AllowedGroupsTable = "user_allowed_groups"
 	// AllowedGroupsInverseTable is the table name for the Group entity.
@@ -480,6 +516,62 @@ func ByAnnouncementReads(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption
 	}
 }
 
+// BySupportTicketsCount orders the results by support_tickets count.
+func BySupportTicketsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSupportTicketsStep(), opts...)
+	}
+}
+
+// BySupportTickets orders the results by support_tickets terms.
+func BySupportTickets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSupportTicketsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByAssignedSupportTicketsCount orders the results by assigned_support_tickets count.
+func ByAssignedSupportTicketsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAssignedSupportTicketsStep(), opts...)
+	}
+}
+
+// ByAssignedSupportTickets orders the results by assigned_support_tickets terms.
+func ByAssignedSupportTickets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAssignedSupportTicketsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByClosedSupportTicketsCount orders the results by closed_support_tickets count.
+func ByClosedSupportTicketsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newClosedSupportTicketsStep(), opts...)
+	}
+}
+
+// ByClosedSupportTickets orders the results by closed_support_tickets terms.
+func ByClosedSupportTickets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newClosedSupportTicketsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// BySupportTicketMessagesCount orders the results by support_ticket_messages count.
+func BySupportTicketMessagesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSupportTicketMessagesStep(), opts...)
+	}
+}
+
+// BySupportTicketMessages orders the results by support_ticket_messages terms.
+func BySupportTicketMessages(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSupportTicketMessagesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByAllowedGroupsCount orders the results by allowed_groups count.
 func ByAllowedGroupsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -638,6 +730,34 @@ func newAnnouncementReadsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AnnouncementReadsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AnnouncementReadsTable, AnnouncementReadsColumn),
+	)
+}
+func newSupportTicketsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SupportTicketsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SupportTicketsTable, SupportTicketsColumn),
+	)
+}
+func newAssignedSupportTicketsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AssignedSupportTicketsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AssignedSupportTicketsTable, AssignedSupportTicketsColumn),
+	)
+}
+func newClosedSupportTicketsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ClosedSupportTicketsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ClosedSupportTicketsTable, ClosedSupportTicketsColumn),
+	)
+}
+func newSupportTicketMessagesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SupportTicketMessagesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SupportTicketMessagesTable, SupportTicketMessagesColumn),
 	)
 }
 func newAllowedGroupsStep() *sqlgraph.Step {

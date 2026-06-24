@@ -22,6 +22,68 @@ export interface FetchOptions {
   signal?: AbortSignal
 }
 
+// ==================== Support Ticket Types ====================
+
+export type SupportTicketStatus = 'open' | 'pending_admin' | 'pending_user' | 'closed'
+export type SupportTicketCategory = 'general' | 'recharge' | 'subscription' | 'api_issue' | 'account'
+export type SupportTicketPriority = 'low' | 'normal' | 'high' | 'urgent'
+export type SupportMessageSenderRole = 'user' | 'admin' | 'system'
+
+export interface SupportTicketUser {
+  id: number
+  email: string
+  username: string
+}
+
+export interface SupportTicket {
+  id: number
+  user_id: number
+  title: string
+  category: SupportTicketCategory | string
+  status: SupportTicketStatus | string
+  priority: SupportTicketPriority | string
+  last_message_at?: string | null
+  last_user_message_at?: string | null
+  last_admin_message_at?: string | null
+  user_last_read_at?: string | null
+  admin_last_read_at?: string | null
+  assigned_admin_id?: number | null
+  closed_at?: string | null
+  closed_by?: number | null
+  user_unread: boolean
+  admin_unread: boolean
+  user?: SupportTicketUser | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SupportTicketMessage {
+  id: number
+  ticket_id: number
+  sender_id: number
+  sender_role: SupportMessageSenderRole | string
+  content: string
+  created_at: string
+}
+
+export interface CreateSupportTicketRequest {
+  title: string
+  category: SupportTicketCategory | string
+  content: string
+}
+
+export interface UpdateSupportTicketRequest {
+  status?: SupportTicketStatus | string
+  category?: SupportTicketCategory | string
+  priority?: SupportTicketPriority | string
+  assigned_admin_id?: number | null
+}
+
+export interface SupportMessageListFilters {
+  before_id?: number
+  limit?: number
+}
+
 // ==================== Notification Types ====================
 
 /** Notification email entry with enable/disable and verification state.
@@ -246,6 +308,7 @@ export interface PublicSettings {
   channel_monitor_enabled: boolean
   channel_monitor_default_interval_seconds: number
   available_channels_enabled: boolean
+  support_tickets_enabled: boolean
   service_quota_enabled: boolean
   affiliate_enabled: boolean
   allow_user_view_error_requests?: boolean

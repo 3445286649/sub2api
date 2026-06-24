@@ -799,6 +799,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeySupportGroupDescription,
 		SettingKeySupportGroupQRCodeURL,
 		SettingKeySupportGroupLinkURL,
+		SettingKeySupportTicketsEnabled,
 		SettingKeyPixmoStudioEnabled,
 		SettingKeyPixmoStudioButtonText,
 		SettingKeyPixmoStudioURL,
@@ -937,6 +938,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SupportGroupDescription:          settings[SettingKeySupportGroupDescription],
 		SupportGroupQRCodeURL:            strings.TrimSpace(settings[SettingKeySupportGroupQRCodeURL]),
 		SupportGroupLinkURL:              strings.TrimSpace(settings[SettingKeySupportGroupLinkURL]),
+		SupportTicketsEnabled:            !isFalseSettingValue(settings[SettingKeySupportTicketsEnabled]),
 		PixmoStudioEnabled:               settings[SettingKeyPixmoStudioEnabled] == "true",
 		PixmoStudioButtonText:            s.getStringOrDefault(settings, SettingKeyPixmoStudioButtonText, "Pixmo 生图"),
 		PixmoStudioURL:                   strings.TrimSpace(firstNonEmpty(settings[SettingKeyPixmoStudioURL], "https://pixmo.loucer.cn/")),
@@ -1062,6 +1064,23 @@ func (s *SettingService) IsUserErrorViewAllowed(ctx context.Context) bool {
 		return false
 	}
 	return vals[SettingKeyAllowUserViewErrorRequests] == "true"
+}
+
+// EnsureSupportTicketsEnabled enforces the station-internal support ticket module switch.
+// The switch is opt-out: missing or unreadable settings keep the legacy/default-enabled behavior.
+func (s *SettingService) EnsureSupportTicketsEnabled(ctx context.Context) error {
+	if s == nil || s.settingRepo == nil {
+		return nil
+	}
+	vals, err := s.settingRepo.GetMultiple(ctx, []string{SettingKeySupportTicketsEnabled})
+	if err != nil {
+		slog.Warn("failed to get support_tickets_enabled setting, defaulting to true", "error", err)
+		return nil
+	}
+	if isFalseSettingValue(vals[SettingKeySupportTicketsEnabled]) {
+		return infraerrors.Forbidden("SUPPORT_TICKETS_DISABLED", "support tickets are disabled")
+	}
+	return nil
 }
 
 // GetAntigravityUserAgentVersion 返回 Antigravity 上游请求使用的版本号。
@@ -1300,6 +1319,7 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
+	SupportTicketsEnabled                bool `json:"support_tickets_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
@@ -1376,6 +1396,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		SupportTicketsEnabled:                settings.SupportTicketsEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
@@ -1949,6 +1970,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeySupportGroupDescription] = strings.TrimSpace(settings.SupportGroupDescription)
 	updates[SettingKeySupportGroupQRCodeURL] = strings.TrimSpace(settings.SupportGroupQRCodeURL)
 	updates[SettingKeySupportGroupLinkURL] = strings.TrimSpace(settings.SupportGroupLinkURL)
+	updates[SettingKeySupportTicketsEnabled] = strconv.FormatBool(settings.SupportTicketsEnabled)
 	updates[SettingKeyPixmoStudioEnabled] = strconv.FormatBool(settings.PixmoStudioEnabled)
 	updates[SettingKeyPixmoStudioButtonText] = strings.TrimSpace(settings.PixmoStudioButtonText)
 	updates[SettingKeyPixmoStudioURL] = strings.TrimSpace(settings.PixmoStudioURL)
@@ -3001,6 +3023,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
 
+		// 站内工单（默认启用，显式关闭）
+		SettingKeySupportTicketsEnabled: "true",
+
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
 
@@ -3082,6 +3107,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		SupportGroupDescription:          settings[SettingKeySupportGroupDescription],
 		SupportGroupQRCodeURL:            strings.TrimSpace(settings[SettingKeySupportGroupQRCodeURL]),
 		SupportGroupLinkURL:              strings.TrimSpace(settings[SettingKeySupportGroupLinkURL]),
+		SupportTicketsEnabled:            !isFalseSettingValue(settings[SettingKeySupportTicketsEnabled]),
 		PixmoStudioEnabled:               settings[SettingKeyPixmoStudioEnabled] == "true",
 		PixmoStudioButtonText:            s.getStringOrDefault(settings, SettingKeyPixmoStudioButtonText, "Pixmo 生图"),
 		PixmoStudioURL:                   strings.TrimSpace(firstNonEmpty(settings[SettingKeyPixmoStudioURL], "https://pixmo.loucer.cn/")),
