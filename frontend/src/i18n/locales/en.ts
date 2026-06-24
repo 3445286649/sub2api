@@ -7062,6 +7062,7 @@ export default {
     paymentAmount: 'Payment Amount',
     creditedBalance: 'Credited Balance',
     quickAmounts: 'Quick Amounts',
+    quickAmountCredit: 'Receive {amount}',
     customAmount: 'Custom Amount',
     enterAmount: 'Enter amount',
     paymentMethod: 'Payment Method',

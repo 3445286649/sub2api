@@ -53,6 +53,9 @@
                 :amounts="[10, 20, 50, 100, 200, 500, 1000, 2000, 5000]"
                 :min="globalMinAmount"
                 :max="globalMaxAmount"
+                :bonus-enabled="rechargeBonusEnabled"
+                :credit-multiplier="balanceRechargeMultiplier"
+                :format-credit-amount="formatCreditedBalanceAmount"
               />
               <p v-if="amountError" class="mt-2 text-xs text-amber-600 dark:text-amber-300">{{ amountError }}</p>
             </div>
@@ -632,6 +635,10 @@ const localeCode = computed(() => {
 
 function formatSelectedPaymentAmount(value: number): string {
   return formatPaymentAmount(value, selectedCurrency.value, localeCode.value)
+}
+
+function formatCreditedBalanceAmount(value: number): string {
+  return value.toFixed(2)
 }
 
 const methodOptions = computed<PaymentMethodOption[]>(() =>

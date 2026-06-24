@@ -196,17 +196,25 @@ function mountPaymentView() {
         AmountInput: defineComponent({
           props: {
             modelValue: Number,
+            bonusEnabled: Boolean,
+            creditMultiplier: Number,
+            formatCreditAmount: Function,
           },
           emits: ['update:modelValue'],
-          setup(_props, { emit }) {
+          setup(props, { emit }) {
             return () =>
-              h('input', {
-                class: 'amount-input-stub',
-                type: 'number',
-                onInput: (event: Event) => {
-                  emit('update:modelValue', Number((event.target as HTMLInputElement).value))
-                },
-              })
+              h('div', [
+                h('input', {
+                  class: 'amount-input-stub',
+                  type: 'number',
+                  onInput: (event: Event) => {
+                    emit('update:modelValue', Number((event.target as HTMLInputElement).value))
+                  },
+                }),
+                props.bonusEnabled
+                  ? h('span', { class: 'amount-input-credit-preview-stub' }, `credit:${Number(props.creditMultiplier || 1).toFixed(2)}`)
+                  : null,
+              ])
           },
         }),
         PaymentMethodSelector: true,
@@ -487,6 +495,7 @@ describe('PaymentView recharge bonus campaign', () => {
     expect(wrapper.text()).toContain('payment.rechargeBonusBanner')
     expect(wrapper.text()).toContain('payment.rechargeBonusPreview')
     expect(wrapper.text()).toContain('$110.00')
+    expect(wrapper.text()).toContain('credit:1.10')
   })
 
   it('does not show recharge bonus campaign when display switch is disabled even if multiplier is greater than 1', async () => {
@@ -505,5 +514,6 @@ describe('PaymentView recharge bonus campaign', () => {
 
     expect(wrapper.text()).not.toContain('payment.rechargeBonusBanner')
     expect(wrapper.text()).not.toContain('payment.rechargeBonusPreview')
+    expect(wrapper.find('.amount-input-credit-preview-stub').exists()).toBe(false)
   })
 })

@@ -18,7 +18,13 @@
           ]"
           @click="selectAmount(amt)"
         >
-          {{ amt }}
+          <span class="block text-base leading-5">{{ amt }}</span>
+          <span
+            v-if="showBonusPreview"
+            class="mt-1 block text-xs font-normal text-emerald-600 dark:text-emerald-300"
+          >
+            {{ t('payment.quickAmountCredit', { amount: formatCreditAmount(creditedAmountFor(amt)) }) }}
+          </span>
         </button>
       </div>
     </div>
@@ -54,10 +60,16 @@ const props = withDefaults(defineProps<{
   modelValue: number | null
   min?: number
   max?: number
+  bonusEnabled?: boolean
+  creditMultiplier?: number
+  formatCreditAmount?: (value: number) => string
 }>(), {
   amounts: () => [10, 20, 50, 100, 200, 500, 1000, 2000, 5000],
   min: 0,
   max: 0,
+  bonusEnabled: false,
+  creditMultiplier: 1,
+  formatCreditAmount: undefined,
 })
 
 const emit = defineEmits<{
@@ -80,7 +92,17 @@ const placeholderText = computed(() => {
   return t('payment.enterAmount')
 })
 
+const showBonusPreview = computed(() => props.bonusEnabled && props.creditMultiplier > 1)
+
 const AMOUNT_PATTERN = /^\d*(\.\d{0,2})?$/
+
+function creditedAmountFor(amt: number) {
+  return Math.round((amt * props.creditMultiplier) * 100) / 100
+}
+
+function formatCreditAmount(value: number) {
+  return props.formatCreditAmount?.(value) ?? value.toFixed(2)
+}
 
 function selectAmount(amt: number) {
   customText.value = String(amt)
