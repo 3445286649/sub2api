@@ -4,14 +4,15 @@
  */
 
 import { apiClient } from './client'
-import type { Provider, MonitorStatus } from './admin/channelMonitor'
+import type { Provider, MonitorStatus, MonitorFailureCategory } from './admin/channelMonitor'
 
-export type { Provider, MonitorStatus } from './admin/channelMonitor'
+export type { Provider, MonitorStatus, MonitorFailureCategory } from './admin/channelMonitor'
 
 export interface UserMonitorExtraModel {
   model: string
   status: MonitorStatus
   latency_ms: number | null
+  failure_category?: MonitorFailureCategory
 }
 
 export interface MonitorTimelinePoint {
@@ -19,6 +20,7 @@ export interface MonitorTimelinePoint {
   latency_ms: number | null
   ping_latency_ms: number | null
   checked_at: string
+  failure_category?: MonitorFailureCategory
 }
 
 export interface UserMonitorView {
@@ -29,6 +31,7 @@ export interface UserMonitorView {
   primary_model: string
   primary_status: MonitorStatus
   primary_latency_ms: number | null
+  primary_failure_category?: MonitorFailureCategory
   primary_ping_latency_ms: number | null
   availability_7d: number
   extra_models: UserMonitorExtraModel[]

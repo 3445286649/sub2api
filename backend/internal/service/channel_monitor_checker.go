@@ -57,31 +57,43 @@ type CheckOptions struct {
 // opts 承载模板 / 监控快照带来的自定义配置。nil 等同于 "off + 无 extra headers"。
 func runCheckForModel(ctx context.Context, provider, endpoint, apiKey, model string, opts *CheckOptions) *CheckResult {
 	res := &CheckResult{
-		Model:     model,
-		Status:    MonitorStatusError,
-		CheckedAt: time.Now(),
+		Model:           model,
+		Status:          MonitorStatusError,
+		CheckedAt:       time.Now(),
+		FailureCategory: MonitorFailureNone,
 	}
 
 	challenge := generateChallenge()
 	mode := bodyOverrideMode(opts)
 
 	start := time.Now()
-	respText, rawBody, statusCode, err := callProvider(ctx, provider, endpoint, apiKey, model, challenge.Prompt, opts)
+	outcome := callProviderWithRetry(ctx, provider, endpoint, apiKey, model, challenge.Prompt, opts)
 	latency := time.Since(start)
 	latencyMs := int(latency / time.Millisecond)
 	res.LatencyMs = &latencyMs
+	res.Attempts = outcome.attempts
+	res.RequestPath = outcome.requestPath
+	if outcome.statusCode > 0 {
+		statusCode := outcome.statusCode
+		res.HTTPStatus = &statusCode
+	}
 
-	if err != nil {
+	if outcome.err != nil {
 		res.Status = MonitorStatusError
-		res.Message = truncateMessage(sanitizeErrorMessage(err.Error()))
+		res.FailureCategory = outcome.failureCategory
+		if res.FailureCategory == "" {
+			res.FailureCategory = classifyNetworkError(outcome.err)
+		}
+		res.Message = truncateMessage(sanitizeErrorMessage(outcome.err.Error()))
 		return res
 	}
-	if statusCode < 200 || statusCode >= 300 {
+	if outcome.statusCode < 200 || outcome.statusCode >= 300 {
 		// 错误路径：用 rawBody 而非 respText（gjson textPath 抽取在错误响应里通常为空，
 		// 会丢掉真正的上游错误信息，例如 `{"error":{"message":"No available accounts ..."}}`）。
 		res.Status = MonitorStatusError
-		bodySnippet := truncateForErrorBody(rawBody)
-		res.Message = truncateMessage(sanitizeErrorMessage(fmt.Sprintf("upstream HTTP %d: %s", statusCode, bodySnippet)))
+		res.FailureCategory = classifyHTTPFailure(outcome.statusCode, outcome.rawBody)
+		bodySnippet := truncateForErrorBody(outcome.rawBody)
+		res.Message = truncateMessage(sanitizeErrorMessage(fmt.Sprintf("upstream HTTP %d: %s", outcome.statusCode, bodySnippet)))
 		return res
 	}
 
@@ -89,17 +101,26 @@ func runCheckForModel(ctx context.Context, provider, endpoint, apiKey, model str
 	// 改用「HTTP 2xx + 响应文本（adapter.textPath 抽取）非空」作为 operational 判定。
 	// 响应文本为空则降级为 failed（视为上游回了 200 但没实际内容）。
 	if mode == MonitorBodyOverrideModeReplace {
-		if strings.TrimSpace(respText) == "" {
+		if strings.TrimSpace(outcome.extractedText) == "" {
 			res.Status = MonitorStatusFailed
+			res.FailureCategory = MonitorFailureEmptyResponse
 			res.Message = truncateMessage("replace-mode: upstream returned 2xx with empty text")
 			return res
 		}
 		return finalizeOperationalOrDegraded(res, latency, latencyMs)
 	}
 
-	if !validateChallenge(respText, challenge.Expected) {
+	if strings.TrimSpace(outcome.extractedText) == "" {
 		res.Status = MonitorStatusFailed
-		res.Message = truncateMessage(sanitizeErrorMessage(fmt.Sprintf("challenge mismatch (expected %s, got %q)", challenge.Expected, respText)))
+		res.FailureCategory = MonitorFailureEmptyResponse
+		res.Message = truncateMessage("upstream returned 2xx with empty text")
+		return res
+	}
+
+	if !validateChallenge(outcome.extractedText, challenge.Expected) {
+		res.Status = MonitorStatusFailed
+		res.FailureCategory = MonitorFailureChallengeMismatch
+		res.Message = truncateMessage(sanitizeErrorMessage(fmt.Sprintf("challenge mismatch (expected %s, got %q)", challenge.Expected, outcome.extractedText)))
 		return res
 	}
 
@@ -111,10 +132,12 @@ func runCheckForModel(ctx context.Context, provider, endpoint, apiKey, model str
 func finalizeOperationalOrDegraded(res *CheckResult, latency time.Duration, latencyMs int) *CheckResult {
 	if latency >= monitorDegradedThreshold {
 		res.Status = MonitorStatusDegraded
+		res.FailureCategory = MonitorFailureNone
 		res.Message = truncateMessage(fmt.Sprintf("slow response: %dms", latencyMs))
 		return res
 	}
 	res.Status = MonitorStatusOperational
+	res.FailureCategory = MonitorFailureNone
 	return res
 }
 
@@ -160,6 +183,17 @@ type providerAdapter struct {
 	buildBody    func(model, prompt string) ([]byte, error)
 	buildHeaders func(apiKey string) map[string]string
 	textPath     string // gjson 提取响应文本的 path
+}
+
+type providerCallOutcome struct {
+	extractedText   string
+	rawBody         string
+	statusCode      int
+	err             error
+	requestPath     string
+	attempts        int
+	failureCategory string
+	localFailure    bool
 }
 
 // providerAdapters 全部已支持的 provider。键值即 MonitorProvider* 字符串。
@@ -262,29 +296,99 @@ func isSupportedProvider(p string) bool {
 //   - rawBody: 完整响应体的字符串形式（已被 monitorResponseMaxBytes 截断），用于错误路径保留上游真实回包
 //   - status: HTTP 状态码
 //   - err: 网络 / 序列化错误
-func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt string, opts *CheckOptions) (extractedText, rawBody string, status int, err error) {
+func callProviderWithRetry(ctx context.Context, provider, endpoint, apiKey, model, prompt string, opts *CheckOptions) providerCallOutcome {
+	out := callProvider(ctx, provider, endpoint, apiKey, model, prompt, opts)
+	out.attempts = 1
+	if shouldRetryMonitorCheck(out) {
+		select {
+		case <-time.After(1 * time.Second):
+		case <-ctx.Done():
+			out.err = ctx.Err()
+			return out
+		}
+		next := callProvider(ctx, provider, endpoint, apiKey, model, prompt, opts)
+		next.attempts = 2
+		return next
+	}
+	return out
+}
+
+func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt string, opts *CheckOptions) providerCallOutcome {
 	requestedAPIMode := checkAPIMode(opts)
 	if err := validateAPIMode(provider, requestedAPIMode); err != nil {
-		return "", "", 0, err
+		return providerCallOutcome{err: err, failureCategory: MonitorFailureConfigError, localFailure: true}
 	}
 	adapter, apiMode, ok := providerAdapterFor(provider, requestedAPIMode)
 	if !ok {
-		return "", "", 0, fmt.Errorf("unsupported provider %q", provider)
+		return providerCallOutcome{err: fmt.Errorf("unsupported provider %q", provider), failureCategory: MonitorFailureConfigError, localFailure: true}
 	}
 	body, err := buildRequestBody(adapter, provider, apiMode, model, prompt, opts)
 	if err != nil {
-		return "", "", 0, err
+		return providerCallOutcome{err: err, requestPath: adapter.buildPath(model), failureCategory: MonitorFailureConfigError, localFailure: true}
 	}
 	headers := mergeHeaders(adapter.buildHeaders(apiKey), opts)
-	full := joinURL(endpoint, adapter.buildPath(model))
+	path := adapter.buildPath(model)
+	full := joinURL(endpoint, path)
 	respBytes, status, err := postRawJSON(ctx, full, body, headers)
 	if err != nil {
-		return "", "", status, err
+		return providerCallOutcome{statusCode: status, err: err, requestPath: path}
 	}
 	if provider == MonitorProviderOpenAI && apiMode == MonitorAPIModeResponses {
-		return extractOpenAIResponsesText(respBytes), string(respBytes), status, nil
+		return providerCallOutcome{extractedText: extractOpenAIResponsesText(respBytes), rawBody: string(respBytes), statusCode: status, requestPath: path}
 	}
-	return gjson.GetBytes(respBytes, adapter.textPath).String(), string(respBytes), status, nil
+	return providerCallOutcome{extractedText: gjson.GetBytes(respBytes, adapter.textPath).String(), rawBody: string(respBytes), statusCode: status, requestPath: path}
+}
+
+func shouldRetryMonitorCheck(out providerCallOutcome) bool {
+	if out.localFailure {
+		return false
+	}
+	if out.err != nil {
+		return true
+	}
+	switch out.statusCode {
+	case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout, 524:
+		return true
+	}
+	return out.statusCode >= 200 && out.statusCode < 300 && strings.TrimSpace(out.extractedText) == ""
+}
+
+func classifyNetworkError(err error) string {
+	if err == nil {
+		return MonitorFailureNone
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return MonitorFailureTimeout
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline") {
+		return MonitorFailureTimeout
+	}
+	return MonitorFailureNetworkError
+}
+
+func classifyHTTPFailure(status int, body string) string {
+	if status == http.StatusUnauthorized || status == http.StatusForbidden {
+		return MonitorFailureAuthError
+	}
+	if status == http.StatusTooManyRequests {
+		return MonitorFailureRateLimited
+	}
+	msg := strings.ToLower(body)
+	if status == http.StatusBadRequest || status == http.StatusNotFound || status == http.StatusUnprocessableEntity {
+		if strings.Contains(msg, "unsupported parameter") ||
+			strings.Contains(msg, "unknown parameter") ||
+			strings.Contains(msg, "invalid request") ||
+			strings.Contains(msg, "instructions") ||
+			strings.Contains(msg, "messages") {
+			return MonitorFailureConfigError
+		}
+		return MonitorFailureProtocolError
+	}
+	if status == http.StatusBadGateway || status == http.StatusServiceUnavailable || status == http.StatusGatewayTimeout || status == 524 || status >= 500 {
+		return MonitorFailureUpstreamError
+	}
+	return MonitorFailureProtocolError
 }
 
 // extractOpenAIResponsesText 聚合 Responses API 的最终 assistant 文本。

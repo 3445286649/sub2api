@@ -30,6 +30,14 @@ type ChannelMonitorHistory struct {
 	PingLatencyMs *int `json:"ping_latency_ms,omitempty"`
 	// Message holds the value of the "message" field.
 	Message string `json:"message,omitempty"`
+	// FailureCategory holds the value of the "failure_category" field.
+	FailureCategory string `json:"failure_category,omitempty"`
+	// HTTPStatus holds the value of the "http_status" field.
+	HTTPStatus *int `json:"http_status,omitempty"`
+	// RequestPath holds the value of the "request_path" field.
+	RequestPath string `json:"request_path,omitempty"`
+	// Attempts holds the value of the "attempts" field.
+	Attempts int `json:"attempts,omitempty"`
 	// CheckedAt holds the value of the "checked_at" field.
 	CheckedAt time.Time `json:"checked_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -63,9 +71,9 @@ func (*ChannelMonitorHistory) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case channelmonitorhistory.FieldID, channelmonitorhistory.FieldMonitorID, channelmonitorhistory.FieldLatencyMs, channelmonitorhistory.FieldPingLatencyMs:
+		case channelmonitorhistory.FieldID, channelmonitorhistory.FieldMonitorID, channelmonitorhistory.FieldLatencyMs, channelmonitorhistory.FieldPingLatencyMs, channelmonitorhistory.FieldHTTPStatus, channelmonitorhistory.FieldAttempts:
 			values[i] = new(sql.NullInt64)
-		case channelmonitorhistory.FieldModel, channelmonitorhistory.FieldStatus, channelmonitorhistory.FieldMessage:
+		case channelmonitorhistory.FieldModel, channelmonitorhistory.FieldStatus, channelmonitorhistory.FieldMessage, channelmonitorhistory.FieldFailureCategory, channelmonitorhistory.FieldRequestPath:
 			values[i] = new(sql.NullString)
 		case channelmonitorhistory.FieldCheckedAt:
 			values[i] = new(sql.NullTime)
@@ -127,6 +135,31 @@ func (_m *ChannelMonitorHistory) assignValues(columns []string, values []any) er
 				return fmt.Errorf("unexpected type %T for field message", values[i])
 			} else if value.Valid {
 				_m.Message = value.String
+			}
+		case channelmonitorhistory.FieldFailureCategory:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field failure_category", values[i])
+			} else if value.Valid {
+				_m.FailureCategory = value.String
+			}
+		case channelmonitorhistory.FieldHTTPStatus:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field http_status", values[i])
+			} else if value.Valid {
+				_m.HTTPStatus = new(int)
+				*_m.HTTPStatus = int(value.Int64)
+			}
+		case channelmonitorhistory.FieldRequestPath:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field request_path", values[i])
+			} else if value.Valid {
+				_m.RequestPath = value.String
+			}
+		case channelmonitorhistory.FieldAttempts:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field attempts", values[i])
+			} else if value.Valid {
+				_m.Attempts = int(value.Int64)
 			}
 		case channelmonitorhistory.FieldCheckedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -196,6 +229,20 @@ func (_m *ChannelMonitorHistory) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("message=")
 	builder.WriteString(_m.Message)
+	builder.WriteString(", ")
+	builder.WriteString("failure_category=")
+	builder.WriteString(_m.FailureCategory)
+	builder.WriteString(", ")
+	if v := _m.HTTPStatus; v != nil {
+		builder.WriteString("http_status=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("request_path=")
+	builder.WriteString(_m.RequestPath)
+	builder.WriteString(", ")
+	builder.WriteString("attempts=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Attempts))
 	builder.WriteString(", ")
 	builder.WriteString("checked_at=")
 	builder.WriteString(_m.CheckedAt.Format(time.ANSIC))

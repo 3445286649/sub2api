@@ -1044,7 +1044,19 @@ export default {
     relativeSecondsAgo: '{n} 秒前',
     relativeMinutesAgo: '{n} 分钟前',
     relativeHoursAgo: '{n} 小时前',
-    relativeDaysAgo: '{n} 天前'
+    relativeDaysAgo: '{n} 天前',
+    attempts: '尝试',
+    failureCategories: {
+      config_error: '检测配置错误',
+      auth_error: '鉴权错误',
+      rate_limited: '上游限流',
+      upstream_error: '上游错误',
+      network_error: '网络错误',
+      timeout: '请求超时',
+      protocol_error: '协议错误',
+      challenge_mismatch: '响应校验异常',
+      empty_response: '空响应'
+    }
   },
 
   // Channel Status (user-facing read-only view)

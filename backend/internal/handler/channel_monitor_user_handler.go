@@ -41,26 +41,28 @@ func (h *ChannelMonitorUserHandler) featureEnabled(c *gin.Context) bool {
 // --- Response ---
 
 type channelMonitorUserListItem struct {
-	ID                   int64                                `json:"id"`
-	Name                 string                               `json:"name"`
-	Provider             string                               `json:"provider"`
-	GroupName            string                               `json:"group_name"`
-	PrimaryModel         string                               `json:"primary_model"`
-	PrimaryStatus        string                               `json:"primary_status"`
-	PrimaryLatencyMs     *int                                 `json:"primary_latency_ms"`
-	PrimaryPingLatencyMs *int                                 `json:"primary_ping_latency_ms"`
-	Availability7d       float64                              `json:"availability_7d"`
-	ExtraModels          []dto.ChannelMonitorExtraModelStatus `json:"extra_models"`
-	Timeline             []channelMonitorUserTimelinePoint    `json:"timeline"`
+	ID                     int64                                `json:"id"`
+	Name                   string                               `json:"name"`
+	Provider               string                               `json:"provider"`
+	GroupName              string                               `json:"group_name"`
+	PrimaryModel           string                               `json:"primary_model"`
+	PrimaryStatus          string                               `json:"primary_status"`
+	PrimaryLatencyMs       *int                                 `json:"primary_latency_ms"`
+	PrimaryFailureCategory string                               `json:"primary_failure_category"`
+	PrimaryPingLatencyMs   *int                                 `json:"primary_ping_latency_ms"`
+	Availability7d         float64                              `json:"availability_7d"`
+	ExtraModels            []dto.ChannelMonitorExtraModelStatus `json:"extra_models"`
+	Timeline               []channelMonitorUserTimelinePoint    `json:"timeline"`
 }
 
 // channelMonitorUserTimelinePoint 主模型最近一次检测的 timeline 点。
 // 仅用于用户视图 list 响应，admin 视图不使用。
 type channelMonitorUserTimelinePoint struct {
-	Status        string `json:"status"`
-	LatencyMs     *int   `json:"latency_ms"`
-	PingLatencyMs *int   `json:"ping_latency_ms"`
-	CheckedAt     string `json:"checked_at"`
+	Status          string `json:"status"`
+	LatencyMs       *int   `json:"latency_ms"`
+	PingLatencyMs   *int   `json:"ping_latency_ms"`
+	CheckedAt       string `json:"checked_at"`
+	FailureCategory string `json:"failure_category"`
 }
 
 type channelMonitorUserDetailResponse struct {
@@ -85,32 +87,35 @@ func userMonitorViewToItem(v *service.UserMonitorView) channelMonitorUserListIte
 	extras := make([]dto.ChannelMonitorExtraModelStatus, 0, len(v.ExtraModels))
 	for _, e := range v.ExtraModels {
 		extras = append(extras, dto.ChannelMonitorExtraModelStatus{
-			Model:     e.Model,
-			Status:    e.Status,
-			LatencyMs: e.LatencyMs,
+			Model:           e.Model,
+			Status:          e.Status,
+			LatencyMs:       e.LatencyMs,
+			FailureCategory: e.FailureCategory,
 		})
 	}
 	timeline := make([]channelMonitorUserTimelinePoint, 0, len(v.Timeline))
 	for _, p := range v.Timeline {
 		timeline = append(timeline, channelMonitorUserTimelinePoint{
-			Status:        p.Status,
-			LatencyMs:     p.LatencyMs,
-			PingLatencyMs: p.PingLatencyMs,
-			CheckedAt:     p.CheckedAt.UTC().Format(time.RFC3339),
+			Status:          p.Status,
+			LatencyMs:       p.LatencyMs,
+			PingLatencyMs:   p.PingLatencyMs,
+			CheckedAt:       p.CheckedAt.UTC().Format(time.RFC3339),
+			FailureCategory: p.FailureCategory,
 		})
 	}
 	return channelMonitorUserListItem{
-		ID:                   v.ID,
-		Name:                 v.Name,
-		Provider:             v.Provider,
-		GroupName:            v.GroupName,
-		PrimaryModel:         v.PrimaryModel,
-		PrimaryStatus:        v.PrimaryStatus,
-		PrimaryLatencyMs:     v.PrimaryLatencyMs,
-		PrimaryPingLatencyMs: v.PrimaryPingLatencyMs,
-		Availability7d:       v.Availability7d,
-		ExtraModels:          extras,
-		Timeline:             timeline,
+		ID:                     v.ID,
+		Name:                   v.Name,
+		Provider:               v.Provider,
+		GroupName:              v.GroupName,
+		PrimaryModel:           v.PrimaryModel,
+		PrimaryStatus:          v.PrimaryStatus,
+		PrimaryLatencyMs:       v.PrimaryLatencyMs,
+		PrimaryFailureCategory: v.PrimaryFailureCategory,
+		PrimaryPingLatencyMs:   v.PrimaryPingLatencyMs,
+		Availability7d:         v.Availability7d,
+		ExtraModels:            extras,
+		Timeline:               timeline,
 	}
 }
 

@@ -64,10 +64,15 @@ type openAICaptureHandler struct {
 	lastHeaders               http.Header
 	lastPath                  string
 	status                    int
+	statusSequence            []int
+	callCount                 int
+	emptyResponseUntil        int
+	errorBody                 string
 	responsesLeadingReasoning bool
 }
 
 func (h *openAICaptureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.callCount++
 	h.lastHeaders = r.Header.Clone()
 	h.lastPath = r.URL.Path
 	defer func() { _ = r.Body.Close() }()
@@ -75,13 +80,31 @@ func (h *openAICaptureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	_ = json.NewDecoder(r.Body).Decode(&parsed)
 	h.lastBody = parsed
 
-	if h.status == 0 {
-		h.status = http.StatusOK
+	status := h.status
+	if len(h.statusSequence) >= h.callCount {
+		status = h.statusSequence[h.callCount-1]
+	}
+	if status == 0 {
+		status = http.StatusOK
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(h.status)
+	w.WriteHeader(status)
+
+	if status < 200 || status >= 300 {
+		if h.errorBody != "" {
+			_, _ = w.Write([]byte(h.errorBody))
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error": map[string]any{"message": http.StatusText(status)},
+		})
+		return
+	}
 
 	answer := answerFromOpenAIRequest(parsed)
+	if h.emptyResponseUntil >= h.callCount {
+		answer = ""
+	}
 	if h.lastPath == providerOpenAIResponsesPath {
 		output := []map[string]any{}
 		if h.responsesLeadingReasoning {
@@ -182,6 +205,12 @@ func TestRunCheckForModel_OpenAI_DefaultChatRequest(t *testing.T) {
 	if _, ok := h.lastBody["instructions"]; ok {
 		t.Error("chat body must not contain top-level instructions")
 	}
+	if _, ok := h.lastBody["max_output_tokens"]; ok {
+		t.Error("chat completions body must not contain max_output_tokens")
+	}
+	if _, ok := h.lastBody["max_tokens"]; !ok {
+		t.Error("chat completions body should contain max_tokens")
+	}
 	if h.lastBody["stream"] != false {
 		t.Errorf("chat body should set stream=false, got %v", h.lastBody["stream"])
 	}
@@ -217,6 +246,12 @@ func TestRunCheckForModel_OpenAIResponses_DefaultRequest(t *testing.T) {
 	}
 	if _, ok := h.lastBody["messages"]; ok {
 		t.Error("responses body must not contain chat messages")
+	}
+	if _, ok := h.lastBody["max_tokens"]; ok {
+		t.Error("responses body must not contain max_tokens")
+	}
+	if _, ok := h.lastBody["max_output_tokens"]; !ok {
+		t.Error("responses body should contain max_output_tokens")
 	}
 	if h.lastBody["stream"] != false {
 		t.Errorf("responses body should set stream=false, got %v", h.lastBody["stream"])
@@ -257,6 +292,12 @@ func TestRunCheckForModel_OpenAIResponsesReplaceMissingInstructionsFailsLocally(
 
 	if res.Status != MonitorStatusError {
 		t.Fatalf("invalid responses replace body should fail locally as error, got status=%s", res.Status)
+	}
+	if res.FailureCategory != MonitorFailureConfigError {
+		t.Fatalf("invalid responses replace body should be config_error, got %s", res.FailureCategory)
+	}
+	if res.Attempts != 1 {
+		t.Fatalf("local validation should not retry, got attempts=%d", res.Attempts)
 	}
 	if !strings.Contains(res.Message, "instructions and input are required") {
 		t.Errorf("expected local validation message about instructions/input, got %q", res.Message)
@@ -360,5 +401,82 @@ func TestRunCheckForModel_ReplaceMode_EmptyResponseIsFailed(t *testing.T) {
 	}
 	if !strings.Contains(res.Message, "replace-mode") {
 		t.Errorf("failure message should hint replace-mode, got %q", res.Message)
+	}
+	if res.FailureCategory != MonitorFailureEmptyResponse {
+		t.Errorf("empty response should be categorized, got %s", res.FailureCategory)
+	}
+}
+
+func TestRunCheckForModel_RetriesUpstreamErrorThenSucceeds(t *testing.T) {
+	h := &openAICaptureHandler{statusSequence: []int{http.StatusBadGateway, http.StatusOK}}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderOpenAI, endpoint, "sk-openai", "gpt-test", nil)
+
+	if res.Status != MonitorStatusOperational {
+		t.Fatalf("second successful attempt should be operational, got status=%s message=%q", res.Status, res.Message)
+	}
+	if res.Attempts != 2 || h.callCount != 2 {
+		t.Fatalf("expected one retry, attempts=%d calls=%d", res.Attempts, h.callCount)
+	}
+	if res.FailureCategory != MonitorFailureNone {
+		t.Fatalf("successful retry should clear failure category, got %s", res.FailureCategory)
+	}
+	if res.HTTPStatus == nil || *res.HTTPStatus != http.StatusOK {
+		t.Fatalf("final HTTP status should be 200, got %v", res.HTTPStatus)
+	}
+	if res.RequestPath != providerOpenAIPath {
+		t.Fatalf("request path should be tracked, got %q", res.RequestPath)
+	}
+}
+
+func TestRunCheckForModel_RetriesEmptyResponseThenSucceeds(t *testing.T) {
+	h := &openAICaptureHandler{emptyResponseUntil: 1}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderOpenAI, endpoint, "sk-openai", "gpt-test", nil)
+
+	if res.Status != MonitorStatusOperational {
+		t.Fatalf("second non-empty response should be operational, got status=%s message=%q", res.Status, res.Message)
+	}
+	if res.Attempts != 2 || h.callCount != 2 {
+		t.Fatalf("expected empty 2xx response to retry once, attempts=%d calls=%d", res.Attempts, h.callCount)
+	}
+}
+
+func TestRunCheckForModel_TwoUpstreamErrorsRemainError(t *testing.T) {
+	h := &openAICaptureHandler{statusSequence: []int{http.StatusServiceUnavailable, http.StatusServiceUnavailable}}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderOpenAI, endpoint, "sk-openai", "gpt-test", nil)
+
+	if res.Status != MonitorStatusError {
+		t.Fatalf("two upstream failures should remain error, got %s", res.Status)
+	}
+	if res.Attempts != 2 || h.callCount != 2 {
+		t.Fatalf("expected one retry, attempts=%d calls=%d", res.Attempts, h.callCount)
+	}
+	if res.FailureCategory != MonitorFailureUpstreamError {
+		t.Fatalf("expected upstream_error, got %s", res.FailureCategory)
+	}
+}
+
+func TestRunCheckForModel_UnsupportedParameterIsConfigError(t *testing.T) {
+	h := &openAICaptureHandler{
+		status:    http.StatusBadRequest,
+		errorBody: `{"error":{"message":"Unsupported parameter: max_output_tokens"}}`,
+	}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderOpenAI, endpoint, "sk-openai", "gpt-test", nil)
+
+	if res.Status != MonitorStatusError {
+		t.Fatalf("bad request should be error, got %s", res.Status)
+	}
+	if res.Attempts != 1 || h.callCount != 1 {
+		t.Fatalf("config-like 400 should not retry, attempts=%d calls=%d", res.Attempts, h.callCount)
+	}
+	if res.FailureCategory != MonitorFailureConfigError {
+		t.Fatalf("unsupported parameter should be config_error, got %s", res.FailureCategory)
 	}
 }

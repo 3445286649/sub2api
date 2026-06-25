@@ -204,6 +204,7 @@ func buildStatusSummary(
 		if l, ok := latestByModel[primary]; ok {
 			summary.PrimaryStatus = l.Status
 			summary.PrimaryLatencyMs = l.LatencyMs
+			summary.PrimaryFailureCategory = l.FailureCategory
 		}
 		if a, ok := availByModel[primary]; ok {
 			summary.Availability7d = a.AvailabilityPct
@@ -214,6 +215,7 @@ func buildStatusSummary(
 		if l, ok := latestByModel[model]; ok {
 			entry.Status = l.Status
 			entry.LatencyMs = l.LatencyMs
+			entry.FailureCategory = l.FailureCategory
 		}
 		summary.ExtraModels = append(summary.ExtraModels, entry)
 	}
@@ -229,16 +231,17 @@ func buildUserViewFromSummary(
 	timelineEntries []*ChannelMonitorHistoryEntry,
 ) *UserMonitorView {
 	view := &UserMonitorView{
-		ID:               m.ID,
-		Name:             m.Name,
-		Provider:         m.Provider,
-		GroupName:        m.GroupName,
-		PrimaryModel:     m.PrimaryModel,
-		PrimaryStatus:    summary.PrimaryStatus,
-		PrimaryLatencyMs: summary.PrimaryLatencyMs,
-		Availability7d:   summary.Availability7d,
-		ExtraModels:      summary.ExtraModels,
-		Timeline:         buildTimelinePoints(timelineEntries),
+		ID:                     m.ID,
+		Name:                   m.Name,
+		Provider:               m.Provider,
+		GroupName:              m.GroupName,
+		PrimaryModel:           m.PrimaryModel,
+		PrimaryStatus:          summary.PrimaryStatus,
+		PrimaryLatencyMs:       summary.PrimaryLatencyMs,
+		PrimaryFailureCategory: summary.PrimaryFailureCategory,
+		Availability7d:         summary.Availability7d,
+		ExtraModels:            summary.ExtraModels,
+		Timeline:               buildTimelinePoints(timelineEntries),
 	}
 	if primaryLatest != nil {
 		view.PrimaryPingLatencyMs = primaryLatest.PingLatencyMs
@@ -251,10 +254,11 @@ func buildTimelinePoints(entries []*ChannelMonitorHistoryEntry) []UserMonitorTim
 	out := make([]UserMonitorTimelinePoint, 0, len(entries))
 	for _, e := range entries {
 		out = append(out, UserMonitorTimelinePoint{
-			Status:        e.Status,
-			LatencyMs:     e.LatencyMs,
-			PingLatencyMs: e.PingLatencyMs,
-			CheckedAt:     e.CheckedAt,
+			Status:          e.Status,
+			LatencyMs:       e.LatencyMs,
+			PingLatencyMs:   e.PingLatencyMs,
+			CheckedAt:       e.CheckedAt,
+			FailureCategory: e.FailureCategory,
 		})
 	}
 	return out

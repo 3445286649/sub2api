@@ -36,9 +36,10 @@
       </div>
       <span
         class="px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0"
-        :class="statusBadgeClass(item.primary_status)"
+        :class="statusBadgeClassForFailure(item.primary_status, item.primary_failure_category)"
+        :title="failureCategoryLabel(item.primary_failure_category) || statusLabel(item.primary_status)"
       >
-        {{ statusLabel(item.primary_status) }}
+        {{ failureCategoryLabel(item.primary_failure_category) || statusLabel(item.primary_status) }}
       </span>
     </div>
 
@@ -105,7 +106,8 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const {
   statusLabel,
-  statusBadgeClass,
+  statusBadgeClassForFailure,
+  failureCategoryLabel,
   providerLabel,
   providerBadgeClass,
   formatLatency,

@@ -145,6 +145,82 @@ func (_u *ChannelMonitorHistoryUpdate) ClearMessage() *ChannelMonitorHistoryUpda
 	return _u
 }
 
+// SetFailureCategory sets the "failure_category" field.
+func (_u *ChannelMonitorHistoryUpdate) SetFailureCategory(v string) *ChannelMonitorHistoryUpdate {
+	_u.mutation.SetFailureCategory(v)
+	return _u
+}
+
+// SetNillableFailureCategory sets the "failure_category" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdate) SetNillableFailureCategory(v *string) *ChannelMonitorHistoryUpdate {
+	if v != nil {
+		_u.SetFailureCategory(*v)
+	}
+	return _u
+}
+
+// SetHTTPStatus sets the "http_status" field.
+func (_u *ChannelMonitorHistoryUpdate) SetHTTPStatus(v int) *ChannelMonitorHistoryUpdate {
+	_u.mutation.ResetHTTPStatus()
+	_u.mutation.SetHTTPStatus(v)
+	return _u
+}
+
+// SetNillableHTTPStatus sets the "http_status" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdate) SetNillableHTTPStatus(v *int) *ChannelMonitorHistoryUpdate {
+	if v != nil {
+		_u.SetHTTPStatus(*v)
+	}
+	return _u
+}
+
+// AddHTTPStatus adds value to the "http_status" field.
+func (_u *ChannelMonitorHistoryUpdate) AddHTTPStatus(v int) *ChannelMonitorHistoryUpdate {
+	_u.mutation.AddHTTPStatus(v)
+	return _u
+}
+
+// ClearHTTPStatus clears the value of the "http_status" field.
+func (_u *ChannelMonitorHistoryUpdate) ClearHTTPStatus() *ChannelMonitorHistoryUpdate {
+	_u.mutation.ClearHTTPStatus()
+	return _u
+}
+
+// SetRequestPath sets the "request_path" field.
+func (_u *ChannelMonitorHistoryUpdate) SetRequestPath(v string) *ChannelMonitorHistoryUpdate {
+	_u.mutation.SetRequestPath(v)
+	return _u
+}
+
+// SetNillableRequestPath sets the "request_path" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdate) SetNillableRequestPath(v *string) *ChannelMonitorHistoryUpdate {
+	if v != nil {
+		_u.SetRequestPath(*v)
+	}
+	return _u
+}
+
+// SetAttempts sets the "attempts" field.
+func (_u *ChannelMonitorHistoryUpdate) SetAttempts(v int) *ChannelMonitorHistoryUpdate {
+	_u.mutation.ResetAttempts()
+	_u.mutation.SetAttempts(v)
+	return _u
+}
+
+// SetNillableAttempts sets the "attempts" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdate) SetNillableAttempts(v *int) *ChannelMonitorHistoryUpdate {
+	if v != nil {
+		_u.SetAttempts(*v)
+	}
+	return _u
+}
+
+// AddAttempts adds value to the "attempts" field.
+func (_u *ChannelMonitorHistoryUpdate) AddAttempts(v int) *ChannelMonitorHistoryUpdate {
+	_u.mutation.AddAttempts(v)
+	return _u
+}
+
 // SetCheckedAt sets the "checked_at" field.
 func (_u *ChannelMonitorHistoryUpdate) SetCheckedAt(v time.Time) *ChannelMonitorHistoryUpdate {
 	_u.mutation.SetCheckedAt(v)
@@ -219,6 +295,16 @@ func (_u *ChannelMonitorHistoryUpdate) check() error {
 			return &ValidationError{Name: "message", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.message": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.FailureCategory(); ok {
+		if err := channelmonitorhistory.FailureCategoryValidator(v); err != nil {
+			return &ValidationError{Name: "failure_category", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.failure_category": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RequestPath(); ok {
+		if err := channelmonitorhistory.RequestPathValidator(v); err != nil {
+			return &ValidationError{Name: "request_path", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.request_path": %w`, err)}
+		}
+	}
 	if _u.mutation.MonitorCleared() && len(_u.mutation.MonitorIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "ChannelMonitorHistory.monitor"`)
 	}
@@ -266,6 +352,27 @@ func (_u *ChannelMonitorHistoryUpdate) sqlSave(ctx context.Context) (_node int, 
 	}
 	if _u.mutation.MessageCleared() {
 		_spec.ClearField(channelmonitorhistory.FieldMessage, field.TypeString)
+	}
+	if value, ok := _u.mutation.FailureCategory(); ok {
+		_spec.SetField(channelmonitorhistory.FieldFailureCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.HTTPStatus(); ok {
+		_spec.SetField(channelmonitorhistory.FieldHTTPStatus, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedHTTPStatus(); ok {
+		_spec.AddField(channelmonitorhistory.FieldHTTPStatus, field.TypeInt, value)
+	}
+	if _u.mutation.HTTPStatusCleared() {
+		_spec.ClearField(channelmonitorhistory.FieldHTTPStatus, field.TypeInt)
+	}
+	if value, ok := _u.mutation.RequestPath(); ok {
+		_spec.SetField(channelmonitorhistory.FieldRequestPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Attempts(); ok {
+		_spec.SetField(channelmonitorhistory.FieldAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAttempts(); ok {
+		_spec.AddField(channelmonitorhistory.FieldAttempts, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.CheckedAt(); ok {
 		_spec.SetField(channelmonitorhistory.FieldCheckedAt, field.TypeTime, value)
@@ -435,6 +542,82 @@ func (_u *ChannelMonitorHistoryUpdateOne) ClearMessage() *ChannelMonitorHistoryU
 	return _u
 }
 
+// SetFailureCategory sets the "failure_category" field.
+func (_u *ChannelMonitorHistoryUpdateOne) SetFailureCategory(v string) *ChannelMonitorHistoryUpdateOne {
+	_u.mutation.SetFailureCategory(v)
+	return _u
+}
+
+// SetNillableFailureCategory sets the "failure_category" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdateOne) SetNillableFailureCategory(v *string) *ChannelMonitorHistoryUpdateOne {
+	if v != nil {
+		_u.SetFailureCategory(*v)
+	}
+	return _u
+}
+
+// SetHTTPStatus sets the "http_status" field.
+func (_u *ChannelMonitorHistoryUpdateOne) SetHTTPStatus(v int) *ChannelMonitorHistoryUpdateOne {
+	_u.mutation.ResetHTTPStatus()
+	_u.mutation.SetHTTPStatus(v)
+	return _u
+}
+
+// SetNillableHTTPStatus sets the "http_status" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdateOne) SetNillableHTTPStatus(v *int) *ChannelMonitorHistoryUpdateOne {
+	if v != nil {
+		_u.SetHTTPStatus(*v)
+	}
+	return _u
+}
+
+// AddHTTPStatus adds value to the "http_status" field.
+func (_u *ChannelMonitorHistoryUpdateOne) AddHTTPStatus(v int) *ChannelMonitorHistoryUpdateOne {
+	_u.mutation.AddHTTPStatus(v)
+	return _u
+}
+
+// ClearHTTPStatus clears the value of the "http_status" field.
+func (_u *ChannelMonitorHistoryUpdateOne) ClearHTTPStatus() *ChannelMonitorHistoryUpdateOne {
+	_u.mutation.ClearHTTPStatus()
+	return _u
+}
+
+// SetRequestPath sets the "request_path" field.
+func (_u *ChannelMonitorHistoryUpdateOne) SetRequestPath(v string) *ChannelMonitorHistoryUpdateOne {
+	_u.mutation.SetRequestPath(v)
+	return _u
+}
+
+// SetNillableRequestPath sets the "request_path" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdateOne) SetNillableRequestPath(v *string) *ChannelMonitorHistoryUpdateOne {
+	if v != nil {
+		_u.SetRequestPath(*v)
+	}
+	return _u
+}
+
+// SetAttempts sets the "attempts" field.
+func (_u *ChannelMonitorHistoryUpdateOne) SetAttempts(v int) *ChannelMonitorHistoryUpdateOne {
+	_u.mutation.ResetAttempts()
+	_u.mutation.SetAttempts(v)
+	return _u
+}
+
+// SetNillableAttempts sets the "attempts" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdateOne) SetNillableAttempts(v *int) *ChannelMonitorHistoryUpdateOne {
+	if v != nil {
+		_u.SetAttempts(*v)
+	}
+	return _u
+}
+
+// AddAttempts adds value to the "attempts" field.
+func (_u *ChannelMonitorHistoryUpdateOne) AddAttempts(v int) *ChannelMonitorHistoryUpdateOne {
+	_u.mutation.AddAttempts(v)
+	return _u
+}
+
 // SetCheckedAt sets the "checked_at" field.
 func (_u *ChannelMonitorHistoryUpdateOne) SetCheckedAt(v time.Time) *ChannelMonitorHistoryUpdateOne {
 	_u.mutation.SetCheckedAt(v)
@@ -522,6 +705,16 @@ func (_u *ChannelMonitorHistoryUpdateOne) check() error {
 			return &ValidationError{Name: "message", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.message": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.FailureCategory(); ok {
+		if err := channelmonitorhistory.FailureCategoryValidator(v); err != nil {
+			return &ValidationError{Name: "failure_category", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.failure_category": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RequestPath(); ok {
+		if err := channelmonitorhistory.RequestPathValidator(v); err != nil {
+			return &ValidationError{Name: "request_path", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.request_path": %w`, err)}
+		}
+	}
 	if _u.mutation.MonitorCleared() && len(_u.mutation.MonitorIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "ChannelMonitorHistory.monitor"`)
 	}
@@ -586,6 +779,27 @@ func (_u *ChannelMonitorHistoryUpdateOne) sqlSave(ctx context.Context) (_node *C
 	}
 	if _u.mutation.MessageCleared() {
 		_spec.ClearField(channelmonitorhistory.FieldMessage, field.TypeString)
+	}
+	if value, ok := _u.mutation.FailureCategory(); ok {
+		_spec.SetField(channelmonitorhistory.FieldFailureCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.HTTPStatus(); ok {
+		_spec.SetField(channelmonitorhistory.FieldHTTPStatus, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedHTTPStatus(); ok {
+		_spec.AddField(channelmonitorhistory.FieldHTTPStatus, field.TypeInt, value)
+	}
+	if _u.mutation.HTTPStatusCleared() {
+		_spec.ClearField(channelmonitorhistory.FieldHTTPStatus, field.TypeInt)
+	}
+	if value, ok := _u.mutation.RequestPath(); ok {
+		_spec.SetField(channelmonitorhistory.FieldRequestPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Attempts(); ok {
+		_spec.SetField(channelmonitorhistory.FieldAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAttempts(); ok {
+		_spec.AddField(channelmonitorhistory.FieldAttempts, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.CheckedAt(); ok {
 		_spec.SetField(channelmonitorhistory.FieldCheckedAt, field.TypeTime, value)

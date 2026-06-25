@@ -11,7 +11,7 @@
  */
 
 import { useI18n } from 'vue-i18n'
-import type { MonitorStatus, Provider } from '@/api/admin/channelMonitor'
+import type { MonitorFailureCategory, MonitorStatus, Provider } from '@/api/admin/channelMonitor'
 import {
   PROVIDER_OPENAI,
   PROVIDER_ANTHROPIC,
@@ -54,6 +54,21 @@ export function useChannelMonitorFormat() {
       default:
         return NEUTRAL_BADGE
     }
+  }
+
+  function failureCategoryLabel(category: MonitorFailureCategory | '' | undefined): string {
+    if (!category || category === 'none') return ''
+    return t(`monitorCommon.failureCategories.${category}`)
+  }
+
+  function statusBadgeClassForFailure(
+    s: MonitorStatus | '',
+    category: MonitorFailureCategory | '' | undefined
+  ): string {
+    if (category === 'config_error') {
+      return NEUTRAL_BADGE
+    }
+    return statusBadgeClass(s)
   }
 
   function providerLabel(p: Provider | string): string {
@@ -134,6 +149,8 @@ export function useChannelMonitorFormat() {
   return {
     statusLabel,
     statusBadgeClass,
+    failureCategoryLabel,
+    statusBadgeClassForFailure,
     providerLabel,
     providerBadgeClass,
     providerPickerClass,

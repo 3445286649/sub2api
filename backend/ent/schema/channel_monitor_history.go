@@ -43,6 +43,17 @@ func (ChannelMonitorHistory) Fields() []ent.Field {
 			Optional().
 			Default("").
 			MaxLen(500),
+		field.String("failure_category").
+			Default("none").
+			MaxLen(40),
+		field.Int("http_status").
+			Optional().
+			Nillable(),
+		field.String("request_path").
+			Default("").
+			MaxLen(120),
+		field.Int("attempts").
+			Default(1),
 		field.Time("checked_at").
 			Default(time.Now),
 	}
@@ -62,5 +73,6 @@ func (ChannelMonitorHistory) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("monitor_id", "model", "checked_at"),
 		index.Fields("checked_at"),
+		index.Fields("failure_category"),
 	}
 }

@@ -83,6 +83,62 @@ func (_c *ChannelMonitorHistoryCreate) SetNillableMessage(v *string) *ChannelMon
 	return _c
 }
 
+// SetFailureCategory sets the "failure_category" field.
+func (_c *ChannelMonitorHistoryCreate) SetFailureCategory(v string) *ChannelMonitorHistoryCreate {
+	_c.mutation.SetFailureCategory(v)
+	return _c
+}
+
+// SetNillableFailureCategory sets the "failure_category" field if the given value is not nil.
+func (_c *ChannelMonitorHistoryCreate) SetNillableFailureCategory(v *string) *ChannelMonitorHistoryCreate {
+	if v != nil {
+		_c.SetFailureCategory(*v)
+	}
+	return _c
+}
+
+// SetHTTPStatus sets the "http_status" field.
+func (_c *ChannelMonitorHistoryCreate) SetHTTPStatus(v int) *ChannelMonitorHistoryCreate {
+	_c.mutation.SetHTTPStatus(v)
+	return _c
+}
+
+// SetNillableHTTPStatus sets the "http_status" field if the given value is not nil.
+func (_c *ChannelMonitorHistoryCreate) SetNillableHTTPStatus(v *int) *ChannelMonitorHistoryCreate {
+	if v != nil {
+		_c.SetHTTPStatus(*v)
+	}
+	return _c
+}
+
+// SetRequestPath sets the "request_path" field.
+func (_c *ChannelMonitorHistoryCreate) SetRequestPath(v string) *ChannelMonitorHistoryCreate {
+	_c.mutation.SetRequestPath(v)
+	return _c
+}
+
+// SetNillableRequestPath sets the "request_path" field if the given value is not nil.
+func (_c *ChannelMonitorHistoryCreate) SetNillableRequestPath(v *string) *ChannelMonitorHistoryCreate {
+	if v != nil {
+		_c.SetRequestPath(*v)
+	}
+	return _c
+}
+
+// SetAttempts sets the "attempts" field.
+func (_c *ChannelMonitorHistoryCreate) SetAttempts(v int) *ChannelMonitorHistoryCreate {
+	_c.mutation.SetAttempts(v)
+	return _c
+}
+
+// SetNillableAttempts sets the "attempts" field if the given value is not nil.
+func (_c *ChannelMonitorHistoryCreate) SetNillableAttempts(v *int) *ChannelMonitorHistoryCreate {
+	if v != nil {
+		_c.SetAttempts(*v)
+	}
+	return _c
+}
+
 // SetCheckedAt sets the "checked_at" field.
 func (_c *ChannelMonitorHistoryCreate) SetCheckedAt(v time.Time) *ChannelMonitorHistoryCreate {
 	_c.mutation.SetCheckedAt(v)
@@ -141,6 +197,18 @@ func (_c *ChannelMonitorHistoryCreate) defaults() {
 		v := channelmonitorhistory.DefaultMessage
 		_c.mutation.SetMessage(v)
 	}
+	if _, ok := _c.mutation.FailureCategory(); !ok {
+		v := channelmonitorhistory.DefaultFailureCategory
+		_c.mutation.SetFailureCategory(v)
+	}
+	if _, ok := _c.mutation.RequestPath(); !ok {
+		v := channelmonitorhistory.DefaultRequestPath
+		_c.mutation.SetRequestPath(v)
+	}
+	if _, ok := _c.mutation.Attempts(); !ok {
+		v := channelmonitorhistory.DefaultAttempts
+		_c.mutation.SetAttempts(v)
+	}
 	if _, ok := _c.mutation.CheckedAt(); !ok {
 		v := channelmonitorhistory.DefaultCheckedAt()
 		_c.mutation.SetCheckedAt(v)
@@ -172,6 +240,25 @@ func (_c *ChannelMonitorHistoryCreate) check() error {
 		if err := channelmonitorhistory.MessageValidator(v); err != nil {
 			return &ValidationError{Name: "message", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.message": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.FailureCategory(); !ok {
+		return &ValidationError{Name: "failure_category", err: errors.New(`ent: missing required field "ChannelMonitorHistory.failure_category"`)}
+	}
+	if v, ok := _c.mutation.FailureCategory(); ok {
+		if err := channelmonitorhistory.FailureCategoryValidator(v); err != nil {
+			return &ValidationError{Name: "failure_category", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.failure_category": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RequestPath(); !ok {
+		return &ValidationError{Name: "request_path", err: errors.New(`ent: missing required field "ChannelMonitorHistory.request_path"`)}
+	}
+	if v, ok := _c.mutation.RequestPath(); ok {
+		if err := channelmonitorhistory.RequestPathValidator(v); err != nil {
+			return &ValidationError{Name: "request_path", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.request_path": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Attempts(); !ok {
+		return &ValidationError{Name: "attempts", err: errors.New(`ent: missing required field "ChannelMonitorHistory.attempts"`)}
 	}
 	if _, ok := _c.mutation.CheckedAt(); !ok {
 		return &ValidationError{Name: "checked_at", err: errors.New(`ent: missing required field "ChannelMonitorHistory.checked_at"`)}
@@ -225,6 +312,22 @@ func (_c *ChannelMonitorHistoryCreate) createSpec() (*ChannelMonitorHistory, *sq
 	if value, ok := _c.mutation.Message(); ok {
 		_spec.SetField(channelmonitorhistory.FieldMessage, field.TypeString, value)
 		_node.Message = value
+	}
+	if value, ok := _c.mutation.FailureCategory(); ok {
+		_spec.SetField(channelmonitorhistory.FieldFailureCategory, field.TypeString, value)
+		_node.FailureCategory = value
+	}
+	if value, ok := _c.mutation.HTTPStatus(); ok {
+		_spec.SetField(channelmonitorhistory.FieldHTTPStatus, field.TypeInt, value)
+		_node.HTTPStatus = &value
+	}
+	if value, ok := _c.mutation.RequestPath(); ok {
+		_spec.SetField(channelmonitorhistory.FieldRequestPath, field.TypeString, value)
+		_node.RequestPath = value
+	}
+	if value, ok := _c.mutation.Attempts(); ok {
+		_spec.SetField(channelmonitorhistory.FieldAttempts, field.TypeInt, value)
+		_node.Attempts = value
 	}
 	if value, ok := _c.mutation.CheckedAt(); ok {
 		_spec.SetField(channelmonitorhistory.FieldCheckedAt, field.TypeTime, value)
@@ -401,6 +504,72 @@ func (u *ChannelMonitorHistoryUpsert) ClearMessage() *ChannelMonitorHistoryUpser
 	return u
 }
 
+// SetFailureCategory sets the "failure_category" field.
+func (u *ChannelMonitorHistoryUpsert) SetFailureCategory(v string) *ChannelMonitorHistoryUpsert {
+	u.Set(channelmonitorhistory.FieldFailureCategory, v)
+	return u
+}
+
+// UpdateFailureCategory sets the "failure_category" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsert) UpdateFailureCategory() *ChannelMonitorHistoryUpsert {
+	u.SetExcluded(channelmonitorhistory.FieldFailureCategory)
+	return u
+}
+
+// SetHTTPStatus sets the "http_status" field.
+func (u *ChannelMonitorHistoryUpsert) SetHTTPStatus(v int) *ChannelMonitorHistoryUpsert {
+	u.Set(channelmonitorhistory.FieldHTTPStatus, v)
+	return u
+}
+
+// UpdateHTTPStatus sets the "http_status" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsert) UpdateHTTPStatus() *ChannelMonitorHistoryUpsert {
+	u.SetExcluded(channelmonitorhistory.FieldHTTPStatus)
+	return u
+}
+
+// AddHTTPStatus adds v to the "http_status" field.
+func (u *ChannelMonitorHistoryUpsert) AddHTTPStatus(v int) *ChannelMonitorHistoryUpsert {
+	u.Add(channelmonitorhistory.FieldHTTPStatus, v)
+	return u
+}
+
+// ClearHTTPStatus clears the value of the "http_status" field.
+func (u *ChannelMonitorHistoryUpsert) ClearHTTPStatus() *ChannelMonitorHistoryUpsert {
+	u.SetNull(channelmonitorhistory.FieldHTTPStatus)
+	return u
+}
+
+// SetRequestPath sets the "request_path" field.
+func (u *ChannelMonitorHistoryUpsert) SetRequestPath(v string) *ChannelMonitorHistoryUpsert {
+	u.Set(channelmonitorhistory.FieldRequestPath, v)
+	return u
+}
+
+// UpdateRequestPath sets the "request_path" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsert) UpdateRequestPath() *ChannelMonitorHistoryUpsert {
+	u.SetExcluded(channelmonitorhistory.FieldRequestPath)
+	return u
+}
+
+// SetAttempts sets the "attempts" field.
+func (u *ChannelMonitorHistoryUpsert) SetAttempts(v int) *ChannelMonitorHistoryUpsert {
+	u.Set(channelmonitorhistory.FieldAttempts, v)
+	return u
+}
+
+// UpdateAttempts sets the "attempts" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsert) UpdateAttempts() *ChannelMonitorHistoryUpsert {
+	u.SetExcluded(channelmonitorhistory.FieldAttempts)
+	return u
+}
+
+// AddAttempts adds v to the "attempts" field.
+func (u *ChannelMonitorHistoryUpsert) AddAttempts(v int) *ChannelMonitorHistoryUpsert {
+	u.Add(channelmonitorhistory.FieldAttempts, v)
+	return u
+}
+
 // SetCheckedAt sets the "checked_at" field.
 func (u *ChannelMonitorHistoryUpsert) SetCheckedAt(v time.Time) *ChannelMonitorHistoryUpsert {
 	u.Set(channelmonitorhistory.FieldCheckedAt, v)
@@ -569,6 +738,83 @@ func (u *ChannelMonitorHistoryUpsertOne) UpdateMessage() *ChannelMonitorHistoryU
 func (u *ChannelMonitorHistoryUpsertOne) ClearMessage() *ChannelMonitorHistoryUpsertOne {
 	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
 		s.ClearMessage()
+	})
+}
+
+// SetFailureCategory sets the "failure_category" field.
+func (u *ChannelMonitorHistoryUpsertOne) SetFailureCategory(v string) *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetFailureCategory(v)
+	})
+}
+
+// UpdateFailureCategory sets the "failure_category" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertOne) UpdateFailureCategory() *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateFailureCategory()
+	})
+}
+
+// SetHTTPStatus sets the "http_status" field.
+func (u *ChannelMonitorHistoryUpsertOne) SetHTTPStatus(v int) *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetHTTPStatus(v)
+	})
+}
+
+// AddHTTPStatus adds v to the "http_status" field.
+func (u *ChannelMonitorHistoryUpsertOne) AddHTTPStatus(v int) *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.AddHTTPStatus(v)
+	})
+}
+
+// UpdateHTTPStatus sets the "http_status" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertOne) UpdateHTTPStatus() *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateHTTPStatus()
+	})
+}
+
+// ClearHTTPStatus clears the value of the "http_status" field.
+func (u *ChannelMonitorHistoryUpsertOne) ClearHTTPStatus() *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.ClearHTTPStatus()
+	})
+}
+
+// SetRequestPath sets the "request_path" field.
+func (u *ChannelMonitorHistoryUpsertOne) SetRequestPath(v string) *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetRequestPath(v)
+	})
+}
+
+// UpdateRequestPath sets the "request_path" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertOne) UpdateRequestPath() *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateRequestPath()
+	})
+}
+
+// SetAttempts sets the "attempts" field.
+func (u *ChannelMonitorHistoryUpsertOne) SetAttempts(v int) *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetAttempts(v)
+	})
+}
+
+// AddAttempts adds v to the "attempts" field.
+func (u *ChannelMonitorHistoryUpsertOne) AddAttempts(v int) *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.AddAttempts(v)
+	})
+}
+
+// UpdateAttempts sets the "attempts" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertOne) UpdateAttempts() *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateAttempts()
 	})
 }
 
@@ -906,6 +1152,83 @@ func (u *ChannelMonitorHistoryUpsertBulk) UpdateMessage() *ChannelMonitorHistory
 func (u *ChannelMonitorHistoryUpsertBulk) ClearMessage() *ChannelMonitorHistoryUpsertBulk {
 	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
 		s.ClearMessage()
+	})
+}
+
+// SetFailureCategory sets the "failure_category" field.
+func (u *ChannelMonitorHistoryUpsertBulk) SetFailureCategory(v string) *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetFailureCategory(v)
+	})
+}
+
+// UpdateFailureCategory sets the "failure_category" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertBulk) UpdateFailureCategory() *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateFailureCategory()
+	})
+}
+
+// SetHTTPStatus sets the "http_status" field.
+func (u *ChannelMonitorHistoryUpsertBulk) SetHTTPStatus(v int) *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetHTTPStatus(v)
+	})
+}
+
+// AddHTTPStatus adds v to the "http_status" field.
+func (u *ChannelMonitorHistoryUpsertBulk) AddHTTPStatus(v int) *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.AddHTTPStatus(v)
+	})
+}
+
+// UpdateHTTPStatus sets the "http_status" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertBulk) UpdateHTTPStatus() *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateHTTPStatus()
+	})
+}
+
+// ClearHTTPStatus clears the value of the "http_status" field.
+func (u *ChannelMonitorHistoryUpsertBulk) ClearHTTPStatus() *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.ClearHTTPStatus()
+	})
+}
+
+// SetRequestPath sets the "request_path" field.
+func (u *ChannelMonitorHistoryUpsertBulk) SetRequestPath(v string) *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetRequestPath(v)
+	})
+}
+
+// UpdateRequestPath sets the "request_path" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertBulk) UpdateRequestPath() *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateRequestPath()
+	})
+}
+
+// SetAttempts sets the "attempts" field.
+func (u *ChannelMonitorHistoryUpsertBulk) SetAttempts(v int) *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetAttempts(v)
+	})
+}
+
+// AddAttempts adds v to the "attempts" field.
+func (u *ChannelMonitorHistoryUpsertBulk) AddAttempts(v int) *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.AddAttempts(v)
+	})
+}
+
+// UpdateAttempts sets the "attempts" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertBulk) UpdateAttempts() *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateAttempts()
 	})
 }
 

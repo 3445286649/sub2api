@@ -1040,7 +1040,19 @@ export default {
     relativeSecondsAgo: '{n}s ago',
     relativeMinutesAgo: '{n}m ago',
     relativeHoursAgo: '{n}h ago',
-    relativeDaysAgo: '{n}d ago'
+    relativeDaysAgo: '{n}d ago',
+    attempts: 'Attempts',
+    failureCategories: {
+      config_error: 'Check config error',
+      auth_error: 'Auth error',
+      rate_limited: 'Upstream rate limited',
+      upstream_error: 'Upstream error',
+      network_error: 'Network error',
+      timeout: 'Timeout',
+      protocol_error: 'Protocol error',
+      challenge_mismatch: 'Response validation issue',
+      empty_response: 'Empty response'
+    }
   },
 
   // Channel Status (user-facing read-only view)

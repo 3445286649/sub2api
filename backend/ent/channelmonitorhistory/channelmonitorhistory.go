@@ -27,6 +27,14 @@ const (
 	FieldPingLatencyMs = "ping_latency_ms"
 	// FieldMessage holds the string denoting the message field in the database.
 	FieldMessage = "message"
+	// FieldFailureCategory holds the string denoting the failure_category field in the database.
+	FieldFailureCategory = "failure_category"
+	// FieldHTTPStatus holds the string denoting the http_status field in the database.
+	FieldHTTPStatus = "http_status"
+	// FieldRequestPath holds the string denoting the request_path field in the database.
+	FieldRequestPath = "request_path"
+	// FieldAttempts holds the string denoting the attempts field in the database.
+	FieldAttempts = "attempts"
 	// FieldCheckedAt holds the string denoting the checked_at field in the database.
 	FieldCheckedAt = "checked_at"
 	// EdgeMonitor holds the string denoting the monitor edge name in mutations.
@@ -51,6 +59,10 @@ var Columns = []string{
 	FieldLatencyMs,
 	FieldPingLatencyMs,
 	FieldMessage,
+	FieldFailureCategory,
+	FieldHTTPStatus,
+	FieldRequestPath,
+	FieldAttempts,
 	FieldCheckedAt,
 }
 
@@ -71,6 +83,16 @@ var (
 	DefaultMessage string
 	// MessageValidator is a validator for the "message" field. It is called by the builders before save.
 	MessageValidator func(string) error
+	// DefaultFailureCategory holds the default value on creation for the "failure_category" field.
+	DefaultFailureCategory string
+	// FailureCategoryValidator is a validator for the "failure_category" field. It is called by the builders before save.
+	FailureCategoryValidator func(string) error
+	// DefaultRequestPath holds the default value on creation for the "request_path" field.
+	DefaultRequestPath string
+	// RequestPathValidator is a validator for the "request_path" field. It is called by the builders before save.
+	RequestPathValidator func(string) error
+	// DefaultAttempts holds the default value on creation for the "attempts" field.
+	DefaultAttempts int
 	// DefaultCheckedAt holds the default value on creation for the "checked_at" field.
 	DefaultCheckedAt func() time.Time
 )
@@ -136,6 +158,26 @@ func ByPingLatencyMs(opts ...sql.OrderTermOption) OrderOption {
 // ByMessage orders the results by the message field.
 func ByMessage(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMessage, opts...).ToFunc()
+}
+
+// ByFailureCategory orders the results by the failure_category field.
+func ByFailureCategory(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFailureCategory, opts...).ToFunc()
+}
+
+// ByHTTPStatus orders the results by the http_status field.
+func ByHTTPStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHTTPStatus, opts...).ToFunc()
+}
+
+// ByRequestPath orders the results by the request_path field.
+func ByRequestPath(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequestPath, opts...).ToFunc()
+}
+
+// ByAttempts orders the results by the attempts field.
+func ByAttempts(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAttempts, opts...).ToFunc()
 }
 
 // ByCheckedAt orders the results by the checked_at field.

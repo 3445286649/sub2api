@@ -639,8 +639,24 @@ func init() {
 	channelmonitorhistory.DefaultMessage = channelmonitorhistoryDescMessage.Default.(string)
 	// channelmonitorhistory.MessageValidator is a validator for the "message" field. It is called by the builders before save.
 	channelmonitorhistory.MessageValidator = channelmonitorhistoryDescMessage.Validators[0].(func(string) error)
+	// channelmonitorhistoryDescFailureCategory is the schema descriptor for failure_category field.
+	channelmonitorhistoryDescFailureCategory := channelmonitorhistoryFields[6].Descriptor()
+	// channelmonitorhistory.DefaultFailureCategory holds the default value on creation for the failure_category field.
+	channelmonitorhistory.DefaultFailureCategory = channelmonitorhistoryDescFailureCategory.Default.(string)
+	// channelmonitorhistory.FailureCategoryValidator is a validator for the "failure_category" field. It is called by the builders before save.
+	channelmonitorhistory.FailureCategoryValidator = channelmonitorhistoryDescFailureCategory.Validators[0].(func(string) error)
+	// channelmonitorhistoryDescRequestPath is the schema descriptor for request_path field.
+	channelmonitorhistoryDescRequestPath := channelmonitorhistoryFields[8].Descriptor()
+	// channelmonitorhistory.DefaultRequestPath holds the default value on creation for the request_path field.
+	channelmonitorhistory.DefaultRequestPath = channelmonitorhistoryDescRequestPath.Default.(string)
+	// channelmonitorhistory.RequestPathValidator is a validator for the "request_path" field. It is called by the builders before save.
+	channelmonitorhistory.RequestPathValidator = channelmonitorhistoryDescRequestPath.Validators[0].(func(string) error)
+	// channelmonitorhistoryDescAttempts is the schema descriptor for attempts field.
+	channelmonitorhistoryDescAttempts := channelmonitorhistoryFields[9].Descriptor()
+	// channelmonitorhistory.DefaultAttempts holds the default value on creation for the attempts field.
+	channelmonitorhistory.DefaultAttempts = channelmonitorhistoryDescAttempts.Default.(int)
 	// channelmonitorhistoryDescCheckedAt is the schema descriptor for checked_at field.
-	channelmonitorhistoryDescCheckedAt := channelmonitorhistoryFields[6].Descriptor()
+	channelmonitorhistoryDescCheckedAt := channelmonitorhistoryFields[10].Descriptor()
 	// channelmonitorhistory.DefaultCheckedAt holds the default value on creation for the checked_at field.
 	channelmonitorhistory.DefaultCheckedAt = channelmonitorhistoryDescCheckedAt.Default.(func() time.Time)
 	channelmonitorrequesttemplateMixin := schema.ChannelMonitorRequestTemplate{}.Mixin()

@@ -80,6 +80,26 @@ func Message(v string) predicate.ChannelMonitorHistory {
 	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldMessage, v))
 }
 
+// FailureCategory applies equality check predicate on the "failure_category" field. It's identical to FailureCategoryEQ.
+func FailureCategory(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldFailureCategory, v))
+}
+
+// HTTPStatus applies equality check predicate on the "http_status" field. It's identical to HTTPStatusEQ.
+func HTTPStatus(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldHTTPStatus, v))
+}
+
+// RequestPath applies equality check predicate on the "request_path" field. It's identical to RequestPathEQ.
+func RequestPath(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldRequestPath, v))
+}
+
+// Attempts applies equality check predicate on the "attempts" field. It's identical to AttemptsEQ.
+func Attempts(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldAttempts, v))
+}
+
 // CheckedAt applies equality check predicate on the "checked_at" field. It's identical to CheckedAtEQ.
 func CheckedAt(v time.Time) predicate.ChannelMonitorHistory {
 	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldCheckedAt, v))
@@ -363,6 +383,226 @@ func MessageEqualFold(v string) predicate.ChannelMonitorHistory {
 // MessageContainsFold applies the ContainsFold predicate on the "message" field.
 func MessageContainsFold(v string) predicate.ChannelMonitorHistory {
 	return predicate.ChannelMonitorHistory(sql.FieldContainsFold(FieldMessage, v))
+}
+
+// FailureCategoryEQ applies the EQ predicate on the "failure_category" field.
+func FailureCategoryEQ(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldFailureCategory, v))
+}
+
+// FailureCategoryNEQ applies the NEQ predicate on the "failure_category" field.
+func FailureCategoryNEQ(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNEQ(FieldFailureCategory, v))
+}
+
+// FailureCategoryIn applies the In predicate on the "failure_category" field.
+func FailureCategoryIn(vs ...string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldIn(FieldFailureCategory, vs...))
+}
+
+// FailureCategoryNotIn applies the NotIn predicate on the "failure_category" field.
+func FailureCategoryNotIn(vs ...string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNotIn(FieldFailureCategory, vs...))
+}
+
+// FailureCategoryGT applies the GT predicate on the "failure_category" field.
+func FailureCategoryGT(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldGT(FieldFailureCategory, v))
+}
+
+// FailureCategoryGTE applies the GTE predicate on the "failure_category" field.
+func FailureCategoryGTE(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldGTE(FieldFailureCategory, v))
+}
+
+// FailureCategoryLT applies the LT predicate on the "failure_category" field.
+func FailureCategoryLT(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldLT(FieldFailureCategory, v))
+}
+
+// FailureCategoryLTE applies the LTE predicate on the "failure_category" field.
+func FailureCategoryLTE(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldLTE(FieldFailureCategory, v))
+}
+
+// FailureCategoryContains applies the Contains predicate on the "failure_category" field.
+func FailureCategoryContains(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldContains(FieldFailureCategory, v))
+}
+
+// FailureCategoryHasPrefix applies the HasPrefix predicate on the "failure_category" field.
+func FailureCategoryHasPrefix(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldHasPrefix(FieldFailureCategory, v))
+}
+
+// FailureCategoryHasSuffix applies the HasSuffix predicate on the "failure_category" field.
+func FailureCategoryHasSuffix(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldHasSuffix(FieldFailureCategory, v))
+}
+
+// FailureCategoryEqualFold applies the EqualFold predicate on the "failure_category" field.
+func FailureCategoryEqualFold(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEqualFold(FieldFailureCategory, v))
+}
+
+// FailureCategoryContainsFold applies the ContainsFold predicate on the "failure_category" field.
+func FailureCategoryContainsFold(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldContainsFold(FieldFailureCategory, v))
+}
+
+// HTTPStatusEQ applies the EQ predicate on the "http_status" field.
+func HTTPStatusEQ(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldHTTPStatus, v))
+}
+
+// HTTPStatusNEQ applies the NEQ predicate on the "http_status" field.
+func HTTPStatusNEQ(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNEQ(FieldHTTPStatus, v))
+}
+
+// HTTPStatusIn applies the In predicate on the "http_status" field.
+func HTTPStatusIn(vs ...int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldIn(FieldHTTPStatus, vs...))
+}
+
+// HTTPStatusNotIn applies the NotIn predicate on the "http_status" field.
+func HTTPStatusNotIn(vs ...int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNotIn(FieldHTTPStatus, vs...))
+}
+
+// HTTPStatusGT applies the GT predicate on the "http_status" field.
+func HTTPStatusGT(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldGT(FieldHTTPStatus, v))
+}
+
+// HTTPStatusGTE applies the GTE predicate on the "http_status" field.
+func HTTPStatusGTE(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldGTE(FieldHTTPStatus, v))
+}
+
+// HTTPStatusLT applies the LT predicate on the "http_status" field.
+func HTTPStatusLT(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldLT(FieldHTTPStatus, v))
+}
+
+// HTTPStatusLTE applies the LTE predicate on the "http_status" field.
+func HTTPStatusLTE(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldLTE(FieldHTTPStatus, v))
+}
+
+// HTTPStatusIsNil applies the IsNil predicate on the "http_status" field.
+func HTTPStatusIsNil() predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldIsNull(FieldHTTPStatus))
+}
+
+// HTTPStatusNotNil applies the NotNil predicate on the "http_status" field.
+func HTTPStatusNotNil() predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNotNull(FieldHTTPStatus))
+}
+
+// RequestPathEQ applies the EQ predicate on the "request_path" field.
+func RequestPathEQ(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldRequestPath, v))
+}
+
+// RequestPathNEQ applies the NEQ predicate on the "request_path" field.
+func RequestPathNEQ(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNEQ(FieldRequestPath, v))
+}
+
+// RequestPathIn applies the In predicate on the "request_path" field.
+func RequestPathIn(vs ...string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldIn(FieldRequestPath, vs...))
+}
+
+// RequestPathNotIn applies the NotIn predicate on the "request_path" field.
+func RequestPathNotIn(vs ...string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNotIn(FieldRequestPath, vs...))
+}
+
+// RequestPathGT applies the GT predicate on the "request_path" field.
+func RequestPathGT(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldGT(FieldRequestPath, v))
+}
+
+// RequestPathGTE applies the GTE predicate on the "request_path" field.
+func RequestPathGTE(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldGTE(FieldRequestPath, v))
+}
+
+// RequestPathLT applies the LT predicate on the "request_path" field.
+func RequestPathLT(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldLT(FieldRequestPath, v))
+}
+
+// RequestPathLTE applies the LTE predicate on the "request_path" field.
+func RequestPathLTE(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldLTE(FieldRequestPath, v))
+}
+
+// RequestPathContains applies the Contains predicate on the "request_path" field.
+func RequestPathContains(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldContains(FieldRequestPath, v))
+}
+
+// RequestPathHasPrefix applies the HasPrefix predicate on the "request_path" field.
+func RequestPathHasPrefix(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldHasPrefix(FieldRequestPath, v))
+}
+
+// RequestPathHasSuffix applies the HasSuffix predicate on the "request_path" field.
+func RequestPathHasSuffix(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldHasSuffix(FieldRequestPath, v))
+}
+
+// RequestPathEqualFold applies the EqualFold predicate on the "request_path" field.
+func RequestPathEqualFold(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEqualFold(FieldRequestPath, v))
+}
+
+// RequestPathContainsFold applies the ContainsFold predicate on the "request_path" field.
+func RequestPathContainsFold(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldContainsFold(FieldRequestPath, v))
+}
+
+// AttemptsEQ applies the EQ predicate on the "attempts" field.
+func AttemptsEQ(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldAttempts, v))
+}
+
+// AttemptsNEQ applies the NEQ predicate on the "attempts" field.
+func AttemptsNEQ(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNEQ(FieldAttempts, v))
+}
+
+// AttemptsIn applies the In predicate on the "attempts" field.
+func AttemptsIn(vs ...int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldIn(FieldAttempts, vs...))
+}
+
+// AttemptsNotIn applies the NotIn predicate on the "attempts" field.
+func AttemptsNotIn(vs ...int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNotIn(FieldAttempts, vs...))
+}
+
+// AttemptsGT applies the GT predicate on the "attempts" field.
+func AttemptsGT(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldGT(FieldAttempts, v))
+}
+
+// AttemptsGTE applies the GTE predicate on the "attempts" field.
+func AttemptsGTE(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldGTE(FieldAttempts, v))
+}
+
+// AttemptsLT applies the LT predicate on the "attempts" field.
+func AttemptsLT(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldLT(FieldAttempts, v))
+}
+
+// AttemptsLTE applies the LTE predicate on the "attempts" field.
+func AttemptsLTE(v int) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldLTE(FieldAttempts, v))
 }
 
 // CheckedAtEQ applies the EQ predicate on the "checked_at" field.

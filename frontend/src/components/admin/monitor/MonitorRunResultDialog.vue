@@ -14,11 +14,14 @@
         <div class="flex flex-col">
           <span class="font-medium text-gray-900 dark:text-white">{{ r.model }}</span>
           <span v-if="r.message" class="text-xs text-gray-500 dark:text-gray-400">{{ r.message }}</span>
+          <span class="text-[11px] text-gray-400 dark:text-gray-500">
+            {{ diagnosticText(r) }}
+          </span>
         </div>
         <div class="flex items-center gap-2">
           <span
             class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px]"
-            :class="statusBadgeClass(r.status)"
+            :class="statusBadgeClassForFailure(r.status, r.failure_category)"
           >
             {{ statusLabel(r.status) }}
           </span>
@@ -52,5 +55,16 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { statusLabel, statusBadgeClass, formatLatency } = useChannelMonitorFormat()
+const { statusLabel, failureCategoryLabel, statusBadgeClassForFailure, formatLatency } = useChannelMonitorFormat()
+
+function diagnosticText(r: CheckResult): string {
+  const parts = [
+    r.request_path || '-',
+    r.http_status ? `HTTP ${r.http_status}` : 'HTTP -',
+    `${t('monitorCommon.attempts')}: ${r.attempts || 1}`,
+  ]
+  const category = failureCategoryLabel(r.failure_category)
+  if (category) parts.push(category)
+  return parts.join(' · ')
+}
 </script>

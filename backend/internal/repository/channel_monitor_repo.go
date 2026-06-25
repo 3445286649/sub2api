@@ -203,12 +203,18 @@ func (r *channelMonitorRepository) InsertHistoryBatch(ctx context.Context, rows 
 			SetModel(row.Model).
 			SetStatus(channelmonitorhistory.Status(row.Status)).
 			SetMessage(row.Message).
+			SetFailureCategory(defaultFailureCategoryRepo(row.FailureCategory)).
+			SetRequestPath(row.RequestPath).
+			SetAttempts(defaultAttemptsRepo(row.Attempts)).
 			SetCheckedAt(row.CheckedAt)
 		if row.LatencyMs != nil {
 			c = c.SetLatencyMs(*row.LatencyMs)
 		}
 		if row.PingLatencyMs != nil {
 			c = c.SetPingLatencyMs(*row.PingLatencyMs)
+		}
+		if row.HTTPStatus != nil {
+			c = c.SetHTTPStatus(*row.HTTPStatus)
 		}
 		bulk = append(bulk, c)
 	}
@@ -242,13 +248,17 @@ func (r *channelMonitorRepository) ListHistory(ctx context.Context, monitorID in
 	out := make([]*service.ChannelMonitorHistoryEntry, 0, len(rows))
 	for _, row := range rows {
 		entry := &service.ChannelMonitorHistoryEntry{
-			ID:            row.ID,
-			Model:         row.Model,
-			Status:        string(row.Status),
-			LatencyMs:     row.LatencyMs,
-			PingLatencyMs: row.PingLatencyMs,
-			Message:       row.Message,
-			CheckedAt:     row.CheckedAt,
+			ID:              row.ID,
+			Model:           row.Model,
+			Status:          string(row.Status),
+			LatencyMs:       row.LatencyMs,
+			PingLatencyMs:   row.PingLatencyMs,
+			Message:         row.Message,
+			CheckedAt:       row.CheckedAt,
+			FailureCategory: row.FailureCategory,
+			HTTPStatus:      row.HTTPStatus,
+			RequestPath:     row.RequestPath,
+			Attempts:        row.Attempts,
 		}
 		out = append(out, entry)
 	}
@@ -262,7 +272,7 @@ func (r *channelMonitorRepository) ListHistory(ctx context.Context, monitorID in
 func (r *channelMonitorRepository) ListLatestPerModel(ctx context.Context, monitorID int64) ([]*service.ChannelMonitorLatest, error) {
 	const q = `
 		SELECT DISTINCT ON (model)
-		    model, status, latency_ms, ping_latency_ms, checked_at
+		    model, status, latency_ms, ping_latency_ms, checked_at, failure_category
 		FROM channel_monitor_histories
 		WHERE monitor_id = $1
 		ORDER BY model, checked_at DESC
@@ -277,7 +287,7 @@ func (r *channelMonitorRepository) ListLatestPerModel(ctx context.Context, monit
 	for rows.Next() {
 		l := &service.ChannelMonitorLatest{}
 		var latency, ping sql.NullInt64
-		if err := rows.Scan(&l.Model, &l.Status, &latency, &ping, &l.CheckedAt); err != nil {
+		if err := rows.Scan(&l.Model, &l.Status, &latency, &ping, &l.CheckedAt, &l.FailureCategory); err != nil {
 			return nil, fmt.Errorf("scan latest row: %w", err)
 		}
 		assignNullInt(&l.LatencyMs, latency)
@@ -309,10 +319,12 @@ func (r *channelMonitorRepository) ComputeAvailability(ctx context.Context, moni
 	}
 	const q = `
 		SELECT model,
-		       COUNT(*)                                                             AS total,
-		       COUNT(*) FILTER (WHERE status IN ('operational','degraded'))         AS ok,
-		       CASE WHEN COUNT(latency_ms) > 0
-		            THEN SUM(latency_ms) FILTER (WHERE latency_ms IS NOT NULL)::float8 / COUNT(latency_ms)
+		       COUNT(*) FILTER (WHERE failure_category <> 'config_error')           AS total,
+		       COUNT(*) FILTER (WHERE failure_category <> 'config_error'
+		                         AND status IN ('operational','degraded'))          AS ok,
+		       CASE WHEN COUNT(latency_ms) FILTER (WHERE failure_category <> 'config_error') > 0
+		            THEN SUM(latency_ms) FILTER (WHERE failure_category <> 'config_error' AND latency_ms IS NOT NULL)::float8
+		                 / COUNT(latency_ms) FILTER (WHERE failure_category <> 'config_error')
 		            ELSE NULL END                                                   AS avg_latency_ms
 		FROM channel_monitor_histories
 		WHERE monitor_id = $1
@@ -369,7 +381,7 @@ func (r *channelMonitorRepository) ListLatestForMonitorIDs(ctx context.Context, 
 	}
 	const q = `
 		SELECT DISTINCT ON (monitor_id, model)
-		    monitor_id, model, status, latency_ms, ping_latency_ms, checked_at
+		    monitor_id, model, status, latency_ms, ping_latency_ms, checked_at, failure_category
 		FROM channel_monitor_histories
 		WHERE monitor_id = ANY($1)
 		ORDER BY monitor_id, model, checked_at DESC
@@ -384,7 +396,7 @@ func (r *channelMonitorRepository) ListLatestForMonitorIDs(ctx context.Context, 
 		var monitorID int64
 		l := &service.ChannelMonitorLatest{}
 		var latency, ping sql.NullInt64
-		if err := rows.Scan(&monitorID, &l.Model, &l.Status, &latency, &ping, &l.CheckedAt); err != nil {
+		if err := rows.Scan(&monitorID, &l.Model, &l.Status, &latency, &ping, &l.CheckedAt, &l.FailureCategory); err != nil {
 			return nil, fmt.Errorf("scan latest batch row: %w", err)
 		}
 		assignNullInt(&l.LatencyMs, latency)
@@ -428,12 +440,13 @@ func (r *channelMonitorRepository) ListRecentHistoryForMonitors(
 		           h.latency_ms,
 		           h.ping_latency_ms,
 		           h.checked_at,
+		           h.failure_category,
 		           ROW_NUMBER() OVER (PARTITION BY h.monitor_id ORDER BY h.checked_at DESC) AS rn
 		    FROM channel_monitor_histories h
 		    JOIN targets t
 		      ON t.monitor_id = h.monitor_id AND t.model = h.model
 		)
-		SELECT monitor_id, status, latency_ms, ping_latency_ms, checked_at
+		SELECT monitor_id, status, latency_ms, ping_latency_ms, checked_at, failure_category
 		FROM ranked
 		WHERE rn <= $3
 		ORDER BY monitor_id, checked_at DESC
@@ -448,7 +461,7 @@ func (r *channelMonitorRepository) ListRecentHistoryForMonitors(
 		var monitorID int64
 		entry := &service.ChannelMonitorHistoryEntry{}
 		var latency, ping sql.NullInt64
-		if err := rows.Scan(&monitorID, &entry.Status, &latency, &ping, &entry.CheckedAt); err != nil {
+		if err := rows.Scan(&monitorID, &entry.Status, &latency, &ping, &entry.CheckedAt, &entry.FailureCategory); err != nil {
 			return nil, fmt.Errorf("scan recent history row: %w", err)
 		}
 		assignNullInt(&entry.LatencyMs, latency)
@@ -511,10 +524,12 @@ func (r *channelMonitorRepository) ComputeAvailabilityForMonitors(ctx context.Co
 	const q = `
 		SELECT monitor_id,
 		       model,
-		       COUNT(*)                                                             AS total,
-		       COUNT(*) FILTER (WHERE status IN ('operational','degraded'))         AS ok,
-		       CASE WHEN COUNT(latency_ms) > 0
-		            THEN SUM(latency_ms) FILTER (WHERE latency_ms IS NOT NULL)::float8 / COUNT(latency_ms)
+		       COUNT(*) FILTER (WHERE failure_category <> 'config_error')           AS total,
+		       COUNT(*) FILTER (WHERE failure_category <> 'config_error'
+		                         AND status IN ('operational','degraded'))          AS ok,
+		       CASE WHEN COUNT(latency_ms) FILTER (WHERE failure_category <> 'config_error') > 0
+		            THEN SUM(latency_ms) FILTER (WHERE failure_category <> 'config_error' AND latency_ms IS NOT NULL)::float8
+		                 / COUNT(latency_ms) FILTER (WHERE failure_category <> 'config_error')
 		            ELSE NULL END                                                   AS avg_latency_ms
 		FROM channel_monitor_histories
 		WHERE monitor_id = ANY($1)
@@ -566,8 +581,9 @@ func (r *channelMonitorRepository) UpsertDailyRollupsFor(ctx context.Context, ta
 		    monitor_id,
 		    model,
 		    $1::date AS bucket_date,
-		    COUNT(*)                                                         AS total_checks,
-		    COUNT(*) FILTER (WHERE status IN ('operational','degraded'))     AS ok_count,
+		    COUNT(*) FILTER (WHERE failure_category <> 'config_error')       AS total_checks,
+		    COUNT(*) FILTER (WHERE failure_category <> 'config_error'
+		                      AND status IN ('operational','degraded'))      AS ok_count,
 		    COUNT(*) FILTER (WHERE status = 'operational')                   AS operational_count,
 		    COUNT(*) FILTER (WHERE status = 'degraded')                      AS degraded_count,
 		    COUNT(*) FILTER (WHERE status = 'failed')                        AS failed_count,
@@ -758,6 +774,20 @@ func defaultAPIModeRepo(apiMode string) string {
 		return "chat_completions"
 	}
 	return apiMode
+}
+
+func defaultFailureCategoryRepo(category string) string {
+	if strings.TrimSpace(category) == "" {
+		return service.MonitorFailureNone
+	}
+	return category
+}
+
+func defaultAttemptsRepo(attempts int) int {
+	if attempts <= 0 {
+		return 1
+	}
+	return attempts
 }
 
 func emptySliceIfNil(in []string) []string {

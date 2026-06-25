@@ -51,7 +51,7 @@ const props = withDefaults(defineProps<{
 })
 
 const { t } = useI18n()
-const { statusLabel, formatLatency, formatRelativeTime } = useChannelMonitorFormat()
+const { statusLabel, failureCategoryLabel, formatLatency, formatRelativeTime } = useChannelMonitorFormat()
 
 interface Bar {
   colorClass: string
@@ -75,6 +75,7 @@ const STATUS_COLOR: Record<string, string> = {
   failed: 'bg-red-500',
   error: 'bg-red-500',
   empty: 'bg-gray-300 dark:bg-dark-600',
+  config_error: 'bg-gray-300 dark:bg-dark-600',
 }
 
 const displayBars = computed<Bar[]>(() => {
@@ -97,12 +98,14 @@ const displayBars = computed<Bar[]>(() => {
   }
 
   for (const point of real) {
+    const configError = point.failure_category === 'config_error'
     const status = point.status as keyof typeof STATUS_HEIGHT
-    const colorClass = STATUS_COLOR[status] ?? STATUS_COLOR.empty
-    const heightPct = STATUS_HEIGHT[status] ?? STATUS_HEIGHT.empty
+    const colorClass = configError ? STATUS_COLOR.config_error : (STATUS_COLOR[status] ?? STATUS_COLOR.empty)
+    const heightPct = configError ? STATUS_HEIGHT.empty : (STATUS_HEIGHT[status] ?? STATUS_HEIGHT.empty)
     const latency = formatLatency(point.latency_ms)
     const relative = formatRelativeTime(point.checked_at)
-    const label = statusLabel(point.status)
+    const category = failureCategoryLabel(point.failure_category)
+    const label = category || statusLabel(point.status)
     bars.push({
       colorClass,
       heightPct,

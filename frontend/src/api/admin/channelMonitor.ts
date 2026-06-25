@@ -7,6 +7,17 @@ import { apiClient } from '../client'
 
 export type Provider = 'openai' | 'anthropic' | 'gemini'
 export type MonitorStatus = 'operational' | 'degraded' | 'failed' | 'error'
+export type MonitorFailureCategory =
+  | 'none'
+  | 'config_error'
+  | 'auth_error'
+  | 'rate_limited'
+  | 'upstream_error'
+  | 'network_error'
+  | 'timeout'
+  | 'protocol_error'
+  | 'challenge_mismatch'
+  | 'empty_response'
 export type BodyOverrideMode = 'off' | 'merge' | 'replace'
 export type APIMode = 'chat_completions' | 'responses'
 
@@ -38,6 +49,7 @@ export interface ChannelMonitor {
   primary_status: MonitorStatus | ''
   /** Latest latency of the primary model in ms (null when no history yet) */
   primary_latency_ms: number | null
+  primary_failure_category?: MonitorFailureCategory
   /** Primary model 7-day availability percentage (0-100) */
   availability_7d: number
   /** Latest status per extra model (used for hover tooltip) */
@@ -53,6 +65,7 @@ export interface ExtraModelStatus {
   model: string
   status: MonitorStatus | ''
   latency_ms: number | null
+  failure_category?: MonitorFailureCategory
 }
 
 export interface ListParams {
@@ -101,6 +114,10 @@ export interface CheckResult {
   ping_latency_ms: number | null
   message: string
   checked_at: string
+  failure_category: MonitorFailureCategory
+  http_status: number | null
+  request_path: string
+  attempts: number
 }
 
 export interface RunNowResponse {
@@ -115,6 +132,10 @@ export interface HistoryItem {
   ping_latency_ms: number | null
   message: string
   checked_at: string
+  failure_category: MonitorFailureCategory
+  http_status: number | null
+  request_path: string
+  attempts: number
 }
 
 export interface HistoryParams {

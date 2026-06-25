@@ -4,21 +4,21 @@
     <HelpTooltip>
       <template #trigger>
         <span
-          class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-          :class="statusBadgeClass(row.primary_status)"
-        >
-          {{ statusLabel(row.primary_status) }}
-        </span>
+	          class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+	          :class="statusBadgeClassForFailure(row.primary_status, row.primary_failure_category)"
+	        >
+	          {{ failureCategoryLabel(row.primary_failure_category) || statusLabel(row.primary_status) }}
+	        </span>
       </template>
       <div class="space-y-2">
         <div class="text-xs font-semibold text-gray-100">
           {{ row.primary_model }}
           <span
-            class="ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-            :class="statusBadgeClass(row.primary_status)"
-          >
-            {{ statusLabel(row.primary_status) }}
-          </span>
+	            class="ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+	            :class="statusBadgeClassForFailure(row.primary_status, row.primary_failure_category)"
+	          >
+	            {{ failureCategoryLabel(row.primary_failure_category) || statusLabel(row.primary_status) }}
+	          </span>
         </div>
         <div v-if="(row.extra_models?.length ?? 0) === 0" class="text-[11px] text-gray-300">
           {{ t('monitorCommon.extraModelsEmpty') }}
@@ -40,11 +40,11 @@
                 <td class="py-0.5 pr-2 text-gray-100">{{ m.model }}</td>
                 <td class="py-0.5 pr-2">
                   <span
-                    class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px]"
-                    :class="statusBadgeClass(m.status)"
-                  >
-                    {{ statusLabel(m.status) }}
-                  </span>
+	                    class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px]"
+	                    :class="statusBadgeClassForFailure(m.status, m.failure_category)"
+	                  >
+	                    {{ failureCategoryLabel(m.failure_category) || statusLabel(m.status) }}
+	                  </span>
                 </td>
                 <td class="py-0.5 text-gray-100">{{ formatLatency(m.latency_ms) }}</td>
               </tr>
@@ -67,5 +67,5 @@ defineProps<{
 }>()
 
 const { t } = useI18n()
-const { statusLabel, statusBadgeClass, formatLatency } = useChannelMonitorFormat()
+const { statusLabel, failureCategoryLabel, statusBadgeClassForFailure, formatLatency } = useChannelMonitorFormat()
 </script>
