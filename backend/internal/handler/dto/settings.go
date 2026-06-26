@@ -145,6 +145,7 @@ type SystemSettings struct {
 	PixmoStudioEnabled           bool             `json:"pixmo_studio_enabled"`
 	PixmoStudioButtonText        string           `json:"pixmo_studio_button_text"`
 	PixmoStudioURL               string           `json:"pixmo_studio_url"`
+	UsageHelpEnabled             bool             `json:"usage_help_enabled"`
 	DocURL                       string           `json:"doc_url"`
 	HomeContent                  string           `json:"home_content"`
 	HideCcsImportButton          bool             `json:"hide_ccs_import_button"`
@@ -331,6 +332,7 @@ type PublicSettings struct {
 	PixmoStudioEnabled               bool                     `json:"pixmo_studio_enabled"`
 	PixmoStudioButtonText            string                   `json:"pixmo_studio_button_text"`
 	PixmoStudioURL                   string                   `json:"pixmo_studio_url"`
+	UsageHelpEnabled                 bool                     `json:"usage_help_enabled"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`

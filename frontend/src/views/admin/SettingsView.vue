@@ -5356,6 +5356,21 @@
                 </div>
               </div>
 
+              <!-- Usage Help -->
+              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div class="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 class="text-sm font-medium text-gray-900 dark:text-white">
+                      {{ t("admin.settings.site.usageHelp.title") }}
+                    </h3>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.usageHelp.description") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.usage_help_enabled" />
+                </div>
+              </div>
+
               <!-- Doc URL -->
               <div>
                 <label
@@ -8233,6 +8248,7 @@ const form = reactive<SettingsForm>({
   pixmo_studio_enabled: false,
   pixmo_studio_button_text: "Pixmo 生图",
   pixmo_studio_url: "",
+  usage_help_enabled: false,
   doc_url: "",
   home_content: "",
   backend_mode_enabled: false,
@@ -9534,6 +9550,7 @@ async function saveSettings() {
       pixmo_studio_enabled: form.pixmo_studio_enabled,
       pixmo_studio_button_text: form.pixmo_studio_button_text,
       pixmo_studio_url: form.pixmo_studio_url,
+      usage_help_enabled: form.usage_help_enabled,
       doc_url: form.doc_url,
       home_content: form.home_content,
       backend_mode_enabled: form.backend_mode_enabled,

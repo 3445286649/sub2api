@@ -78,6 +78,17 @@
           <span>{{ rechargeStorefrontButtonText }}</span>
         </button>
 
+        <!-- Usage Help -->
+        <button
+          v-if="showUsageHelp"
+          type="button"
+          class="hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white sm:flex"
+          @click="openUsageHelp"
+        >
+          <Icon name="questionCircle" size="sm" />
+          <span>{{ t('nav.usageHelp') }}</span>
+        </button>
+
         <!-- Support Group -->
         <button
           v-if="showSupportGroup"
@@ -162,6 +173,11 @@
                 <button v-if="showRechargeStorefront" type="button" @click="openRechargeStorefrontFromMenu" class="dropdown-item w-full">
                   <Icon name="creditCard" size="sm" />
                   {{ rechargeStorefrontButtonText }}
+                </button>
+
+                <button v-if="showUsageHelp" type="button" @click="openUsageHelpFromMenu" class="dropdown-item w-full">
+                  <Icon name="questionCircle" size="sm" />
+                  {{ t('nav.usageHelp') }}
                 </button>
 
                 <button v-if="showSupportGroup" type="button" @click="openSupportGroupFromMenu" class="dropdown-item w-full">
@@ -367,6 +383,8 @@
         </div>
       </transition>
     </teleport>
+
+    <UsageHelpModal v-model:open="usageHelpOpen" />
   </header>
 </template>
 
@@ -379,6 +397,7 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
+import UsageHelpModal from '@/components/help/UsageHelpModal.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const router = useRouter()
@@ -393,6 +412,7 @@ const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
 const rechargeStorefrontOpen = ref(false)
 const supportGroupOpen = ref(false)
+const usageHelpOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => appStore.docUrl)
@@ -415,6 +435,9 @@ const pixmoStudioUrl = computed(() => publicSettings.value?.pixmo_studio_url?.tr
 const pixmoStudioButtonText = computed(() => publicSettings.value?.pixmo_studio_button_text?.trim() || t('nav.pixmoStudio'))
 const showPixmoStudio = computed(() => {
   return !!user.value && publicSettings.value?.pixmo_studio_enabled === true && pixmoStudioUrl.value !== ''
+})
+const showUsageHelp = computed(() => {
+  return !!user.value && publicSettings.value?.usage_help_enabled === true
 })
 const showSupportGroup = computed(() => {
   return !!user.value
@@ -510,6 +533,15 @@ function openRechargeStorefrontFromMenu() {
 
 function closeRechargeStorefront() {
   rechargeStorefrontOpen.value = false
+}
+
+function openUsageHelp() {
+  usageHelpOpen.value = true
+}
+
+function openUsageHelpFromMenu() {
+  closeDropdown()
+  openUsageHelp()
 }
 
 function openRechargeStorefrontLink(url: string) {

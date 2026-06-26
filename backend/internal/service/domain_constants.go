@@ -280,6 +280,7 @@ const (
 	SettingKeyPixmoStudioEnabled          = "pixmo_studio_enabled"            // 是否展示 Pixmo 生图入口
 	SettingKeyPixmoStudioButtonText       = "pixmo_studio_button_text"        // Pixmo 生图按钮文字
 	SettingKeyPixmoStudioURL              = "pixmo_studio_url"                // Pixmo 生图跳转链接
+	SettingKeyUsageHelpEnabled            = "usage_help_enabled"              // 是否展示站内使用帮助入口
 	SettingKeyDocURL                      = "doc_url"                         // 文档链接
 	SettingKeyHomeContent                 = "home_content"                    // 首页内容（支持 Markdown/HTML，或 URL 作为 iframe src）
 	SettingKeyHideCcsImportButton         = "hide_ccs_import_button"          // 是否隐藏 API Keys 页面的导入 CCS 按钮

@@ -229,6 +229,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PixmoStudioEnabled:                        settings.PixmoStudioEnabled,
 		PixmoStudioButtonText:                     settings.PixmoStudioButtonText,
 		PixmoStudioURL:                            settings.PixmoStudioURL,
+		UsageHelpEnabled:                          settings.UsageHelpEnabled,
 		DocURL:                                    settings.DocURL,
 		HomeContent:                               settings.HomeContent,
 		HideCcsImportButton:                       settings.HideCcsImportButton,
@@ -540,6 +541,7 @@ type UpdateSettingsRequest struct {
 	PixmoStudioEnabled           bool                  `json:"pixmo_studio_enabled"`
 	PixmoStudioButtonText        string                `json:"pixmo_studio_button_text"`
 	PixmoStudioURL               string                `json:"pixmo_studio_url"`
+	UsageHelpEnabled             bool                  `json:"usage_help_enabled"`
 	DocURL                       string                `json:"doc_url"`
 	HomeContent                  string                `json:"home_content"`
 	HideCcsImportButton          bool                  `json:"hide_ccs_import_button"`
@@ -1647,6 +1649,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PixmoStudioEnabled:                     req.PixmoStudioEnabled,
 		PixmoStudioButtonText:                  req.PixmoStudioButtonText,
 		PixmoStudioURL:                         req.PixmoStudioURL,
+		UsageHelpEnabled:                       req.UsageHelpEnabled,
 		DocURL:                                 req.DocURL,
 		HomeContent:                            req.HomeContent,
 		HideCcsImportButton:                    req.HideCcsImportButton,
@@ -2163,6 +2166,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PixmoStudioEnabled:                        updatedSettings.PixmoStudioEnabled,
 		PixmoStudioButtonText:                     updatedSettings.PixmoStudioButtonText,
 		PixmoStudioURL:                            updatedSettings.PixmoStudioURL,
+		UsageHelpEnabled:                          updatedSettings.UsageHelpEnabled,
 		DocURL:                                    updatedSettings.DocURL,
 		HomeContent:                               updatedSettings.HomeContent,
 		HideCcsImportButton:                       updatedSettings.HideCcsImportButton,
@@ -2615,6 +2619,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.PixmoStudioURL != after.PixmoStudioURL {
 		changed = append(changed, "pixmo_studio_url")
+	}
+	if before.UsageHelpEnabled != after.UsageHelpEnabled {
+		changed = append(changed, "usage_help_enabled")
 	}
 	if before.DocURL != after.DocURL {
 		changed = append(changed, "doc_url")

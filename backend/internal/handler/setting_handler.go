@@ -72,6 +72,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		SupportGroupTitle:                settings.SupportGroupTitle,
 		SupportGroupDescription:          settings.SupportGroupDescription,
 		SupportGroupQRCodeURL:            settings.SupportGroupQRCodeURL,
+		UsageHelpEnabled:                 settings.UsageHelpEnabled,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
 		HideCcsImportButton:              settings.HideCcsImportButton,

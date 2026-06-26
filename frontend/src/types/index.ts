@@ -281,6 +281,7 @@ export interface PublicSettings {
   pixmo_studio_enabled?: boolean
   pixmo_studio_button_text?: string
   pixmo_studio_url?: string
+  usage_help_enabled?: boolean
   doc_url: string
   home_content: string
   hide_ccs_import_button: boolean

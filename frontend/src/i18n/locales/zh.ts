@@ -418,6 +418,7 @@ export default {
     supportGroupDescription: '扫码加入售后群，处理订单、兑换码和使用问题',
     supportGroupQrAlt: '售后群二维码',
     pixmoStudio: 'Pixmo 生图',
+    usageHelp: '使用帮助',
     mySubscriptions: '我的订阅',
     buySubscription: '充值/订阅',
     docs: '文档',
@@ -6316,6 +6317,10 @@ export default {
           url: '跳转链接',
           urlPlaceholder: 'https://pixmo.example.com',
           urlHint: '启用后必须填写完整的 http(s) 链接'
+        },
+        usageHelp: {
+          title: '使用帮助',
+          description: '在右上角显示站内使用帮助弹窗入口'
         },
         docUrl: '文档链接',
         docUrlHint: '文档网站的链接。留空则隐藏文档链接。',

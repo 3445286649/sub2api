@@ -418,6 +418,7 @@ export default {
     supportGroupDescription: 'Scan to join the support group for orders, redeem codes, and usage issues',
     supportGroupQrAlt: 'Support group QR code',
     pixmoStudio: 'Pixmo Images',
+    usageHelp: 'Help',
     mySubscriptions: 'My Subscriptions',
     buySubscription: 'Recharge / Subscription',
     docs: 'Docs',
@@ -6157,6 +6158,10 @@ export default {
           url: 'Destination URL',
           urlPlaceholder: 'https://pixmo.example.com',
           urlHint: 'A full http(s) URL is required when enabled.'
+        },
+        usageHelp: {
+          title: 'Usage Help',
+          description: 'Show an in-site usage help modal entry in the top-right header.'
         },
         docUrl: 'Documentation URL',
         docUrlPlaceholder: 'https://docs.example.com',

@@ -803,6 +803,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyPixmoStudioEnabled,
 		SettingKeyPixmoStudioButtonText,
 		SettingKeyPixmoStudioURL,
+		SettingKeyUsageHelpEnabled,
 		SettingKeyDocURL,
 		SettingKeyHomeContent,
 		SettingKeyHideCcsImportButton,
@@ -945,6 +946,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		PixmoStudioEnabled:               settings[SettingKeyPixmoStudioEnabled] == "true",
 		PixmoStudioButtonText:            s.getStringOrDefault(settings, SettingKeyPixmoStudioButtonText, "Pixmo 生图"),
 		PixmoStudioURL:                   strings.TrimSpace(firstNonEmpty(settings[SettingKeyPixmoStudioURL], "https://pixmo.loucer.cn/")),
+		UsageHelpEnabled:                 settings[SettingKeyUsageHelpEnabled] == "true",
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
@@ -1502,6 +1504,7 @@ type PublicSettingsInjectionPayload struct {
 	PixmoStudioEnabled               bool                     `json:"pixmo_studio_enabled"`
 	PixmoStudioButtonText            string                   `json:"pixmo_studio_button_text"`
 	PixmoStudioURL                   string                   `json:"pixmo_studio_url"`
+	UsageHelpEnabled                 bool                     `json:"usage_help_enabled"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
@@ -1585,6 +1588,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PixmoStudioEnabled:               settings.PixmoStudioEnabled,
 		PixmoStudioButtonText:            settings.PixmoStudioButtonText,
 		PixmoStudioURL:                   settings.PixmoStudioURL,
+		UsageHelpEnabled:                 settings.UsageHelpEnabled,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
 		HideCcsImportButton:              settings.HideCcsImportButton,
@@ -2196,6 +2200,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyPixmoStudioEnabled] = strconv.FormatBool(settings.PixmoStudioEnabled)
 	updates[SettingKeyPixmoStudioButtonText] = strings.TrimSpace(settings.PixmoStudioButtonText)
 	updates[SettingKeyPixmoStudioURL] = strings.TrimSpace(settings.PixmoStudioURL)
+	updates[SettingKeyUsageHelpEnabled] = strconv.FormatBool(settings.UsageHelpEnabled)
 	updates[SettingKeyDocURL] = settings.DocURL
 	updates[SettingKeyHomeContent] = settings.HomeContent
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)
@@ -3382,6 +3387,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		PixmoStudioEnabled:               settings[SettingKeyPixmoStudioEnabled] == "true",
 		PixmoStudioButtonText:            s.getStringOrDefault(settings, SettingKeyPixmoStudioButtonText, "Pixmo 生图"),
 		PixmoStudioURL:                   strings.TrimSpace(firstNonEmpty(settings[SettingKeyPixmoStudioURL], "https://pixmo.loucer.cn/")),
+		UsageHelpEnabled:                 settings[SettingKeyUsageHelpEnabled] == "true",
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",

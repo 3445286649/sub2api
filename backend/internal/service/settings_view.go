@@ -146,6 +146,7 @@ type SystemSettings struct {
 	PixmoStudioEnabled           bool
 	PixmoStudioButtonText        string
 	PixmoStudioURL               string
+	UsageHelpEnabled             bool
 	DocURL                       string
 	HomeContent                  string
 	HideCcsImportButton          bool
@@ -295,6 +296,7 @@ type PublicSettings struct {
 	PixmoStudioEnabled               bool
 	PixmoStudioButtonText            string
 	PixmoStudioURL                   string
+	UsageHelpEnabled                 bool
 	DocURL                           string
 	HomeContent                      string
 	HideCcsImportButton              bool

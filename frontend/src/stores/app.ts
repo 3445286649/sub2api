@@ -345,6 +345,7 @@ export const useAppStore = defineStore('app', () => {
         pixmo_studio_enabled: false,
         pixmo_studio_button_text: '',
         pixmo_studio_url: '',
+        usage_help_enabled: false,
         doc_url: docUrl.value,
         home_content: '',
         hide_ccs_import_button: false,
