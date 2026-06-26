@@ -274,7 +274,12 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		RewriteMessageCacheControl:                settings.RewriteMessageCacheControl,
 		AntigravityUserAgentVersion:               settings.AntigravityUserAgentVersion,
 		OpenAICodexUserAgent:                      settings.OpenAICodexUserAgent,
-		OpenAIAllowClaudeCodeCodexPlugin:          settings.OpenAIAllowClaudeCodeCodexPlugin,
+		MinCodexVersion:                           settings.MinCodexVersion,
+		MaxCodexVersion:                           settings.MaxCodexVersion,
+		CodexCLIOnlyBlacklist:                     settings.CodexCLIOnlyBlacklist,
+		CodexCLIOnlyWhitelist:                     settings.CodexCLIOnlyWhitelist,
+		CodexCLIOnlyAllowAppServerClients:         settings.CodexCLIOnlyAllowAppServerClients,
+		CodexCLIOnlyEngineFingerprintSignals:      settings.CodexCLIOnlyEngineFingerprintSignals,
 		WebSearchEmulationEnabled:                 settings.WebSearchEmulationEnabled,
 		PaymentVisibleMethodAlipaySource:          settings.PaymentVisibleMethodAlipaySource,
 		PaymentVisibleMethodWxpaySource:           settings.PaymentVisibleMethodWxpaySource,
@@ -628,7 +633,12 @@ type UpdateSettingsRequest struct {
 	RewriteMessageCacheControl             *bool   `json:"rewrite_message_cache_control"`
 	AntigravityUserAgentVersion            *string `json:"antigravity_user_agent_version"`
 	OpenAICodexUserAgent                   *string `json:"openai_codex_user_agent"`
-	OpenAIAllowClaudeCodeCodexPlugin       *bool   `json:"openai_allow_claude_code_codex_plugin"`
+	MinCodexVersion                        string  `json:"min_codex_version"`
+	MaxCodexVersion                        string  `json:"max_codex_version"`
+	CodexCLIOnlyBlacklist                  string  `json:"codex_cli_only_blacklist"`
+	CodexCLIOnlyWhitelist                  string  `json:"codex_cli_only_whitelist"`
+	CodexCLIOnlyAllowAppServerClients      *bool   `json:"codex_cli_only_allow_app_server_clients"`
+	CodexCLIOnlyEngineFingerprintSignals   string  `json:"codex_cli_only_engine_fingerprint_signals"`
 
 	// Payment visible method routing
 	PaymentVisibleMethodAlipaySource  *string `json:"payment_visible_method_alipay_source"`
@@ -1755,12 +1765,17 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.OpenAICodexUserAgent
 		}(),
-		OpenAIAllowClaudeCodeCodexPlugin: func() bool {
-			if req.OpenAIAllowClaudeCodeCodexPlugin != nil {
-				return *req.OpenAIAllowClaudeCodeCodexPlugin
+		MinCodexVersion:       strings.TrimSpace(req.MinCodexVersion),
+		MaxCodexVersion:       strings.TrimSpace(req.MaxCodexVersion),
+		CodexCLIOnlyBlacklist: strings.TrimSpace(req.CodexCLIOnlyBlacklist),
+		CodexCLIOnlyWhitelist: strings.TrimSpace(req.CodexCLIOnlyWhitelist),
+		CodexCLIOnlyAllowAppServerClients: func() bool {
+			if req.CodexCLIOnlyAllowAppServerClients != nil {
+				return *req.CodexCLIOnlyAllowAppServerClients
 			}
-			return previousSettings.OpenAIAllowClaudeCodeCodexPlugin
+			return previousSettings.CodexCLIOnlyAllowAppServerClients
 		}(),
+		CodexCLIOnlyEngineFingerprintSignals: strings.TrimSpace(req.CodexCLIOnlyEngineFingerprintSignals),
 		PaymentVisibleMethodAlipaySource: func() string {
 			if req.PaymentVisibleMethodAlipaySource != nil {
 				return strings.TrimSpace(*req.PaymentVisibleMethodAlipaySource)
@@ -2190,7 +2205,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		RewriteMessageCacheControl:                updatedSettings.RewriteMessageCacheControl,
 		AntigravityUserAgentVersion:               updatedSettings.AntigravityUserAgentVersion,
 		OpenAICodexUserAgent:                      updatedSettings.OpenAICodexUserAgent,
-		OpenAIAllowClaudeCodeCodexPlugin:          updatedSettings.OpenAIAllowClaudeCodeCodexPlugin,
+		MinCodexVersion:                           updatedSettings.MinCodexVersion,
+		MaxCodexVersion:                           updatedSettings.MaxCodexVersion,
+		CodexCLIOnlyBlacklist:                     updatedSettings.CodexCLIOnlyBlacklist,
+		CodexCLIOnlyWhitelist:                     updatedSettings.CodexCLIOnlyWhitelist,
+		CodexCLIOnlyAllowAppServerClients:         updatedSettings.CodexCLIOnlyAllowAppServerClients,
+		CodexCLIOnlyEngineFingerprintSignals:      updatedSettings.CodexCLIOnlyEngineFingerprintSignals,
 		PaymentVisibleMethodAlipaySource:          updatedSettings.PaymentVisibleMethodAlipaySource,
 		PaymentVisibleMethodWxpaySource:           updatedSettings.PaymentVisibleMethodWxpaySource,
 		PaymentVisibleMethodAlipayEnabled:         updatedSettings.PaymentVisibleMethodAlipayEnabled,
@@ -2719,8 +2739,23 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.OpenAICodexUserAgent != after.OpenAICodexUserAgent {
 		changed = append(changed, "openai_codex_user_agent")
 	}
-	if before.OpenAIAllowClaudeCodeCodexPlugin != after.OpenAIAllowClaudeCodeCodexPlugin {
-		changed = append(changed, "openai_allow_claude_code_codex_plugin")
+	if before.MinCodexVersion != after.MinCodexVersion {
+		changed = append(changed, "min_codex_version")
+	}
+	if before.MaxCodexVersion != after.MaxCodexVersion {
+		changed = append(changed, "max_codex_version")
+	}
+	if before.CodexCLIOnlyAllowAppServerClients != after.CodexCLIOnlyAllowAppServerClients {
+		changed = append(changed, "codex_cli_only_allow_app_server_clients")
+	}
+	if before.CodexCLIOnlyEngineFingerprintSignals != after.CodexCLIOnlyEngineFingerprintSignals {
+		changed = append(changed, "codex_cli_only_engine_fingerprint_signals")
+	}
+	if before.CodexCLIOnlyBlacklist != after.CodexCLIOnlyBlacklist {
+		changed = append(changed, "codex_cli_only_blacklist")
+	}
+	if before.CodexCLIOnlyWhitelist != after.CodexCLIOnlyWhitelist {
+		changed = append(changed, "codex_cli_only_whitelist")
 	}
 	if before.PaymentVisibleMethodAlipaySource != after.PaymentVisibleMethodAlipaySource {
 		changed = append(changed, "payment_visible_method_alipay_source")
