@@ -672,6 +672,7 @@ const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagSupportTickets = makeSidebarFlag(FeatureFlags.supportTickets)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
+const flagAcquisition = makeSidebarFlag(FeatureFlags.acquisition)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
@@ -696,6 +697,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/support', label: t('nav.support'), icon: BellIcon, hideInSimpleMode: true, featureFlag: flagSupportTickets, badge: supportUnreadCount.value },
+    { path: '/acquisition', label: t('nav.acquisition'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagAcquisition },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
@@ -760,6 +762,7 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/support', label: t('nav.supportManagement'), icon: TicketIcon, featureFlag: flagSupportTickets, badge: adminSupportUnreadCount.value },
     { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
     { path: '/admin/risk-control', label: t('nav.riskControl'), icon: ShieldIcon, hideInSimpleMode: true, featureFlag: flagRiskControl },
+    { path: '/admin/acquisition', label: t('nav.acquisitionManagement'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
     { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
     {

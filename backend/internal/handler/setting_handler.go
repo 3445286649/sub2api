@@ -106,7 +106,10 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 
 		SupportTicketsEnabled: settings.SupportTicketsEnabled,
 
-		AffiliateEnabled: settings.AffiliateEnabled,
+		AffiliateEnabled:              settings.AffiliateEnabled,
+		AcquisitionEnabled:            settings.AcquisitionEnabled,
+		AcquisitionLeaderboardEnabled: settings.AcquisitionLeaderboardEnabled,
+		AcquisitionLotteryEnabled:     settings.AcquisitionLotteryEnabled,
 
 		RiskControlEnabled: settings.RiskControlEnabled,
 

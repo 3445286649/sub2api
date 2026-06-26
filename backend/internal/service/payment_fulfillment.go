@@ -334,17 +334,43 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder) e
 
 func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrder, auditAction string) error {
 	now := time.Now()
-	_, err := s.entClient.PaymentOrder.Update().Where(paymentorder.IDEQ(o.ID), paymentorder.StatusEQ(OrderStatusRecharging)).SetStatus(OrderStatusCompleted).SetCompletedAt(now).Save(ctx)
+	affected, err := s.entClient.PaymentOrder.Update().Where(paymentorder.IDEQ(o.ID), paymentorder.StatusEQ(OrderStatusRecharging)).SetStatus(OrderStatusCompleted).SetCompletedAt(now).Save(ctx)
 	if err != nil {
 		return fmt.Errorf("mark completed: %w", err)
+	}
+	if affected == 0 {
+		return nil
 	}
 	s.writeAuditLog(ctx, o.ID, auditAction, "system", map[string]any{
 		"rechargeCode":   o.RechargeCode,
 		"creditedAmount": o.Amount,
 		"payAmount":      o.PayAmount,
 	})
+	s.recordAcquisitionPaymentCompletion(ctx, o, now)
 	s.dispatchPaymentFulfillmentNotification(o, auditAction)
 	return nil
+}
+
+func (s *PaymentService) recordAcquisitionPaymentCompletion(ctx context.Context, o *dbent.PaymentOrder, completedAt time.Time) {
+	if s == nil || s.acquisitionService == nil || o == nil {
+		return
+	}
+	err := s.acquisitionService.RecordPaymentCompletion(ctx, &AcquisitionPaymentEvent{
+		OrderID:              o.ID,
+		UserID:               o.UserID,
+		OrderType:            o.OrderType,
+		SubscriptionPlanType: o.SubscriptionPlanType,
+		PayAmount:            o.PayAmount,
+		RefundAmount:         o.RefundAmount,
+		CompletedAt:          completedAt.UTC(),
+	})
+	if err == nil {
+		return
+	}
+	slog.Warn("acquisition payment completion record failed", "order_id", o.ID, "user_id", o.UserID, "err", err.Error())
+	s.writeAuditLog(ctx, o.ID, "ACQUISITION_RECORD_FAILED", "system", map[string]any{
+		"error": err.Error(),
+	})
 }
 
 func (s *PaymentService) dispatchPaymentFulfillmentNotification(o *dbent.PaymentOrder, auditAction string) {

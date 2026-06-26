@@ -7,6 +7,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
 import { authAPI, isTotp2FARequired, type LoginResponse } from '@/api'
 import type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types'
+import { normalizeUser } from '@/utils/user'
 
 const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
@@ -110,7 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (savedToken && savedUser) {
       try {
         token.value = savedToken
-        user.value = JSON.parse(savedUser)
+        user.value = normalizeUser(JSON.parse(savedUser))
         refreshTokenValue.value = savedRefreshToken
         tokenExpiresAt.value = savedExpiresAt ? parseInt(savedExpiresAt, 10) : null
 
@@ -293,7 +294,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (response.user.run_mode) {
       runMode.value = response.user.run_mode
     }
-    const { run_mode: _run_mode, ...userData } = response.user
+    const { run_mode: _run_mode, ...userData } = normalizeUser(response.user)
     user.value = userData
 
     // Persist to localStorage
@@ -420,7 +421,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (response.data.run_mode) {
         runMode.value = response.data.run_mode
       }
-      const { run_mode: _run_mode, ...userData } = response.data
+      const { run_mode: _run_mode, ...userData } = normalizeUser(response.data)
       user.value = userData
 
       // Update localStorage

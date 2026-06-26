@@ -124,6 +124,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Affiliate',
   }),
+  acquisition: defineFlag({
+    key: 'acquisition_enabled',
+    mode: 'opt-in',
+    label: 'Acquisition',
+  }),
 } as const
 
 export type RegisteredFeatureFlag = keyof typeof FeatureFlags

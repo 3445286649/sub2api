@@ -78,6 +78,12 @@ func RegisterUserRoutes(
 			channels.GET("/available", h.AvailableChannel.List)
 		}
 
+		// 拉新活动中心
+		acquisition := authenticated.Group("/acquisition")
+		{
+			acquisition.GET("/current", h.Acquisition.GetCurrent)
+		}
+
 		// 使用记录
 		usage := authenticated.Group("/usage")
 		{

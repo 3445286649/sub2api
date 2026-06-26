@@ -635,6 +635,11 @@ export interface SystemSettings {
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
 
+  // Acquisition campaign feature switches
+  acquisition_enabled: boolean;
+  acquisition_leaderboard_enabled: boolean;
+  acquisition_lottery_enabled: boolean;
+
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;
 
@@ -892,6 +897,11 @@ export interface UpdateSettingsRequest {
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;
+
+  // Acquisition campaign feature switches
+  acquisition_enabled?: boolean;
+  acquisition_leaderboard_enabled?: boolean;
+  acquisition_lottery_enabled?: boolean;
 
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;

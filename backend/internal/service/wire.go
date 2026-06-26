@@ -600,6 +600,7 @@ var ProviderSet = wire.NewSet(
 	NewModelPricingResolver,
 	NewContentModerationService,
 	NewAffiliateService,
+	ProvideAcquisitionService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
 	ProvidePaymentOrderExpiryService,
@@ -623,6 +624,14 @@ func ProvidePaymentConfigService(entClient *dbent.Client, settingRepo SettingRep
 	return NewPaymentConfigService(entClient, settingRepo, []byte(key))
 }
 
+// ProvideAcquisitionService creates and starts the acquisition campaign service.
+func ProvideAcquisitionService(repo AcquisitionRepository, settingService *SettingService, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCacheService *BillingCacheService) *AcquisitionService {
+	svc := NewAcquisitionService(repo, settingService)
+	svc.SetCacheInvalidators(authCacheInvalidator, billingCacheService)
+	svc.Start()
+	return svc
+}
+
 // ProvideBalanceNotifyService creates BalanceNotifyService
 func ProvideBalanceNotifyService(emailService *EmailService, settingRepo SettingRepository, accountRepo AccountRepository, notificationEmailService *NotificationEmailService) *BalanceNotifyService {
 	svc := NewBalanceNotifyService(emailService, settingRepo, accountRepo)
@@ -631,8 +640,9 @@ func ProvideBalanceNotifyService(emailService *EmailService, settingRepo Setting
 }
 
 // ProvidePaymentService creates PaymentService and attaches notification email delivery.
-func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService) *PaymentService {
+func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, acquisitionService *AcquisitionService, notificationEmailService *NotificationEmailService) *PaymentService {
 	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService)
+	svc.SetAcquisitionService(acquisitionService)
 	svc.SetNotificationEmailService(notificationEmailService)
 	return svc
 }

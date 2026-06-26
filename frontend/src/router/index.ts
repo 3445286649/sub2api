@@ -254,6 +254,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/acquisition',
+    name: 'Acquisition',
+    component: () => import('@/views/user/AcquisitionView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Acquisition Campaign',
+      titleKey: 'acquisition.title',
+      descriptionKey: 'acquisition.description'
+    }
+  },
+  {
     path: '/available-channels',
     name: 'UserAvailableChannels',
     component: () => import('@/views/user/AvailableChannelsView.vue'),
@@ -571,6 +583,18 @@ const routes: RouteRecordRaw[] = [
       title: 'System Settings',
       titleKey: 'admin.settings.title',
       descriptionKey: 'admin.settings.description'
+    }
+  },
+  {
+    path: '/admin/acquisition',
+    name: 'AdminAcquisition',
+    component: () => import('@/views/admin/AcquisitionView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Acquisition Campaigns',
+      titleKey: 'admin.acquisition.title',
+      descriptionKey: 'admin.acquisition.description'
     }
   },
   {

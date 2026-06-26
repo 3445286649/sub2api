@@ -156,18 +156,21 @@ type SystemSettings struct {
 	CustomMenuItems              string // JSON array of custom menu items
 	CustomEndpoints              string // JSON array of custom endpoints
 
-	DefaultConcurrency           int
-	DefaultBalance               float64
-	RiskControlEnabled           bool
-	CyberSessionBlockEnabled     bool
-	CyberSessionBlockTTLSeconds  int
-	AffiliateEnabled             bool
-	AffiliateRebateRate          float64
-	AffiliateRebateFreezeHours   int
-	AffiliateRebateDurationDays  int
-	AffiliateRebatePerInviteeCap float64
-	DefaultUserRPMLimit          int
-	DefaultSubscriptions         []DefaultSubscriptionSetting
+	DefaultConcurrency            int
+	DefaultBalance                float64
+	RiskControlEnabled            bool
+	CyberSessionBlockEnabled      bool
+	CyberSessionBlockTTLSeconds   int
+	AffiliateEnabled              bool
+	AffiliateRebateRate           float64
+	AffiliateRebateFreezeHours    int
+	AffiliateRebateDurationDays   int
+	AffiliateRebatePerInviteeCap  float64
+	AcquisitionEnabled            bool
+	AcquisitionLeaderboardEnabled bool
+	AcquisitionLotteryEnabled     bool
+	DefaultUserRPMLimit           int
+	DefaultSubscriptions          []DefaultSubscriptionSetting
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`
@@ -325,7 +328,10 @@ type PublicSettings struct {
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
 	// Affiliate (邀请返利) feature toggle
-	AffiliateEnabled bool `json:"affiliate_enabled"`
+	AffiliateEnabled              bool `json:"affiliate_enabled"`
+	AcquisitionEnabled            bool `json:"acquisition_enabled"`
+	AcquisitionLeaderboardEnabled bool `json:"acquisition_leaderboard_enabled"`
+	AcquisitionLotteryEnabled     bool `json:"acquisition_lottery_enabled"`
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`

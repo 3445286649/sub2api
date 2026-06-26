@@ -317,7 +317,10 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		SupportTicketsEnabled: settings.SupportTicketsEnabled,
 
-		AffiliateEnabled: settings.AffiliateEnabled,
+		AffiliateEnabled:              settings.AffiliateEnabled,
+		AcquisitionEnabled:            settings.AcquisitionEnabled,
+		AcquisitionLeaderboardEnabled: settings.AcquisitionLeaderboardEnabled,
+		AcquisitionLotteryEnabled:     settings.AcquisitionLotteryEnabled,
 
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
 	}
@@ -681,6 +684,11 @@ type UpdateSettingsRequest struct {
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
+
+	// Acquisition campaign feature switches
+	AcquisitionEnabled            *bool `json:"acquisition_enabled"`
+	AcquisitionLeaderboardEnabled *bool `json:"acquisition_leaderboard_enabled"`
+	AcquisitionLotteryEnabled     *bool `json:"acquisition_lottery_enabled"`
 
 	// 风控中心功能开关
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
@@ -1849,6 +1857,24 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AffiliateEnabled
 		}(),
+		AcquisitionEnabled: func() bool {
+			if req.AcquisitionEnabled != nil {
+				return *req.AcquisitionEnabled
+			}
+			return previousSettings.AcquisitionEnabled
+		}(),
+		AcquisitionLeaderboardEnabled: func() bool {
+			if req.AcquisitionLeaderboardEnabled != nil {
+				return *req.AcquisitionLeaderboardEnabled
+			}
+			return previousSettings.AcquisitionLeaderboardEnabled
+		}(),
+		AcquisitionLotteryEnabled: func() bool {
+			if req.AcquisitionLotteryEnabled != nil {
+				return *req.AcquisitionLotteryEnabled
+			}
+			return previousSettings.AcquisitionLotteryEnabled
+		}(),
 		RiskControlEnabled: func() bool {
 			if req.RiskControlEnabled != nil {
 				return *req.RiskControlEnabled
@@ -2206,7 +2232,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 
 		SupportTicketsEnabled: updatedSettings.SupportTicketsEnabled,
 
-		AffiliateEnabled: updatedSettings.AffiliateEnabled,
+		AffiliateEnabled:              updatedSettings.AffiliateEnabled,
+		AcquisitionEnabled:            updatedSettings.AcquisitionEnabled,
+		AcquisitionLeaderboardEnabled: updatedSettings.AcquisitionLeaderboardEnabled,
+		AcquisitionLotteryEnabled:     updatedSettings.AcquisitionLotteryEnabled,
 
 		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
 		CyberSessionBlockEnabled:    updatedSettings.CyberSessionBlockEnabled,
@@ -2741,6 +2770,15 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.AffiliateEnabled != after.AffiliateEnabled {
 		changed = append(changed, "affiliate_enabled")
+	}
+	if before.AcquisitionEnabled != after.AcquisitionEnabled {
+		changed = append(changed, "acquisition_enabled")
+	}
+	if before.AcquisitionLeaderboardEnabled != after.AcquisitionLeaderboardEnabled {
+		changed = append(changed, "acquisition_leaderboard_enabled")
+	}
+	if before.AcquisitionLotteryEnabled != after.AcquisitionLotteryEnabled {
+		changed = append(changed, "acquisition_lottery_enabled")
 	}
 	if before.RiskControlEnabled != after.RiskControlEnabled {
 		changed = append(changed, "risk_control_enabled")

@@ -848,6 +848,9 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeyAffiliateEnabled,
+		SettingKeyAcquisitionEnabled,
+		SettingKeyAcquisitionLeaderboardEnabled,
+		SettingKeyAcquisitionLotteryEnabled,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
 	}
@@ -973,7 +976,10 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 
-		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
+		AffiliateEnabled:              settings[SettingKeyAffiliateEnabled] == "true",
+		AcquisitionEnabled:            settings[SettingKeyAcquisitionEnabled] == "true",
+		AcquisitionLeaderboardEnabled: settings[SettingKeyAcquisitionLeaderboardEnabled] != "false",
+		AcquisitionLotteryEnabled:     settings[SettingKeyAcquisitionLotteryEnabled] != "false",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
@@ -1321,6 +1327,9 @@ type PublicSettingsInjectionPayload struct {
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
 	SupportTicketsEnabled                bool `json:"support_tickets_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
+	AcquisitionEnabled                   bool `json:"acquisition_enabled"`
+	AcquisitionLeaderboardEnabled        bool `json:"acquisition_leaderboard_enabled"`
+	AcquisitionLotteryEnabled            bool `json:"acquisition_lottery_enabled"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
 }
@@ -1398,6 +1407,9 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
 		SupportTicketsEnabled:                settings.SupportTicketsEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
+		AcquisitionEnabled:                   settings.AcquisitionEnabled,
+		AcquisitionLeaderboardEnabled:        settings.AcquisitionLeaderboardEnabled,
+		AcquisitionLotteryEnabled:            settings.AcquisitionLotteryEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
 	}, nil
@@ -2053,6 +2065,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
 
+	// Acquisition campaign feature switches
+	updates[SettingKeyAcquisitionEnabled] = strconv.FormatBool(settings.AcquisitionEnabled)
+	updates[SettingKeyAcquisitionLeaderboardEnabled] = strconv.FormatBool(settings.AcquisitionLeaderboardEnabled)
+	updates[SettingKeyAcquisitionLotteryEnabled] = strconv.FormatBool(settings.AcquisitionLotteryEnabled)
+
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)
 
@@ -2604,6 +2621,33 @@ func (s *SettingService) IsAffiliateEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+// IsAcquisitionEnabled 检查是否启用拉新活动功能（总开关）。
+func (s *SettingService) IsAcquisitionEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyAcquisitionEnabled)
+	if err != nil {
+		return AcquisitionEnabledDefault
+	}
+	return value == "true"
+}
+
+// IsAcquisitionLeaderboardEnabled 检查是否启用拉新活动排行榜。
+func (s *SettingService) IsAcquisitionLeaderboardEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyAcquisitionLeaderboardEnabled)
+	if err != nil {
+		return true
+	}
+	return value != "false"
+}
+
+// IsAcquisitionLotteryEnabled 检查是否启用拉新活动抽奖。
+func (s *SettingService) IsAcquisitionLotteryEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyAcquisitionLotteryEnabled)
+	if err != nil {
+		return true
+	}
+	return value != "false"
+}
+
 // GetAffiliateRebateRatePercent 读取并 clamp 全局返利比例。
 // 解析失败、缺失或越界都回退到 AffiliateRebateRateDefault — 该比例从不抛错，
 // 调用方只关心一个可用的数值。
@@ -3022,6 +3066,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
+
+		// 拉新活动 feature (default disabled; sub-switches default enabled)
+		SettingKeyAcquisitionEnabled:            "false",
+		SettingKeyAcquisitionLeaderboardEnabled: "true",
+		SettingKeyAcquisitionLotteryEnabled:     "true",
 
 		// 站内工单（默认启用，显式关闭）
 		SettingKeySupportTicketsEnabled: "true",
@@ -3552,6 +3601,11 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
+
+	// 拉新活动 feature (总开关默认关闭；子开关默认开启)
+	result.AcquisitionEnabled = settings[SettingKeyAcquisitionEnabled] == "true"
+	result.AcquisitionLeaderboardEnabled = !isFalseSettingValue(settings[SettingKeyAcquisitionLeaderboardEnabled])
+	result.AcquisitionLotteryEnabled = !isFalseSettingValue(settings[SettingKeyAcquisitionLotteryEnabled])
 
 	// 风控中心功能（默认关闭，严格 true 才启用）
 	result.RiskControlEnabled = settings[SettingKeyRiskControlEnabled] == "true"

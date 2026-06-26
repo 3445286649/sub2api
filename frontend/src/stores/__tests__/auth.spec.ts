@@ -31,6 +31,10 @@ const fakeUser = {
   concurrency: 5,
   status: 'active' as const,
   allowed_groups: null,
+  balance_notify_enabled: false,
+  balance_notify_threshold: null,
+  balance_notify_extra_emails: [],
+  subscriptions: [],
   created_at: '2024-01-01',
   updated_at: '2024-01-01',
 }
@@ -77,6 +81,28 @@ describe('useAuthStore', () => {
       expect(store.isAuthenticated).toBe(true)
       expect(localStorage.getItem('auth_token')).toBe('test-token-123')
       expect(localStorage.getItem('auth_user')).toBe(JSON.stringify(fakeUser))
+    })
+
+    it('登录响应中的 nullable 数组字段会被归一化', async () => {
+      const nullableUserResponse = {
+        ...fakeAuthResponse,
+        user: {
+          ...fakeUser,
+          balance_notify_extra_emails: null,
+          subscriptions: null,
+        },
+      }
+      mockLogin.mockResolvedValue(nullableUserResponse)
+      const store = useAuthStore()
+
+      await store.login({ email: 'test@example.com', password: '123456' })
+
+      expect(store.user?.balance_notify_extra_emails).toEqual([])
+      expect(store.user?.subscriptions).toEqual([])
+      expect(JSON.parse(localStorage.getItem('auth_user') || '{}')).toMatchObject({
+        balance_notify_extra_emails: [],
+        subscriptions: [],
+      })
     })
 
     it('登录失败时清除状态并抛出错误', async () => {

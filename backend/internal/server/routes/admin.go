@@ -106,6 +106,23 @@ func RegisterAdminRoutes(
 
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
+
+		// 拉新活动
+		registerAcquisitionRoutes(admin, h)
+	}
+}
+
+func registerAcquisitionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	acquisition := admin.Group("/acquisition")
+	{
+		campaigns := acquisition.Group("/campaigns")
+		{
+			campaigns.GET("", h.Admin.Acquisition.ListCampaigns)
+			campaigns.POST("", h.Admin.Acquisition.CreateCampaign)
+			campaigns.GET("/:id", h.Admin.Acquisition.GetCampaign)
+			campaigns.PUT("/:id", h.Admin.Acquisition.UpdateCampaign)
+			campaigns.POST("/:id/settle", h.Admin.Acquisition.SettleCampaign)
+		}
 	}
 }
 

@@ -5765,6 +5765,63 @@
           </div>
         </div>
 
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.features.acquisition.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.features.acquisition.description') }}
+            </p>
+            <p class="mt-1.5 text-xs">
+              <router-link
+                to="/admin/acquisition"
+                class="inline-flex items-center gap-1 text-primary-600 hover:underline dark:text-primary-400"
+              >
+                {{ t('admin.settings.features.acquisition.configureLink') }}
+                <span aria-hidden="true">→</span>
+              </router-link>
+            </p>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.acquisition.enabled') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.acquisition.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.acquisition_enabled" />
+            </div>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.acquisition.leaderboardEnabled') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.acquisition.leaderboardHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.acquisition_leaderboard_enabled" />
+            </div>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.acquisition.lotteryEnabled') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.acquisition.lotteryHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.acquisition_lottery_enabled" />
+            </div>
+          </div>
+        </div>
+
         <!-- Affiliate (邀请返利) feature card -->
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -8119,6 +8176,10 @@ const form = reactive<SettingsForm>({
   available_channels_enabled: false,
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
+  // Acquisition campaign feature switches
+  acquisition_enabled: false,
+  acquisition_leaderboard_enabled: true,
+  acquisition_lottery_enabled: true,
   // Allow user view error requests
   allow_user_view_error_requests: false,
 });
@@ -9328,6 +9389,10 @@ async function saveSettings() {
       support_tickets_enabled: form.support_tickets_enabled,
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
+      // Acquisition campaign feature switches
+      acquisition_enabled: form.acquisition_enabled,
+      acquisition_leaderboard_enabled: form.acquisition_leaderboard_enabled,
+      acquisition_lottery_enabled: form.acquisition_lottery_enabled,
       allow_user_view_error_requests: form.allow_user_view_error_requests,
     };
 

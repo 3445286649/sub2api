@@ -311,6 +311,9 @@ export interface PublicSettings {
   support_tickets_enabled: boolean
   service_quota_enabled: boolean
   affiliate_enabled: boolean
+  acquisition_enabled: boolean
+  acquisition_leaderboard_enabled: boolean
+  acquisition_lottery_enabled: boolean
   allow_user_view_error_requests?: boolean
 }
 
