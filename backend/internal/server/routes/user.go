@@ -84,6 +84,11 @@ func RegisterUserRoutes(
 			acquisition.GET("/current", h.Acquisition.GetCurrent)
 		}
 
+		modelRadar := authenticated.Group("/model-radar")
+		{
+			modelRadar.GET("/current", h.ModelRadar.Current)
+		}
+
 		// 使用记录
 		usage := authenticated.Group("/usage")
 		{

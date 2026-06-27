@@ -598,6 +598,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/model-radar',
+    name: 'AdminModelRadar',
+    component: () => import('@/views/admin/ModelRadarView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Model Radar',
+      titleKey: 'nav.modelRadar',
+      descriptionKey: 'admin.modelRadar.description'
+    }
+  },
+  {
     path: '/admin/risk-control',
     name: 'AdminRiskControl',
     component: () => import('@/views/admin/RiskControlView.vue'),

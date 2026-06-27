@@ -71,18 +71,29 @@
         <button
           v-if="showRechargeStorefront"
           type="button"
-          class="hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white sm:flex"
+          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
           @click="openRechargeStorefront"
         >
           <Icon name="creditCard" size="sm" />
           <span>{{ rechargeStorefrontButtonText }}</span>
         </button>
 
+        <!-- Model Radar -->
+        <button
+          v-if="showModelRadar"
+          type="button"
+          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
+          @click="openModelRadar"
+        >
+          <Icon name="sparkles" size="sm" />
+          <span>{{ t('nav.modelRadar') }}</span>
+        </button>
+
         <!-- Usage Help -->
         <button
           v-if="showUsageHelp"
           type="button"
-          class="hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white sm:flex"
+          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
           @click="openUsageHelp"
         >
           <Icon name="questionCircle" size="sm" />
@@ -93,7 +104,7 @@
         <button
           v-if="showSupportGroup"
           type="button"
-          class="hidden items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100 hover:text-emerald-900 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/15 sm:flex"
+          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
           @click="openSupportGroup"
         >
           <Icon name="chat" size="sm" />
@@ -104,7 +115,7 @@
         <button
           v-if="showPixmoStudio"
           type="button"
-          class="hidden items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white sm:flex"
+          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
           @click="openPixmoStudio"
         >
           <Icon name="sparkles" size="sm" />
@@ -178,6 +189,11 @@
                 <button v-if="showUsageHelp" type="button" @click="openUsageHelpFromMenu" class="dropdown-item w-full">
                   <Icon name="questionCircle" size="sm" />
                   {{ t('nav.usageHelp') }}
+                </button>
+
+                <button v-if="showModelRadar" type="button" @click="openModelRadarFromMenu" class="dropdown-item w-full">
+                  <Icon name="sparkles" size="sm" />
+                  {{ t('nav.modelRadar') }}
                 </button>
 
                 <button v-if="showSupportGroup" type="button" @click="openSupportGroupFromMenu" class="dropdown-item w-full">
@@ -385,6 +401,7 @@
     </teleport>
 
     <UsageHelpModal v-model:open="usageHelpOpen" />
+    <ModelRadarModal v-model:open="modelRadarOpen" />
   </header>
 </template>
 
@@ -398,6 +415,7 @@ import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import UsageHelpModal from '@/components/help/UsageHelpModal.vue'
+import ModelRadarModal from '@/components/model-radar/ModelRadarModal.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const router = useRouter()
@@ -413,6 +431,7 @@ const dropdownOpen = ref(false)
 const rechargeStorefrontOpen = ref(false)
 const supportGroupOpen = ref(false)
 const usageHelpOpen = ref(false)
+const modelRadarOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => appStore.docUrl)
@@ -438,6 +457,9 @@ const showPixmoStudio = computed(() => {
 })
 const showUsageHelp = computed(() => {
   return !!user.value && publicSettings.value?.usage_help_enabled === true
+})
+const showModelRadar = computed(() => {
+  return !!user.value && publicSettings.value?.model_radar_enabled === true
 })
 const showSupportGroup = computed(() => {
   return !!user.value
@@ -542,6 +564,15 @@ function openUsageHelp() {
 function openUsageHelpFromMenu() {
   closeDropdown()
   openUsageHelp()
+}
+
+function openModelRadar() {
+  modelRadarOpen.value = true
+}
+
+function openModelRadarFromMenu() {
+  closeDropdown()
+  openModelRadar()
 }
 
 function openRechargeStorefrontLink(url: string) {

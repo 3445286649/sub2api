@@ -104,7 +104,7 @@ func runCheckForModel(ctx context.Context, provider, endpoint, apiKey, model str
 		if strings.TrimSpace(outcome.extractedText) == "" {
 			res.Status = MonitorStatusFailed
 			res.FailureCategory = MonitorFailureEmptyResponse
-			res.Message = truncateMessage("replace-mode: upstream returned 2xx with empty text")
+			res.Message = truncateMessage("replace-mode: upstream returned 2xx but no parseable text")
 			return res
 		}
 		return finalizeOperationalOrDegraded(res, latency, latencyMs)
@@ -113,7 +113,7 @@ func runCheckForModel(ctx context.Context, provider, endpoint, apiKey, model str
 	if strings.TrimSpace(outcome.extractedText) == "" {
 		res.Status = MonitorStatusFailed
 		res.FailureCategory = MonitorFailureEmptyResponse
-		res.Message = truncateMessage("upstream returned 2xx with empty text")
+		res.Message = truncateMessage("upstream returned 2xx but no parseable text")
 		return res
 	}
 
@@ -336,6 +336,9 @@ func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt
 	if provider == MonitorProviderOpenAI && apiMode == MonitorAPIModeResponses {
 		return providerCallOutcome{extractedText: extractOpenAIResponsesText(respBytes), rawBody: string(respBytes), statusCode: status, requestPath: path}
 	}
+	if provider == MonitorProviderAnthropic {
+		return providerCallOutcome{extractedText: extractAnthropicMessagesText(respBytes), rawBody: string(respBytes), statusCode: status, requestPath: path}
+	}
 	return providerCallOutcome{extractedText: gjson.GetBytes(respBytes, adapter.textPath).String(), rawBody: string(respBytes), statusCode: status, requestPath: path}
 }
 
@@ -431,6 +434,30 @@ func extractOpenAIResponsesText(respBytes []byte) string {
 		return strings.Join(texts, "")
 	}
 	return gjson.GetBytes(respBytes, providerOpenAIResponsesAdapter.textPath).String()
+}
+
+// extractAnthropicMessagesText 聚合 Anthropic Messages 响应里的文本块。
+// 兼容部分反代在 content[0] 放 thinking/tool_use 等非 text block 的情况。
+func extractAnthropicMessagesText(respBytes []byte) string {
+	var texts []string
+	content := gjson.GetBytes(respBytes, "content")
+	if content.IsArray() {
+		content.ForEach(func(_, block gjson.Result) bool {
+			blockType := block.Get("type").String()
+			if blockType != "" && blockType != "text" {
+				return true
+			}
+			if text := block.Get("text").String(); strings.TrimSpace(text) != "" {
+				texts = append(texts, text)
+			}
+			return true
+		})
+	}
+
+	if len(texts) > 0 {
+		return strings.Join(texts, "")
+	}
+	return gjson.GetBytes(respBytes, providerAdapters[MonitorProviderAnthropic].textPath).String()
 }
 
 // mergeHeaders 把用户自定义 headers 合并到 adapter 默认 headers 上。

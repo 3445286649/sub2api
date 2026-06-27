@@ -7,8 +7,10 @@ import (
 	"strconv"
 )
 
-// monitorChallengePromptTemplate 1:1 复刻 BingZi-233/check-cx 的 few-shot 模板。
-const monitorChallengePromptTemplate = `Calculate and respond with ONLY the number, nothing else.
+// monitorChallengePromptTemplate 基于 BingZi-233/check-cx 的 few-shot 模板，
+// 额外约束健康检查场景不要调用工具或返回空内容。
+const monitorChallengePromptTemplate = `Health check. Do not use tools. Do not return an empty answer.
+Calculate and respond with ONLY the number, nothing else.
 
 Q: 3 + 5 = ?
 A: 8

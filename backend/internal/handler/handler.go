@@ -39,6 +39,7 @@ type AdminHandlers struct {
 	Payment                *admin.PaymentHandler
 	Affiliate              *admin.AffiliateHandler
 	Acquisition            *admin.AcquisitionHandler
+	ModelRadar             *admin.ModelRadarHandler
 	Compliance             *admin.ComplianceHandler
 }
 
@@ -62,6 +63,7 @@ type Handlers struct {
 	PaymentWebhook   *PaymentWebhookHandler
 	AvailableChannel *AvailableChannelHandler
 	Acquisition      *AcquisitionHandler
+	ModelRadar       *ModelRadarHandler
 }
 
 // BuildInfo contains build-time information

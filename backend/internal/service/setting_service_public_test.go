@@ -123,6 +123,19 @@ func TestSettingService_GetPublicSettings_ExposesUsageHelpEnabled(t *testing.T) 
 	require.True(t, settings.UsageHelpEnabled)
 }
 
+func TestSettingService_GetPublicSettings_ExposesModelRadarEnabled(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyModelRadarEnabled: "true",
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.True(t, settings.ModelRadarEnabled)
+}
+
 func TestSettingService_GetPublicSettings_SupportTicketsDefaultEnabled(t *testing.T) {
 	svc := NewSettingService(&settingPublicRepoStub{values: map[string]string{}}, &config.Config{})
 

@@ -230,6 +230,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PixmoStudioButtonText:                     settings.PixmoStudioButtonText,
 		PixmoStudioURL:                            settings.PixmoStudioURL,
 		UsageHelpEnabled:                          settings.UsageHelpEnabled,
+		ModelRadarEnabled:                         settings.ModelRadarEnabled,
 		DocURL:                                    settings.DocURL,
 		HomeContent:                               settings.HomeContent,
 		HideCcsImportButton:                       settings.HideCcsImportButton,
@@ -542,6 +543,7 @@ type UpdateSettingsRequest struct {
 	PixmoStudioButtonText        string                `json:"pixmo_studio_button_text"`
 	PixmoStudioURL               string                `json:"pixmo_studio_url"`
 	UsageHelpEnabled             bool                  `json:"usage_help_enabled"`
+	ModelRadarEnabled            bool                  `json:"model_radar_enabled"`
 	DocURL                       string                `json:"doc_url"`
 	HomeContent                  string                `json:"home_content"`
 	HideCcsImportButton          bool                  `json:"hide_ccs_import_button"`
@@ -1650,6 +1652,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PixmoStudioButtonText:                  req.PixmoStudioButtonText,
 		PixmoStudioURL:                         req.PixmoStudioURL,
 		UsageHelpEnabled:                       req.UsageHelpEnabled,
+		ModelRadarEnabled:                      req.ModelRadarEnabled,
 		DocURL:                                 req.DocURL,
 		HomeContent:                            req.HomeContent,
 		HideCcsImportButton:                    req.HideCcsImportButton,
@@ -2167,6 +2170,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PixmoStudioButtonText:                     updatedSettings.PixmoStudioButtonText,
 		PixmoStudioURL:                            updatedSettings.PixmoStudioURL,
 		UsageHelpEnabled:                          updatedSettings.UsageHelpEnabled,
+		ModelRadarEnabled:                         updatedSettings.ModelRadarEnabled,
 		DocURL:                                    updatedSettings.DocURL,
 		HomeContent:                               updatedSettings.HomeContent,
 		HideCcsImportButton:                       updatedSettings.HideCcsImportButton,
@@ -2622,6 +2626,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.UsageHelpEnabled != after.UsageHelpEnabled {
 		changed = append(changed, "usage_help_enabled")
+	}
+	if before.ModelRadarEnabled != after.ModelRadarEnabled {
+		changed = append(changed, "model_radar_enabled")
 	}
 	if before.DocURL != after.DocURL {
 		changed = append(changed, "doc_url")

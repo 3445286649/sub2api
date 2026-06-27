@@ -112,6 +112,20 @@ func RegisterAdminRoutes(
 
 		// 拉新活动
 		registerAcquisitionRoutes(admin, h)
+
+		// 模型雷达
+		registerModelRadarRoutes(admin, h)
+	}
+}
+
+func registerModelRadarRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	radar := admin.Group("/model-radar")
+	{
+		radar.GET("/config", h.Admin.ModelRadar.GetConfig)
+		radar.PUT("/config", h.Admin.ModelRadar.UpdateConfig)
+		radar.POST("/run", h.Admin.ModelRadar.RunNow)
+		radar.GET("/runs", h.Admin.ModelRadar.ListRuns)
+		radar.GET("/runs/:id", h.Admin.ModelRadar.GetRun)
 	}
 }
 

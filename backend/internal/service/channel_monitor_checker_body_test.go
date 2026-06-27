@@ -25,10 +25,12 @@ func swapMonitorHTTPClient(t *testing.T) {
 
 // captureHandler 把每次收到的请求 body 和 headers 存起来，测试断言用。
 type captureHandler struct {
-	lastBody    map[string]any
-	lastHeaders http.Header
-	respondText string // 写到 Anthropic content[0].text 里（校验用）
-	status      int
+	lastBody             map[string]any
+	lastHeaders          http.Header
+	respondText          string // 写到 Anthropic content[0].text 里（校验用）
+	answerChallenge      bool
+	leadingNonTextBlocks bool
+	status               int
 }
 
 func (h *captureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -41,13 +43,23 @@ func (h *captureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.status == 0 {
 		h.status = 200
 	}
+	respondText := h.respondText
+	if h.answerChallenge {
+		respondText = answerFromAnthropicRequest(parsed)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(h.status)
-	// 构造 Anthropic 格式的响应：content[0].text = h.respondText
+	content := []map[string]any{}
+	if h.leadingNonTextBlocks {
+		content = append(content,
+			map[string]any{"type": "thinking", "thinking": "internal"},
+			map[string]any{"type": "tool_use", "name": "noop"},
+		)
+	}
+	content = append(content, map[string]any{"type": "text", "text": respondText})
+	// 构造 Anthropic 格式的响应。
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"content": []map[string]any{
-			{"type": "text", "text": h.respondText},
-		},
+		"content": content,
 	})
 }
 
@@ -149,6 +161,17 @@ func answerFromOpenAIRequest(body map[string]any) string {
 		}
 	}
 	return answerFromChallengePrompt(prompt)
+}
+
+func answerFromAnthropicRequest(body map[string]any) string {
+	if messages, ok := body["messages"].([]any); ok && len(messages) > 0 {
+		if msg, ok := messages[0].(map[string]any); ok {
+			if prompt, _ := msg["content"].(string); prompt != "" {
+				return answerFromChallengePrompt(prompt)
+			}
+		}
+	}
+	return "0"
 }
 
 var challengeQuestionRegex = regexp.MustCompile(`Q: (\d+) ([+-]) (\d+) = \?\nA:$`)
@@ -274,6 +297,23 @@ func TestRunCheckForModel_OpenAIResponses_SkipsLeadingReasoningItem(t *testing.T
 	}
 	if h.lastPath != providerOpenAIResponsesPath {
 		t.Fatalf("expected responses path %q, got %q", providerOpenAIResponsesPath, h.lastPath)
+	}
+}
+
+func TestRunCheckForModel_AnthropicSkipsLeadingNonTextBlocks(t *testing.T) {
+	challenge := generateChallenge()
+	h := &captureHandler{answerChallenge: true, leadingNonTextBlocks: true}
+	endpoint := setupFakeAnthropic(t, h)
+
+	text := extractAnthropicMessagesText([]byte(`{"content":[{"type":"thinking","thinking":"internal"},{"type":"tool_use","name":"noop"},{"type":"text","text":"` + challenge.Expected + `"}]}`))
+	if text != challenge.Expected {
+		t.Fatalf("anthropic extractor should find text after leading non-text blocks, got %q", text)
+	}
+
+	res := runCheckForModel(context.Background(), MonitorProviderAnthropic, endpoint, "sk-fake", "claude-x", nil)
+
+	if res.Status != MonitorStatusOperational {
+		t.Fatalf("anthropic request should pass when text block is not first, got status=%s message=%q", res.Status, res.Message)
 	}
 }
 

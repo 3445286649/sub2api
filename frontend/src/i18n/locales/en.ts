@@ -419,6 +419,7 @@ export default {
     supportGroupQrAlt: 'Support group QR code',
     pixmoStudio: 'Pixmo Images',
     usageHelp: 'Help',
+    modelRadar: 'Model Radar',
     mySubscriptions: 'My Subscriptions',
     buySubscription: 'Recharge / Subscription',
     docs: 'Docs',
@@ -6162,6 +6163,10 @@ export default {
         usageHelp: {
           title: 'Usage Help',
           description: 'Show an in-site usage help modal entry in the top-right header.'
+        },
+        modelRadar: {
+          title: 'Model Radar',
+          description: 'Show daily model benchmark scores and recommendations in the top-right header.'
         },
         docUrl: 'Documentation URL',
         docUrlPlaceholder: 'https://docs.example.com',

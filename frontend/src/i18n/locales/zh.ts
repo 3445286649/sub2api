@@ -419,6 +419,7 @@ export default {
     supportGroupQrAlt: '售后群二维码',
     pixmoStudio: 'Pixmo 生图',
     usageHelp: '使用帮助',
+    modelRadar: '模型雷达',
     mySubscriptions: '我的订阅',
     buySubscription: '充值/订阅',
     docs: '文档',
@@ -6321,6 +6322,10 @@ export default {
         usageHelp: {
           title: '使用帮助',
           description: '在右上角显示站内使用帮助弹窗入口'
+        },
+        modelRadar: {
+          title: '模型雷达',
+          description: '在右上角显示每日模型评分和推荐入口'
         },
         docUrl: '文档链接',
         docUrlHint: '文档网站的链接。留空则隐藏文档链接。',
