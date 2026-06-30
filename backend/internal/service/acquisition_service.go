@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -178,6 +179,10 @@ type AcquisitionSettings interface {
 	IsAcquisitionEnabled(ctx context.Context) bool
 	IsAcquisitionLeaderboardEnabled(ctx context.Context) bool
 	IsAcquisitionLotteryEnabled(ctx context.Context) bool
+}
+
+type acquisitionFrontendURLSettings interface {
+	GetFrontendURL(ctx context.Context) string
 }
 
 type AcquisitionService struct {
@@ -521,6 +526,7 @@ func (s *AcquisitionService) GetCurrentUserSummary(ctx context.Context, userID i
 		return nil, err
 	}
 	applyLeaderboardRewardAmounts(summary)
+	preparePublicAcquisitionSummary(ctx, s.settings, summary)
 	return summary, nil
 }
 
@@ -637,6 +643,47 @@ func applyLeaderboardRewardAmounts(summary *AcquisitionUserSummary) {
 		}
 		summary.Leaderboard[i].RewardAmount = roundTo(summary.Campaign.LeaderboardPoolUSD*shares[rank-1]/100, 8)
 	}
+}
+
+func preparePublicAcquisitionSummary(ctx context.Context, settings AcquisitionSettings, summary *AcquisitionUserSummary) {
+	if summary == nil {
+		return
+	}
+	for i := range summary.Leaderboard {
+		summary.Leaderboard[i].Email = maskEmail(summary.Leaderboard[i].Email)
+	}
+	if summary.AffCode != "" && summary.InviteLink == "" {
+		summary.InviteLink = buildAcquisitionInviteLink(settingsFrontendURL(ctx, settings), summary.AffCode)
+	}
+}
+
+func settingsFrontendURL(ctx context.Context, settings AcquisitionSettings) string {
+	if settings == nil {
+		return ""
+	}
+	if provider, ok := settings.(acquisitionFrontendURLSettings); ok {
+		return strings.TrimSpace(provider.GetFrontendURL(ctx))
+	}
+	return ""
+}
+
+func buildAcquisitionInviteLink(frontendURL, affCode string) string {
+	if affCode == "" {
+		return ""
+	}
+	path := "/register?aff=" + url.QueryEscape(affCode)
+	base := strings.TrimSpace(frontendURL)
+	if base == "" {
+		return path
+	}
+	u, err := url.Parse(base)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return path
+	}
+	u.Path = "/register"
+	u.RawQuery = "aff=" + url.QueryEscape(affCode)
+	u.Fragment = ""
+	return u.String()
 }
 
 func derefInt64(v *int64) int64 {

@@ -1,9 +1,6 @@
 package handler
 
 import (
-	"fmt"
-	"net/url"
-
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -36,26 +33,5 @@ func (h *AcquisitionHandler) GetCurrent(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	if summary != nil && summary.AffCode != "" && summary.InviteLink == "" {
-		summary.InviteLink = buildAcquisitionInviteLink(c, summary.AffCode)
-	}
 	response.Success(c, summary)
-}
-
-func buildAcquisitionInviteLink(c *gin.Context, affCode string) string {
-	if affCode == "" || c == nil || c.Request == nil {
-		return ""
-	}
-	scheme := "http"
-	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
-		scheme = "https"
-	}
-	host := c.Request.Host
-	if forwarded := c.GetHeader("X-Forwarded-Host"); forwarded != "" {
-		host = forwarded
-	}
-	if host == "" {
-		return fmt.Sprintf("/register?aff=%s", url.QueryEscape(affCode))
-	}
-	return fmt.Sprintf("%s://%s/register?aff=%s", scheme, host, url.QueryEscape(affCode))
 }

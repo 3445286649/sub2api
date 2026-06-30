@@ -99,15 +99,58 @@ func TestAcquisitionGetCurrentUserSummaryFillsLeaderboardRewardAmounts(t *testin
 	require.Equal(t, 20.0, summary.Leaderboard[2].RewardAmount)
 }
 
+func TestAcquisitionGetCurrentUserSummaryMasksLeaderboardEmailsAndBuildsInviteLink(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 6, 26, 10, 0, 0, 0, time.UTC)
+	repo := newAcquisitionRepoStub(now)
+	repo.affCode = "AFF CODE"
+	repo.leaderboard = []AcquisitionLeaderboardRow{
+		{UserID: 10, Email: "alice@example.com", InviteCount: 3, Rank: 1},
+		{UserID: 20, Email: "bob@example.net", InviteCount: 2, Rank: 2},
+	}
+	settings := acquisitionSettingStub{frontendURL: "https://subapi.example.com/app/"}
+	svc := NewAcquisitionService(repo, settings)
+
+	summary, err := svc.GetCurrentUserSummary(ctx, 10)
+
+	require.NoError(t, err)
+	require.Equal(t, "https://subapi.example.com/register?aff=AFF+CODE", summary.InviteLink)
+	require.Equal(t, "a***@e***.com", summary.Leaderboard[0].Email)
+	require.Equal(t, "b***@e***.net", summary.Leaderboard[1].Email)
+}
+
+func TestAcquisitionGetCurrentUserSummaryUsesRelativeInviteLinkWithoutFrontendURL(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 6, 26, 10, 0, 0, 0, time.UTC)
+	repo := newAcquisitionRepoStub(now)
+	repo.affCode = "AFF123"
+	svc := NewAcquisitionService(repo, acquisitionSettingStub{})
+
+	summary, err := svc.GetCurrentUserSummary(ctx, 10)
+
+	require.NoError(t, err)
+	require.Equal(t, "/register?aff=AFF123", summary.InviteLink)
+}
+
 type acquisitionAlwaysEnabled struct{}
 
 func (acquisitionAlwaysEnabled) IsAcquisitionEnabled(context.Context) bool            { return true }
 func (acquisitionAlwaysEnabled) IsAcquisitionLeaderboardEnabled(context.Context) bool { return true }
 func (acquisitionAlwaysEnabled) IsAcquisitionLotteryEnabled(context.Context) bool     { return true }
 
+type acquisitionSettingStub struct {
+	frontendURL string
+}
+
+func (s acquisitionSettingStub) IsAcquisitionEnabled(context.Context) bool            { return true }
+func (s acquisitionSettingStub) IsAcquisitionLeaderboardEnabled(context.Context) bool { return true }
+func (s acquisitionSettingStub) IsAcquisitionLotteryEnabled(context.Context) bool     { return true }
+func (s acquisitionSettingStub) GetFrontendURL(context.Context) string                { return s.frontendURL }
+
 type acquisitionRepoStub struct {
 	campaign        *AcquisitionCampaign
 	binding         *AcquisitionInviteBinding
+	affCode         string
 	hasPriorPayment bool
 	participations  []AcquisitionParticipation
 	tickets         []AcquisitionLotteryTicket
@@ -240,6 +283,7 @@ func (r *acquisitionRepoStub) MarkCampaignSettled(ctx context.Context, campaignI
 func (r *acquisitionRepoStub) GetUserSummary(ctx context.Context, campaignID, userID int64) (*AcquisitionUserSummary, error) {
 	summary := &AcquisitionUserSummary{
 		Campaign:    r.campaign,
+		AffCode:     r.affCode,
 		Leaderboard: append([]AcquisitionLeaderboardRow(nil), r.leaderboard...),
 		Rewards:     append([]AcquisitionReward(nil), r.rewards...),
 	}

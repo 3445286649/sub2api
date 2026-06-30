@@ -258,6 +258,49 @@ func TestCreateProviderInstanceAllowsVisibleMethodProvidersFromDifferentSources(
 	require.NoError(t, err)
 }
 
+func TestCreateProviderInstanceEncryptsStoredProviderConfig(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	svc := &PaymentConfigService{
+		entClient:     client,
+		encryptionKey: []byte("0123456789abcdef0123456789abcdef"),
+	}
+
+	instance, err := svc.CreateProviderInstance(ctx, CreateProviderInstanceRequest{
+		ProviderKey:    payment.TypeAlipay,
+		Name:           "Official Alipay",
+		Config:         validAlipayProviderConfig(t),
+		SupportedTypes: []string{payment.TypeAlipay},
+		Enabled:        true,
+	})
+	require.NoError(t, err)
+
+	saved, err := client.PaymentProviderInstance.Get(ctx, instance.ID)
+	require.NoError(t, err)
+	require.NotContains(t, saved.Config, "alipay-private-key-test")
+	require.NotContains(t, saved.Config, "privateKey")
+
+	cfg, err := svc.decryptConfig(saved.Config)
+	require.NoError(t, err)
+	require.Equal(t, "alipay-private-key-test", cfg["privateKey"])
+}
+
+func TestDecryptConfigAcceptsPlaintextLegacyProviderConfig(t *testing.T) {
+	t.Parallel()
+
+	svc := &PaymentConfigService{
+		encryptionKey: []byte("0123456789abcdef0123456789abcdef"),
+	}
+
+	cfg, err := svc.decryptConfig(`{"appId":"legacy-app","privateKey":"legacy-private-key"}`)
+
+	require.NoError(t, err)
+	require.Equal(t, "legacy-app", cfg["appId"])
+	require.Equal(t, "legacy-private-key", cfg["privateKey"])
+}
+
 func TestUpdateProviderInstanceAllowsEnablingVisibleMethodProviderFromDifferentSource(t *testing.T) {
 	t.Parallel()
 

@@ -117,6 +117,10 @@ type AffiliateRepository interface {
 	GetAffiliateUserOverview(ctx context.Context, userID int64) (*AffiliateUserOverview, error)
 }
 
+type affiliateQuotaCapRepository interface {
+	AccrueQuotaWithCap(ctx context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64, perInviteeCap float64) (float64, error)
+}
+
 // AffiliateAdminFilter 列表筛选条件
 type AffiliateAdminFilter struct {
 	Search   string
@@ -360,25 +364,36 @@ func (s *AffiliateService) AccrueInviteRebateForOrder(ctx context.Context, invit
 		return 0, nil
 	}
 
-	// 单人上限检查：精确截断到剩余额度
+	var perInviteeCap float64
 	if s.settingService != nil {
-		if perInviteeCap := s.settingService.GetAffiliateRebatePerInviteeCap(ctx); perInviteeCap > 0 {
-			existing, err := s.repo.GetAccruedRebateFromInvitee(ctx, *inviteeSummary.InviterID, inviteeUserID)
-			if err != nil {
-				return 0, err
-			}
-			if existing >= perInviteeCap {
-				return 0, nil
-			}
-			if remaining := perInviteeCap - existing; rebate > remaining {
-				rebate = roundTo(remaining, 8)
-			}
-		}
+		perInviteeCap = s.settingService.GetAffiliateRebatePerInviteeCap(ctx)
 	}
-
 	var freezeHours int
 	if s.settingService != nil {
 		freezeHours = s.settingService.GetAffiliateRebateFreezeHours(ctx)
+	}
+
+	if capRepo, ok := s.repo.(affiliateQuotaCapRepository); ok {
+		appliedAmount, err := capRepo.AccrueQuotaWithCap(ctx, *inviteeSummary.InviterID, inviteeUserID, rebate, freezeHours, sourceOrderID, perInviteeCap)
+		if err != nil {
+			return 0, err
+		}
+		return appliedAmount, nil
+	}
+
+	// 单人上限检查：精确截断到剩余额度。生产 repository 走上面的事务内实现；
+	// 这里保留给测试替身和旧实现，避免接口扩展影响无关调用。
+	if perInviteeCap > 0 {
+		existing, err := s.repo.GetAccruedRebateFromInvitee(ctx, *inviteeSummary.InviterID, inviteeUserID)
+		if err != nil {
+			return 0, err
+		}
+		if existing >= perInviteeCap {
+			return 0, nil
+		}
+		if remaining := perInviteeCap - existing; rebate > remaining {
+			rebate = roundTo(remaining, 8)
+		}
 	}
 
 	applied, err := s.repo.AccrueQuota(ctx, *inviteeSummary.InviterID, inviteeUserID, rebate, freezeHours, sourceOrderID)
