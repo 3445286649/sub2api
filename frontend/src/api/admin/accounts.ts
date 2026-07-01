@@ -15,6 +15,7 @@ import type {
   AccountUsageStatsResponse,
   AccountHealthSummary,
   AccountHealthOverview,
+  AccountHealthEventList,
   TempUnschedulableStatus,
   AdminDataPayload,
   AdminDataImportResult,
@@ -506,6 +507,18 @@ export async function getHealthOverview(): Promise<AccountHealthOverview> {
   return data
 }
 
+export async function getHealthEvents(
+  id: number,
+  params?: {
+    page?: number
+    page_size?: number
+    event_type?: string
+  }
+): Promise<AccountHealthEventList> {
+  const { data } = await apiClient.get<AccountHealthEventList>(`/admin/accounts/${id}/health/events`, { params })
+  return data
+}
+
 /**
  * Get available models for an account
  * @param id - Account ID
@@ -852,6 +865,7 @@ export const accountsAPI = {
   probeHealth,
   updateHealthProbeSettings,
   getHealthOverview,
+  getHealthEvents,
   getAvailableModels,
   syncUpstreamModels,
   syncUpstreamModelsPreview,

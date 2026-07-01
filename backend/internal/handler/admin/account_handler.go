@@ -23,8 +23,10 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -475,20 +477,21 @@ func (h *AccountHandler) ProbeHealth(c *gin.Context) {
 		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_ACCOUNT_ID", "invalid account id"))
 		return
 	}
+	actorUserID := adminActorUserID(c)
 	result, err := h.accountTestService.RunTestBackground(c.Request.Context(), accountID, "")
 	if err != nil {
-		_ = h.accountHealthService.RecordFailure(c.Request.Context(), accountID, "probe_error", err.Error())
+		_ = h.accountHealthService.RecordManualProbeFailure(c.Request.Context(), accountID, "probe_error", err.Error(), actorUserID)
 		response.ErrorFrom(c, err)
 		return
 	}
 	if result != nil && result.Status == "success" {
-		_ = h.accountHealthService.RecordProbeSuccess(c.Request.Context(), accountID, result.LatencyMs)
+		_ = h.accountHealthService.RecordManualProbeSuccess(c.Request.Context(), accountID, result.LatencyMs, actorUserID)
 	} else {
 		msg := ""
 		if result != nil {
 			msg = result.ErrorMessage
 		}
-		_ = h.accountHealthService.RecordFailure(c.Request.Context(), accountID, service.AccountHealthProbeFailureCategory(msg), msg)
+		_ = h.accountHealthService.RecordManualProbeFailure(c.Request.Context(), accountID, service.AccountHealthProbeFailureCategory(msg), msg, actorUserID)
 	}
 	health, err := h.accountHealthService.Get(c.Request.Context(), accountID)
 	if err != nil {
@@ -509,6 +512,32 @@ func (h *AccountHandler) HealthOverview(c *gin.Context) {
 		return
 	}
 	response.Success(c, overview)
+}
+
+func (h *AccountHandler) ListHealthEvents(c *gin.Context) {
+	if h.accountHealthService == nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("ACCOUNT_HEALTH_UNAVAILABLE", "account health service unavailable"))
+		return
+	}
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_ACCOUNT_ID", "invalid account id"))
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	events, err := h.accountHealthService.ListEvents(c.Request.Context(), accountID, c.Query("event_type"), pagination.PaginationParams{Page: page, PageSize: pageSize})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, events)
+}
+
+func adminActorUserID(c *gin.Context) *int64 {
+	if subject, ok := middleware2.GetAuthSubjectFromContext(c); ok && subject.UserID > 0 {
+		return &subject.UserID
+	}
+	return nil
 }
 
 func (h *AccountHandler) UpdateRateMultiplier(c *gin.Context) {
@@ -592,6 +621,7 @@ func (h *AccountHandler) UpdateHealthProbeSettings(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	_ = h.accountHealthService.RecordSettingsChanged(c.Request.Context(), account.ID, adminActorUserID(c))
 	health, err := h.accountHealthService.Get(c.Request.Context(), account.ID)
 	if err != nil {
 		response.ErrorFrom(c, err)

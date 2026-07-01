@@ -1067,6 +1067,10 @@ type GatewaySchedulingConfig struct {
 	// 默认 false，保持原有「优先级 → 负载率 → LRU」行为不变。
 	PreferSoonestReset bool `mapstructure:"prefer_soonest_reset"`
 
+	// HealthSortEnabled 开启后，账号调度会在硬过滤后按「成本倍率 → 健康分 → 平均延迟」优化排序。
+	// 关闭后回退旧的优先级/负载/LRU 排序，方便线上排障。
+	HealthSortEnabled bool `mapstructure:"health_sort_enabled"`
+
 	// 负载计算
 	LoadBatchEnabled    bool `mapstructure:"load_batch_enabled"`
 	LoadBatchCacheTTLMS int  `mapstructure:"load_batch_cache_ttl_ms"`
@@ -1921,6 +1925,7 @@ func setDefaults() {
 	viper.SetDefault("gateway.scheduling.fallback_max_waiting", 100)
 	viper.SetDefault("gateway.scheduling.fallback_selection_mode", "last_used")
 	viper.SetDefault("gateway.scheduling.prefer_soonest_reset", false)
+	viper.SetDefault("gateway.scheduling.health_sort_enabled", true)
 	viper.SetDefault("gateway.scheduling.load_batch_enabled", true)
 	viper.SetDefault("gateway.scheduling.load_batch_cache_ttl_ms", 200)
 	viper.SetDefault("gateway.scheduling.snapshot_mget_chunk_size", 128)

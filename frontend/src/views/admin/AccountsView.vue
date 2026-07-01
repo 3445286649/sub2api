@@ -447,6 +447,21 @@
         </div>
         <div v-else class="max-h-[68vh] space-y-3 overflow-y-auto pr-1">
           <div
+            v-if="healthOverview?.risks?.length"
+            class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30"
+          >
+            <div class="mb-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ t('admin.accounts.riskSummary') }}</div>
+            <div class="flex flex-wrap gap-1.5">
+              <span
+                v-for="risk in healthOverview.risks.slice(0, 20)"
+                :key="`${risk.level}-${risk.type}-${risk.base_url}-${risk.account_id}-${risk.group_id}`"
+                :class="['inline-flex max-w-full items-center rounded-md px-2 py-1 text-xs font-medium', healthRiskClass(risk.level)]"
+              >
+                <span class="truncate">{{ healthRiskLabel(risk) }}</span>
+              </span>
+            </div>
+          </div>
+          <div
             v-for="url in healthOverview?.urls || []"
             :key="url.base_url"
             class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
@@ -460,6 +475,15 @@
                   <span class="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ t('admin.accounts.healthStatus.degraded') }} {{ countOverviewStatus(url, 'degraded') }}</span>
                   <span class="rounded bg-red-50 px-1.5 py-0.5 text-red-700 dark:bg-red-900/30 dark:text-red-300">{{ t('admin.accounts.healthStatus.isolated') }} {{ countOverviewStatus(url, 'isolated') }}</span>
                   <span class="rounded bg-blue-50 px-1.5 py-0.5 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{{ t('admin.accounts.healthStatus.recovering') }} {{ countOverviewStatus(url, 'recovering') }}</span>
+                </div>
+                <div v-if="url.risks?.length" class="mt-1 flex flex-wrap gap-1">
+                  <span
+                    v-for="risk in url.risks.slice(0, 8)"
+                    :key="`${risk.level}-${risk.type}-${risk.account_id}-${risk.group_id}`"
+                    :class="['inline-flex max-w-full rounded px-1.5 py-0.5 text-[11px] font-medium', healthRiskClass(risk.level)]"
+                  >
+                    <span class="truncate">{{ healthRiskLabel(risk) }}</span>
+                  </span>
                 </div>
               </div>
               <span
@@ -550,15 +574,13 @@
               <span>{{ t('admin.accounts.probeEnabled') }}</span>
             </label>
             <label class="block">
-              <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.probeInterval') }}</span>
-              <input
-                v-model="healthProbeSettings.interval"
-                type="number"
-                min="0"
-                step="1"
-                class="form-input w-full"
-                :placeholder="t('admin.accounts.probeIntervalPlaceholder')"
-              />
+              <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.recoveryPriority') }}</span>
+              <select v-model="healthProbeSettings.interval" class="health-detail-control form-select w-full">
+                <option value="">{{ t('admin.accounts.recoveryPriorityDefault') }}</option>
+                <option value="3">{{ t('admin.accounts.recoveryPriorityFast') }}</option>
+                <option value="5">{{ t('admin.accounts.recoveryPriorityStandard') }}</option>
+                <option value="10">{{ t('admin.accounts.recoveryPriorityConservative') }}</option>
+              </select>
             </label>
             <button
               class="btn btn-primary px-3 py-2 text-sm"
@@ -567,6 +589,19 @@
             >
               {{ savingProbeSettings ? t('common.saving') : t('common.save') }}
             </button>
+          </div>
+          <div class="mt-3">
+            <label class="block max-w-[220px]">
+              <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.probeIntervalCustom') }}</span>
+              <input
+                v-model="healthProbeSettings.interval"
+                type="number"
+                min="0"
+                step="1"
+                class="health-detail-control form-input w-full"
+                :placeholder="t('admin.accounts.probeIntervalPlaceholder')"
+              />
+            </label>
           </div>
           <div class="mt-4 grid gap-3 border-t border-gray-100 pt-4 dark:border-gray-700 md:grid-cols-[minmax(0,1fr)_180px] md:items-end">
             <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -578,10 +613,58 @@
             </label>
             <label class="block">
               <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthyProbeInterval') }}</span>
-              <select v-model.number="healthProbeSettings.healthyInterval" class="health-probe-interval-select form-select w-full">
+              <select v-model.number="healthProbeSettings.healthyInterval" class="health-detail-control form-select w-full">
                 <option v-for="hour in healthyProbeIntervalOptions" :key="hour" :value="hour">{{ t('admin.accounts.healthyProbeIntervalOption', { hours: hour }) }}</option>
               </select>
             </label>
+          </div>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 md:col-span-2">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthEvents') }}</div>
+              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthEventsHint') }}</div>
+            </div>
+            <select v-model="healthEventFilter" class="health-detail-control form-select w-[180px] text-sm" @change="loadHealthEvents(1)">
+              <option value="">{{ t('admin.accounts.healthEventAll') }}</option>
+              <option v-for="type in healthEventTypes" :key="type" :value="type">{{ healthEventTypeLabel(type) }}</option>
+            </select>
+          </div>
+          <div v-if="healthEventsLoading" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
+          <div v-else-if="healthEventsError" class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+            {{ healthEventsError }}
+          </div>
+          <div v-else-if="healthEvents.length === 0" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthEventsEmpty') }}</div>
+          <div v-else class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50 text-xs font-semibold uppercase text-gray-500 dark:bg-gray-900/40 dark:text-gray-400">
+                <tr>
+                  <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.time') }}</th>
+                  <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.type') }}</th>
+                  <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.source') }}</th>
+                  <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.score') }}</th>
+                  <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.status') }}</th>
+                  <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.reason') }}</th>
+                  <th class="px-3 py-2 text-right">{{ t('admin.accounts.eventColumns.latency') }}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                <tr v-for="event in healthEvents" :key="event.id">
+                  <td class="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{{ formatDateTime(event.created_at) }}</td>
+                  <td class="px-3 py-2"><span :class="['inline-flex rounded-md px-2 py-0.5 text-xs font-medium', healthEventClass(event.event_type)]">{{ healthEventTypeLabel(event.event_type) }}</span></td>
+                  <td class="px-3 py-2 text-gray-600 dark:text-gray-300">{{ healthEventSourceLabel(event.source) }}</td>
+                  <td class="whitespace-nowrap px-3 py-2 font-mono text-gray-700 dark:text-gray-200">{{ event.score_before }} -> {{ event.score_after }} <span :class="event.delta >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'">({{ event.delta >= 0 ? '+' : '' }}{{ event.delta }})</span></td>
+                  <td class="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{{ healthStatusLabel(event.status_before) }} -> {{ healthStatusLabel(event.status_after) }}</td>
+                  <td class="max-w-[260px] px-3 py-2 text-gray-500 dark:text-gray-400"><span class="line-clamp-2">{{ event.error_category || event.error_message || '-' }}</span></td>
+                  <td class="px-3 py-2 text-right text-gray-600 dark:text-gray-300">{{ formatLatencyMs(event.latency_ms) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-if="healthEventsTotalPages > 1" class="mt-3 flex items-center justify-end gap-2 text-sm">
+            <button class="btn btn-secondary px-3 py-1.5 text-xs" :disabled="healthEventsPage <= 1" @click="loadHealthEvents(healthEventsPage - 1)">{{ t('common.previous') }}</button>
+            <span class="text-gray-500 dark:text-gray-400">{{ healthEventsPage }} / {{ healthEventsTotalPages }}</span>
+            <button class="btn btn-secondary px-3 py-1.5 text-xs" :disabled="healthEventsPage >= healthEventsTotalPages" @click="loadHealthEvents(healthEventsPage + 1)">{{ t('common.next') }}</button>
           </div>
         </div>
       </div>
@@ -629,7 +712,7 @@ import TLSFingerprintProfilesModal from '@/components/admin/TLSFingerprintProfil
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from '@/utils/proxyExpiry'
-import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, AccountHealthOverview, AccountHealthSummary, AccountHealthURLOverview } from '@/types'
+import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, AccountHealthOverview, AccountHealthSummary, AccountHealthURLOverview, AccountHealthRisk, AccountHealthEvent } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -702,6 +785,13 @@ const savingRateMultiplier = ref<number | null>(null)
 const probingHealth = ref<number | null>(null)
 const savingProbeSettings = ref(false)
 const healthyProbeIntervalOptions = [1, 3, 6, 12, 24]
+const healthEventTypes = ['success', 'failure', 'isolated', 'recovering', 'recovered', 'settings_changed']
+const healthEvents = ref<AccountHealthEvent[]>([])
+const healthEventsLoading = ref(false)
+const healthEventsError = ref('')
+const healthEventsPage = ref(1)
+const healthEventsTotalPages = ref(1)
+const healthEventFilter = ref('')
 const healthProbeSettings = reactive({
   enabled: true,
   interval: '' as string | number,
@@ -1259,9 +1349,14 @@ const openHealthOverview = async () => {
 
 const openHealthDetail = async (account: Account) => {
   healthDetailAccount.value = account
+  healthEventFilter.value = ''
+  healthEvents.value = []
+  healthEventsPage.value = 1
+  healthEventsTotalPages.value = 1
   try {
     const health = await adminAPI.accounts.getHealth(account.id)
     patchAccountHealthInList(account.id, health)
+    await loadHealthEvents(1)
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.accounts.healthDetailLoadFailed'))
   }
@@ -1453,6 +1548,70 @@ function summaryAutoStatusClass(summary: AccountHealthSummary): string {
 
 function countOverviewStatus(url: AccountHealthURLOverview, status: AccountHealthSummary['status']): number {
   return url.accounts.filter(account => account.status === status).length
+}
+
+function healthRiskClass(level?: string): string {
+  switch (level) {
+    case 'critical': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+    case 'warning': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+    default: return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+  }
+}
+
+function healthRiskLabel(risk: AccountHealthRisk): string {
+  const group = risk.group_name || (risk.group_id ? `#${risk.group_id}` : '')
+  const account = risk.account_id ? `#${risk.account_id}` : ''
+  switch (risk.type) {
+    case 'group_no_available_accounts':
+      return t('admin.accounts.riskGroupNoAvailable', { group })
+    case 'group_single_available_account':
+      return t('admin.accounts.riskGroupSingleAvailable', { group })
+    case 'url_all_isolated':
+      return t('admin.accounts.riskUrlAllIsolated', { count: risk.count ?? 0 })
+    case 'consecutive_failures':
+      return t('admin.accounts.riskConsecutiveFailures', { account, count: risk.count ?? 0 })
+    case 'healthy_probe_disabled':
+      return t('admin.accounts.riskHealthyProbeDisabled', { account })
+    default:
+      return risk.message || risk.type
+  }
+}
+
+function healthEventTypeLabel(type?: string): string {
+  switch (type) {
+    case 'success': return t('admin.accounts.healthEventTypes.success')
+    case 'failure': return t('admin.accounts.healthEventTypes.failure')
+    case 'isolated': return t('admin.accounts.healthEventTypes.isolated')
+    case 'recovering': return t('admin.accounts.healthEventTypes.recovering')
+    case 'recovered': return t('admin.accounts.healthEventTypes.recovered')
+    case 'settings_changed': return t('admin.accounts.healthEventTypes.settingsChanged')
+    default: return type || '-'
+  }
+}
+
+function healthEventSourceLabel(source?: string): string {
+  switch (source) {
+    case 'real_request': return t('admin.accounts.healthEventSources.realRequest')
+    case 'background_probe': return t('admin.accounts.healthEventSources.backgroundProbe')
+    case 'manual_probe': return t('admin.accounts.healthEventSources.manualProbe')
+    case 'system': return t('admin.accounts.healthEventSources.system')
+    default: return source || '-'
+  }
+}
+
+function healthEventClass(type?: string): string {
+  switch (type) {
+    case 'failure':
+    case 'isolated':
+      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+    case 'recovering':
+      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+    case 'recovered':
+    case 'success':
+      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+    default:
+      return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+  }
 }
 
 function formatRateInput(value?: number | null): string {
@@ -1911,6 +2070,9 @@ const handleHealthProbe = async (account: Account) => {
   try {
     const health = await adminAPI.accounts.probeHealth(account.id)
     patchAccountHealthInList(account.id, health)
+    if (healthDetailAccount.value?.id === account.id) {
+      await loadHealthEvents(1)
+    }
     enterAutoRefreshSilentWindow()
     appStore.showSuccess(t('admin.accounts.healthProbeSuccess'))
   } catch (error: any) {
@@ -1936,19 +2098,41 @@ const saveHealthProbeSettings = async () => {
 	  }
 	  savingProbeSettings.value = true
 	  try {
-	    const health = await adminAPI.accounts.updateHealthProbeSettings(account.id, {
-	      health_probe_enabled: healthProbeSettings.enabled,
-	      health_probe_interval_minutes: interval && interval > 0 ? interval : null,
-	      healthy_probe_enabled: healthProbeSettings.healthyEnabled,
-	      healthy_probe_interval_hours: healthyInterval === 6 ? null : healthyInterval
-	    })
+    const health = await adminAPI.accounts.updateHealthProbeSettings(account.id, {
+      health_probe_enabled: healthProbeSettings.enabled,
+      health_probe_interval_minutes: interval && interval > 0 ? interval : null,
+      healthy_probe_enabled: healthProbeSettings.healthyEnabled,
+      healthy_probe_interval_hours: healthyInterval === 6 ? null : healthyInterval
+    })
     patchAccountHealthInList(account.id, health)
+    await loadHealthEvents(1)
     enterAutoRefreshSilentWindow()
     appStore.showSuccess(t('admin.accounts.probeSettingsSaved'))
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.accounts.probeSettingsSaveFailed'))
   } finally {
     savingProbeSettings.value = false
+  }
+}
+
+const loadHealthEvents = async (page = healthEventsPage.value) => {
+  const account = healthDetailAccount.value
+  if (!account) return
+  healthEventsLoading.value = true
+  healthEventsError.value = ''
+  try {
+    const result = await adminAPI.accounts.getHealthEvents(account.id, {
+      page,
+      page_size: 10,
+      event_type: healthEventFilter.value || undefined
+    })
+    healthEvents.value = result.items || []
+    healthEventsPage.value = result.page || page
+    healthEventsTotalPages.value = result.total_pages || 1
+  } catch (error: any) {
+    healthEventsError.value = error?.message || t('admin.accounts.healthEventsLoadFailed')
+  } finally {
+    healthEventsLoading.value = false
   }
 }
 
@@ -2163,20 +2347,32 @@ onUnmounted(() => {
   @apply h-8 w-full rounded-md border border-gray-200 bg-white py-1 pl-2 pr-5 font-mono text-sm text-gray-700 outline-none transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-100 disabled:cursor-wait disabled:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:focus:border-primary-500 dark:focus:ring-primary-900/40;
 }
 
-.health-probe-interval-select,
-.health-probe-interval-select option {
+.health-detail-control {
+  color-scheme: light;
+}
+
+.health-detail-control,
+.health-detail-control option {
   color: #111827;
   background-color: #ffffff;
 }
 
-:global(.dark) .health-probe-interval-select {
+</style>
+
+<style>
+.dark .health-detail-control {
+  color-scheme: dark;
   color: #e5e7eb;
   background-color: #1f2937;
   border-color: #374151;
 }
 
-:global(.dark) .health-probe-interval-select option {
-  color: #111827;
-  background-color: #ffffff;
+.dark .health-detail-control::placeholder {
+  color: #9ca3af;
+}
+
+.dark .health-detail-control option {
+  color: #e5e7eb;
+  background-color: #111827;
 }
 </style>

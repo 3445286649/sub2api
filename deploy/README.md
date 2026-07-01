@@ -595,6 +595,26 @@ gateway:
         curves: [29, 23, 24, 25]
 ```
 
+### Blue/Green Deployment Helper
+
+This fork includes `deploy/bluegreen-deploy.sh` for the current local
+`8080 <-> 8081` blue/green deployment flow. It detects the active nginx port,
+starts the target container with the new image, runs smoke checks, switches
+nginx only after the target is healthy, and rolls nginx back automatically if
+post-switch checks fail.
+
+Dry-run example:
+
+```bash
+deploy/bluegreen-deploy.sh \
+  --image ghcr.io/3445286649/sub2api:latest \
+  --nginx-conf /etc/nginx/conf.d/subapi.loucer.cn.conf \
+  --dry-run
+```
+
+The script never prints `.env` contents and keeps the old container as a
+rollback point.
+
 ### Profile Fields
 
 | Field | Type | Description |

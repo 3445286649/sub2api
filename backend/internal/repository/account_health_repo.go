@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
 )
@@ -119,6 +120,82 @@ func (r *accountHealthRepository) ListDueForProbe(ctx context.Context, now time.
 	return out, rows.Err()
 }
 
+func (r *accountHealthRepository) InsertEvent(ctx context.Context, event *service.AccountHealthEvent) error {
+	if event == nil {
+		return nil
+	}
+	_, err := r.sql.ExecContext(ctx, `
+		INSERT INTO account_health_events (
+			account_id, source, event_type, score_before, score_after,
+			status_before, status_after, delta, error_category, error_message,
+			latency_ms, affected_group_ids, actor_user_id, created_at
+		) VALUES (
+			$1, $2, $3, $4, $5,
+			$6, $7, $8, $9, $10,
+			$11, $12, $13, $14
+		)
+	`, event.AccountID, event.Source, event.EventType, event.ScoreBefore, event.ScoreAfter,
+		event.StatusBefore, event.StatusAfter, event.Delta, accountHealthNullString(event.ErrorCategory), accountHealthNullString(event.ErrorMessage),
+		accountHealthNullInt64(event.LatencyMs), pq.Array(event.AffectedGroupIDs), accountHealthNullInt64(event.ActorUserID), event.CreatedAt)
+	return err
+}
+
+func (r *accountHealthRepository) ListEvents(ctx context.Context, accountID int64, eventType string, params pagination.PaginationParams) (*service.AccountHealthEventList, error) {
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+	if params.PageSize <= 0 {
+		params.PageSize = 20
+	}
+	where := "WHERE account_id = $1"
+	args := []any{accountID}
+	if strings.TrimSpace(eventType) != "" {
+		where += " AND event_type = $2"
+		args = append(args, strings.TrimSpace(eventType))
+	}
+	var total int64
+	countQuery := "SELECT COUNT(*) FROM account_health_events " + where
+	if err := scanSingleRow(ctx, r.sql, countQuery, args, &total); err != nil {
+		return nil, err
+	}
+	offset := (params.Page - 1) * params.PageSize
+	queryArgs := append([]any{}, args...)
+	queryArgs = append(queryArgs, params.PageSize, offset)
+	limitPos := len(queryArgs) - 1
+	offsetPos := len(queryArgs)
+	rows, err := r.sql.QueryContext(ctx, accountHealthEventSelectSQL+" "+where+`
+		ORDER BY created_at DESC, id DESC
+		LIMIT $`+itoa(limitPos)+` OFFSET $`+itoa(offsetPos), queryArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]service.AccountHealthEvent, 0)
+	for rows.Next() {
+		event, err := scanAccountHealthEvent(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	totalPages := 0
+	if params.PageSize > 0 {
+		totalPages = int((total + int64(params.PageSize) - 1) / int64(params.PageSize))
+	}
+	return &service.AccountHealthEventList{Items: items, Total: total, Page: params.Page, PageSize: params.PageSize, TotalPages: totalPages}, nil
+}
+
+func (r *accountHealthRepository) DeleteEventsBefore(ctx context.Context, before time.Time) (int64, error) {
+	res, err := r.sql.ExecContext(ctx, `DELETE FROM account_health_events WHERE created_at < $1`, before)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 const accountHealthSelectSQL = `
 	SELECT account_health_states.account_id,
 		account_health_states.score,
@@ -137,6 +214,12 @@ const accountHealthSelectSQL = `
 		account_health_states.created_at,
 		account_health_states.updated_at
 	FROM account_health_states`
+
+const accountHealthEventSelectSQL = `
+	SELECT id, account_id, source, event_type, score_before, score_after,
+		status_before, status_after, delta, error_category, error_message,
+		latency_ms, affected_group_ids, actor_user_id, created_at
+	FROM account_health_events`
 
 type accountHealthScanner interface {
 	Scan(dest ...any) error
@@ -168,6 +251,32 @@ func scanAccountHealthState(scanner accountHealthScanner) (*service.AccountHealt
 	return &state, nil
 }
 
+func scanAccountHealthEvent(scanner accountHealthScanner) (*service.AccountHealthEvent, error) {
+	var event service.AccountHealthEvent
+	var errorCategory, errorMessage sql.NullString
+	var latency, actor sql.NullInt64
+	var affected []int64
+	if err := scanner.Scan(
+		&event.ID, &event.AccountID, &event.Source, &event.EventType, &event.ScoreBefore, &event.ScoreAfter,
+		&event.StatusBefore, &event.StatusAfter, &event.Delta, &errorCategory, &errorMessage,
+		&latency, pq.Array(&affected), &actor, &event.CreatedAt,
+	); err != nil {
+		return nil, err
+	}
+	event.ErrorCategory = errorCategory.String
+	event.ErrorMessage = errorMessage.String
+	if latency.Valid {
+		v := latency.Int64
+		event.LatencyMs = &v
+	}
+	event.AffectedGroupIDs = affected
+	if actor.Valid {
+		v := actor.Int64
+		event.ActorUserID = &v
+	}
+	return &event, nil
+}
+
 func accountHealthNullTime(value *time.Time) any {
 	if value == nil {
 		return nil
@@ -183,6 +292,13 @@ func accountHealthNullString(value string) any {
 }
 
 func accountHealthNullInt(value *int) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
+func accountHealthNullInt64(value *int64) any {
 	if value == nil {
 		return nil
 	}

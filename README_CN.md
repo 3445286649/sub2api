@@ -538,6 +538,20 @@ gateway:
 - `security.url_allowlist.enabled` 可关闭 URL 校验（慎用）
 - `security.url_allowlist.allow_insecure_http` 关闭校验时允许 HTTP URL
 - `security.url_allowlist.allow_private_hosts` 允许私有/本地 IP 地址
+
+### 本地自研：上游账号自动健康调度
+
+本地版本包含账号级上游健康管理能力：按 `account_id` 独立计算健康度，同 URL 多 Key 不合并；真实请求失败会扣分并可能写入 `temp_unschedulable_until` 自动隔离，恢复探活连续成功后自动回到调度池。账号倍率 `rate_multiplier` 表示上游成本倍率，用于成本统计和调度排序，不是用户售卖倍率。
+
+调度默认开启健康排序：先按上游成本倍率，再按健康分和平均延迟排序；如线上排障需要回退旧排序，可设置：
+
+```yaml
+gateway:
+  scheduling:
+    health_sort_enabled: false
+```
+
+蓝绿发布可使用 `deploy/bluegreen-deploy.sh` 固化当前 `8080 <-> 8081` 切流流程。脚本支持 `--dry-run`，会先启动目标容器并检查 `/health`、首页、后台路由和登录接口 smoke，切流后观察失败会自动回滚 nginx，旧容器默认保留为回滚点。
 - `security.response_headers.enabled` 可启用可配置响应头过滤（关闭时使用默认白名单）
 - `security.csp` 配置 Content-Security-Policy
 - `billing.circuit_breaker` 计费异常时 fail-closed

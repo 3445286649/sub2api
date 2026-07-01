@@ -26,6 +26,7 @@ func TestRegisterAccountRoutes_HealthEnhancementRoutes(t *testing.T) {
 	wantRoutes := map[string]bool{
 		http.MethodPatch + " /api/v1/admin/accounts/:id/rate-multiplier":       false,
 		http.MethodPost + " /api/v1/admin/accounts/:id/health/probe":           false,
+		http.MethodGet + " /api/v1/admin/accounts/:id/health/events":           false,
 		http.MethodPatch + " /api/v1/admin/accounts/:id/health/probe-settings": false,
 		http.MethodGet + " /api/v1/admin/accounts/health/overview":             false,
 	}

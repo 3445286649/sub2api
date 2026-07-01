@@ -13,6 +13,7 @@ import (
 
 type memoryAccountHealthRepo struct {
 	states map[int64]*AccountHealthState
+	events []AccountHealthEvent
 }
 
 func (r *memoryAccountHealthRepo) Get(_ context.Context, accountID int64) (*AccountHealthState, error) {
@@ -62,6 +63,62 @@ func (r *memoryAccountHealthRepo) ListDueForProbe(_ context.Context, now time.Ti
 	return out, nil
 }
 
+func (r *memoryAccountHealthRepo) InsertEvent(_ context.Context, event *AccountHealthEvent) error {
+	if event == nil {
+		return nil
+	}
+	cp := *event
+	cp.ID = int64(len(r.events) + 1)
+	r.events = append(r.events, cp)
+	return nil
+}
+
+func (r *memoryAccountHealthRepo) ListEvents(_ context.Context, accountID int64, eventType string, params pagination.PaginationParams) (*AccountHealthEventList, error) {
+	var filtered []AccountHealthEvent
+	for _, event := range r.events {
+		if event.AccountID != accountID {
+			continue
+		}
+		if eventType != "" && event.EventType != eventType {
+			continue
+		}
+		filtered = append(filtered, event)
+	}
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+	if params.PageSize <= 0 {
+		params.PageSize = 20
+	}
+	start := (params.Page - 1) * params.PageSize
+	if start > len(filtered) {
+		start = len(filtered)
+	}
+	end := start + params.PageSize
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	totalPages := 0
+	if params.PageSize > 0 {
+		totalPages = (len(filtered) + params.PageSize - 1) / params.PageSize
+	}
+	return &AccountHealthEventList{Items: filtered[start:end], Total: int64(len(filtered)), Page: params.Page, PageSize: params.PageSize, TotalPages: totalPages}, nil
+}
+
+func (r *memoryAccountHealthRepo) DeleteEventsBefore(_ context.Context, before time.Time) (int64, error) {
+	kept := r.events[:0]
+	var deleted int64
+	for _, event := range r.events {
+		if event.CreatedAt.Before(before) {
+			deleted++
+			continue
+		}
+		kept = append(kept, event)
+	}
+	r.events = kept
+	return deleted, nil
+}
+
 type healthAccountRepoStub struct {
 	accounts          map[int64]*Account
 	tempSetCalls      int
@@ -93,11 +150,19 @@ func (r *healthAccountRepoStub) SetTempUnschedulable(_ context.Context, id int64
 	r.tempSetCalls++
 	r.lastTempAccountID = id
 	r.lastTempUntil = until
+	if account := r.accounts[id]; account != nil {
+		account.TempUnschedulableUntil = &until
+		account.TempUnschedulableReason = accountHealthIsolationReason
+	}
 	return nil
 }
 func (r *healthAccountRepoStub) ClearTempUnschedulable(_ context.Context, id int64) error {
 	r.tempClearCalls++
 	r.lastTempAccountID = id
+	if account := r.accounts[id]; account != nil {
+		account.TempUnschedulableUntil = nil
+		account.TempUnschedulableReason = ""
+	}
 	return nil
 }
 
@@ -169,6 +234,58 @@ func TestAccountHealthService_ProbeSuccessFastRecoversIsolatedAccount(t *testing
 	require.Equal(t, 1, accountRepo.tempClearCalls)
 }
 
+func TestAccountHealthService_HealthySuccessClearsStaleHealthTempUnschedulable(t *testing.T) {
+	ctx := context.Background()
+	until := time.Now().Add(30 * time.Minute)
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {
+			ID:                         1,
+			Status:                     StatusActive,
+			Schedulable:                true,
+			TempUnschedulableUntil:     &until,
+			TempUnschedulableReason:    accountHealthIsolationReason,
+			HealthProbeEnabled:         true,
+			HealthProbeIntervalMinutes: nil,
+		},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 90, Status: AccountHealthStatusHealthy, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: time.Now}
+
+	require.NoError(t, svc.RecordManualProbeSuccess(ctx, 1, 120, nil))
+
+	require.Equal(t, 1, accountRepo.tempClearCalls)
+	require.Nil(t, accountRepo.accounts[1].TempUnschedulableUntil)
+	require.Empty(t, accountRepo.accounts[1].TempUnschedulableReason)
+	require.Equal(t, AccountHealthStatusHealthy, repo.states[1].Status)
+}
+
+func TestAccountHealthService_HealthySuccessDoesNotClearNonHealthTempUnschedulable(t *testing.T) {
+	ctx := context.Background()
+	until := time.Now().Add(30 * time.Minute)
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {
+			ID:                      1,
+			Status:                  StatusActive,
+			Schedulable:             true,
+			TempUnschedulableUntil:  &until,
+			TempUnschedulableReason: "token refresh retry exhausted: network timeout",
+			HealthProbeEnabled:      true,
+		},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 90, Status: AccountHealthStatusHealthy, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: time.Now}
+
+	require.NoError(t, svc.RecordManualProbeSuccess(ctx, 1, 120, nil))
+
+	require.Zero(t, accountRepo.tempClearCalls)
+	require.NotNil(t, accountRepo.accounts[1].TempUnschedulableUntil)
+	require.Equal(t, "token refresh retry exhausted: network timeout", accountRepo.accounts[1].TempUnschedulableReason)
+}
+
 func TestAccountHealthService_AuthErrorDoesNotUseFastProbeRecovery(t *testing.T) {
 	ctx := context.Background()
 	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
@@ -222,6 +339,90 @@ func TestAccountHealthService_FixedProbeIntervalOverridesBackoff(t *testing.T) {
 	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
 	require.NotNil(t, repo.states[1].NextProbeAt)
 	require.Equal(t, base.Add(3*time.Minute), *repo.states[1].NextProbeAt)
+}
+
+func TestAccountHealthService_IsolatedTemporaryErrorUsesFixedFiveMinuteRecoveryProbe(t *testing.T) {
+	base := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return base }}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
+	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
+
+	require.Equal(t, AccountHealthStatusIsolated, repo.states[1].Status)
+	require.Equal(t, base.Add(5*time.Minute), *repo.states[1].NextProbeAt)
+	require.Equal(t, *repo.states[1].NextProbeAt, accountRepo.lastTempUntil)
+}
+
+func TestAccountHealthService_AuthErrorKeepsBackoffInsteadOfFixedRecoveryProbe(t *testing.T) {
+	base := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return base }}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", "invalid key"))
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", "invalid key"))
+
+	require.Equal(t, AccountHealthStatusIsolated, repo.states[1].Status)
+	require.Equal(t, base.Add(5*time.Minute), *repo.states[1].NextProbeAt, "second failure uses normal degraded backoff level 2, not fixed recovery override")
+}
+
+func TestAccountHealthService_RecordsEventsAndRedactsMessages(t *testing.T) {
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, GroupIDs: []int64{10}},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: time.Now}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", `{"api_key":"sk-secret-value","cookie":"sid=secret"}`))
+	require.Len(t, repo.events, 1)
+	require.Equal(t, AccountHealthEventTypeFailure, repo.events[0].EventType)
+	require.Equal(t, AccountHealthEventSourceRealRequest, repo.events[0].Source)
+	require.Equal(t, []int64{10}, repo.events[0].AffectedGroupIDs)
+	require.NotContains(t, repo.events[0].ErrorMessage, "sk-secret-value")
+	require.NotContains(t, repo.events[0].ErrorMessage, "sid=secret")
+	require.Contains(t, repo.events[0].ErrorMessage, "***")
+}
+
+func TestAccountHealthService_RecordsRecoveryEvent(t *testing.T) {
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: time.Now}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
+	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
+	repo.states[1].Score = 25
+	require.NoError(t, svc.RecordProbeSuccess(ctx, 1, 120))
+	require.NoError(t, svc.RecordProbeSuccess(ctx, 1, 100))
+
+	require.Equal(t, AccountHealthEventTypeRecovered, repo.events[len(repo.events)-1].EventType)
+	require.Equal(t, AccountHealthEventSourceBackgroundProbe, repo.events[len(repo.events)-1].Source)
+}
+
+func TestAccountHealthService_CleanupEventsDeletesOnlyOldRows(t *testing.T) {
+	now := time.Date(2026, 1, 31, 12, 0, 0, 0, time.UTC)
+	repo := &memoryAccountHealthRepo{events: []AccountHealthEvent{
+		{ID: 1, AccountID: 1, CreatedAt: now.Add(-31 * 24 * time.Hour)},
+		{ID: 2, AccountID: 1, CreatedAt: now.Add(-29 * 24 * time.Hour)},
+	}}
+	svc := &AccountHealthService{repo: repo, now: func() time.Time { return now }}
+
+	deleted, err := svc.CleanupEvents(context.Background(), now.Add(-30*24*time.Hour))
+	require.NoError(t, err)
+	require.Equal(t, int64(1), deleted)
+	require.Len(t, repo.events, 1)
+	require.Equal(t, int64(2), repo.events[0].ID)
 }
 
 func TestAccountHealthService_HealthyAccountsAreNotProbedByDefault(t *testing.T) {
@@ -387,4 +588,76 @@ func TestAccountHealthService_RecordFailureRedactsSensitiveMessage(t *testing.T)
 	require.NotContains(t, message, "Bearer abc")
 	require.NotContains(t, message, "sid=secret")
 	require.Contains(t, message, "***")
+}
+
+func TestAccountHealthService_OverviewBuildsRiskSummary(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Name: "a", Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, Credentials: map[string]any{"base_url": "https://u1", "api_key": "k1"}, GroupIDs: []int64{10}},
+		2: {ID: 2, Name: "b", Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, Credentials: map[string]any{"base_url": "https://u2", "api_key": "k2"}, GroupIDs: []int64{20}},
+		3: {ID: 3, Name: "c", Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, Credentials: map[string]any{"base_url": "https://u2", "api_key": "k3"}, GroupIDs: []int64{20}},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 80, Status: AccountHealthStatusHealthy, CreatedAt: now, UpdatedAt: now},
+		2: {AccountID: 2, Score: 30, Status: AccountHealthStatusIsolated, CreatedAt: now, UpdatedAt: now},
+		3: {AccountID: 3, Score: 30, Status: AccountHealthStatusIsolated, CreatedAt: now, UpdatedAt: now},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	overview, err := svc.Overview(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, overview.Risks)
+	require.Contains(t, riskTypes(overview.Risks), "group_single_available_account")
+	require.Contains(t, riskTypes(overview.Risks), "url_all_isolated")
+	require.Contains(t, riskTypes(overview.Risks), "group_no_available_accounts")
+}
+
+func TestSortAccountPointersByHealthCostAndLRU_CostBeforeHealthThenLatency(t *testing.T) {
+	cheap := 0.1
+	expensive := 0.2
+	accounts := []*Account{
+		{ID: 1, RateMultiplier: &expensive},
+		{ID: 2, RateMultiplier: &cheap},
+		{ID: 3, RateMultiplier: &cheap},
+	}
+	latency3 := 300
+	latency2 := 100
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 100}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 90, LatencyEWMAMs: &latency2}},
+		3: {AccountHealthState: AccountHealthState{AccountID: 3, Score: 90, LatencyEWMAMs: &latency3}},
+	}
+
+	sortAccountPointersByHealthCostAndLRU(accounts, health, false, true)
+
+	require.Equal(t, []int64{2, 3, 1}, []int64{accounts[0].ID, accounts[1].ID, accounts[2].ID})
+}
+
+func TestSortAccountPointersByHealthCostAndLRU_DisabledUsesLegacyPriorityLRU(t *testing.T) {
+	now := time.Now()
+	old := now.Add(-2 * time.Hour)
+	recent := now.Add(-time.Minute)
+	cheap := 0.1
+	expensive := 0.3
+	accounts := []*Account{
+		{ID: 1, Priority: 20, RateMultiplier: &cheap, LastUsedAt: &old},
+		{ID: 2, Priority: 10, RateMultiplier: &expensive, LastUsedAt: &recent},
+	}
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 99}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 10}},
+	}
+
+	sortAccountPointersByHealthCostAndLRU(accounts, health, false, false)
+
+	require.Equal(t, []int64{2, 1}, []int64{accounts[0].ID, accounts[1].ID})
+}
+
+func riskTypes(risks []AccountHealthRisk) []string {
+	out := make([]string, 0, len(risks))
+	for _, risk := range risks {
+		out = append(out, risk.Type)
+	}
+	return out
 }

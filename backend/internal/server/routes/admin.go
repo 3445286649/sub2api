@@ -377,6 +377,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.GET("/:id/health", h.Admin.Account.GetHealth)
 		accounts.POST("/:id/health/reset", h.Admin.Account.ResetHealth)
 		accounts.POST("/:id/health/probe", h.Admin.Account.ProbeHealth)
+		accounts.GET("/:id/health/events", h.Admin.Account.ListHealthEvents)
 		accounts.PATCH("/:id/health/probe-settings", h.Admin.Account.UpdateHealthProbeSettings)
 		accounts.GET("/:id/models", h.Admin.Account.GetAvailableModels)
 		accounts.POST("/:id/models/sync-upstream", h.Admin.Account.SyncUpstreamModels)

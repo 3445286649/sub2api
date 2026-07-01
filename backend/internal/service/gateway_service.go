@@ -1982,7 +1982,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 
 			if len(routingAvailable) > 0 {
-				sortAccountWithLoadByHealthCostAndLoad(routingAvailable, healthByAccountID, preferOAuth)
+				sortAccountWithLoadByHealthCostAndLoad(routingAvailable, healthByAccountID, preferOAuth, cfg.HealthSortEnabled)
 				shuffleWithinSortGroups(routingAvailable)
 
 				// 4. 尝试获取槽位
@@ -2222,7 +2222,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 		}
 
-		sortAccountWithLoadByHealthCostAndLoad(available, healthByAccountID, preferOAuth)
+		sortAccountWithLoadByHealthCostAndLoad(available, healthByAccountID, preferOAuth, cfg.HealthSortEnabled)
 		// 分层过滤选择：健康度/成本/优先级/负载率/LRU 排序后逐个尝试；
 		// PreferSoonestReset 仍在相同优先条件内保留 use-it-or-lose-it 行为。
 		for len(available) > 0 {
@@ -2277,7 +2277,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates []*Account, groupID *int64, sessionHash string, preferOAuth bool) (*AccountSelectionResult, bool, error) {
 	ordered := append([]*Account(nil), candidates...)
 	healthByAccountID := s.loadAccountHealthSummariesForPointers(ctx, ordered)
-	sortAccountPointersByHealthCostAndLRU(ordered, healthByAccountID, preferOAuth)
+	sortAccountPointersByHealthCostAndLRU(ordered, healthByAccountID, preferOAuth, s.schedulingConfig().HealthSortEnabled)
 
 	for _, acc := range ordered {
 		result, err := s.tryAcquireAccountSlot(ctx, acc.ID, acc.Concurrency)
@@ -2342,6 +2342,7 @@ func (s *GatewayService) schedulingConfig() config.GatewaySchedulingConfig {
 		StickySessionWaitTimeout: 45 * time.Second,
 		FallbackWaitTimeout:      30 * time.Second,
 		FallbackMaxWaiting:       100,
+		HealthSortEnabled:        true,
 		LoadBatchEnabled:         true,
 		SlotCleanupInterval:      30 * time.Second,
 	}

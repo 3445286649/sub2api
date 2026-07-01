@@ -78,6 +78,7 @@ type AccountHealthSummary struct {
 type AccountHealthURLOverview struct {
 	BaseURL                string                 `json:"base_url"`
 	Accounts               []AccountHealthSummary `json:"accounts"`
+	Risks                  []AccountHealthRisk    `json:"risks,omitempty"`
 	InsufficientGroupIDs   []int64                `json:"insufficient_group_ids,omitempty"`
 	InsufficientGroupNames []string               `json:"insufficient_group_names,omitempty"`
 }
@@ -85,6 +86,45 @@ type AccountHealthURLOverview struct {
 type AccountHealthOverview struct {
 	GeneratedAt time.Time                  `json:"generated_at"`
 	URLs        []AccountHealthURLOverview `json:"urls"`
+	Risks       []AccountHealthRisk        `json:"risks,omitempty"`
+}
+
+type AccountHealthRisk struct {
+	Level     string `json:"level"`
+	Type      string `json:"type"`
+	Message   string `json:"message"`
+	BaseURL   string `json:"base_url,omitempty"`
+	AccountID *int64 `json:"account_id,omitempty"`
+	GroupID   *int64 `json:"group_id,omitempty"`
+	GroupName string `json:"group_name,omitempty"`
+	Count     int    `json:"count,omitempty"`
+	Threshold int    `json:"threshold,omitempty"`
+}
+
+type AccountHealthEvent struct {
+	ID               int64     `json:"id"`
+	AccountID        int64     `json:"account_id"`
+	Source           string    `json:"source"`
+	EventType        string    `json:"event_type"`
+	ScoreBefore      int       `json:"score_before"`
+	ScoreAfter       int       `json:"score_after"`
+	StatusBefore     string    `json:"status_before"`
+	StatusAfter      string    `json:"status_after"`
+	Delta            int       `json:"delta"`
+	ErrorCategory    string    `json:"error_category,omitempty"`
+	ErrorMessage     string    `json:"error_message,omitempty"`
+	LatencyMs        *int64    `json:"latency_ms,omitempty"`
+	AffectedGroupIDs []int64   `json:"affected_group_ids,omitempty"`
+	ActorUserID      *int64    `json:"actor_user_id,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+type AccountHealthEventList struct {
+	Items      []AccountHealthEvent `json:"items"`
+	Total      int64                `json:"total"`
+	Page       int                  `json:"page"`
+	PageSize   int                  `json:"page_size"`
+	TotalPages int                  `json:"total_pages"`
 }
 
 type AccountHealthRepository interface {
@@ -93,7 +133,24 @@ type AccountHealthRepository interface {
 	Upsert(ctx context.Context, state *AccountHealthState) error
 	Delete(ctx context.Context, accountID int64) error
 	ListDueForProbe(ctx context.Context, now time.Time, limit int) ([]*AccountHealthState, error)
+	InsertEvent(ctx context.Context, event *AccountHealthEvent) error
+	ListEvents(ctx context.Context, accountID int64, eventType string, params pagination.PaginationParams) (*AccountHealthEventList, error)
+	DeleteEventsBefore(ctx context.Context, before time.Time) (int64, error)
 }
+
+const (
+	AccountHealthEventSourceRealRequest     = "real_request"
+	AccountHealthEventSourceBackgroundProbe = "background_probe"
+	AccountHealthEventSourceManualProbe     = "manual_probe"
+	AccountHealthEventSourceSystem          = "system"
+
+	AccountHealthEventTypeSuccess         = "success"
+	AccountHealthEventTypeFailure         = "failure"
+	AccountHealthEventTypeIsolated        = "isolated"
+	AccountHealthEventTypeRecovering      = "recovering"
+	AccountHealthEventTypeRecovered       = "recovered"
+	AccountHealthEventTypeSettingsChanged = "settings_changed"
+)
 
 type accountHealthAccountRepository interface {
 	GetByID(ctx context.Context, id int64) (*Account, error)
@@ -156,14 +213,18 @@ func (s *AccountHealthService) ListByAccountIDs(ctx context.Context, ids []int64
 }
 
 func (s *AccountHealthService) RecordSuccess(ctx context.Context, accountID int64, latencyMs int64) error {
-	return s.recordSuccess(ctx, accountID, latencyMs, false)
+	return s.recordSuccess(ctx, accountID, latencyMs, false, AccountHealthEventSourceRealRequest, nil)
 }
 
 func (s *AccountHealthService) RecordProbeSuccess(ctx context.Context, accountID int64, latencyMs int64) error {
-	return s.recordSuccess(ctx, accountID, latencyMs, true)
+	return s.recordSuccess(ctx, accountID, latencyMs, true, AccountHealthEventSourceBackgroundProbe, nil)
 }
 
-func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int64, latencyMs int64, probe bool) error {
+func (s *AccountHealthService) RecordManualProbeSuccess(ctx context.Context, accountID int64, latencyMs int64, actorUserID *int64) error {
+	return s.recordSuccess(ctx, accountID, latencyMs, true, AccountHealthEventSourceManualProbe, actorUserID)
+}
+
+func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int64, latencyMs int64, probe bool, source string, actorUserID *int64) error {
 	if s == nil || s.repo == nil {
 		return nil
 	}
@@ -172,6 +233,7 @@ func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int6
 	if err != nil {
 		return err
 	}
+	before := *state
 	authRecovery := state.LastErrorCategory == "auth_error"
 	reward := accountHealthSuccessReward
 	if probe && canFastRecoverFromProbeSuccess(state) {
@@ -213,18 +275,39 @@ func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int6
 			}
 		} else {
 			state.Status = AccountHealthStatusRecovering
-			state.NextProbeAt = accountHealthPtrTime(now.Add(s.nextProbeDelay(ctx, accountID, state.BackoffLevel)))
+			state.NextProbeAt = accountHealthPtrTime(now.Add(s.nextProbeDelayForState(ctx, accountID, state)))
 		}
 	} else if state.Score < accountHealthRecoveryScore {
 		state.Status = AccountHealthStatusDegraded
 	} else {
 		state.Status = AccountHealthStatusHealthy
 	}
+	if state.Status == AccountHealthStatusHealthy {
+		if err := s.clearStaleHealthTempUnschedulable(ctx, accountID); err != nil {
+			return err
+		}
+	}
 	state.UpdatedAt = now
-	return s.repo.Upsert(ctx, state)
+	if err := s.repo.Upsert(ctx, state); err != nil {
+		return err
+	}
+	_ = s.insertHealthEvent(ctx, &before, state, source, accountHealthSuccessEventType(&before, state), "", "", latencyMs, actorUserID)
+	return nil
 }
 
 func (s *AccountHealthService) RecordFailure(ctx context.Context, accountID int64, category, message string) error {
+	return s.recordFailure(ctx, accountID, category, message, AccountHealthEventSourceRealRequest, nil)
+}
+
+func (s *AccountHealthService) RecordProbeFailure(ctx context.Context, accountID int64, category, message string) error {
+	return s.recordFailure(ctx, accountID, category, message, AccountHealthEventSourceBackgroundProbe, nil)
+}
+
+func (s *AccountHealthService) RecordManualProbeFailure(ctx context.Context, accountID int64, category, message string, actorUserID *int64) error {
+	return s.recordFailure(ctx, accountID, category, message, AccountHealthEventSourceManualProbe, actorUserID)
+}
+
+func (s *AccountHealthService) recordFailure(ctx context.Context, accountID int64, category, message, source string, actorUserID *int64) error {
 	if s == nil || s.repo == nil {
 		return nil
 	}
@@ -233,6 +316,7 @@ func (s *AccountHealthService) RecordFailure(ctx context.Context, accountID int6
 	if err != nil {
 		return err
 	}
+	before := *state
 	state.Score = clampHealthScore(state.Score - accountHealthFailurePenalty)
 	state.ConsecutiveFailures++
 	state.ConsecutiveSuccesses = 0
@@ -241,19 +325,25 @@ func (s *AccountHealthService) RecordFailure(ctx context.Context, accountID int6
 	state.LastErrorCategory = truncateAccountHealthString(strings.TrimSpace(category), 40)
 	state.LastErrorMessage = truncateAccountHealthString(redactAccountHealthMessage(message), 1000)
 	state.BackoffLevel = nextBackoffLevel(state.BackoffLevel)
-	nextProbe := now.Add(s.nextProbeDelay(ctx, accountID, state.BackoffLevel))
-	state.NextProbeAt = &nextProbe
 	if state.ConsecutiveFailures >= accountHealthIsolationFailures || state.Score < accountHealthIsolationScore {
 		state.Status = AccountHealthStatusIsolated
 		state.IsolatedAt = &now
-		if err := s.accountRepo.SetTempUnschedulable(ctx, accountID, nextProbe, accountHealthIsolationReason); err != nil {
-			return err
-		}
 	} else {
 		state.Status = AccountHealthStatusDegraded
 	}
+	nextProbe := now.Add(s.nextProbeDelayForState(ctx, accountID, state))
+	state.NextProbeAt = &nextProbe
+	if state.Status == AccountHealthStatusIsolated {
+		if err := s.accountRepo.SetTempUnschedulable(ctx, accountID, nextProbe, accountHealthIsolationReason); err != nil {
+			return err
+		}
+	}
 	state.UpdatedAt = now
-	return s.repo.Upsert(ctx, state)
+	if err := s.repo.Upsert(ctx, state); err != nil {
+		return err
+	}
+	_ = s.insertHealthEvent(ctx, &before, state, source, accountHealthFailureEventType(&before, state), state.LastErrorCategory, state.LastErrorMessage, 0, actorUserID)
+	return nil
 }
 
 func (s *AccountHealthService) Reset(ctx context.Context, accountID int64) error {
@@ -262,6 +352,68 @@ func (s *AccountHealthService) Reset(ctx context.Context, accountID int64) error
 	}
 	if err := s.repo.Delete(ctx, accountID); err != nil {
 		return err
+	}
+	return s.accountRepo.ClearTempUnschedulable(ctx, accountID)
+}
+
+func (s *AccountHealthService) RecordSettingsChanged(ctx context.Context, accountID int64, actorUserID *int64) error {
+	if s == nil || s.repo == nil {
+		return nil
+	}
+	now := s.now()
+	state, err := s.getOrDefault(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	event := &AccountHealthEvent{
+		AccountID:        accountID,
+		Source:           AccountHealthEventSourceSystem,
+		EventType:        AccountHealthEventTypeSettingsChanged,
+		ScoreBefore:      state.Score,
+		ScoreAfter:       state.Score,
+		StatusBefore:     state.Status,
+		StatusAfter:      state.Status,
+		ActorUserID:      actorUserID,
+		CreatedAt:        now,
+		AffectedGroupIDs: s.affectedGroupIDs(ctx, accountID),
+	}
+	_ = s.repo.InsertEvent(ctx, event)
+	return nil
+}
+
+func (s *AccountHealthService) ListEvents(ctx context.Context, accountID int64, eventType string, params pagination.PaginationParams) (*AccountHealthEventList, error) {
+	if s == nil || s.repo == nil {
+		return &AccountHealthEventList{Items: []AccountHealthEvent{}, Page: params.Page, PageSize: params.PageSize}, nil
+	}
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+	if params.PageSize <= 0 {
+		params.PageSize = 20
+	}
+	if params.PageSize > 100 {
+		params.PageSize = 100
+	}
+	return s.repo.ListEvents(ctx, accountID, strings.TrimSpace(eventType), params)
+}
+
+func (s *AccountHealthService) CleanupEvents(ctx context.Context, before time.Time) (int64, error) {
+	if s == nil || s.repo == nil {
+		return 0, nil
+	}
+	return s.repo.DeleteEventsBefore(ctx, before)
+}
+
+func (s *AccountHealthService) clearStaleHealthTempUnschedulable(ctx context.Context, accountID int64) error {
+	if s == nil || s.accountRepo == nil {
+		return nil
+	}
+	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil || account == nil {
+		return err
+	}
+	if account.TempUnschedulableUntil == nil || account.TempUnschedulableReason != accountHealthIsolationReason {
+		return nil
 	}
 	return s.accountRepo.ClearTempUnschedulable(ctx, accountID)
 }
@@ -413,6 +565,7 @@ func (s *AccountHealthService) Overview(ctx context.Context) (*AccountHealthOver
 	}
 	byURL := make(map[string][]AccountHealthSummary)
 	availableByGroup := make(map[int64]int)
+	boundByGroup := make(map[int64]int)
 	groupNames := make(map[int64]string)
 	for i := range accounts {
 		summary := healthByID[accounts[i].ID]
@@ -430,12 +583,14 @@ func (s *AccountHealthService) Overview(ctx context.Context) (*AccountHealthOver
 			}
 		}
 		for i, gid := range summary.GroupIDs {
+			boundByGroup[gid]++
 			if i < len(summary.GroupNames) {
 				groupNames[gid] = summary.GroupNames[i]
 			}
 		}
 	}
 	urls := make([]AccountHealthURLOverview, 0, len(byURL))
+	var overviewRisks []AccountHealthRisk
 	for baseURL, items := range byURL {
 		sort.SliceStable(items, func(i, j int) bool { return items[i].AccountID < items[j].AccountID })
 		insufficient := make(map[int64]struct{})
@@ -457,10 +612,13 @@ func (s *AccountHealthService) Overview(ctx context.Context) (*AccountHealthOver
 				names = append(names, name)
 			}
 		}
-		urls = append(urls, AccountHealthURLOverview{BaseURL: baseURL, Accounts: items, InsufficientGroupIDs: ids, InsufficientGroupNames: names})
+		risks := buildAccountHealthURLRisks(baseURL, items, availableByGroup, boundByGroup, groupNames)
+		overviewRisks = append(overviewRisks, risks...)
+		urls = append(urls, AccountHealthURLOverview{BaseURL: baseURL, Accounts: items, Risks: risks, InsufficientGroupIDs: ids, InsufficientGroupNames: names})
 	}
 	sort.SliceStable(urls, func(i, j int) bool { return urls[i].BaseURL < urls[j].BaseURL })
-	return &AccountHealthOverview{GeneratedAt: s.now(), URLs: urls}, nil
+	sortAccountHealthRisks(overviewRisks)
+	return &AccountHealthOverview{GeneratedAt: s.now(), URLs: urls, Risks: overviewRisks}, nil
 }
 
 func (s *AccountHealthService) getOrDefault(ctx context.Context, accountID int64) (*AccountHealthState, error) {
@@ -589,6 +747,142 @@ func (s *AccountHealthService) nextProbeDelay(ctx context.Context, accountID int
 		}
 	}
 	return backoffDuration(backoffLevel)
+}
+
+func (s *AccountHealthService) nextProbeDelayForState(ctx context.Context, accountID int64, state *AccountHealthState) time.Duration {
+	if state == nil {
+		return s.nextProbeDelay(ctx, accountID, 0)
+	}
+	if state.LastErrorCategory != "auth_error" && (state.Status == AccountHealthStatusIsolated || state.Status == AccountHealthStatusRecovering) {
+		return 5 * time.Minute
+	}
+	return s.nextProbeDelay(ctx, accountID, state.BackoffLevel)
+}
+
+func (s *AccountHealthService) insertHealthEvent(ctx context.Context, before, after *AccountHealthState, source, eventType, category, message string, latencyMs int64, actorUserID *int64) error {
+	if s == nil || s.repo == nil || before == nil || after == nil {
+		return nil
+	}
+	latency := (*int64)(nil)
+	if latencyMs > 0 {
+		latency = &latencyMs
+	}
+	event := &AccountHealthEvent{
+		AccountID:        after.AccountID,
+		Source:           source,
+		EventType:        eventType,
+		ScoreBefore:      before.Score,
+		ScoreAfter:       after.Score,
+		StatusBefore:     before.Status,
+		StatusAfter:      after.Status,
+		Delta:            after.Score - before.Score,
+		ErrorCategory:    truncateAccountHealthString(strings.TrimSpace(category), 40),
+		ErrorMessage:     truncateAccountHealthString(redactAccountHealthMessage(message), 1000),
+		LatencyMs:        latency,
+		AffectedGroupIDs: s.affectedGroupIDs(ctx, after.AccountID),
+		ActorUserID:      actorUserID,
+		CreatedAt:        s.now(),
+	}
+	return s.repo.InsertEvent(ctx, event)
+}
+
+func (s *AccountHealthService) affectedGroupIDs(ctx context.Context, accountID int64) []int64 {
+	if s == nil || s.accountRepo == nil {
+		return nil
+	}
+	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil || account == nil {
+		return nil
+	}
+	ids := append([]int64(nil), account.GroupIDs...)
+	if len(ids) == 0 {
+		for _, ag := range account.AccountGroups {
+			ids = append(ids, ag.GroupID)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	return ids
+}
+
+func accountHealthSuccessEventType(before, after *AccountHealthState) string {
+	if before == nil || after == nil {
+		return AccountHealthEventTypeSuccess
+	}
+	if before.Status == AccountHealthStatusIsolated || before.Status == AccountHealthStatusRecovering {
+		if after.Status == AccountHealthStatusHealthy {
+			return AccountHealthEventTypeRecovered
+		}
+		return AccountHealthEventTypeRecovering
+	}
+	return AccountHealthEventTypeSuccess
+}
+
+func accountHealthFailureEventType(before, after *AccountHealthState) string {
+	if after == nil {
+		return AccountHealthEventTypeFailure
+	}
+	if after.Status == AccountHealthStatusIsolated && (before == nil || before.Status != AccountHealthStatusIsolated) {
+		return AccountHealthEventTypeIsolated
+	}
+	return AccountHealthEventTypeFailure
+}
+
+func buildAccountHealthURLRisks(baseURL string, items []AccountHealthSummary, availableByGroup, boundByGroup map[int64]int, groupNames map[int64]string) []AccountHealthRisk {
+	risks := make([]AccountHealthRisk, 0)
+	healthyLike := 0
+	for i := range items {
+		item := items[i]
+		if item.Schedulable && item.Status != AccountHealthStatusIsolated {
+			healthyLike++
+		}
+		if item.ConsecutiveFailures > 0 && item.Status != AccountHealthStatusIsolated {
+			id := item.AccountID
+			risks = append(risks, AccountHealthRisk{Level: "warning", Type: "consecutive_failures", Message: "account has recent consecutive failures", BaseURL: baseURL, AccountID: &id, Count: item.ConsecutiveFailures, Threshold: accountHealthIsolationFailures})
+		}
+		if item.HealthProbeEnabled && !item.HealthyProbeEnabled && item.Status == AccountHealthStatusHealthy {
+			id := item.AccountID
+			risks = append(risks, AccountHealthRisk{Level: "info", Type: "healthy_probe_disabled", Message: "healthy low-frequency probe disabled", BaseURL: baseURL, AccountID: &id})
+		}
+	}
+	if len(items) > 0 && healthyLike == 0 {
+		risks = append(risks, AccountHealthRisk{Level: "critical", Type: "url_all_isolated", Message: "all accounts under this upstream URL are unavailable", BaseURL: baseURL, Count: len(items)})
+	}
+	seenGroups := map[int64]struct{}{}
+	for _, item := range items {
+		for _, gid := range item.GroupIDs {
+			if _, ok := seenGroups[gid]; ok {
+				continue
+			}
+			seenGroups[gid] = struct{}{}
+			available := availableByGroup[gid]
+			bound := boundByGroup[gid]
+			name := groupNames[gid]
+			groupID := gid
+			if bound > 0 && available == 0 {
+				risks = append(risks, AccountHealthRisk{Level: "critical", Type: "group_no_available_accounts", Message: "group has no available accounts", BaseURL: baseURL, GroupID: &groupID, GroupName: name, Count: available})
+			} else if available == 1 {
+				risks = append(risks, AccountHealthRisk{Level: "warning", Type: "group_single_available_account", Message: "group has only one available account", BaseURL: baseURL, GroupID: &groupID, GroupName: name, Count: available, Threshold: 1})
+			}
+		}
+	}
+	sortAccountHealthRisks(risks)
+	return risks
+}
+
+func sortAccountHealthRisks(risks []AccountHealthRisk) {
+	priority := map[string]int{"critical": 0, "warning": 1, "info": 2}
+	sort.SliceStable(risks, func(i, j int) bool {
+		if priority[risks[i].Level] != priority[risks[j].Level] {
+			return priority[risks[i].Level] < priority[risks[j].Level]
+		}
+		if risks[i].Type != risks[j].Type {
+			return risks[i].Type < risks[j].Type
+		}
+		if risks[i].BaseURL != risks[j].BaseURL {
+			return risks[i].BaseURL < risks[j].BaseURL
+		}
+		return risks[i].Count > risks[j].Count
+	})
 }
 
 func healthyProbeInterval(account *Account) time.Duration {

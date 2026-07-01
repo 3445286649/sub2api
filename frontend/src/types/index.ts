@@ -1038,9 +1038,48 @@ export interface AccountHealthSummary {
   group_names?: string[]
 }
 
+export interface AccountHealthRisk {
+  level: 'critical' | 'warning' | 'info' | string
+  type: string
+  message: string
+  base_url?: string
+  account_id?: number | null
+  group_id?: number | null
+  group_name?: string
+  count?: number
+  threshold?: number
+}
+
+export interface AccountHealthEvent {
+  id: number
+  account_id: number
+  source: 'real_request' | 'background_probe' | 'manual_probe' | 'system' | string
+  event_type: 'success' | 'failure' | 'score_change' | 'isolated' | 'recovering' | 'recovered' | 'settings_changed' | string
+  score_before: number
+  score_after: number
+  status_before: string
+  status_after: string
+  delta: number
+  error_category?: string
+  error_message?: string
+  latency_ms?: number | null
+  affected_group_ids?: number[]
+  actor_user_id?: number | null
+  created_at: string
+}
+
+export interface AccountHealthEventList {
+  items: AccountHealthEvent[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 export interface AccountHealthURLOverview {
   base_url: string
   accounts: AccountHealthSummary[]
+  risks?: AccountHealthRisk[]
   insufficient_group_ids?: number[]
   insufficient_group_names?: string[]
 }
@@ -1048,6 +1087,7 @@ export interface AccountHealthURLOverview {
 export interface AccountHealthOverview {
   generated_at: string
   urls: AccountHealthURLOverview[]
+  risks?: AccountHealthRisk[]
 }
 
 // Account Usage types
