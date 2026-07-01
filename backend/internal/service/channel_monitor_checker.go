@@ -56,6 +56,10 @@ type CheckOptions struct {
 //
 // opts 承载模板 / 监控快照带来的自定义配置。nil 等同于 "off + 无 extra headers"。
 func runCheckForModel(ctx context.Context, provider, endpoint, apiKey, model string, opts *CheckOptions) *CheckResult {
+	return runCheckForModelAttempt(ctx, provider, endpoint, apiKey, model, opts, nil, nil)
+}
+
+func runCheckForModelAttempt(ctx context.Context, provider, endpoint, apiKey, model string, opts *CheckOptions, signer *ChannelMonitorSigner, excludedAccountIDs []int64) *CheckResult {
 	res := &CheckResult{
 		Model:           model,
 		Status:          MonitorStatusError,
@@ -67,12 +71,13 @@ func runCheckForModel(ctx context.Context, provider, endpoint, apiKey, model str
 	mode := bodyOverrideMode(opts)
 
 	start := time.Now()
-	outcome := callProviderWithRetry(ctx, provider, endpoint, apiKey, model, challenge.Prompt, opts)
+	outcome := callProviderWithRetry(ctx, provider, endpoint, apiKey, model, challenge.Prompt, opts, signer, excludedAccountIDs)
 	latency := time.Since(start)
 	latencyMs := int(latency / time.Millisecond)
 	res.LatencyMs = &latencyMs
 	res.Attempts = outcome.attempts
 	res.RequestPath = outcome.requestPath
+	res.selectedAccountID = outcome.selectedAccountID
 	if outcome.statusCode > 0 {
 		statusCode := outcome.statusCode
 		res.HTTPStatus = &statusCode
@@ -125,6 +130,82 @@ func runCheckForModel(ctx context.Context, provider, endpoint, apiKey, model str
 	}
 
 	return finalizeOperationalOrDegraded(res, latency, latencyMs)
+}
+
+type checkResultMutator func(*CheckResult)
+
+// runCheckForModelWithSequentialProbe runs one logical channel check with
+// success-fast sequential probing. It only records a failing/degraded result
+// when all logical attempts fail to produce an operational result.
+func runCheckForModelWithSequentialProbe(ctx context.Context, provider, endpoint, apiKey, model string, opts *CheckOptions, mutators ...checkResultMutator) *CheckResult {
+	return runCheckForModelWithSequentialProbeSigner(ctx, provider, endpoint, apiKey, model, opts, nil, mutators...)
+}
+
+func runCheckForModelWithSequentialProbeSigner(ctx context.Context, provider, endpoint, apiKey, model string, opts *CheckOptions, signer *ChannelMonitorSigner, mutators ...checkResultMutator) *CheckResult {
+	var bestDegraded *CheckResult
+	var last *CheckResult
+	excludedAccountIDs := make([]int64, 0, monitorSequentialProbeMaxAttempts)
+
+	for attempt := 1; attempt <= monitorSequentialProbeMaxAttempts; attempt++ {
+		res := runCheckForModelAttempt(ctx, provider, endpoint, apiKey, model, opts, signer, excludedAccountIDs)
+		for _, mutate := range mutators {
+			if mutate != nil {
+				mutate(res)
+			}
+		}
+		res.Attempts = attempt
+		last = res
+
+		switch res.Status {
+		case MonitorStatusOperational:
+			if attempt > 1 {
+				res.Message = truncateMessage(fmt.Sprintf("本轮第 %d 次探测成功，前 %d 次异常已忽略", attempt, attempt-1))
+			}
+			return res
+		case MonitorStatusDegraded:
+			if bestDegraded == nil {
+				bestDegraded = cloneCheckResult(res)
+			}
+		}
+		if res.selectedAccountID > 0 {
+			excludedAccountIDs = append(excludedAccountIDs, res.selectedAccountID)
+		}
+	}
+
+	if bestDegraded != nil {
+		bestDegraded.Attempts = monitorSequentialProbeMaxAttempts
+		bestDegraded.Message = truncateMessage(fmt.Sprintf("连续 %d 次探测均为慢响应", monitorSequentialProbeMaxAttempts))
+		return bestDegraded
+	}
+	if last == nil {
+		return &CheckResult{
+			Model:           model,
+			Status:          MonitorStatusError,
+			CheckedAt:       time.Now(),
+			FailureCategory: MonitorFailureNetworkError,
+			Attempts:        monitorSequentialProbeMaxAttempts,
+			Message:         truncateMessage("连续 3 次探测失败"),
+		}
+	}
+	last.Attempts = monitorSequentialProbeMaxAttempts
+	last.Message = summarizeSequentialProbeExhausted(last.Message)
+	return last
+}
+
+func cloneCheckResult(in *CheckResult) *CheckResult {
+	if in == nil {
+		return nil
+	}
+	cp := *in
+	return &cp
+}
+
+func summarizeSequentialProbeExhausted(message string) string {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return truncateMessage(fmt.Sprintf("连续 %d 次探测失败", monitorSequentialProbeMaxAttempts))
+	}
+	return truncateMessage(fmt.Sprintf("连续 %d 次探测失败：%s", monitorSequentialProbeMaxAttempts, message))
 }
 
 // finalizeOperationalOrDegraded 负责走到最后一步的 operational/degraded 判定。
@@ -186,14 +267,15 @@ type providerAdapter struct {
 }
 
 type providerCallOutcome struct {
-	extractedText   string
-	rawBody         string
-	statusCode      int
-	err             error
-	requestPath     string
-	attempts        int
-	failureCategory string
-	localFailure    bool
+	extractedText     string
+	rawBody           string
+	statusCode        int
+	err               error
+	requestPath       string
+	attempts          int
+	selectedAccountID int64
+	failureCategory   string
+	localFailure      bool
 }
 
 // providerAdapters 全部已支持的 provider。键值即 MonitorProvider* 字符串。
@@ -296,8 +378,8 @@ func isSupportedProvider(p string) bool {
 //   - rawBody: 完整响应体的字符串形式（已被 monitorResponseMaxBytes 截断），用于错误路径保留上游真实回包
 //   - status: HTTP 状态码
 //   - err: 网络 / 序列化错误
-func callProviderWithRetry(ctx context.Context, provider, endpoint, apiKey, model, prompt string, opts *CheckOptions) providerCallOutcome {
-	out := callProvider(ctx, provider, endpoint, apiKey, model, prompt, opts)
+func callProviderWithRetry(ctx context.Context, provider, endpoint, apiKey, model, prompt string, opts *CheckOptions, signer *ChannelMonitorSigner, excludedAccountIDs []int64) providerCallOutcome {
+	out := callProvider(ctx, provider, endpoint, apiKey, model, prompt, opts, signer, excludedAccountIDs)
 	out.attempts = 1
 	if shouldRetryMonitorCheck(out) {
 		select {
@@ -306,14 +388,14 @@ func callProviderWithRetry(ctx context.Context, provider, endpoint, apiKey, mode
 			out.err = ctx.Err()
 			return out
 		}
-		next := callProvider(ctx, provider, endpoint, apiKey, model, prompt, opts)
+		next := callProvider(ctx, provider, endpoint, apiKey, model, prompt, opts, signer, excludedAccountIDs)
 		next.attempts = 2
 		return next
 	}
 	return out
 }
 
-func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt string, opts *CheckOptions) providerCallOutcome {
+func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt string, opts *CheckOptions, signer *ChannelMonitorSigner, excludedAccountIDs []int64) providerCallOutcome {
 	requestedAPIMode := checkAPIMode(opts)
 	if err := validateAPIMode(provider, requestedAPIMode); err != nil {
 		return providerCallOutcome{err: err, failureCategory: MonitorFailureConfigError, localFailure: true}
@@ -327,19 +409,23 @@ func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt
 		return providerCallOutcome{err: err, requestPath: adapter.buildPath(model), failureCategory: MonitorFailureConfigError, localFailure: true}
 	}
 	headers := mergeHeaders(adapter.buildHeaders(apiKey), opts)
+	if signer != nil {
+		signer.SignHeaderMap(headers, excludedAccountIDs, time.Now())
+	}
 	path := adapter.buildPath(model)
 	full := joinURL(endpoint, path)
-	respBytes, status, err := postRawJSON(ctx, full, body, headers)
+	respBytes, status, respHeaders, err := postRawJSON(ctx, full, body, headers)
+	selectedID := selectedMonitorAccountID(respHeaders)
 	if err != nil {
-		return providerCallOutcome{statusCode: status, err: err, requestPath: path}
+		return providerCallOutcome{statusCode: status, err: err, requestPath: path, selectedAccountID: selectedID}
 	}
 	if provider == MonitorProviderOpenAI && apiMode == MonitorAPIModeResponses {
-		return providerCallOutcome{extractedText: extractOpenAIResponsesText(respBytes), rawBody: string(respBytes), statusCode: status, requestPath: path}
+		return providerCallOutcome{extractedText: extractOpenAIResponsesText(respBytes), rawBody: string(respBytes), statusCode: status, requestPath: path, selectedAccountID: selectedID}
 	}
 	if provider == MonitorProviderAnthropic {
-		return providerCallOutcome{extractedText: extractAnthropicMessagesText(respBytes), rawBody: string(respBytes), statusCode: status, requestPath: path}
+		return providerCallOutcome{extractedText: extractAnthropicMessagesText(respBytes), rawBody: string(respBytes), statusCode: status, requestPath: path, selectedAccountID: selectedID}
 	}
-	return providerCallOutcome{extractedText: gjson.GetBytes(respBytes, adapter.textPath).String(), rawBody: string(respBytes), statusCode: status, requestPath: path}
+	return providerCallOutcome{extractedText: gjson.GetBytes(respBytes, adapter.textPath).String(), rawBody: string(respBytes), statusCode: status, requestPath: path, selectedAccountID: selectedID}
 }
 
 func shouldRetryMonitorCheck(out providerCallOutcome) bool {
@@ -597,10 +683,10 @@ func hasNonEmptyBodyValue(v any) bool {
 
 // postRawJSON 发送 POST + 已序列化好的 JSON 字节，限制响应体大小，返回响应字节、HTTP status、错误。
 // adapter 自行 marshal 是为了精确控制字段顺序与类型，所以这里直接收 []byte 而不是 any。
-func postRawJSON(ctx context.Context, fullURL string, payload []byte, headers map[string]string) ([]byte, int, error) {
+func postRawJSON(ctx context.Context, fullURL string, payload []byte, headers map[string]string) ([]byte, int, http.Header, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(payload))
 	if err != nil {
-		return nil, 0, fmt.Errorf("build request: %w", err)
+		return nil, 0, nil, fmt.Errorf("build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
@@ -610,15 +696,15 @@ func postRawJSON(ctx context.Context, fullURL string, payload []byte, headers ma
 
 	resp, err := monitorHTTPClient.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("do request: %w", err)
+		return nil, 0, nil, fmt.Errorf("do request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, monitorResponseMaxBytes))
 	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("read body: %w", err)
+		return nil, resp.StatusCode, resp.Header.Clone(), fmt.Errorf("read body: %w", err)
 	}
-	return respBody, resp.StatusCode, nil
+	return respBody, resp.StatusCode, resp.Header.Clone(), nil
 }
 
 // joinURL 把 base origin 与 path 拼成完整 URL。

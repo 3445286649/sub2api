@@ -130,6 +130,12 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
 	failedAccountIDs := make(map[int64]struct{})
+	excluded, isChannelMonitorRequest := channelMonitorRequestContext(c, h.channelMonitorSigner)
+	if len(excluded) > 0 {
+		for id := range excluded {
+			failedAccountIDs[id] = struct{}{}
+		}
+	}
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
 
@@ -181,6 +187,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		reqLog.Debug("openai_chat_completions.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 		_ = scheduleDecision
 		setOpsSelectedAccount(c, account.ID, account.Platform)
+		if isChannelMonitorRequest {
+			writeChannelMonitorSelectedAccountHeader(c, account.ID)
+		}
 
 		accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
 		if !acquired {

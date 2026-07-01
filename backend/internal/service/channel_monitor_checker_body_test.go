@@ -74,6 +74,7 @@ func setupFakeAnthropic(t *testing.T, handler *captureHandler) string {
 type openAICaptureHandler struct {
 	lastBody                  map[string]any
 	lastHeaders               http.Header
+	seenHeaders               []http.Header
 	lastPath                  string
 	status                    int
 	statusSequence            []int
@@ -86,6 +87,7 @@ type openAICaptureHandler struct {
 func (h *openAICaptureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.callCount++
 	h.lastHeaders = r.Header.Clone()
+	h.seenHeaders = append(h.seenHeaders, r.Header.Clone())
 	h.lastPath = r.URL.Path
 	defer func() { _ = r.Body.Close() }()
 	var parsed map[string]any
@@ -100,6 +102,9 @@ func (h *openAICaptureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		status = http.StatusOK
 	}
 	w.Header().Set("Content-Type", "application/json")
+	if h.callCount == 1 {
+		w.Header().Set(ChannelMonitorHeaderSelectedAccount, "774")
+	}
 	w.WriteHeader(status)
 
 	if status < 200 || status >= 300 {

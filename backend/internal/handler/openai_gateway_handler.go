@@ -35,6 +35,7 @@ type OpenAIGatewayHandler struct {
 	errorPassthroughService  *service.ErrorPassthroughService
 	contentModerationService *service.ContentModerationService
 	opsService               *service.OpsService
+	channelMonitorSigner     *service.ChannelMonitorSigner
 	concurrencyHelper        *ConcurrencyHelper
 	imageLimiter             *imageConcurrencyLimiter
 	maxAccountSwitches       int
@@ -147,6 +148,13 @@ func NewOpenAIGatewayHandler(
 		maxAccountSwitches:       maxAccountSwitches,
 		cfg:                      cfg,
 	}
+}
+
+func (h *OpenAIGatewayHandler) SetChannelMonitorSigner(signer *service.ChannelMonitorSigner) {
+	if h == nil {
+		return
+	}
+	h.channelMonitorSigner = signer
 }
 
 // Responses handles OpenAI Responses API endpoint

@@ -98,6 +98,9 @@ const (
 	monitorAnthropicAPIVersion = "2023-06-01"
 	// monitorChallengeMaxTokens 单次 challenge 请求的 max_tokens（足够回答个位数算术）。
 	monitorChallengeMaxTokens = 50
+	// monitorSequentialProbeMaxAttempts 渠道监控逻辑补测次数上限。
+	// 任意一次 operational 即成功；连续异常才写失败，避免单个抖动账号误判整个渠道。
+	monitorSequentialProbeMaxAttempts = 3
 
 	// monitorRunOneBuffer runOne 的总超时缓冲（除请求超时与 ping 超时外的额外裕量）。
 	monitorRunOneBuffer = 10 * time.Second

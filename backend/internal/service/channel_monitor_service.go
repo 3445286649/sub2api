@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -59,16 +60,36 @@ type ChannelMonitorRepository interface {
 
 // ChannelMonitorService 渠道监控管理服务。
 type ChannelMonitorService struct {
-	repo      ChannelMonitorRepository
-	encryptor SecretEncryptor
+	repo          ChannelMonitorRepository
+	encryptor     SecretEncryptor
+	signer        *ChannelMonitorSigner
+	settingReader channelMonitorSettingReader
 	// scheduler 由 wire 通过 SetScheduler 注入；CRUD 后调用对应钩子即时同步任务。
 	// 测试或未注入场景下保持 nil，所有钩子调用变为 no-op。
 	scheduler MonitorScheduler
 }
 
+type channelMonitorSettingReader interface {
+	GetAllSettings(ctx context.Context) (*SystemSettings, error)
+}
+
 // NewChannelMonitorService 创建渠道监控服务实例。
 func NewChannelMonitorService(repo ChannelMonitorRepository, encryptor SecretEncryptor) *ChannelMonitorService {
-	return &ChannelMonitorService{repo: repo, encryptor: encryptor}
+	return &ChannelMonitorService{repo: repo, encryptor: encryptor, signer: NewChannelMonitorSigner()}
+}
+
+func (s *ChannelMonitorService) Signer() *ChannelMonitorSigner {
+	if s == nil {
+		return nil
+	}
+	return s.signer
+}
+
+func (s *ChannelMonitorService) SetSettingReader(reader channelMonitorSettingReader) {
+	if s == nil {
+		return
+	}
+	s.settingReader = reader
 }
 
 // ---------- CRUD ----------
@@ -315,13 +336,14 @@ func (s *ChannelMonitorService) runChecksConcurrent(ctx context.Context, m *Chan
 		BodyOverrideMode: m.BodyOverrideMode,
 		BodyOverride:     m.BodyOverride,
 	}
+	signer := s.signerForEndpoint(ctx, m.Endpoint)
 
 	var eg errgroup.Group
 	var mu sync.Mutex
 	for i, model := range models {
 		i, model := i, model
 		eg.Go(func() error {
-			r := runCheckForModel(ctx, m.Provider, m.Endpoint, m.APIKey, model, opts)
+			r := runCheckForModelWithSequentialProbeSigner(ctx, m.Provider, m.Endpoint, m.APIKey, model, opts, signer)
 			r.PingLatencyMs = pingMs
 			mu.Lock()
 			results[i] = r
@@ -331,6 +353,44 @@ func (s *ChannelMonitorService) runChecksConcurrent(ctx context.Context, m *Chan
 	}
 	_ = eg.Wait()
 	return results
+}
+
+func (s *ChannelMonitorService) signerForEndpoint(ctx context.Context, endpoint string) *ChannelMonitorSigner {
+	if s == nil || s.signer == nil || s.settingReader == nil {
+		return nil
+	}
+	settings, err := s.settingReader.GetAllSettings(ctx)
+	if err != nil || settings == nil {
+		return nil
+	}
+	if !sameOrigin(endpoint, settings.APIBaseURL) {
+		return nil
+	}
+	return s.signer
+}
+
+func sameOrigin(a, b string) bool {
+	left, ok := parseOriginForCompare(a)
+	if !ok {
+		return false
+	}
+	right, ok := parseOriginForCompare(b)
+	if !ok {
+		return false
+	}
+	return strings.EqualFold(left.Scheme, right.Scheme) && strings.EqualFold(left.Host, right.Host)
+}
+
+func parseOriginForCompare(raw string) (*url.URL, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, false
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return nil, false
+	}
+	return u, true
 }
 
 // ---------- 调度器协作 ----------

@@ -120,6 +120,8 @@ type CheckResult struct {
 	HTTPStatus      *int
 	RequestPath     string
 	Attempts        int
+
+	selectedAccountID int64
 }
 
 // UserMonitorView 用户只读视图：监控概览（含主模型最近状态 + 7d 可用率 + 附加模型最近状态）。
