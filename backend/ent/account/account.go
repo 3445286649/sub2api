@@ -61,6 +61,8 @@ const (
 	FieldHealthProbeEnabled = "health_probe_enabled"
 	// FieldHealthProbeIntervalMinutes holds the string denoting the health_probe_interval_minutes field in the database.
 	FieldHealthProbeIntervalMinutes = "health_probe_interval_minutes"
+	// FieldHealthProbeModel holds the string denoting the health_probe_model field in the database.
+	FieldHealthProbeModel = "health_probe_model"
 	// FieldHealthyProbeEnabled holds the string denoting the healthy_probe_enabled field in the database.
 	FieldHealthyProbeEnabled = "healthy_probe_enabled"
 	// FieldHealthyProbeIntervalHours holds the string denoting the healthy_probe_interval_hours field in the database.
@@ -145,6 +147,7 @@ var Columns = []string{
 	FieldSchedulable,
 	FieldHealthProbeEnabled,
 	FieldHealthProbeIntervalMinutes,
+	FieldHealthProbeModel,
 	FieldHealthyProbeEnabled,
 	FieldHealthyProbeIntervalHours,
 	FieldRateLimitedAt,
@@ -334,6 +337,11 @@ func ByHealthProbeEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByHealthProbeIntervalMinutes orders the results by the health_probe_interval_minutes field.
 func ByHealthProbeIntervalMinutes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldHealthProbeIntervalMinutes, opts...).ToFunc()
+}
+
+// ByHealthProbeModel orders the results by the health_probe_model field.
+func ByHealthProbeModel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHealthProbeModel, opts...).ToFunc()
 }
 
 // ByHealthyProbeEnabled orders the results by the healthy_probe_enabled field.

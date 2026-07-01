@@ -484,6 +484,7 @@ export async function updateHealthProbeSettings(
   payload: {
     health_probe_enabled: boolean
     health_probe_interval_minutes?: number | null
+    health_probe_model?: string | null
     healthy_probe_enabled: boolean
     healthy_probe_interval_hours?: number | null
   }

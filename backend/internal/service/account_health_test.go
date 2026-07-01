@@ -234,6 +234,20 @@ func TestAccountHealthService_ProbeSuccessFastRecoversIsolatedAccount(t *testing
 	require.Equal(t, 1, accountRepo.tempClearCalls)
 }
 
+func TestAccountHealthService_HealthProbeModelUsesAccountSetting(t *testing.T) {
+	ctx := context.Background()
+	model := "gemini-3.5-flash"
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, HealthProbeModel: &model},
+		2: {ID: 2, Status: StatusActive},
+	}}
+	svc := &AccountHealthService{accountRepo: accountRepo, now: time.Now}
+
+	require.Equal(t, model, svc.HealthProbeModel(ctx, 1))
+	require.Empty(t, svc.HealthProbeModel(ctx, 2))
+	require.Empty(t, svc.HealthProbeModel(ctx, 404))
+}
+
 func TestAccountHealthService_HealthySuccessClearsStaleHealthTempUnschedulable(t *testing.T) {
 	ctx := context.Background()
 	until := time.Now().Add(30 * time.Minute)

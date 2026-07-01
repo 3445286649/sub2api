@@ -411,6 +411,26 @@ func (_u *AccountUpdate) ClearHealthProbeIntervalMinutes() *AccountUpdate {
 	return _u
 }
 
+// SetHealthProbeModel sets the "health_probe_model" field.
+func (_u *AccountUpdate) SetHealthProbeModel(v string) *AccountUpdate {
+	_u.mutation.SetHealthProbeModel(v)
+	return _u
+}
+
+// SetNillableHealthProbeModel sets the "health_probe_model" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableHealthProbeModel(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetHealthProbeModel(*v)
+	}
+	return _u
+}
+
+// ClearHealthProbeModel clears the value of the "health_probe_model" field.
+func (_u *AccountUpdate) ClearHealthProbeModel() *AccountUpdate {
+	_u.mutation.ClearHealthProbeModel()
+	return _u
+}
+
 // SetHealthyProbeEnabled sets the "healthy_probe_enabled" field.
 func (_u *AccountUpdate) SetHealthyProbeEnabled(v bool) *AccountUpdate {
 	_u.mutation.SetHealthyProbeEnabled(v)
@@ -898,6 +918,12 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.HealthProbeIntervalMinutesCleared() {
 		_spec.ClearField(account.FieldHealthProbeIntervalMinutes, field.TypeInt)
+	}
+	if value, ok := _u.mutation.HealthProbeModel(); ok {
+		_spec.SetField(account.FieldHealthProbeModel, field.TypeString, value)
+	}
+	if _u.mutation.HealthProbeModelCleared() {
+		_spec.ClearField(account.FieldHealthProbeModel, field.TypeString)
 	}
 	if value, ok := _u.mutation.HealthyProbeEnabled(); ok {
 		_spec.SetField(account.FieldHealthyProbeEnabled, field.TypeBool, value)
@@ -1490,6 +1516,26 @@ func (_u *AccountUpdateOne) ClearHealthProbeIntervalMinutes() *AccountUpdateOne 
 	return _u
 }
 
+// SetHealthProbeModel sets the "health_probe_model" field.
+func (_u *AccountUpdateOne) SetHealthProbeModel(v string) *AccountUpdateOne {
+	_u.mutation.SetHealthProbeModel(v)
+	return _u
+}
+
+// SetNillableHealthProbeModel sets the "health_probe_model" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableHealthProbeModel(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetHealthProbeModel(*v)
+	}
+	return _u
+}
+
+// ClearHealthProbeModel clears the value of the "health_probe_model" field.
+func (_u *AccountUpdateOne) ClearHealthProbeModel() *AccountUpdateOne {
+	_u.mutation.ClearHealthProbeModel()
+	return _u
+}
+
 // SetHealthyProbeEnabled sets the "healthy_probe_enabled" field.
 func (_u *AccountUpdateOne) SetHealthyProbeEnabled(v bool) *AccountUpdateOne {
 	_u.mutation.SetHealthyProbeEnabled(v)
@@ -2007,6 +2053,12 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if _u.mutation.HealthProbeIntervalMinutesCleared() {
 		_spec.ClearField(account.FieldHealthProbeIntervalMinutes, field.TypeInt)
+	}
+	if value, ok := _u.mutation.HealthProbeModel(); ok {
+		_spec.SetField(account.FieldHealthProbeModel, field.TypeString, value)
+	}
+	if _u.mutation.HealthProbeModelCleared() {
+		_spec.ClearField(account.FieldHealthProbeModel, field.TypeString)
 	}
 	if value, ok := _u.mutation.HealthyProbeEnabled(); ok {
 		_spec.SetField(account.FieldHealthyProbeEnabled, field.TypeBool, value)

@@ -46,6 +46,7 @@ type Account struct {
 
 	HealthProbeEnabled         bool
 	HealthProbeIntervalMinutes *int
+	HealthProbeModel           *string
 	HealthyProbeEnabled        bool
 	HealthyProbeIntervalHours  *int
 

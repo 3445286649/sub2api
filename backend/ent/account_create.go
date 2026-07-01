@@ -307,6 +307,20 @@ func (_c *AccountCreate) SetNillableHealthProbeIntervalMinutes(v *int) *AccountC
 	return _c
 }
 
+// SetHealthProbeModel sets the "health_probe_model" field.
+func (_c *AccountCreate) SetHealthProbeModel(v string) *AccountCreate {
+	_c.mutation.SetHealthProbeModel(v)
+	return _c
+}
+
+// SetNillableHealthProbeModel sets the "health_probe_model" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableHealthProbeModel(v *string) *AccountCreate {
+	if v != nil {
+		_c.SetHealthProbeModel(*v)
+	}
+	return _c
+}
+
 // SetHealthyProbeEnabled sets the "healthy_probe_enabled" field.
 func (_c *AccountCreate) SetHealthyProbeEnabled(v bool) *AccountCreate {
 	_c.mutation.SetHealthyProbeEnabled(v)
@@ -778,6 +792,10 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.HealthProbeIntervalMinutes(); ok {
 		_spec.SetField(account.FieldHealthProbeIntervalMinutes, field.TypeInt, value)
 		_node.HealthProbeIntervalMinutes = &value
+	}
+	if value, ok := _c.mutation.HealthProbeModel(); ok {
+		_spec.SetField(account.FieldHealthProbeModel, field.TypeString, value)
+		_node.HealthProbeModel = &value
 	}
 	if value, ok := _c.mutation.HealthyProbeEnabled(); ok {
 		_spec.SetField(account.FieldHealthyProbeEnabled, field.TypeBool, value)
@@ -1275,6 +1293,24 @@ func (u *AccountUpsert) AddHealthProbeIntervalMinutes(v int) *AccountUpsert {
 // ClearHealthProbeIntervalMinutes clears the value of the "health_probe_interval_minutes" field.
 func (u *AccountUpsert) ClearHealthProbeIntervalMinutes() *AccountUpsert {
 	u.SetNull(account.FieldHealthProbeIntervalMinutes)
+	return u
+}
+
+// SetHealthProbeModel sets the "health_probe_model" field.
+func (u *AccountUpsert) SetHealthProbeModel(v string) *AccountUpsert {
+	u.Set(account.FieldHealthProbeModel, v)
+	return u
+}
+
+// UpdateHealthProbeModel sets the "health_probe_model" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateHealthProbeModel() *AccountUpsert {
+	u.SetExcluded(account.FieldHealthProbeModel)
+	return u
+}
+
+// ClearHealthProbeModel clears the value of the "health_probe_model" field.
+func (u *AccountUpsert) ClearHealthProbeModel() *AccountUpsert {
+	u.SetNull(account.FieldHealthProbeModel)
 	return u
 }
 
@@ -1913,6 +1949,27 @@ func (u *AccountUpsertOne) UpdateHealthProbeIntervalMinutes() *AccountUpsertOne 
 func (u *AccountUpsertOne) ClearHealthProbeIntervalMinutes() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearHealthProbeIntervalMinutes()
+	})
+}
+
+// SetHealthProbeModel sets the "health_probe_model" field.
+func (u *AccountUpsertOne) SetHealthProbeModel(v string) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetHealthProbeModel(v)
+	})
+}
+
+// UpdateHealthProbeModel sets the "health_probe_model" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateHealthProbeModel() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateHealthProbeModel()
+	})
+}
+
+// ClearHealthProbeModel clears the value of the "health_probe_model" field.
+func (u *AccountUpsertOne) ClearHealthProbeModel() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearHealthProbeModel()
 	})
 }
 
@@ -2747,6 +2804,27 @@ func (u *AccountUpsertBulk) UpdateHealthProbeIntervalMinutes() *AccountUpsertBul
 func (u *AccountUpsertBulk) ClearHealthProbeIntervalMinutes() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearHealthProbeIntervalMinutes()
+	})
+}
+
+// SetHealthProbeModel sets the "health_probe_model" field.
+func (u *AccountUpsertBulk) SetHealthProbeModel(v string) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetHealthProbeModel(v)
+	})
+}
+
+// UpdateHealthProbeModel sets the "health_probe_model" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateHealthProbeModel() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateHealthProbeModel()
+	})
+}
+
+// ClearHealthProbeModel clears the value of the "health_probe_model" field.
+func (u *AccountUpsertBulk) ClearHealthProbeModel() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearHealthProbeModel()
 	})
 }
 

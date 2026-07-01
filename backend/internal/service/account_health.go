@@ -69,6 +69,7 @@ type AccountHealthSummary struct {
 	TempUnschedulableUntil     *time.Time `json:"temp_unschedulable_until,omitempty"`
 	HealthProbeEnabled         bool       `json:"health_probe_enabled"`
 	HealthProbeIntervalMinutes *int       `json:"health_probe_interval_minutes,omitempty"`
+	HealthProbeModel           *string    `json:"health_probe_model,omitempty"`
 	HealthyProbeEnabled        bool       `json:"healthy_probe_enabled"`
 	HealthyProbeIntervalHours  *int       `json:"healthy_probe_interval_hours,omitempty"`
 	GroupIDs                   []int64    `json:"group_ids,omitempty"`
@@ -187,6 +188,17 @@ func (s *AccountHealthService) Get(ctx context.Context, accountID int64) (*Accou
 		return nil, err
 	}
 	return s.enrichSummary(state, account), nil
+}
+
+func (s *AccountHealthService) HealthProbeModel(ctx context.Context, accountID int64) string {
+	if s == nil || s.accountRepo == nil {
+		return ""
+	}
+	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil || account == nil || account.HealthProbeModel == nil {
+		return ""
+	}
+	return strings.TrimSpace(*account.HealthProbeModel)
 }
 
 func (s *AccountHealthService) ListByAccountIDs(ctx context.Context, ids []int64) (map[int64]*AccountHealthSummary, error) {
@@ -646,6 +658,7 @@ func (s *AccountHealthService) enrichSummary(state *AccountHealthState, account 
 	summary.TempUnschedulableUntil = account.TempUnschedulableUntil
 	summary.HealthProbeEnabled = account.HealthProbeEnabled
 	summary.HealthProbeIntervalMinutes = account.HealthProbeIntervalMinutes
+	summary.HealthProbeModel = account.HealthProbeModel
 	summary.HealthyProbeEnabled = account.HealthyProbeEnabled
 	summary.HealthyProbeIntervalHours = account.HealthyProbeIntervalHours
 	summary.BaseURL = accountHealthBaseURL(account)

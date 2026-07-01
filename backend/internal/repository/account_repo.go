@@ -108,6 +108,9 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 	if account.HealthProbeIntervalMinutes != nil {
 		builder.SetHealthProbeIntervalMinutes(*account.HealthProbeIntervalMinutes)
 	}
+	if account.HealthProbeModel != nil {
+		builder.SetHealthProbeModel(*account.HealthProbeModel)
+	}
 	if account.HealthyProbeIntervalHours != nil {
 		builder.SetHealthyProbeIntervalHours(*account.HealthyProbeIntervalHours)
 	}
@@ -360,6 +363,11 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		builder.SetHealthProbeIntervalMinutes(*account.HealthProbeIntervalMinutes)
 	} else {
 		builder.ClearHealthProbeIntervalMinutes()
+	}
+	if account.HealthProbeModel != nil {
+		builder.SetHealthProbeModel(*account.HealthProbeModel)
+	} else {
+		builder.ClearHealthProbeModel()
 	}
 	if account.HealthyProbeIntervalHours != nil {
 		builder.SetHealthyProbeIntervalHours(*account.HealthyProbeIntervalHours)
@@ -1611,6 +1619,16 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 			idx++
 		}
 	}
+	if updates.HealthProbeModel != nil {
+		model := strings.TrimSpace(*updates.HealthProbeModel)
+		if model == "" {
+			setClauses = append(setClauses, "health_probe_model = NULL")
+		} else {
+			setClauses = append(setClauses, "health_probe_model = $"+itoa(idx))
+			args = append(args, model)
+			idx++
+		}
+	}
 	if updates.HealthyProbeEnabled != nil {
 		setClauses = append(setClauses, "healthy_probe_enabled = $"+itoa(idx))
 		args = append(args, *updates.HealthyProbeEnabled)
@@ -2035,6 +2053,7 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		Schedulable:                m.Schedulable,
 		HealthProbeEnabled:         m.HealthProbeEnabled,
 		HealthProbeIntervalMinutes: m.HealthProbeIntervalMinutes,
+		HealthProbeModel:           m.HealthProbeModel,
 		HealthyProbeEnabled:        m.HealthyProbeEnabled,
 		HealthyProbeIntervalHours:  m.HealthyProbeIntervalHours,
 		RateLimitedAt:              m.RateLimitedAt,

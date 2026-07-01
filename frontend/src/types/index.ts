@@ -938,6 +938,7 @@ export interface Account {
   schedulable: boolean
   health_probe_enabled: boolean
   health_probe_interval_minutes?: number | null
+  health_probe_model?: string | null
   healthy_probe_enabled: boolean
   healthy_probe_interval_hours?: number | null
   rate_limited_at: string | null
@@ -1032,6 +1033,7 @@ export interface AccountHealthSummary {
   temp_unschedulable_until?: string | null
   health_probe_enabled: boolean
   health_probe_interval_minutes?: number | null
+  health_probe_model?: string | null
   healthy_probe_enabled: boolean
   healthy_probe_interval_hours?: number | null
   group_ids?: number[]

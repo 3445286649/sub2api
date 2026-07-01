@@ -227,6 +227,7 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		Schedulable:                a.Schedulable,
 		HealthProbeEnabled:         a.HealthProbeEnabled,
 		HealthProbeIntervalMinutes: a.HealthProbeIntervalMinutes,
+		HealthProbeModel:           a.HealthProbeModel,
 		HealthyProbeEnabled:        a.HealthyProbeEnabled,
 		HealthyProbeIntervalHours:  a.HealthyProbeIntervalHours,
 		RateLimitedAt:              a.RateLimitedAt,

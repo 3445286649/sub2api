@@ -160,6 +160,11 @@ func HealthProbeIntervalMinutes(v int) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldHealthProbeIntervalMinutes, v))
 }
 
+// HealthProbeModel applies equality check predicate on the "health_probe_model" field. It's identical to HealthProbeModelEQ.
+func HealthProbeModel(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldHealthProbeModel, v))
+}
+
 // HealthyProbeEnabled applies equality check predicate on the "healthy_probe_enabled" field. It's identical to HealthyProbeEnabledEQ.
 func HealthyProbeEnabled(v bool) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldHealthyProbeEnabled, v))
@@ -1178,6 +1183,81 @@ func HealthProbeIntervalMinutesIsNil() predicate.Account {
 // HealthProbeIntervalMinutesNotNil applies the NotNil predicate on the "health_probe_interval_minutes" field.
 func HealthProbeIntervalMinutesNotNil() predicate.Account {
 	return predicate.Account(sql.FieldNotNull(FieldHealthProbeIntervalMinutes))
+}
+
+// HealthProbeModelEQ applies the EQ predicate on the "health_probe_model" field.
+func HealthProbeModelEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldHealthProbeModel, v))
+}
+
+// HealthProbeModelNEQ applies the NEQ predicate on the "health_probe_model" field.
+func HealthProbeModelNEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldHealthProbeModel, v))
+}
+
+// HealthProbeModelIn applies the In predicate on the "health_probe_model" field.
+func HealthProbeModelIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldHealthProbeModel, vs...))
+}
+
+// HealthProbeModelNotIn applies the NotIn predicate on the "health_probe_model" field.
+func HealthProbeModelNotIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldHealthProbeModel, vs...))
+}
+
+// HealthProbeModelGT applies the GT predicate on the "health_probe_model" field.
+func HealthProbeModelGT(v string) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldHealthProbeModel, v))
+}
+
+// HealthProbeModelGTE applies the GTE predicate on the "health_probe_model" field.
+func HealthProbeModelGTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldHealthProbeModel, v))
+}
+
+// HealthProbeModelLT applies the LT predicate on the "health_probe_model" field.
+func HealthProbeModelLT(v string) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldHealthProbeModel, v))
+}
+
+// HealthProbeModelLTE applies the LTE predicate on the "health_probe_model" field.
+func HealthProbeModelLTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldHealthProbeModel, v))
+}
+
+// HealthProbeModelContains applies the Contains predicate on the "health_probe_model" field.
+func HealthProbeModelContains(v string) predicate.Account {
+	return predicate.Account(sql.FieldContains(FieldHealthProbeModel, v))
+}
+
+// HealthProbeModelHasPrefix applies the HasPrefix predicate on the "health_probe_model" field.
+func HealthProbeModelHasPrefix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasPrefix(FieldHealthProbeModel, v))
+}
+
+// HealthProbeModelHasSuffix applies the HasSuffix predicate on the "health_probe_model" field.
+func HealthProbeModelHasSuffix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasSuffix(FieldHealthProbeModel, v))
+}
+
+// HealthProbeModelIsNil applies the IsNil predicate on the "health_probe_model" field.
+func HealthProbeModelIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldHealthProbeModel))
+}
+
+// HealthProbeModelNotNil applies the NotNil predicate on the "health_probe_model" field.
+func HealthProbeModelNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldHealthProbeModel))
+}
+
+// HealthProbeModelEqualFold applies the EqualFold predicate on the "health_probe_model" field.
+func HealthProbeModelEqualFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldEqualFold(FieldHealthProbeModel, v))
+}
+
+// HealthProbeModelContainsFold applies the ContainsFold predicate on the "health_probe_model" field.
+func HealthProbeModelContainsFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldContainsFold(FieldHealthProbeModel, v))
 }
 
 // HealthyProbeEnabledEQ applies the EQ predicate on the "healthy_probe_enabled" field.

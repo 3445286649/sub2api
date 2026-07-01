@@ -91,6 +91,32 @@ func TestUpdateAccount_ExplicitNewTokenOverwrites(t *testing.T) {
 	require.Equal(t, "sk-old", repo.account.Credentials["api_key"])
 }
 
+func TestUpdateAccount_UpdatesAndClearsHealthProbeModel(t *testing.T) {
+	accountID := int64(204)
+	repo := &updateAccountCredsRepoStub{
+		account: &Account{
+			ID:       accountID,
+			Platform: PlatformGemini,
+			Type:     AccountTypeAPIKey,
+			Status:   StatusActive,
+		},
+	}
+	svc := &adminServiceImpl{accountRepo: repo}
+
+	model := " gemini-3.5-flash "
+	updated, err := svc.UpdateAccount(context.Background(), accountID, &UpdateAccountInput{HealthProbeModel: &model})
+	require.NoError(t, err)
+	require.NotNil(t, updated.HealthProbeModel)
+	require.Equal(t, "gemini-3.5-flash", *updated.HealthProbeModel)
+	require.Equal(t, 1, repo.updateCalls)
+
+	clear := ""
+	updated, err = svc.UpdateAccount(context.Background(), accountID, &UpdateAccountInput{HealthProbeModel: &clear})
+	require.NoError(t, err)
+	require.Nil(t, updated.HealthProbeModel)
+	require.Equal(t, 2, repo.updateCalls)
+}
+
 func TestUpdateAccount_EmptyCredentialsSkipsUpdate(t *testing.T) {
 	accountID := int64(204)
 	repo := &updateAccountCredsRepoStub{

@@ -65,6 +65,8 @@ type Account struct {
 	HealthProbeEnabled bool `json:"health_probe_enabled,omitempty"`
 	// Optional fixed health probe interval in minutes for unhealthy accounts; NULL uses default backoff.
 	HealthProbeIntervalMinutes *int `json:"health_probe_interval_minutes,omitempty"`
+	// Optional account-level model used by health probes; NULL uses platform default test model.
+	HealthProbeModel *string `json:"health_probe_model,omitempty"`
 	// Whether low-frequency background probes are enabled while this account is healthy.
 	HealthyProbeEnabled bool `json:"healthy_probe_enabled,omitempty"`
 	// Low-frequency probe interval in hours for healthy accounts; NULL uses default 6 hours when enabled.
@@ -157,7 +159,7 @@ func (*Account) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case account.FieldID, account.FieldProxyID, account.FieldProxyFallbackOriginID, account.FieldConcurrency, account.FieldLoadFactor, account.FieldPriority, account.FieldHealthProbeIntervalMinutes, account.FieldHealthyProbeIntervalHours:
 			values[i] = new(sql.NullInt64)
-		case account.FieldName, account.FieldNotes, account.FieldPlatform, account.FieldType, account.FieldStatus, account.FieldErrorMessage, account.FieldTempUnschedulableReason, account.FieldSessionWindowStatus:
+		case account.FieldName, account.FieldNotes, account.FieldPlatform, account.FieldType, account.FieldStatus, account.FieldErrorMessage, account.FieldHealthProbeModel, account.FieldTempUnschedulableReason, account.FieldSessionWindowStatus:
 			values[i] = new(sql.NullString)
 		case account.FieldCreatedAt, account.FieldUpdatedAt, account.FieldDeletedAt, account.FieldLastUsedAt, account.FieldExpiresAt, account.FieldRateLimitedAt, account.FieldRateLimitResetAt, account.FieldOverloadUntil, account.FieldTempUnschedulableUntil, account.FieldSessionWindowStart, account.FieldSessionWindowEnd:
 			values[i] = new(sql.NullTime)
@@ -332,6 +334,13 @@ func (_m *Account) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.HealthProbeIntervalMinutes = new(int)
 				*_m.HealthProbeIntervalMinutes = int(value.Int64)
+			}
+		case account.FieldHealthProbeModel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field health_probe_model", values[i])
+			} else if value.Valid {
+				_m.HealthProbeModel = new(string)
+				*_m.HealthProbeModel = value.String
 			}
 		case account.FieldHealthyProbeEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -543,6 +552,11 @@ func (_m *Account) String() string {
 	if v := _m.HealthProbeIntervalMinutes; v != nil {
 		builder.WriteString("health_probe_interval_minutes=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.HealthProbeModel; v != nil {
+		builder.WriteString("health_probe_model=")
+		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
 	builder.WriteString("healthy_probe_enabled=")

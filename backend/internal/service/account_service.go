@@ -95,6 +95,7 @@ type AccountBulkUpdate struct {
 	LoadFactor                 *int
 	HealthProbeEnabled         *bool
 	HealthProbeIntervalMinutes *int
+	HealthProbeModel           *string
 	HealthyProbeEnabled        *bool
 	HealthyProbeIntervalHours  *int
 	Status                     *string

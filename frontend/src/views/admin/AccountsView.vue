@@ -591,6 +591,32 @@
             </button>
           </div>
           <div class="mt-3">
+            <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+              <label class="block">
+                <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthProbeModel') }}</span>
+                <input
+                  v-model.trim="healthProbeSettings.model"
+                  list="health-probe-model-options"
+                  class="health-detail-control form-input w-full"
+                  :placeholder="t('admin.accounts.healthProbeModelAuto')"
+                />
+                <datalist id="health-probe-model-options">
+                  <option v-for="model in healthProbeModelOptions" :key="model.id" :value="model.id" />
+                </datalist>
+              </label>
+              <button
+                class="btn btn-secondary px-3 py-2 text-sm"
+                :disabled="loadingHealthProbeModels || syncingHealthProbeModels"
+                @click="syncHealthProbeModels"
+              >
+                {{ syncingHealthProbeModels ? t('common.loading') : t('admin.accounts.healthProbeSyncModels') }}
+              </button>
+            </div>
+            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ loadingHealthProbeModels ? t('common.loading') : t('admin.accounts.healthProbeModelHint') }}
+            </div>
+          </div>
+          <div class="mt-3">
             <label class="block max-w-[220px]">
               <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.probeIntervalCustom') }}</span>
               <input
@@ -784,6 +810,8 @@ const healthDetailAccount = ref<Account | null>(null)
 const savingRateMultiplier = ref<number | null>(null)
 const probingHealth = ref<number | null>(null)
 const savingProbeSettings = ref(false)
+const loadingHealthProbeModels = ref(false)
+const syncingHealthProbeModels = ref(false)
 const healthyProbeIntervalOptions = [1, 3, 6, 12, 24]
 const healthEventTypes = ['success', 'failure', 'isolated', 'recovering', 'recovered', 'settings_changed']
 const healthEvents = ref<AccountHealthEvent[]>([])
@@ -795,9 +823,11 @@ const healthEventFilter = ref('')
 const healthProbeSettings = reactive({
   enabled: true,
   interval: '' as string | number,
+  model: '',
   healthyEnabled: false,
   healthyInterval: 6
 })
+const healthProbeModelOptions = ref<ClaudeModel[]>([])
 const edAcc = ref<Account | null>(null)
 const tempUnschedAcc = ref<Account | null>(null)
 const deletingAcc = ref<Account | null>(null)
@@ -1353,9 +1383,11 @@ const openHealthDetail = async (account: Account) => {
   healthEvents.value = []
   healthEventsPage.value = 1
   healthEventsTotalPages.value = 1
+  healthProbeModelOptions.value = []
   try {
     const health = await adminAPI.accounts.getHealth(account.id)
     patchAccountHealthInList(account.id, health)
+    await loadHealthProbeModels(account.id)
     await loadHealthEvents(1)
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.accounts.healthDetailLoadFailed'))
@@ -1366,10 +1398,52 @@ watch(healthDetailAccount, (account) => {
   healthProbeSettings.enabled = account?.health?.health_probe_enabled ?? account?.health_probe_enabled ?? true
   const interval = account?.health?.health_probe_interval_minutes ?? account?.health_probe_interval_minutes
   healthProbeSettings.interval = interval && interval > 0 ? interval : ''
+  healthProbeSettings.model = account?.health?.health_probe_model ?? account?.health_probe_model ?? ''
   healthProbeSettings.healthyEnabled = account?.health?.healthy_probe_enabled ?? account?.healthy_probe_enabled ?? false
   const healthyInterval = account?.health?.healthy_probe_interval_hours ?? account?.healthy_probe_interval_hours
   healthProbeSettings.healthyInterval = healthyInterval && healthyInterval > 0 ? healthyInterval : 6
 })
+
+const normalizeHealthProbeModels = (models: Array<ClaudeModel | string>): ClaudeModel[] => {
+  const seen = new Set<string>()
+  const out: ClaudeModel[] = []
+  for (const item of models) {
+    const id = typeof item === 'string' ? item.trim() : String(item.id || '').trim()
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    out.push(typeof item === 'string'
+      ? { id, type: 'model', display_name: id, created_at: '' }
+      : { ...item, id, display_name: item.display_name || id })
+  }
+  return out
+}
+
+const loadHealthProbeModels = async (accountID: number) => {
+  loadingHealthProbeModels.value = true
+  try {
+    healthProbeModelOptions.value = normalizeHealthProbeModels(await adminAPI.accounts.getAvailableModels(accountID))
+  } catch (error) {
+    console.error('Failed to load health probe models:', error)
+    healthProbeModelOptions.value = []
+  } finally {
+    loadingHealthProbeModels.value = false
+  }
+}
+
+const syncHealthProbeModels = async () => {
+  const account = healthDetailAccount.value
+  if (!account) return
+  syncingHealthProbeModels.value = true
+  try {
+    const result = await adminAPI.accounts.syncUpstreamModels(account.id)
+    healthProbeModelOptions.value = normalizeHealthProbeModels(result.models || [])
+    appStore.showSuccess(t('admin.accounts.healthProbeSyncModelsSuccess'))
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.healthProbeSyncModelsFailed'))
+  } finally {
+    syncingHealthProbeModels.value = false
+  }
+}
 
 const syncPendingListChanges = async () => {
   hasPendingListSync.value = false
@@ -2013,14 +2087,15 @@ const patchAccountHealthInList = (accountID: number, health: AccountHealthSummar
   const index = accounts.value.findIndex(account => account.id === accountID)
   if (index === -1) return
   const current = accounts.value[index]
-	  const nextAccount: Account = {
-	    ...current,
-	    health,
-	    health_probe_enabled: health.health_probe_enabled,
-	    health_probe_interval_minutes: health.health_probe_interval_minutes ?? null,
-	    healthy_probe_enabled: health.healthy_probe_enabled,
-	    healthy_probe_interval_hours: health.healthy_probe_interval_hours ?? null,
-	    rate_multiplier: health.rate_multiplier ?? current.rate_multiplier,
+  const nextAccount: Account = {
+    ...current,
+    health,
+    health_probe_enabled: health.health_probe_enabled,
+    health_probe_interval_minutes: health.health_probe_interval_minutes ?? null,
+    health_probe_model: health.health_probe_model ?? null,
+    healthy_probe_enabled: health.healthy_probe_enabled,
+    healthy_probe_interval_hours: health.healthy_probe_interval_hours ?? null,
+    rate_multiplier: health.rate_multiplier ?? current.rate_multiplier,
     schedulable: health.schedulable,
     temp_unschedulable_until: health.temp_unschedulable_until ?? current.temp_unschedulable_until
   }
@@ -2087,20 +2162,22 @@ const saveHealthProbeSettings = async () => {
   if (!account) return
   const rawInterval = String(healthProbeSettings.interval ?? '').trim()
   const interval = rawInterval === '' ? null : Number(rawInterval)
-	  if (interval !== null && (!Number.isInteger(interval) || interval < 0)) {
-	    appStore.showError(t('admin.accounts.probeIntervalInvalid'))
-	    return
-	  }
-	  const healthyInterval = Number(healthProbeSettings.healthyInterval || 6)
-	  if (!Number.isInteger(healthyInterval) || healthyInterval <= 0) {
-	    appStore.showError(t('admin.accounts.healthyProbeIntervalInvalid'))
-	    return
-	  }
-	  savingProbeSettings.value = true
-	  try {
+  if (interval !== null && (!Number.isInteger(interval) || interval < 0)) {
+    appStore.showError(t('admin.accounts.probeIntervalInvalid'))
+    return
+  }
+  const healthyInterval = Number(healthProbeSettings.healthyInterval || 6)
+  if (!Number.isInteger(healthyInterval) || healthyInterval <= 0) {
+    appStore.showError(t('admin.accounts.healthyProbeIntervalInvalid'))
+    return
+  }
+  const probeModel = String(healthProbeSettings.model || '').trim()
+  savingProbeSettings.value = true
+  try {
     const health = await adminAPI.accounts.updateHealthProbeSettings(account.id, {
       health_probe_enabled: healthProbeSettings.enabled,
       health_probe_interval_minutes: interval && interval > 0 ? interval : null,
+      health_probe_model: probeModel || null,
       healthy_probe_enabled: healthProbeSettings.healthyEnabled,
       healthy_probe_interval_hours: healthyInterval === 6 ? null : healthyInterval
     })

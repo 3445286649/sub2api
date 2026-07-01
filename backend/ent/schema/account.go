@@ -156,6 +156,11 @@ func (Account) Fields() []ent.Field {
 			Nillable().
 			NonNegative().
 			Comment("Optional fixed health probe interval in minutes for unhealthy accounts; NULL uses default backoff."),
+		field.String("health_probe_model").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "text"}).
+			Comment("Optional account-level model used by health probes; NULL uses platform default test model."),
 		field.Bool("healthy_probe_enabled").
 			Default(false).
 			Comment("Whether low-frequency background probes are enabled while this account is healthy."),

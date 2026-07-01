@@ -113,7 +113,7 @@ func (r *AccountHealthRunner) release(accountID int64) {
 }
 
 func (r *AccountHealthRunner) probeOne(ctx context.Context, accountID int64) {
-	result, err := r.accountTestSvc.RunTestBackground(ctx, accountID, "")
+	result, err := r.accountTestSvc.RunTestBackground(ctx, accountID, r.healthSvc.HealthProbeModel(ctx, accountID))
 	if err != nil {
 		_ = r.healthSvc.RecordProbeFailure(ctx, accountID, "probe_error", err.Error())
 		return

@@ -2309,6 +2309,7 @@ type AccountMutation struct {
 	health_probe_enabled             *bool
 	health_probe_interval_minutes    *int
 	addhealth_probe_interval_minutes *int
+	health_probe_model               *string
 	healthy_probe_enabled            *bool
 	healthy_probe_interval_hours     *int
 	addhealthy_probe_interval_hours  *int
@@ -3500,6 +3501,55 @@ func (m *AccountMutation) ResetHealthProbeIntervalMinutes() {
 	delete(m.clearedFields, account.FieldHealthProbeIntervalMinutes)
 }
 
+// SetHealthProbeModel sets the "health_probe_model" field.
+func (m *AccountMutation) SetHealthProbeModel(s string) {
+	m.health_probe_model = &s
+}
+
+// HealthProbeModel returns the value of the "health_probe_model" field in the mutation.
+func (m *AccountMutation) HealthProbeModel() (r string, exists bool) {
+	v := m.health_probe_model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHealthProbeModel returns the old "health_probe_model" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldHealthProbeModel(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHealthProbeModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHealthProbeModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHealthProbeModel: %w", err)
+	}
+	return oldValue.HealthProbeModel, nil
+}
+
+// ClearHealthProbeModel clears the value of the "health_probe_model" field.
+func (m *AccountMutation) ClearHealthProbeModel() {
+	m.health_probe_model = nil
+	m.clearedFields[account.FieldHealthProbeModel] = struct{}{}
+}
+
+// HealthProbeModelCleared returns if the "health_probe_model" field was cleared in this mutation.
+func (m *AccountMutation) HealthProbeModelCleared() bool {
+	_, ok := m.clearedFields[account.FieldHealthProbeModel]
+	return ok
+}
+
+// ResetHealthProbeModel resets all changes to the "health_probe_model" field.
+func (m *AccountMutation) ResetHealthProbeModel() {
+	m.health_probe_model = nil
+	delete(m.clearedFields, account.FieldHealthProbeModel)
+}
+
 // SetHealthyProbeEnabled sets the "healthy_probe_enabled" field.
 func (m *AccountMutation) SetHealthyProbeEnabled(b bool) {
 	m.healthy_probe_enabled = &b
@@ -4167,7 +4217,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 33)
+	fields := make([]string, 0, 34)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -4236,6 +4286,9 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.health_probe_interval_minutes != nil {
 		fields = append(fields, account.FieldHealthProbeIntervalMinutes)
+	}
+	if m.health_probe_model != nil {
+		fields = append(fields, account.FieldHealthProbeModel)
 	}
 	if m.healthy_probe_enabled != nil {
 		fields = append(fields, account.FieldHealthyProbeEnabled)
@@ -4321,6 +4374,8 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.HealthProbeEnabled()
 	case account.FieldHealthProbeIntervalMinutes:
 		return m.HealthProbeIntervalMinutes()
+	case account.FieldHealthProbeModel:
+		return m.HealthProbeModel()
 	case account.FieldHealthyProbeEnabled:
 		return m.HealthyProbeEnabled()
 	case account.FieldHealthyProbeIntervalHours:
@@ -4396,6 +4451,8 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldHealthProbeEnabled(ctx)
 	case account.FieldHealthProbeIntervalMinutes:
 		return m.OldHealthProbeIntervalMinutes(ctx)
+	case account.FieldHealthProbeModel:
+		return m.OldHealthProbeModel(ctx)
 	case account.FieldHealthyProbeEnabled:
 		return m.OldHealthyProbeEnabled(ctx)
 	case account.FieldHealthyProbeIntervalHours:
@@ -4585,6 +4642,13 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetHealthProbeIntervalMinutes(v)
+		return nil
+	case account.FieldHealthProbeModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHealthProbeModel(v)
 		return nil
 	case account.FieldHealthyProbeEnabled:
 		v, ok := value.(bool)
@@ -4800,6 +4864,9 @@ func (m *AccountMutation) ClearedFields() []string {
 	if m.FieldCleared(account.FieldHealthProbeIntervalMinutes) {
 		fields = append(fields, account.FieldHealthProbeIntervalMinutes)
 	}
+	if m.FieldCleared(account.FieldHealthProbeModel) {
+		fields = append(fields, account.FieldHealthProbeModel)
+	}
 	if m.FieldCleared(account.FieldHealthyProbeIntervalHours) {
 		fields = append(fields, account.FieldHealthyProbeIntervalHours)
 	}
@@ -4867,6 +4934,9 @@ func (m *AccountMutation) ClearField(name string) error {
 		return nil
 	case account.FieldHealthProbeIntervalMinutes:
 		m.ClearHealthProbeIntervalMinutes()
+		return nil
+	case account.FieldHealthProbeModel:
+		m.ClearHealthProbeModel()
 		return nil
 	case account.FieldHealthyProbeIntervalHours:
 		m.ClearHealthyProbeIntervalHours()
@@ -4971,6 +5041,9 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldHealthProbeIntervalMinutes:
 		m.ResetHealthProbeIntervalMinutes()
+		return nil
+	case account.FieldHealthProbeModel:
+		m.ResetHealthProbeModel()
 		return nil
 	case account.FieldHealthyProbeEnabled:
 		m.ResetHealthyProbeEnabled()

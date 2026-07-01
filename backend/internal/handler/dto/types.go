@@ -178,11 +178,12 @@ type Account struct {
 	CreatedAt               time.Time       `json:"created_at"`
 	UpdatedAt               time.Time       `json:"updated_at"`
 
-	Schedulable                bool `json:"schedulable"`
-	HealthProbeEnabled         bool `json:"health_probe_enabled"`
-	HealthProbeIntervalMinutes *int `json:"health_probe_interval_minutes,omitempty"`
-	HealthyProbeEnabled        bool `json:"healthy_probe_enabled"`
-	HealthyProbeIntervalHours  *int `json:"healthy_probe_interval_hours,omitempty"`
+	Schedulable                bool    `json:"schedulable"`
+	HealthProbeEnabled         bool    `json:"health_probe_enabled"`
+	HealthProbeIntervalMinutes *int    `json:"health_probe_interval_minutes,omitempty"`
+	HealthProbeModel           *string `json:"health_probe_model,omitempty"`
+	HealthyProbeEnabled        bool    `json:"healthy_probe_enabled"`
+	HealthyProbeIntervalHours  *int    `json:"healthy_probe_interval_hours,omitempty"`
 
 	RateLimitedAt    *time.Time `json:"rate_limited_at"`
 	RateLimitResetAt *time.Time `json:"rate_limit_reset_at"`

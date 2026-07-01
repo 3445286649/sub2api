@@ -311,6 +311,7 @@ type UpdateAccountInput struct {
 	LoadFactor                 *int
 	HealthProbeEnabled         *bool
 	HealthProbeIntervalMinutes *int
+	HealthProbeModel           *string
 	HealthyProbeEnabled        *bool
 	HealthyProbeIntervalHours  *int
 	Status                     string
@@ -2790,6 +2791,14 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 			account.HealthProbeIntervalMinutes = nil
 		} else {
 			account.HealthProbeIntervalMinutes = input.HealthProbeIntervalMinutes
+		}
+	}
+	if input.HealthProbeModel != nil {
+		model := strings.TrimSpace(*input.HealthProbeModel)
+		if model == "" {
+			account.HealthProbeModel = nil
+		} else {
+			account.HealthProbeModel = &model
 		}
 	}
 	if input.HealthyProbeEnabled != nil {

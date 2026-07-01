@@ -173,10 +173,11 @@ type UpdateAccountRateMultiplierRequest struct {
 }
 
 type UpdateHealthProbeSettingsRequest struct {
-	HealthProbeEnabled         *bool `json:"health_probe_enabled"`
-	HealthProbeIntervalMinutes *int  `json:"health_probe_interval_minutes"`
-	HealthyProbeEnabled        *bool `json:"healthy_probe_enabled"`
-	HealthyProbeIntervalHours  *int  `json:"healthy_probe_interval_hours"`
+	HealthProbeEnabled         *bool   `json:"health_probe_enabled"`
+	HealthProbeIntervalMinutes *int    `json:"health_probe_interval_minutes"`
+	HealthProbeModel           *string `json:"health_probe_model"`
+	HealthyProbeEnabled        *bool   `json:"healthy_probe_enabled"`
+	HealthyProbeIntervalHours  *int    `json:"healthy_probe_interval_hours"`
 }
 
 // CheckMixedChannelRequest represents check mixed channel risk request
@@ -478,7 +479,7 @@ func (h *AccountHandler) ProbeHealth(c *gin.Context) {
 		return
 	}
 	actorUserID := adminActorUserID(c)
-	result, err := h.accountTestService.RunTestBackground(c.Request.Context(), accountID, "")
+	result, err := h.accountTestService.RunTestBackground(c.Request.Context(), accountID, h.accountHealthService.HealthProbeModel(c.Request.Context(), accountID))
 	if err != nil {
 		_ = h.accountHealthService.RecordManualProbeFailure(c.Request.Context(), accountID, "probe_error", err.Error(), actorUserID)
 		response.ErrorFrom(c, err)
@@ -593,6 +594,7 @@ func (h *AccountHandler) UpdateHealthProbeSettings(c *gin.Context) {
 	}
 	interval := req.HealthProbeIntervalMinutes
 	healthyInterval := req.HealthyProbeIntervalHours
+	probeModel := req.HealthProbeModel
 	if interval == nil {
 		var raw map[string]json.RawMessage
 		if err := json.Unmarshal(body, &raw); err == nil {
@@ -611,9 +613,19 @@ func (h *AccountHandler) UpdateHealthProbeSettings(c *gin.Context) {
 			}
 		}
 	}
+	if probeModel == nil {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(body, &raw); err == nil {
+			if _, ok := raw["health_probe_model"]; ok {
+				clear := ""
+				probeModel = &clear
+			}
+		}
+	}
 	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
 		HealthProbeEnabled:         req.HealthProbeEnabled,
 		HealthProbeIntervalMinutes: interval,
+		HealthProbeModel:           probeModel,
 		HealthyProbeEnabled:        req.HealthyProbeEnabled,
 		HealthyProbeIntervalHours:  healthyInterval,
 	})
