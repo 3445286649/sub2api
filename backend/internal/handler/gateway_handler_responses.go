@@ -249,6 +249,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 			if !upstreamErrorAlreadyCommunicated {
 				wroteFallback = h.ensureForwardErrorResponse(c, streamStarted)
 			}
+			h.gatewayService.RecordAccountHealthForwardError(requestCtx, account.ID, err)
 			reqLog.Error("gateway.responses.forward_failed",
 				zap.Int64("account_id", account.ID),
 				zap.Bool("fallback_error_response_written", wroteFallback),

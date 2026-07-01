@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -19,20 +21,21 @@ const (
 	AccountHealthStatusIsolated   = "isolated"
 	AccountHealthStatusRecovering = "recovering"
 
-	defaultAccountHealthScore         = 80
-	accountHealthFailurePenalty       = 25
-	accountHealthSuccessReward        = 5
-	accountHealthProbeRecoveryReward  = 25
-	accountHealthIsolationScore       = 40
-	accountHealthIsolationFailures    = 3
-	accountHealthRecoverySuccesses    = 2
-	accountHealthRecoveryScore        = 70
-	accountHealthProbeRecoveryScore   = 50
-	accountHealthRecoveredScore       = 70
-	accountHealthIsolationReason      = "account_health_auto_isolation"
-	accountHealthDefaultHealthyHours  = 6
-	accountHealthDefaultProbePageSize = 100
-	accountHealthOverviewAccountLimit = 10000
+	defaultAccountHealthScore             = 80
+	accountHealthFailurePenalty           = 25
+	accountHealthSuccessReward            = 5
+	accountHealthProbeRecoveryReward      = 25
+	accountHealthIsolationScore           = 40
+	accountHealthIsolationFailures        = 3
+	accountHealthRecoverySuccesses        = 2
+	accountHealthRecoveryScore            = 70
+	accountHealthProbeRecoveryScore       = 50
+	accountHealthRecoveredScore           = 70
+	accountHealthIsolationReason          = "account_health_auto_isolation"
+	accountHealthDefaultHealthyHours      = 6
+	accountHealthDefaultProbePageSize     = 100
+	accountHealthOverviewAccountLimit     = 10000
+	accountHealthProbeFailureDedupeWindow = 10 * time.Second
 )
 
 var accountHealthBackoffSteps = []time.Duration{time.Minute, 2 * time.Minute, 5 * time.Minute, 10 * time.Minute, 30 * time.Minute}
@@ -166,9 +169,11 @@ type accountHealthHealthyProbeCandidateRepository interface {
 }
 
 type AccountHealthService struct {
-	repo        AccountHealthRepository
-	accountRepo accountHealthAccountRepository
-	now         func() time.Time
+	repo                 AccountHealthRepository
+	accountRepo          accountHealthAccountRepository
+	now                  func() time.Time
+	probeFailureDedupeMu sync.Mutex
+	probeFailureDedupe   map[string]time.Time
 }
 
 func NewAccountHealthService(repo AccountHealthRepository, accountRepo AccountRepository) *AccountHealthService {
@@ -303,7 +308,9 @@ func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int6
 	if err := s.repo.Upsert(ctx, state); err != nil {
 		return err
 	}
-	_ = s.insertHealthEvent(ctx, &before, state, source, accountHealthSuccessEventType(&before, state), "", "", latencyMs, actorUserID)
+	if !shouldSkipAccountHealthSuccessEvent(&before, state, source) {
+		_ = s.insertHealthEvent(ctx, &before, state, source, accountHealthSuccessEventType(&before, state), "", "", latencyMs, actorUserID)
+	}
 	return nil
 }
 
@@ -324,6 +331,11 @@ func (s *AccountHealthService) recordFailure(ctx context.Context, accountID int6
 		return nil
 	}
 	now := s.now()
+	category = truncateAccountHealthString(strings.TrimSpace(category), 40)
+	message = truncateAccountHealthString(redactAccountHealthMessage(message), 1000)
+	if source == AccountHealthEventSourceBackgroundProbe && s.shouldSkipDuplicateProbeFailure(accountID, category, message, now) {
+		return nil
+	}
 	state, err := s.getOrDefault(ctx, accountID)
 	if err != nil {
 		return err
@@ -334,8 +346,8 @@ func (s *AccountHealthService) recordFailure(ctx context.Context, accountID int6
 	state.ConsecutiveSuccesses = 0
 	state.LastFailureAt = &now
 	state.LastCheckedAt = &now
-	state.LastErrorCategory = truncateAccountHealthString(strings.TrimSpace(category), 40)
-	state.LastErrorMessage = truncateAccountHealthString(redactAccountHealthMessage(message), 1000)
+	state.LastErrorCategory = category
+	state.LastErrorMessage = message
 	state.BackoffLevel = nextBackoffLevel(state.BackoffLevel)
 	if state.ConsecutiveFailures >= accountHealthIsolationFailures || state.Score < accountHealthIsolationScore {
 		state.Status = AccountHealthStatusIsolated
@@ -356,6 +368,32 @@ func (s *AccountHealthService) recordFailure(ctx context.Context, accountID int6
 	}
 	_ = s.insertHealthEvent(ctx, &before, state, source, accountHealthFailureEventType(&before, state), state.LastErrorCategory, state.LastErrorMessage, 0, actorUserID)
 	return nil
+}
+
+func (s *AccountHealthService) shouldSkipDuplicateProbeFailure(accountID int64, category, message string, now time.Time) bool {
+	if s == nil {
+		return false
+	}
+	key := accountHealthProbeFailureDedupeKey(accountID, category, message)
+	s.probeFailureDedupeMu.Lock()
+	defer s.probeFailureDedupeMu.Unlock()
+	if s.probeFailureDedupe == nil {
+		s.probeFailureDedupe = make(map[string]time.Time)
+	}
+	if last, ok := s.probeFailureDedupe[key]; ok && now.Sub(last) >= 0 && now.Sub(last) < accountHealthProbeFailureDedupeWindow {
+		return true
+	}
+	for k, ts := range s.probeFailureDedupe {
+		if now.Sub(ts) > accountHealthProbeFailureDedupeWindow*6 {
+			delete(s.probeFailureDedupe, k)
+		}
+	}
+	s.probeFailureDedupe[key] = now
+	return false
+}
+
+func accountHealthProbeFailureDedupeKey(accountID int64, category, message string) string {
+	return strconv.FormatInt(accountID, 10)
 }
 
 func (s *AccountHealthService) Reset(ctx context.Context, accountID int64) error {
@@ -828,6 +866,16 @@ func accountHealthSuccessEventType(before, after *AccountHealthState) string {
 		return AccountHealthEventTypeRecovering
 	}
 	return AccountHealthEventTypeSuccess
+}
+
+func shouldSkipAccountHealthSuccessEvent(before, after *AccountHealthState, source string) bool {
+	if source != AccountHealthEventSourceRealRequest || before == nil || after == nil {
+		return false
+	}
+	return before.Score == 100 &&
+		after.Score == 100 &&
+		before.Status == after.Status &&
+		after.Status == AccountHealthStatusHealthy
 }
 
 func accountHealthFailureEventType(before, after *AccountHealthState) string {

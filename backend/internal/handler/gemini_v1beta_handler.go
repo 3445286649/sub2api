@@ -496,6 +496,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 				}
 			}
 			// ForwardNative already wrote the response
+			h.gatewayService.RecordAccountHealthForwardError(requestCtx, account.ID, err)
 			reqLog.Error("gemini.forward_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 			return
 		}

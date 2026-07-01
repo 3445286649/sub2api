@@ -3,6 +3,8 @@ import { flushPromises, shallowMount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import PaymentView from '../PaymentView.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
+import { formatPaymentAmount } from '@/components/payment/currency'
+import type { CheckoutInfoResponse, MethodLimit, SubscriptionPlan } from '@/types/payment'
 
 const routeState = vi.hoisted(() => ({
   path: '/purchase',
@@ -85,59 +87,75 @@ vi.mock('@/utils/device', () => ({
   isMobileDevice: () => true,
 }))
 
-function checkoutInfoFixture() {
-  return {
-    data: {
-      methods: {
-        wxpay: {
-          daily_limit: 0,
-          daily_used: 0,
-          daily_remaining: 0,
-          single_min: 0,
-          single_max: 0,
-          fee_rate: 0,
-          available: true,
-        },
-      },
-      global_min: 0,
-      global_max: 0,
-      plans: [],
-      balance_disabled: false,
-      balance_recharge_multiplier: 1,
-      balance_recharge_bonus_display_enabled: false,
-      recharge_fee_rate: 0,
-      help_text: '',
-      help_image_url: '',
-      stripe_publishable_key: '',
+function checkoutInfoFixture(overrides: Partial<CheckoutInfoResponse> = {}) {
+  const wxpayMethod: MethodLimit = {
+    daily_limit: 0,
+    daily_used: 0,
+    daily_remaining: 0,
+    single_min: 0,
+    single_max: 0,
+    fee_rate: 0,
+    available: true,
+  }
+  const data: CheckoutInfoResponse = {
+    methods: {
+      wxpay: wxpayMethod,
     },
+    global_min: 0,
+    global_max: 0,
+    plans: [],
+    balance_disabled: false,
+    balance_recharge_multiplier: 1,
+    balance_recharge_bonus_display_enabled: false,
+    recharge_fee_rate: 0,
+    help_text: '',
+    help_image_url: '',
+    stripe_publishable_key: '',
+  }
+
+  return {
+    data: { ...data, ...overrides },
   }
 }
 
-function checkoutInfoWithPlansFixture() {
+function checkoutInfoWithPlansFixture(options: {
+  checkout?: Partial<CheckoutInfoResponse>
+  method?: Partial<MethodLimit>
+  plan?: Partial<SubscriptionPlan>
+} = {}) {
+  const base = checkoutInfoFixture(options.checkout).data
+  const plan: SubscriptionPlan = {
+    id: 7,
+    group_id: 3,
+    name: 'Starter',
+    description: '',
+    price: 128,
+    original_price: 0,
+    validity_days: 30,
+    validity_unit: 'day',
+    rate_multiplier: 1,
+    daily_limit_usd: null,
+    weekly_limit_usd: null,
+    monthly_limit_usd: null,
+    features: [],
+    group_platform: 'openai',
+    sort_order: 1,
+    for_sale: true,
+    group_name: 'OpenAI',
+    ...options.plan,
+  }
+
   return {
     data: {
-      ...checkoutInfoFixture().data,
-      plans: [
-        {
-          id: 7,
-          group_id: 3,
-          name: 'Starter',
-          description: '',
-          price: 128,
-          original_price: 0,
-          validity_days: 30,
-          validity_unit: 'day',
-          rate_multiplier: 1,
-          daily_limit_usd: null,
-          weekly_limit_usd: null,
-          monthly_limit_usd: null,
-          features: [],
-          group_platform: 'openai',
-          sort_order: 1,
-          for_sale: true,
-          group_name: 'OpenAI',
+      ...base,
+      methods: {
+        ...base.methods,
+        wxpay: {
+          ...base.methods.wxpay,
+          ...options.method,
         },
-      ],
+      },
+      plans: [plan],
     },
   }
 }
@@ -182,46 +200,127 @@ function oauthOrderFixture() {
   }
 }
 
-function mountPaymentView() {
-  return shallowMount(PaymentView, {
+async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoWithPlansFixture>[0] = {}) {
+  vi.useRealTimers()
+  routeState.path = '/purchase'
+  routeState.query = {
+    tab: 'subscription',
+    group: '3',
+  }
+  routerReplace.mockReset().mockResolvedValue(undefined)
+  routerPush.mockReset().mockResolvedValue(undefined)
+  routerResolve.mockClear()
+  createOrder.mockReset()
+  refreshUser.mockReset()
+  fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+  showError.mockReset()
+  showInfo.mockReset()
+  showWarning.mockReset()
+  getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoWithPlansFixture(options))
+  bridgeInvoke.mockReset()
+  window.localStorage.clear()
+  ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = undefined
+
+  const wrapper = shallowMount(PaymentView, {
     global: {
       stubs: {
-        AppLayout: defineComponent({
-          setup(_props, { slots }) {
-            return () => h('div', slots.default?.())
-          },
-        }),
+        AppLayout: {
+          template: '<div><slot /></div>',
+        },
         Teleport: true,
         Transition: false,
-        AmountInput: defineComponent({
-          props: {
-            modelValue: Number,
-            bonusEnabled: Boolean,
-            creditMultiplier: Number,
-            formatCreditAmount: Function,
-          },
-          emits: ['update:modelValue'],
-          setup(props, { emit }) {
-            return () =>
-              h('div', [
-                h('input', {
-                  class: 'amount-input-stub',
-                  type: 'number',
-                  onInput: (event: Event) => {
-                    emit('update:modelValue', Number((event.target as HTMLInputElement).value))
-                  },
-                }),
-                props.bonusEnabled
-                  ? h('span', { class: 'amount-input-credit-preview-stub' }, `credit:${Number(props.creditMultiplier || 1).toFixed(2)}`)
-                  : null,
-              ])
-          },
-        }),
-        PaymentMethodSelector: true,
       },
     },
   })
+  await flushPromises()
+  await flushPromises()
+  return wrapper
 }
+
+describe('PaymentView subscription confirmation amounts', () => {
+  it('keeps subscription plan price independent from balance recharge multiplier', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: {
+        balance_recharge_multiplier: 4,
+      },
+      method: {
+        currency: 'CNY',
+      },
+      plan: {
+        price: 200,
+        original_price: 300,
+      },
+    })
+
+    const text = wrapper.text()
+    const planPrice = formatPaymentAmount(200, 'CNY')
+    const originalPrice = formatPaymentAmount(300, 'CNY')
+    const convertedByRechargeMultiplier = formatPaymentAmount(50, 'CNY')
+
+    expect(text).toContain(planPrice)
+    expect(text).toContain(originalPrice)
+    expect(text).not.toContain(convertedByRechargeMultiplier)
+    expect(wrapper.findAll('button').some(button => button.text().includes(planPrice))).toBe(true)
+  })
+
+  it('keeps plan price when multiplier is not configured or payment currency is not CNY', async () => {
+    const cnyWrapper = await mountSubscriptionConfirm({
+      checkout: {
+        balance_recharge_multiplier: 0,
+      },
+      method: {
+        currency: 'CNY',
+      },
+      plan: {
+        price: 7.99,
+      },
+    })
+
+    expect(cnyWrapper.text()).toContain(formatPaymentAmount(7.99, 'CNY'))
+    expect(cnyWrapper.text()).not.toContain(formatPaymentAmount(57.07, 'CNY'))
+
+    const usdWrapper = await mountSubscriptionConfirm({
+      checkout: {
+        balance_recharge_multiplier: 0.14,
+      },
+      method: {
+        currency: 'USD',
+      },
+      plan: {
+        price: 7.99,
+        original_price: 9.99,
+      },
+    })
+
+    expect(usdWrapper.text()).toContain(formatPaymentAmount(7.99, 'USD'))
+    expect(usdWrapper.text()).toContain(formatPaymentAmount(9.99, 'USD'))
+  })
+
+  it('adds fee rate to the direct subscription plan price to match backend pay_amount', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: {
+        balance_recharge_multiplier: 4,
+        recharge_fee_rate: 2.5,
+      },
+      method: {
+        currency: 'CNY',
+      },
+      plan: {
+        price: 7.99,
+      },
+    })
+
+    const text = wrapper.text()
+    const price = formatPaymentAmount(7.99, 'CNY')
+    const fee = formatPaymentAmount(0.20, 'CNY')
+    const total = formatPaymentAmount(8.19, 'CNY')
+
+    expect(text).toContain(price)
+    expect(text).toContain(fee)
+    expect(text).toContain(total)
+    expect(wrapper.findAll('button').some(button => button.text().includes(total))).toBe(true)
+  })
+})
 
 describe('PaymentView WeChat JSAPI flow', () => {
   beforeEach(() => {
@@ -460,6 +559,46 @@ describe('PaymentView WeChat JSAPI flow', () => {
   })
 })
 
+function mountPaymentView() {
+  return shallowMount(PaymentView, {
+    global: {
+      stubs: {
+        AppLayout: defineComponent({
+          setup(_props, { slots }) {
+            return () => h('div', slots.default?.())
+          },
+        }),
+        Teleport: true,
+        Transition: false,
+        AmountInput: defineComponent({
+          props: {
+            modelValue: Number,
+            bonusEnabled: Boolean,
+            creditMultiplier: Number,
+            formatCreditAmount: Function,
+          },
+          emits: ['update:modelValue'],
+          setup(props, { emit }) {
+            return () => h('div', [
+              h('input', {
+                class: 'amount-input-stub',
+                type: 'number',
+                onInput: (event: Event) => {
+                  emit('update:modelValue', Number((event.target as HTMLInputElement).value))
+                },
+              }),
+              props.bonusEnabled
+                ? h('span', { class: 'amount-input-credit-preview-stub' }, `credit:${Number(props.creditMultiplier || 1).toFixed(2)}`)
+                : null,
+            ])
+          },
+        }),
+        PaymentMethodSelector: true,
+      },
+    },
+  })
+}
+
 describe('PaymentView recharge bonus campaign', () => {
   beforeEach(() => {
     routeState.path = '/purchase'
@@ -479,13 +618,10 @@ describe('PaymentView recharge bonus campaign', () => {
   })
 
   it('shows bonus percent and credited amount when display switch is enabled and multiplier is greater than 1', async () => {
-    getCheckoutInfo.mockResolvedValue({
-      data: {
-        ...checkoutInfoFixture().data,
-        balance_recharge_multiplier: 1.1,
-        balance_recharge_bonus_display_enabled: true,
-      },
-    })
+    getCheckoutInfo.mockResolvedValue(checkoutInfoFixture({
+      balance_recharge_multiplier: 1.1,
+      balance_recharge_bonus_display_enabled: true,
+    }))
 
     const wrapper = mountPaymentView()
     await flushPromises()
@@ -499,13 +635,10 @@ describe('PaymentView recharge bonus campaign', () => {
   })
 
   it('does not show recharge bonus campaign when display switch is disabled even if multiplier is greater than 1', async () => {
-    getCheckoutInfo.mockResolvedValue({
-      data: {
-        ...checkoutInfoFixture().data,
-        balance_recharge_multiplier: 1.1,
-        balance_recharge_bonus_display_enabled: false,
-      },
-    })
+    getCheckoutInfo.mockResolvedValue(checkoutInfoFixture({
+      balance_recharge_multiplier: 1.1,
+      balance_recharge_bonus_display_enabled: false,
+    }))
 
     const wrapper = mountPaymentView()
     await flushPromises()

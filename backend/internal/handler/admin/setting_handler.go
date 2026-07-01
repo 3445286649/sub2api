@@ -756,6 +756,14 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if req.DefaultBalance < 0 {
 		req.DefaultBalance = 0
 	}
+	if err := service.ValidateCodexClientEntriesJSON(req.CodexCLIOnlyBlacklist); err != nil {
+		response.BadRequest(c, "Invalid codex_cli_only_blacklist: "+err.Error())
+		return
+	}
+	if err := service.ValidateCodexWhitelistEntriesJSON(req.CodexCLIOnlyWhitelist); err != nil {
+		response.BadRequest(c, "Invalid codex_cli_only_whitelist: "+err.Error())
+		return
+	}
 	affiliateRebateRate := previousSettings.AffiliateRebateRate
 	if req.AffiliateRebateRate != nil {
 		affiliateRebateRate = *req.AffiliateRebateRate

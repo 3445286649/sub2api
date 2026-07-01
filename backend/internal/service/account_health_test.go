@@ -406,6 +406,30 @@ func TestAccountHealthService_RecordsEventsAndRedactsMessages(t *testing.T) {
 	require.Contains(t, repo.events[0].ErrorMessage, "***")
 }
 
+func TestAccountHealthService_SkipsNoopRealRequestSuccessEventAtFullScore(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+		2: {ID: 2, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 100, Status: AccountHealthStatusHealthy, CreatedAt: now, UpdatedAt: now},
+		2: {AccountID: 2, Score: 100, Status: AccountHealthStatusHealthy, CreatedAt: now, UpdatedAt: now},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordSuccess(ctx, 1, 1234))
+	require.Empty(t, repo.events)
+	require.Equal(t, now, *repo.states[1].LastSuccessAt)
+	require.Equal(t, 1234, *repo.states[1].LatencyEWMAMs)
+
+	require.NoError(t, svc.RecordProbeSuccess(ctx, 2, 567))
+	require.Len(t, repo.events, 1)
+	require.Equal(t, AccountHealthEventSourceBackgroundProbe, repo.events[0].Source)
+	require.Equal(t, AccountHealthEventTypeSuccess, repo.events[0].EventType)
+}
+
 func TestAccountHealthService_RecordsRecoveryEvent(t *testing.T) {
 	ctx := context.Background()
 	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
@@ -602,6 +626,27 @@ func TestAccountHealthService_RecordFailureRedactsSensitiveMessage(t *testing.T)
 	require.NotContains(t, message, "Bearer abc")
 	require.NotContains(t, message, "sid=secret")
 	require.Contains(t, message, "***")
+}
+
+func TestAccountHealthService_DedupesBackgroundProbeFailureWithinWindow(t *testing.T) {
+	base := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	current := base
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return current }}
+
+	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "probe_failed", "upstream temporarily unavailable"))
+	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "forward_error", "model unavailable during probe"))
+	require.Equal(t, 55, repo.states[1].Score)
+	require.Len(t, repo.events, 1)
+
+	current = base.Add(accountHealthProbeFailureDedupeWindow + time.Second)
+	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "probe_failed", "upstream temporarily unavailable"))
+	require.Equal(t, 30, repo.states[1].Score)
+	require.Len(t, repo.events, 2)
 }
 
 func TestAccountHealthService_OverviewBuildsRiskSummary(t *testing.T) {

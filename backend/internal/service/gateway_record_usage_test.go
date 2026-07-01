@@ -116,6 +116,26 @@ func TestGatewayServiceRecordUsage_BillingUsesDetachedContext(t *testing.T) {
 	require.NoError(t, quotaSvc.lastQuotaCtxErr)
 }
 
+func TestGatewayServiceRecordAccountHealthForwardErrorRecordsOnlyUpstreamFailures(t *testing.T) {
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		701: {ID: 701, Status: StatusActive, Schedulable: true},
+	}}
+	healthRepo := &memoryAccountHealthRepo{}
+	healthSvc := &AccountHealthService{repo: healthRepo, accountRepo: accountRepo, now: time.Now}
+	svc := newGatewayRecordUsageServiceForTest(nil, nil, nil)
+	svc.SetAccountHealthService(healthSvc)
+
+	svc.RecordAccountHealthForwardError(ctx, 701, errors.New("upstream response failed: Upstream temporarily unavailable; please retry"))
+	require.Len(t, healthRepo.events, 1)
+	require.Equal(t, AccountHealthEventSourceRealRequest, healthRepo.events[0].Source)
+	require.Equal(t, AccountHealthEventTypeFailure, healthRepo.events[0].EventType)
+	require.Equal(t, "upstream_5xx", healthRepo.events[0].ErrorCategory)
+
+	svc.RecordAccountHealthForwardError(ctx, 701, errors.New("upstream response failed: Concurrency limit exceeded for account, please retry later"))
+	require.Len(t, healthRepo.events, 1)
+}
+
 func TestGatewayServiceRecordUsage_BillingFingerprintIncludesRequestPayloadHash(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{}
 	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}

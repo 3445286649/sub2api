@@ -620,6 +620,13 @@ func (s *GatewayService) RecordAccountHealthFailure(ctx context.Context, account
 	_ = s.accountHealthService.RecordFailure(ctx, accountID, category, string(failoverErr.ResponseBody))
 }
 
+func (s *GatewayService) RecordAccountHealthForwardError(ctx context.Context, accountID int64, err error) {
+	if s == nil || s.accountHealthService == nil || accountID <= 0 || !shouldRecordAccountHealthForwardError(err) {
+		return
+	}
+	_ = s.accountHealthService.RecordFailure(ctx, accountID, accountHealthForwardErrorCategory(err), err.Error())
+}
+
 func (s *GatewayService) RecordAccountHealthSuccess(ctx context.Context, accountID int64, latencyMs int64) {
 	if s == nil || s.accountHealthService == nil || accountID <= 0 {
 		return

@@ -489,6 +489,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				} else if account.ProxyID != nil {
 					forwardFailedFields = append(forwardFailedFields, zap.Int64p("proxy_id", account.ProxyID))
 				}
+				h.gatewayService.RecordAccountHealthForwardError(requestCtx, account.ID, err)
 				reqLog.Error("gateway.forward_failed", forwardFailedFields...)
 				return
 			}
@@ -911,6 +912,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				} else if account.ProxyID != nil {
 					forwardFailedFields = append(forwardFailedFields, zap.Int64p("proxy_id", account.ProxyID))
 				}
+				h.gatewayService.RecordAccountHealthForwardError(requestCtx, account.ID, err)
 				reqLog.Error("gateway.forward_failed", forwardFailedFields...)
 				return
 			}
