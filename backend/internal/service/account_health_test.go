@@ -321,6 +321,71 @@ func TestAccountHealthService_AuthErrorDoesNotUseFastProbeRecovery(t *testing.T)
 	require.Equal(t, 0, accountRepo.tempClearCalls)
 }
 
+func TestAccountHealthService_TemporaryFailuresUseProgressivePenaltyAndThirdFailureIsolates(t *testing.T) {
+	base := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return base }}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "forward_error", "connection reset"))
+	require.Equal(t, 72, repo.states[1].Score)
+	require.Equal(t, AccountHealthStatusDegraded, repo.states[1].Status)
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "timeout", "deadline exceeded"))
+	require.Equal(t, 60, repo.states[1].Score)
+	require.Equal(t, AccountHealthStatusDegraded, repo.states[1].Status)
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "network_error", "connection refused"))
+	require.Equal(t, 40, repo.states[1].Score)
+	require.Equal(t, AccountHealthStatusIsolated, repo.states[1].Status)
+	require.Equal(t, base.Add(5*time.Minute), *repo.states[1].NextProbeAt)
+	require.Equal(t, *repo.states[1].NextProbeAt, accountRepo.lastTempUntil)
+}
+
+func TestAccountHealthService_RateLimitAndModelConfigFailuresAreGentle(t *testing.T) {
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+		2: {ID: 2, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: time.Now}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "rate_limited", "returned 429"))
+	require.Equal(t, 70, repo.states[1].Score)
+	require.Equal(t, AccountHealthStatusDegraded, repo.states[1].Status)
+
+	for i := 0; i < 10; i++ {
+		require.NoError(t, svc.RecordFailure(ctx, 2, "model_not_found", "model does not exist"))
+	}
+	require.Equal(t, 30, repo.states[2].Score)
+	require.Equal(t, AccountHealthStatusDegraded, repo.states[2].Status)
+	require.Zero(t, accountRepo.tempSetCalls, "probe model config errors should not auto-isolate the account")
+}
+
+func TestAccountHealthService_DegradedRealRequestSuccessesRaiseFloorToSixty(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 35, Status: AccountHealthStatusDegraded, CreatedAt: now, UpdatedAt: now},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordSuccess(ctx, 1, 120))
+	require.Equal(t, 40, repo.states[1].Score)
+	require.NoError(t, svc.RecordSuccess(ctx, 1, 110))
+	require.Equal(t, 45, repo.states[1].Score)
+	require.NoError(t, svc.RecordSuccess(ctx, 1, 100))
+	require.Equal(t, 60, repo.states[1].Score)
+	require.Equal(t, AccountHealthStatusDegraded, repo.states[1].Status)
+}
+
 func TestAccountHealthService_ListDueForProbeSkipsDisabledAccounts(t *testing.T) {
 	now := time.Now()
 	ctx := context.Background()
@@ -364,6 +429,7 @@ func TestAccountHealthService_IsolatedTemporaryErrorUsesFixedFiveMinuteRecoveryP
 	repo := &memoryAccountHealthRepo{}
 	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return base }}
 
+	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
 	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
 	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
 
@@ -438,6 +504,7 @@ func TestAccountHealthService_RecordsRecoveryEvent(t *testing.T) {
 	repo := &memoryAccountHealthRepo{}
 	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: time.Now}
 
+	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
 	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
 	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
 	repo.states[1].Score = 25
@@ -553,7 +620,7 @@ func TestAccountHealthService_HealthyProbeFailureEntersDegradedBackoff(t *testin
 	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
 
 	state := repo.states[1]
-	require.Equal(t, 55, state.Score)
+	require.Equal(t, 72, state.Score)
 	require.Equal(t, AccountHealthStatusDegraded, state.Status)
 	require.NotNil(t, state.NextProbeAt)
 	require.True(t, state.NextProbeAt.After(now))
@@ -640,12 +707,12 @@ func TestAccountHealthService_DedupesBackgroundProbeFailureWithinWindow(t *testi
 
 	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "probe_failed", "upstream temporarily unavailable"))
 	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "forward_error", "model unavailable during probe"))
-	require.Equal(t, 55, repo.states[1].Score)
+	require.Equal(t, 72, repo.states[1].Score)
 	require.Len(t, repo.events, 1)
 
 	current = base.Add(accountHealthProbeFailureDedupeWindow + time.Second)
 	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "probe_failed", "upstream temporarily unavailable"))
-	require.Equal(t, 30, repo.states[1].Score)
+	require.Equal(t, 60, repo.states[1].Score)
 	require.Len(t, repo.events, 2)
 }
 

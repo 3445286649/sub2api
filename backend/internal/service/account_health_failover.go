@@ -33,8 +33,6 @@ func shouldRecordAccountHealthForwardError(err error) bool {
 	skipMarkers := []string{
 		"concurrency limit exceeded for account",
 		"concurrency limit exceeded for user",
-		"billing",
-		"quota",
 		"invalid request",
 		"prompt too long",
 		"context canceled",
@@ -54,6 +52,16 @@ func shouldRecordAccountHealthForwardError(err error) bool {
 		"empty response",
 		"connection reset",
 		"connection refused",
+		"quota exceeded",
+		"insufficient balance",
+		"insufficient quota",
+		"余额不足",
+		"model_not_found",
+		"model not found",
+		"model does not exist",
+		"model unavailable",
+		"unknown model",
+		"unsupported model",
 		"timeout",
 		"deadline exceeded",
 		"eof",
@@ -72,8 +80,14 @@ func accountHealthForwardErrorCategory(err error) string {
 	}
 	msg := strings.ToLower(err.Error())
 	switch {
+	case strings.Contains(msg, "quota exceeded"), strings.Contains(msg, "insufficient balance"), strings.Contains(msg, "insufficient quota"), strings.Contains(msg, "余额不足"):
+		return "quota_exceeded"
+	case strings.Contains(msg, "model_not_found"), strings.Contains(msg, "model not found"), strings.Contains(msg, "model does not exist"), strings.Contains(msg, "model unavailable"), strings.Contains(msg, "unknown model"), strings.Contains(msg, "unsupported model"):
+		return "model_not_found"
 	case strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline exceeded"):
 		return "timeout"
+	case strings.Contains(msg, "empty response"):
+		return "empty_response"
 	case strings.Contains(msg, "upstream temporarily unavailable"):
 		return "upstream_5xx"
 	case strings.Contains(msg, "bad gateway"), strings.Contains(msg, "upstream error"), strings.Contains(msg, "do request failed"):
@@ -93,6 +107,18 @@ func accountHealthProbeFailureCategory(message string) string {
 		strings.Contains(normalized, "returned 401"),
 		strings.Contains(normalized, "returned 403"):
 		return "auth_error"
+	case strings.Contains(normalized, "quota exceeded"),
+		strings.Contains(normalized, "insufficient balance"),
+		strings.Contains(normalized, "insufficient quota"),
+		strings.Contains(normalized, "余额不足"):
+		return "quota_exceeded"
+	case strings.Contains(normalized, "model_not_found"),
+		strings.Contains(normalized, "model not found"),
+		strings.Contains(normalized, "model does not exist"),
+		strings.Contains(normalized, "model unavailable"),
+		strings.Contains(normalized, "unknown model"),
+		strings.Contains(normalized, "unsupported model"):
+		return "model_not_found"
 	default:
 		return "probe_failed"
 	}

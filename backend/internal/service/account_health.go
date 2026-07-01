@@ -22,9 +22,18 @@ const (
 	AccountHealthStatusRecovering = "recovering"
 
 	defaultAccountHealthScore             = 80
-	accountHealthFailurePenalty           = 25
+	accountHealthAuthFailurePenalty       = 30
+	accountHealthQuotaFailurePenalty      = 25
+	accountHealthRateLimitedPenalty       = 10
+	accountHealthTemporaryFailurePenalty1 = 8
+	accountHealthTemporaryFailurePenalty2 = 12
+	accountHealthTemporaryFailurePenalty3 = 20
+	accountHealthUpstream4xxPenalty       = 15
+	accountHealthModelConfigPenalty       = 5
 	accountHealthSuccessReward            = 5
 	accountHealthProbeRecoveryReward      = 25
+	accountHealthDegradedSuccessFloor     = 60
+	accountHealthDegradedSuccessesFloor   = 3
 	accountHealthIsolationScore           = 40
 	accountHealthIsolationFailures        = 3
 	accountHealthRecoverySuccesses        = 2
@@ -272,6 +281,9 @@ func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int6
 		}
 		state.LatencyEWMAMs = &next
 	}
+	if !probe && before.Status == AccountHealthStatusDegraded && state.ConsecutiveSuccesses >= accountHealthDegradedSuccessesFloor && state.Score < accountHealthDegradedSuccessFloor {
+		state.Score = accountHealthDegradedSuccessFloor
+	}
 	if state.Status == AccountHealthStatusIsolated || state.Status == AccountHealthStatusRecovering {
 		recoveryScore := accountHealthRecoveryScore
 		if probe && reward == accountHealthProbeRecoveryReward {
@@ -341,7 +353,8 @@ func (s *AccountHealthService) recordFailure(ctx context.Context, accountID int6
 		return err
 	}
 	before := *state
-	state.Score = clampHealthScore(state.Score - accountHealthFailurePenalty)
+	penalty := accountHealthFailurePenaltyFor(category, message, state.ConsecutiveFailures)
+	state.Score = clampHealthScore(state.Score - penalty)
 	state.ConsecutiveFailures++
 	state.ConsecutiveSuccesses = 0
 	state.LastFailureAt = &now
@@ -349,7 +362,7 @@ func (s *AccountHealthService) recordFailure(ctx context.Context, accountID int6
 	state.LastErrorCategory = category
 	state.LastErrorMessage = message
 	state.BackoffLevel = nextBackoffLevel(state.BackoffLevel)
-	if state.ConsecutiveFailures >= accountHealthIsolationFailures || state.Score < accountHealthIsolationScore {
+	if accountHealthFailureShouldIsolate(category, message, state) {
 		state.Status = AccountHealthStatusIsolated
 		state.IsolatedAt = &now
 	} else {
@@ -394,6 +407,112 @@ func (s *AccountHealthService) shouldSkipDuplicateProbeFailure(accountID int64, 
 
 func accountHealthProbeFailureDedupeKey(accountID int64, category, message string) string {
 	return strconv.FormatInt(accountID, 10)
+}
+
+func accountHealthFailurePenaltyFor(category, message string, consecutiveFailuresBefore int) int {
+	switch {
+	case accountHealthIsAuthFailure(category, message):
+		return accountHealthAuthFailurePenalty
+	case accountHealthIsQuotaFailure(category, message):
+		return accountHealthQuotaFailurePenalty
+	case accountHealthIsModelConfigFailure(category, message):
+		return accountHealthModelConfigPenalty
+	case category == "rate_limited":
+		return accountHealthRateLimitedPenalty
+	case category == "upstream_4xx":
+		return accountHealthUpstream4xxPenalty
+	case accountHealthIsTemporaryFailure(category, message):
+		return accountHealthTemporaryFailurePenalty(consecutiveFailuresBefore)
+	default:
+		return accountHealthTemporaryFailurePenalty(consecutiveFailuresBefore)
+	}
+}
+
+func accountHealthTemporaryFailurePenalty(consecutiveFailuresBefore int) int {
+	switch {
+	case consecutiveFailuresBefore <= 0:
+		return accountHealthTemporaryFailurePenalty1
+	case consecutiveFailuresBefore == 1:
+		return accountHealthTemporaryFailurePenalty2
+	default:
+		return accountHealthTemporaryFailurePenalty3
+	}
+}
+
+func accountHealthFailureShouldIsolate(category, message string, state *AccountHealthState) bool {
+	if state == nil {
+		return false
+	}
+	if accountHealthIsModelConfigFailure(category, message) {
+		return false
+	}
+	if accountHealthIsTemporaryFailure(category, message) {
+		return state.ConsecutiveFailures >= accountHealthIsolationFailures || state.Score < accountHealthIsolationScore
+	}
+	if accountHealthIsAuthFailure(category, message) {
+		return state.ConsecutiveFailures >= 2 || state.Score < accountHealthIsolationScore
+	}
+	return state.ConsecutiveFailures >= accountHealthIsolationFailures || state.Score < accountHealthIsolationScore
+}
+
+func accountHealthIsTemporaryFailure(category, message string) bool {
+	if accountHealthIsAuthFailure(category, message) || accountHealthIsQuotaFailure(category, message) || accountHealthIsModelConfigFailure(category, message) {
+		return false
+	}
+	switch category {
+	case "timeout", "forward_error", "network_error", "probe_failed", "upstream_5xx", "upstream_error", "empty_response":
+		return true
+	default:
+		normalized := strings.ToLower(strings.TrimSpace(message))
+		return strings.Contains(normalized, "timeout") ||
+			strings.Contains(normalized, "deadline exceeded") ||
+			strings.Contains(normalized, "connection reset") ||
+			strings.Contains(normalized, "connection refused") ||
+			strings.Contains(normalized, "empty response") ||
+			strings.Contains(normalized, "bad gateway") ||
+			strings.Contains(normalized, "temporarily unavailable")
+	}
+}
+
+func accountHealthIsAuthFailure(category, message string) bool {
+	if category == "auth_error" {
+		return true
+	}
+	normalized := strings.ToLower(strings.TrimSpace(message))
+	return strings.Contains(normalized, "invalid_api_key") ||
+		strings.Contains(normalized, "invalid api key") ||
+		strings.Contains(normalized, "unauthorized") ||
+		strings.Contains(normalized, "authentication failed") ||
+		strings.Contains(normalized, "returned 401") ||
+		strings.Contains(normalized, "returned 403")
+}
+
+func accountHealthIsQuotaFailure(category, message string) bool {
+	switch category {
+	case "quota_exceeded", "insufficient_balance", "billing_error", "payment_required":
+		return true
+	}
+	normalized := strings.ToLower(strings.TrimSpace(message))
+	return strings.Contains(normalized, "quota exceeded") ||
+		strings.Contains(normalized, "insufficient balance") ||
+		strings.Contains(normalized, "insufficient quota") ||
+		strings.Contains(normalized, "余额不足") ||
+		strings.Contains(normalized, "账户余额不足") ||
+		strings.Contains(normalized, "payment required")
+}
+
+func accountHealthIsModelConfigFailure(category, message string) bool {
+	switch category {
+	case "model_not_found", "probe_model_error", "model_unavailable":
+		return true
+	}
+	normalized := strings.ToLower(strings.TrimSpace(message))
+	return strings.Contains(normalized, "model_not_found") ||
+		strings.Contains(normalized, "model not found") ||
+		strings.Contains(normalized, "model does not exist") ||
+		strings.Contains(normalized, "model unavailable") ||
+		strings.Contains(normalized, "unknown model") ||
+		strings.Contains(normalized, "unsupported model")
 }
 
 func (s *AccountHealthService) Reset(ctx context.Context, accountID int64) error {
