@@ -428,6 +428,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 			// 记录 Forward 前已写入字节数，Forward 后若增加则说明 SSE 内容已发，禁止 failover
 			writerSizeBeforeForward := c.Writer.Size()
+			healthForwardStart := time.Now()
 			if account.Platform == service.PlatformAntigravity {
 				result, err = h.antigravityGatewayService.ForwardGemini(
 					requestCtx,
@@ -501,6 +502,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 			}
 
+			h.gatewayService.RecordAccountHealthSuccess(requestCtx, account.ID, time.Since(healthForwardStart).Milliseconds())
 			// 捕获请求信息（用于异步记录，避免在 goroutine 中访问 gin.Context）
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetClientIP(c)
@@ -796,6 +798,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 			// 记录 Forward 前已写入字节数，Forward 后若增加则说明 SSE 内容已发，禁止 failover
 			writerSizeBeforeForward := c.Writer.Size()
+			healthForwardStart := time.Now()
 			if account.Platform == service.PlatformAntigravity && account.Type != service.AccountTypeAPIKey {
 				result, err = h.antigravityGatewayService.Forward(requestCtx, c, account, attemptBody, hasBoundSession)
 			} else {
@@ -932,6 +935,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 			}
 
+			h.gatewayService.RecordAccountHealthSuccess(requestCtx, account.ID, time.Since(healthForwardStart).Milliseconds())
 			// 捕获请求信息（用于异步记录，避免在 goroutine 中访问 gin.Context）
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetClientIP(c)

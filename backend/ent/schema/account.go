@@ -148,6 +148,23 @@ func (Account) Fields() []ent.Field {
 		field.Bool("schedulable").
 			Default(true),
 
+		field.Bool("health_probe_enabled").
+			Default(true).
+			Comment("Whether background health probes are enabled for this account."),
+		field.Int("health_probe_interval_minutes").
+			Optional().
+			Nillable().
+			NonNegative().
+			Comment("Optional fixed health probe interval in minutes for unhealthy accounts; NULL uses default backoff."),
+		field.Bool("healthy_probe_enabled").
+			Default(false).
+			Comment("Whether low-frequency background probes are enabled while this account is healthy."),
+		field.Int("healthy_probe_interval_hours").
+			Optional().
+			Nillable().
+			Positive().
+			Comment("Low-frequency probe interval in hours for healthy accounts; NULL uses default 6 hours when enabled."),
+
 		// rate_limited_at: 触发速率限制的时间
 		// 当收到 429 错误时记录
 		field.Time("rate_limited_at").

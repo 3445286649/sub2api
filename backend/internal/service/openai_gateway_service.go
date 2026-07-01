@@ -358,6 +358,7 @@ type OpenAIGatewayService struct {
 	balanceNotifyService  *BalanceNotifyService
 	settingService        *SettingService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	accountHealthService  *AccountHealthService
 
 	openaiWSPoolOnce              sync.Once
 	openaiWSStateStoreOnce        sync.Once
@@ -378,6 +379,41 @@ type OpenAIGatewayService struct {
 	codexSnapshotThrottle               *accountWriteThrottle
 	openaiCompatSessionResponses        sync.Map
 	openaiCompatAnthropicDigestSessions sync.Map
+}
+
+func (s *OpenAIGatewayService) SetAccountHealthService(healthSvc *AccountHealthService) {
+	if s != nil {
+		s.accountHealthService = healthSvc
+	}
+}
+
+func (s *OpenAIGatewayService) RecordAccountHealthFailure(ctx context.Context, accountID int64, failoverErr *UpstreamFailoverError) {
+	if s == nil || s.accountHealthService == nil || failoverErr == nil || accountID <= 0 {
+		return
+	}
+	_ = s.accountHealthService.RecordFailure(ctx, accountID, accountHealthFailureCategory(failoverErr.StatusCode), string(failoverErr.ResponseBody))
+}
+
+func (s *OpenAIGatewayService) RecordAccountHealthSuccess(ctx context.Context, accountID int64, latencyMs int64) {
+	if s == nil || s.accountHealthService == nil || accountID <= 0 {
+		return
+	}
+	_ = s.accountHealthService.RecordSuccess(ctx, accountID, latencyMs)
+}
+
+func (s *OpenAIGatewayService) loadAccountHealthSummaries(ctx context.Context, accounts []Account) map[int64]*AccountHealthSummary {
+	if s == nil || s.accountHealthService == nil || len(accounts) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(accounts))
+	for i := range accounts {
+		ids = append(ids, accounts[i].ID)
+	}
+	summaries, err := s.accountHealthService.ListByAccountIDs(ctx, ids)
+	if err != nil {
+		return nil
+	}
+	return summaries
 }
 
 // NewOpenAIGatewayService creates a new OpenAIGatewayService
@@ -1992,6 +2028,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	if len(accounts) == 0 {
 		return nil, ErrNoAvailableAccounts
 	}
+	healthByAccountID := s.loadAccountHealthSummaries(ctx, accounts)
 
 	isExcluded := func(accountID int64) bool {
 		if excludedIDs == nil {
@@ -2102,25 +2139,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 			return nil, false, nil
 		}
 
-		sort.SliceStable(available, func(i, j int) bool {
-			a, b := available[i], available[j]
-			if a.account.Priority != b.account.Priority {
-				return a.account.Priority < b.account.Priority
-			}
-			if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
-				return a.loadInfo.LoadRate < b.loadInfo.LoadRate
-			}
-			switch {
-			case a.account.LastUsedAt == nil && b.account.LastUsedAt != nil:
-				return true
-			case a.account.LastUsedAt != nil && b.account.LastUsedAt == nil:
-				return false
-			case a.account.LastUsedAt == nil && b.account.LastUsedAt == nil:
-				return false
-			default:
-				return a.account.LastUsedAt.Before(*b.account.LastUsedAt)
-			}
-		})
+		sortAccountWithLoadByHealthCostAndLoad(available, healthByAccountID, false)
 		shuffleWithinSortGroups(available)
 
 		selectionOrder := make([]accountWithLoad, 0, len(available))
@@ -2172,7 +2191,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	loadMap, err := s.concurrencyService.GetAccountsLoadBatch(ctx, accountLoads)
 	if err != nil {
 		ordered := append([]*Account(nil), candidates...)
-		sortAccountsByPriorityAndLastUsed(ordered, false)
+		sortAccountPointersByHealthCostAndLRU(ordered, healthByAccountID, false)
 		if requireCompact {
 			ordered = prioritizeOpenAICompactAccounts(ordered)
 		}
@@ -2217,7 +2236,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	}
 
 	// ============ Layer 3: Fallback wait ============
-	sortAccountsByPriorityAndLastUsed(candidates, false)
+	sortAccountPointersByHealthCostAndLRU(candidates, healthByAccountID, false)
 	if requireCompact {
 		candidates = prioritizeOpenAICompactAccounts(candidates)
 	}

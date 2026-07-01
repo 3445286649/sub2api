@@ -257,6 +257,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 				}
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
+					h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 					h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
 					if c.Writer.Size() != writerSizeBeforeForward {
 						reqLog.Warn("openai.images.upstream_failover_skipped_after_flush",
@@ -333,6 +334,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, nil)
 		}
 
+		h.gatewayService.RecordAccountHealthSuccess(c.Request.Context(), account.ID, time.Since(forwardStart).Milliseconds())
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		requestPayloadHash := service.HashUsageRequestPayload(body)

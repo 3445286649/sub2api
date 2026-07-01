@@ -58,6 +58,7 @@ type AccountHandler struct {
 	sessionLimitCache       service.SessionLimitCache
 	rpmCache                service.RPMCache
 	tokenCacheInvalidator   service.TokenCacheInvalidator
+	accountHealthService    *service.AccountHealthService
 }
 
 // NewAccountHandler creates a new admin account handler
@@ -75,7 +76,12 @@ func NewAccountHandler(
 	sessionLimitCache service.SessionLimitCache,
 	rpmCache service.RPMCache,
 	tokenCacheInvalidator service.TokenCacheInvalidator,
+	optionalHealthService ...*service.AccountHealthService,
 ) *AccountHandler {
+	var accountHealthService *service.AccountHealthService
+	if len(optionalHealthService) > 0 {
+		accountHealthService = optionalHealthService[0]
+	}
 	return &AccountHandler{
 		adminService:            adminService,
 		oauthService:            oauthService,
@@ -90,6 +96,7 @@ func NewAccountHandler(
 		sessionLimitCache:       sessionLimitCache,
 		rpmCache:                rpmCache,
 		tokenCacheInvalidator:   tokenCacheInvalidator,
+		accountHealthService:    accountHealthService,
 	}
 }
 
@@ -159,6 +166,17 @@ type BulkUpdateAccountFilters struct {
 	PrivacyMode string `json:"privacy_mode"`
 }
 
+type UpdateAccountRateMultiplierRequest struct {
+	RateMultiplier float64 `json:"rate_multiplier"`
+}
+
+type UpdateHealthProbeSettingsRequest struct {
+	HealthProbeEnabled         *bool `json:"health_probe_enabled"`
+	HealthProbeIntervalMinutes *int  `json:"health_probe_interval_minutes"`
+	HealthyProbeEnabled        *bool `json:"healthy_probe_enabled"`
+	HealthyProbeIntervalHours  *int  `json:"healthy_probe_interval_hours"`
+}
+
 // CheckMixedChannelRequest represents check mixed channel risk request
 type CheckMixedChannelRequest struct {
 	Platform  string  `json:"platform" binding:"required"`
@@ -185,6 +203,11 @@ func (h *AccountHandler) buildAccountResponseWithRuntime(ctx context.Context, ac
 	}
 	if account == nil {
 		return item
+	}
+	if h.accountHealthService != nil && item.Account != nil {
+		if health, err := h.accountHealthService.Get(ctx, account.ID); err == nil {
+			item.Account.Health = health
+		}
 	}
 
 	if h.concurrencyService != nil {
@@ -348,12 +371,21 @@ func (h *AccountHandler) List(c *gin.Context) {
 	}
 
 	// Build response with concurrency info
+	healthByAccountID := map[int64]*service.AccountHealthSummary{}
+	if h.accountHealthService != nil && len(accountIDs) > 0 {
+		if health, healthErr := h.accountHealthService.ListByAccountIDs(c.Request.Context(), accountIDs); healthErr == nil {
+			healthByAccountID = health
+		}
+	}
 	result := make([]AccountWithConcurrency, len(accounts))
 	for i := range accounts {
 		acc := &accounts[i]
 		item := AccountWithConcurrency{
 			Account:            dto.AccountFromService(acc),
 			CurrentConcurrency: concurrencyCounts[acc.ID],
+		}
+		if item.Account != nil {
+			item.Account.Health = healthByAccountID[acc.ID]
 		}
 
 		// 添加窗口费用（仅当启用时）
@@ -391,6 +423,181 @@ func (h *AccountHandler) List(c *gin.Context) {
 	}
 
 	response.Paginated(c, result, total, page, pageSize)
+}
+
+func (h *AccountHandler) GetHealth(c *gin.Context) {
+	if h.accountHealthService == nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("ACCOUNT_HEALTH_UNAVAILABLE", "account health service unavailable"))
+		return
+	}
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_ACCOUNT_ID", "invalid account id"))
+		return
+	}
+	health, err := h.accountHealthService.Get(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, health)
+}
+
+func (h *AccountHandler) ResetHealth(c *gin.Context) {
+	if h.accountHealthService == nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("ACCOUNT_HEALTH_UNAVAILABLE", "account health service unavailable"))
+		return
+	}
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_ACCOUNT_ID", "invalid account id"))
+		return
+	}
+	if err := h.accountHealthService.Reset(c.Request.Context(), accountID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	health, err := h.accountHealthService.Get(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, health)
+}
+
+func (h *AccountHandler) ProbeHealth(c *gin.Context) {
+	if h.accountHealthService == nil || h.accountTestService == nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("ACCOUNT_HEALTH_UNAVAILABLE", "account health probe unavailable"))
+		return
+	}
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_ACCOUNT_ID", "invalid account id"))
+		return
+	}
+	result, err := h.accountTestService.RunTestBackground(c.Request.Context(), accountID, "")
+	if err != nil {
+		_ = h.accountHealthService.RecordFailure(c.Request.Context(), accountID, "probe_error", err.Error())
+		response.ErrorFrom(c, err)
+		return
+	}
+	if result != nil && result.Status == "success" {
+		_ = h.accountHealthService.RecordProbeSuccess(c.Request.Context(), accountID, result.LatencyMs)
+	} else {
+		msg := ""
+		if result != nil {
+			msg = result.ErrorMessage
+		}
+		_ = h.accountHealthService.RecordFailure(c.Request.Context(), accountID, service.AccountHealthProbeFailureCategory(msg), msg)
+	}
+	health, err := h.accountHealthService.Get(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, health)
+}
+
+func (h *AccountHandler) HealthOverview(c *gin.Context) {
+	if h.accountHealthService == nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("ACCOUNT_HEALTH_UNAVAILABLE", "account health service unavailable"))
+		return
+	}
+	overview, err := h.accountHealthService.Overview(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, overview)
+}
+
+func (h *AccountHandler) UpdateRateMultiplier(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	var req UpdateAccountRateMultiplierRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if req.RateMultiplier < 0 {
+		response.BadRequest(c, "rate_multiplier must be >= 0")
+		return
+	}
+	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{RateMultiplier: &req.RateMultiplier})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
+}
+
+func (h *AccountHandler) UpdateHealthProbeSettings(c *gin.Context) {
+	if h.accountHealthService == nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("ACCOUNT_HEALTH_UNAVAILABLE", "account health service unavailable"))
+		return
+	}
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	body, err := c.GetRawData()
+	if err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	var req UpdateHealthProbeSettingsRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if req.HealthProbeIntervalMinutes != nil && *req.HealthProbeIntervalMinutes < 0 {
+		response.BadRequest(c, "health_probe_interval_minutes must be >= 0")
+		return
+	}
+	if req.HealthyProbeIntervalHours != nil && *req.HealthyProbeIntervalHours < 0 {
+		response.BadRequest(c, "healthy_probe_interval_hours must be >= 0")
+		return
+	}
+	interval := req.HealthProbeIntervalMinutes
+	healthyInterval := req.HealthyProbeIntervalHours
+	if interval == nil {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(body, &raw); err == nil {
+			if _, ok := raw["health_probe_interval_minutes"]; ok {
+				clear := 0
+				interval = &clear
+			}
+		}
+	}
+	if healthyInterval == nil {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(body, &raw); err == nil {
+			if _, ok := raw["healthy_probe_interval_hours"]; ok {
+				clear := 0
+				healthyInterval = &clear
+			}
+		}
+	}
+	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
+		HealthProbeEnabled:         req.HealthProbeEnabled,
+		HealthProbeIntervalMinutes: interval,
+		HealthyProbeEnabled:        req.HealthyProbeEnabled,
+		HealthyProbeIntervalHours:  healthyInterval,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	health, err := h.accountHealthService.Get(c.Request.Context(), account.ID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, health)
 }
 
 func buildAccountsListETag(

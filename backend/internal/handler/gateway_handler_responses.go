@@ -259,6 +259,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		}
 
 		// 6. Record usage
+		h.gatewayService.RecordAccountHealthSuccess(requestCtx, account.ID, time.Since(requestStart).Milliseconds())
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		requestPayloadHash := service.HashUsageRequestPayload(body)

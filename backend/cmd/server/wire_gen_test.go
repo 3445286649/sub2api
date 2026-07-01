@@ -77,10 +77,13 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // grokOAuth
 		nil, // openAIGateway
 		nil, // scheduledTestRunner
+		nil, // accountHealthRunner
 		nil, // backupSvc
 		nil, // paymentOrderExpiry
 		nil, // channelMonitorRunner
+		nil, // modelRadarRunner
 		nil, // quotaFlusher
+		nil, // acquisitionService
 	)
 
 	require.NotPanics(t, func() {

@@ -125,6 +125,12 @@
                       </span>
                       <span class="flex-1 text-left">{{ t('admin.errorPassthrough.title') }}</span>
                     </button>
+                    <button class="account-tools-menu-item" @click="openHealthOverview">
+                      <span class="account-tools-menu-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">
+                        <Icon name="chart" size="sm" />
+                      </span>
+                      <span class="flex-1 text-left">{{ t('admin.accounts.healthOverview') }}</span>
+                    </button>
                     <button class="account-tools-menu-item" @click="openTLSFingerprintProfiles">
                       <span class="account-tools-menu-icon bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200">
                         <Icon name="lock" size="sm" />
@@ -266,6 +272,21 @@
               <span class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" :class="[row.schedulable ? 'translate-x-4' : 'translate-x-0']" />
             </button>
           </template>
+          <template #cell-health="{ row }">
+            <button
+              class="inline-flex min-w-[104px] items-center gap-2 rounded-md border border-gray-200 px-2 py-1 text-left text-xs transition-colors hover:border-primary-300 hover:bg-primary-50 dark:border-gray-700 dark:hover:border-primary-700 dark:hover:bg-primary-900/20"
+              @click="openHealthDetail(row)"
+            >
+              <span :class="['h-2 w-2 rounded-full', healthDotClass(row.health?.status)]"></span>
+              <span class="font-medium text-gray-800 dark:text-gray-100">{{ row.health?.score ?? 80 }}</span>
+              <span class="text-gray-500 dark:text-gray-400">{{ healthStatusLabel(row.health?.status) }}</span>
+            </button>
+          </template>
+          <template #cell-auto_status="{ row }">
+            <span :class="['inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium', autoStatusClass(row)]">
+              {{ autoStatusLabel(row) }}
+            </span>
+          </template>
           <template #cell-today_stats="{ row }">
             <AccountTodayStatsCell
               :stats="todayStatsByAccountId[String(row.id)] ?? null"
@@ -312,9 +333,32 @@
             </div>
           </template>
           <template #cell-rate_multiplier="{ row }">
-            <span class="text-sm font-mono text-gray-700 dark:text-gray-300">
-              {{ (row.rate_multiplier ?? 1).toFixed(2) }}x
-            </span>
+            <div class="flex min-w-[116px] flex-col gap-0.5">
+              <div class="relative inline-flex w-[92px] items-center">
+                <input
+                  class="account-rate-input"
+                  type="number"
+                  min="0"
+                  step="0.0001"
+                  :value="formatRateInput(row.rate_multiplier)"
+                  :disabled="savingRateMultiplier === row.id"
+                  :title="t('admin.accounts.rateMultiplierCostHint')"
+                  @focus="($event.target as HTMLInputElement).select()"
+                  @keydown.enter.prevent="handleRateMultiplierCommit(row, $event)"
+                  @blur="handleRateMultiplierCommit(row, $event)"
+                />
+                <span class="pointer-events-none absolute right-2 text-[11px] font-medium text-gray-400">x</span>
+              </div>
+              <span v-if="!row.health?.rate_multiplier_configured && (row.rate_multiplier ?? 1) === 1" class="text-[11px] text-amber-600 dark:text-amber-300">
+                {{ t('admin.accounts.rateMultiplierMissing') }}
+              </span>
+            </div>
+          </template>
+          <template #cell-latency_ewma_ms="{ row }">
+            <span class="text-sm text-gray-600 dark:text-gray-300">{{ formatLatencyMs(row.health?.latency_ewma_ms) }}</span>
+          </template>
+          <template #cell-next_probe_at="{ row }">
+            <span class="text-sm text-gray-500 dark:text-dark-400">{{ row.health?.next_probe_at ? formatDateTime(row.health.next_probe_at) : '-' }}</span>
           </template>
           <template #cell-priority="{ value }">
             <span class="text-sm text-gray-700 dark:text-gray-300">{{ value }}</span>
@@ -371,7 +415,7 @@
     <AccountTestModal :show="showTest" :account="testingAcc" @close="closeTestModal" />
     <AccountStatsModal :show="showStats" :account="statsAcc" @close="closeStatsModal" />
     <ScheduledTestsPanel :show="showSchedulePanel" :account-id="scheduleAcc?.id ?? null" :model-options="scheduleModelOptions" @close="closeSchedulePanel" />
-    <AccountActionMenu :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" />
+    <AccountActionMenu :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @health-detail="openHealthDetail" @health-probe="handleHealthProbe" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" />
     <SyncFromCrsModal :show="showSync" @close="showSync = false" @synced="reload" />
     <ImportDataModal :show="showImportData" @close="showImportData = false" @imported="handleDataImported" />
     <BulkEditAccountModal
@@ -395,6 +439,153 @@
     </ConfirmDialog>
     <ErrorPassthroughRulesModal :show="showErrorPassthrough" @close="showErrorPassthrough = false" />
     <TLSFingerprintProfilesModal :show="showTLSFingerprintProfiles" @close="showTLSFingerprintProfiles = false" />
+    <BaseDialog :show="showHealthOverview" :title="t('admin.accounts.healthOverview')" width="extra-wide" @close="showHealthOverview = false">
+      <div class="space-y-3">
+        <div v-if="healthOverviewLoading" class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
+        <div v-else-if="healthOverviewError" class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+          {{ healthOverviewError }}
+        </div>
+        <div v-else class="max-h-[68vh] space-y-3 overflow-y-auto pr-1">
+          <div
+            v-for="url in healthOverview?.urls || []"
+            :key="url.base_url"
+            class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-3 py-2 dark:border-gray-700">
+              <div class="min-w-0">
+                <div class="truncate font-mono text-sm font-semibold text-gray-900 dark:text-gray-100">{{ url.base_url }}</div>
+                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                  <span class="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ t('admin.accounts.healthAccountCount', { count: url.accounts.length }) }}</span>
+                  <span class="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ t('admin.accounts.healthStatus.healthy') }} {{ countOverviewStatus(url, 'healthy') }}</span>
+                  <span class="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ t('admin.accounts.healthStatus.degraded') }} {{ countOverviewStatus(url, 'degraded') }}</span>
+                  <span class="rounded bg-red-50 px-1.5 py-0.5 text-red-700 dark:bg-red-900/30 dark:text-red-300">{{ t('admin.accounts.healthStatus.isolated') }} {{ countOverviewStatus(url, 'isolated') }}</span>
+                  <span class="rounded bg-blue-50 px-1.5 py-0.5 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{{ t('admin.accounts.healthStatus.recovering') }} {{ countOverviewStatus(url, 'recovering') }}</span>
+                </div>
+              </div>
+              <span
+                v-if="url.insufficient_group_names?.length"
+                class="rounded-md bg-red-100 px-2 py-1 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300"
+              >
+                {{ t('admin.accounts.healthInsufficientGroups', { groups: url.insufficient_group_names.join(', ') }) }}
+              </span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-gray-50 text-xs font-semibold uppercase text-gray-500 dark:bg-gray-900/30 dark:text-gray-400">
+                  <tr>
+                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.account') }}</th>
+                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.key') }}</th>
+                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.health') }}</th>
+                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.autoStatus') }}</th>
+                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.groups') }}</th>
+                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.avgLatency') }}</th>
+                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.nextProbe') }}</th>
+                    <th class="px-3 py-2 text-right">{{ t('admin.accounts.overviewColumns.costRate') }}</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                  <tr v-for="item in url.accounts" :key="item.account_id">
+                    <td class="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">#{{ item.account_id }} {{ item.account_name }}</td>
+                    <td class="px-3 py-2 font-mono text-xs text-gray-500">{{ item.key_fingerprint || '-' }}</td>
+                    <td class="px-3 py-2"><span :class="['inline-flex rounded-md px-2 py-0.5 text-xs font-medium', healthBadgeClass(item.status)]">{{ item.score }} / {{ healthStatusLabel(item.status) }}</span></td>
+                    <td class="px-3 py-2"><span :class="['inline-flex rounded-md px-2 py-0.5 text-xs font-medium', summaryAutoStatusClass(item)]">{{ summaryAutoStatusLabel(item) }}</span></td>
+                    <td class="max-w-[220px] px-3 py-2 text-gray-600 dark:text-gray-300"><span class="line-clamp-2">{{ item.group_names?.join(', ') || '-' }}</span></td>
+                    <td class="px-3 py-2 text-gray-500">{{ formatLatencyMs(item.latency_ewma_ms) }}</td>
+                    <td class="px-3 py-2 text-gray-500">{{ item.next_probe_at ? formatDateTime(item.next_probe_at) : '-' }}</td>
+                    <td class="px-3 py-2 text-right font-mono text-gray-700 dark:text-gray-300">{{ formatRateInput(item.rate_multiplier) }}x</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </BaseDialog>
+    <BaseDialog :show="!!healthDetailAccount" :title="t('admin.accounts.healthDetail')" width="wide" @close="healthDetailAccount = null">
+      <div v-if="healthDetailAccount" class="grid gap-4 md:grid-cols-2">
+        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+          <div class="text-xs font-semibold uppercase text-gray-400">{{ t('admin.accounts.healthScore') }}</div>
+          <div class="mt-2 flex items-center gap-3">
+            <span :class="['h-3 w-3 rounded-full', healthDotClass(healthDetailAccount.health?.status)]"></span>
+            <span class="text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ healthDetailAccount.health?.score ?? 80 }}</span>
+            <span class="text-sm text-gray-500">{{ healthStatusLabel(healthDetailAccount.health?.status) }}</span>
+          </div>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+          <div class="text-xs font-semibold uppercase text-gray-400">{{ t('admin.accounts.boundGroups') }}</div>
+          <div class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ healthDetailAccount.health?.group_names?.join(', ') || '-' }}</div>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+          <div class="text-xs font-semibold uppercase text-gray-400">{{ t('admin.accounts.recentHealth') }}</div>
+          <div class="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+            <div>{{ t('admin.accounts.lastSuccess') }}: {{ healthDetailAccount.health?.last_success_at ? formatDateTime(healthDetailAccount.health.last_success_at) : '-' }}</div>
+            <div>{{ t('admin.accounts.lastFailure') }}: {{ healthDetailAccount.health?.last_failure_at ? formatDateTime(healthDetailAccount.health.last_failure_at) : '-' }}</div>
+            <div>{{ t('admin.accounts.avgLatency') }}: {{ healthDetailAccount.health?.latency_ewma_ms ?? '-' }} ms</div>
+          </div>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+          <div class="text-xs font-semibold uppercase text-gray-400">{{ t('admin.accounts.lastError') }}</div>
+          <div class="mt-2 text-sm text-gray-700 dark:text-gray-300">
+            <div>{{ healthDetailAccount.health?.last_error_category || '-' }}</div>
+            <div class="mt-1 break-words text-xs text-gray-500">{{ healthDetailAccount.health?.last_error_message || '-' }}</div>
+          </div>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 md:col-span-2">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div class="text-xs font-semibold uppercase text-gray-400">{{ t('admin.accounts.probeSettings') }}</div>
+              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.probeSettingsHint') }}</div>
+            </div>
+            <button
+              class="btn btn-secondary px-3 py-1.5 text-xs"
+              :disabled="probingHealth === healthDetailAccount.id"
+              @click="handleHealthProbe(healthDetailAccount)"
+            >
+              {{ probingHealth === healthDetailAccount.id ? t('common.loading') : t('admin.accounts.healthProbe') }}
+            </button>
+          </div>
+          <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-end">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input v-model="healthProbeSettings.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+              <span>{{ t('admin.accounts.probeEnabled') }}</span>
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.probeInterval') }}</span>
+              <input
+                v-model="healthProbeSettings.interval"
+                type="number"
+                min="0"
+                step="1"
+                class="form-input w-full"
+                :placeholder="t('admin.accounts.probeIntervalPlaceholder')"
+              />
+            </label>
+            <button
+              class="btn btn-primary px-3 py-2 text-sm"
+              :disabled="savingProbeSettings"
+              @click="saveHealthProbeSettings"
+            >
+              {{ savingProbeSettings ? t('common.saving') : t('common.save') }}
+            </button>
+          </div>
+          <div class="mt-4 grid gap-3 border-t border-gray-100 pt-4 dark:border-gray-700 md:grid-cols-[minmax(0,1fr)_180px] md:items-end">
+            <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input v-model="healthProbeSettings.healthyEnabled" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+              <span>
+                <span class="block font-medium">{{ t('admin.accounts.healthyProbeEnabled') }}</span>
+                <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthyProbeHint') }}</span>
+              </span>
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthyProbeInterval') }}</span>
+              <select v-model.number="healthProbeSettings.healthyInterval" class="health-probe-interval-select form-select w-full">
+                <option v-for="hour in healthyProbeIntervalOptions" :key="hour" :value="hour">{{ t('admin.accounts.healthyProbeIntervalOption', { hours: hour }) }}</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -414,6 +605,7 @@ import DataTable from '@/components/common/DataTable.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import { CreateAccountModal, EditAccountModal, BulkEditAccountModal, SyncFromCrsModal, TempUnschedStatusModal } from '@/components/account'
 import AccountTableActions from '@/components/admin/account/AccountTableActions.vue'
 import AccountTableFilters from '@/components/admin/account/AccountTableFilters.vue'
@@ -437,7 +629,7 @@ import TLSFingerprintProfilesModal from '@/components/admin/TLSFingerprintProfil
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from '@/utils/proxyExpiry'
-import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
+import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, AccountHealthOverview, AccountHealthSummary, AccountHealthURLOverview } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -501,6 +693,21 @@ const showTest = ref(false)
 const showStats = ref(false)
 const showErrorPassthrough = ref(false)
 const showTLSFingerprintProfiles = ref(false)
+const showHealthOverview = ref(false)
+const healthOverview = ref<AccountHealthOverview | null>(null)
+const healthOverviewLoading = ref(false)
+const healthOverviewError = ref('')
+const healthDetailAccount = ref<Account | null>(null)
+const savingRateMultiplier = ref<number | null>(null)
+const probingHealth = ref<number | null>(null)
+const savingProbeSettings = ref(false)
+const healthyProbeIntervalOptions = [1, 3, 6, 12, 24]
+const healthProbeSettings = reactive({
+  enabled: true,
+  interval: '' as string | number,
+  healthyEnabled: false,
+  healthyInterval: 6
+})
 const edAcc = ref<Account | null>(null)
 const tempUnschedAcc = ref<Account | null>(null)
 const deletingAcc = ref<Account | null>(null)
@@ -518,7 +725,7 @@ const exportingData = ref(false)
 const showAccountToolsDropdown = ref(false)
 const accountToolsDropdownRef = ref<HTMLElement | null>(null)
 const hiddenColumns = reactive<Set<string>>(new Set())
-const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'priority', 'rate_multiplier']
+const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'priority']
 const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
 
 // Sorting settings
@@ -880,7 +1087,9 @@ const isAnyModalOpen = computed(() => {
     showStats.value ||
     showSchedulePanel.value ||
     showErrorPassthrough.value ||
-    showTLSFingerprintProfiles.value
+    showTLSFingerprintProfiles.value ||
+    showHealthOverview.value ||
+    !!healthDetailAccount.value
   )
 })
 
@@ -904,6 +1113,19 @@ const shouldReplaceAutoRefreshRow = (current: Account, next: Account) => {
     current.rate_limit_reset_at !== next.rate_limit_reset_at ||
     current.overload_until !== next.overload_until ||
     current.temp_unschedulable_until !== next.temp_unschedulable_until ||
+    current.rate_multiplier !== next.rate_multiplier ||
+    current.health?.score !== next.health?.score ||
+    current.health?.status !== next.health?.status ||
+    current.health?.latency_ewma_ms !== next.health?.latency_ewma_ms ||
+    current.health?.next_probe_at !== next.health?.next_probe_at ||
+    current.health_probe_enabled !== next.health_probe_enabled ||
+    current.health_probe_interval_minutes !== next.health_probe_interval_minutes ||
+    current.healthy_probe_enabled !== next.healthy_probe_enabled ||
+    current.healthy_probe_interval_hours !== next.healthy_probe_interval_hours ||
+    current.health?.health_probe_enabled !== next.health?.health_probe_enabled ||
+    current.health?.health_probe_interval_minutes !== next.health?.health_probe_interval_minutes ||
+    current.health?.healthy_probe_enabled !== next.health?.healthy_probe_enabled ||
+    current.health?.healthy_probe_interval_hours !== next.health?.healthy_probe_interval_hours ||
     buildOpenAIUsageRefreshKey(current) !== buildOpenAIUsageRefreshKey(next)
   )
 }
@@ -914,6 +1136,7 @@ const syncAccountRefs = (nextAccount: Account) => {
   if (tempUnschedAcc.value?.id === nextAccount.id) tempUnschedAcc.value = nextAccount
   if (deletingAcc.value?.id === nextAccount.id) deletingAcc.value = nextAccount
   if (menu.acc?.id === nextAccount.id) menu.acc = nextAccount
+  if (healthDetailAccount.value?.id === nextAccount.id) healthDetailAccount.value = nextAccount
 }
 
 const mergeAccountsIncrementally = (nextRows: Account[]) => {
@@ -1019,6 +1242,39 @@ const openTLSFingerprintProfiles = () => {
   closeAccountToolsDropdown()
   showTLSFingerprintProfiles.value = true
 }
+
+const openHealthOverview = async () => {
+  closeAccountToolsDropdown()
+  showHealthOverview.value = true
+  healthOverviewLoading.value = true
+  healthOverviewError.value = ''
+  try {
+    healthOverview.value = await adminAPI.accounts.getHealthOverview()
+  } catch (error: any) {
+    healthOverviewError.value = error?.message || t('admin.accounts.healthOverviewFailed')
+  } finally {
+    healthOverviewLoading.value = false
+  }
+}
+
+const openHealthDetail = async (account: Account) => {
+  healthDetailAccount.value = account
+  try {
+    const health = await adminAPI.accounts.getHealth(account.id)
+    patchAccountHealthInList(account.id, health)
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.healthDetailLoadFailed'))
+  }
+}
+
+watch(healthDetailAccount, (account) => {
+  healthProbeSettings.enabled = account?.health?.health_probe_enabled ?? account?.health_probe_enabled ?? true
+  const interval = account?.health?.health_probe_interval_minutes ?? account?.health_probe_interval_minutes
+  healthProbeSettings.interval = interval && interval > 0 ? interval : ''
+  healthProbeSettings.healthyEnabled = account?.health?.healthy_probe_enabled ?? account?.healthy_probe_enabled ?? false
+  const healthyInterval = account?.health?.healthy_probe_interval_hours ?? account?.healthy_probe_interval_hours
+  healthProbeSettings.healthyInterval = healthyInterval && healthyInterval > 0 ? healthyInterval : 6
+})
 
 const syncPendingListChanges = async () => {
   hasPendingListSync.value = false
@@ -1135,6 +1391,81 @@ function getAntigravityTierClass(row: any): string {
   }
 }
 
+function healthStatusLabel(status?: string | null): string {
+  switch (status) {
+    case 'isolated': return t('admin.accounts.healthStatus.isolated')
+    case 'recovering': return t('admin.accounts.healthStatus.recovering')
+    case 'degraded': return t('admin.accounts.healthStatus.degraded')
+    case 'healthy':
+    default: return t('admin.accounts.healthStatus.healthy')
+  }
+}
+
+function healthDotClass(status?: string | null): string {
+  switch (status) {
+    case 'isolated': return 'bg-red-500'
+    case 'recovering': return 'bg-blue-500'
+    case 'degraded': return 'bg-amber-500'
+    default: return 'bg-emerald-500'
+  }
+}
+
+function healthBadgeClass(status?: string | null): string {
+  switch (status) {
+    case 'isolated': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+    case 'recovering': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+    case 'degraded': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+    default: return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+  }
+}
+
+function autoStatusLabel(row: Account): string {
+  if (!row.schedulable) return t('admin.accounts.autoStatus.manualOff')
+  if (row.health?.status === 'isolated') return t('admin.accounts.autoStatus.isolated')
+  if (row.health?.status === 'recovering') return t('admin.accounts.autoStatus.probing')
+  if (row.health?.status === 'degraded') return t('admin.accounts.autoStatus.degraded')
+  return t('admin.accounts.autoStatus.enabled')
+}
+
+function autoStatusClass(row: Account): string {
+  if (!row.schedulable) return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+  if (row.health?.status === 'isolated') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+  if (row.health?.status === 'recovering') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+  if (row.health?.status === 'degraded') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+  return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+}
+
+function summaryAutoStatusLabel(summary: AccountHealthSummary): string {
+  if (!summary.schedulable) return t('admin.accounts.autoStatus.manualOff')
+  if (summary.status === 'isolated') return t('admin.accounts.autoStatus.isolated')
+  if (summary.status === 'recovering') return t('admin.accounts.autoStatus.probing')
+  if (summary.status === 'degraded') return t('admin.accounts.autoStatus.degraded')
+  return t('admin.accounts.autoStatus.enabled')
+}
+
+function summaryAutoStatusClass(summary: AccountHealthSummary): string {
+  if (!summary.schedulable) return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+  if (summary.status === 'isolated') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+  if (summary.status === 'recovering') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+  if (summary.status === 'degraded') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+  return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+}
+
+function countOverviewStatus(url: AccountHealthURLOverview, status: AccountHealthSummary['status']): number {
+  return url.accounts.filter(account => account.status === status).length
+}
+
+function formatRateInput(value?: number | null): string {
+  const normalized = Number(value ?? 1)
+  if (!Number.isFinite(normalized)) return '1'
+  return normalized.toFixed(4).replace(/\.?0+$/, '')
+}
+
+function formatLatencyMs(value?: number | null): string {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '-'
+  return `${Math.round(Number(value))} ms`
+}
+
 // All available columns
 const allColumns = computed(() => {
   const c = [
@@ -1145,6 +1476,8 @@ const allColumns = computed(() => {
     { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
     { key: 'status', label: t('admin.accounts.columns.status'), sortable: true },
     { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true },
+    { key: 'health', label: t('admin.accounts.columns.health'), sortable: false },
+    { key: 'auto_status', label: t('admin.accounts.columns.autoStatus'), sortable: false },
     { key: 'today_stats', label: t('admin.accounts.columns.todayStats'), sortable: false }
   ]
   if (!authStore.isSimpleMode) {
@@ -1155,6 +1488,8 @@ const allColumns = computed(() => {
     { key: 'proxy', label: t('admin.accounts.columns.proxy'), sortable: false },
     { key: 'priority', label: t('admin.accounts.columns.priority'), sortable: true },
     { key: 'rate_multiplier', label: t('admin.accounts.columns.billingRateMultiplier'), sortable: true },
+    { key: 'latency_ewma_ms', label: t('admin.accounts.columns.avgLatency'), sortable: false },
+    { key: 'next_probe_at', label: t('admin.accounts.columns.nextProbe'), sortable: false },
     { key: 'last_used_at', label: t('admin.accounts.columns.lastUsed'), sortable: true },
     { key: 'created_at', label: t('admin.accounts.columns.createdAt'), sortable: true },
     { key: 'expires_at', label: t('admin.accounts.columns.expiresAt'), sortable: true },
@@ -1514,10 +1849,109 @@ const patchAccountInList = (updatedAccount: Account) => {
   accounts.value = nextAccounts
   syncAccountRefs(mergedAccount)
 }
+
+const patchAccountHealthInList = (accountID: number, health: AccountHealthSummary) => {
+  const index = accounts.value.findIndex(account => account.id === accountID)
+  if (index === -1) return
+  const current = accounts.value[index]
+	  const nextAccount: Account = {
+	    ...current,
+	    health,
+	    health_probe_enabled: health.health_probe_enabled,
+	    health_probe_interval_minutes: health.health_probe_interval_minutes ?? null,
+	    healthy_probe_enabled: health.healthy_probe_enabled,
+	    healthy_probe_interval_hours: health.healthy_probe_interval_hours ?? null,
+	    rate_multiplier: health.rate_multiplier ?? current.rate_multiplier,
+    schedulable: health.schedulable,
+    temp_unschedulable_until: health.temp_unschedulable_until ?? current.temp_unschedulable_until
+  }
+  const nextAccounts = [...accounts.value]
+  nextAccounts[index] = nextAccount
+  accounts.value = nextAccounts
+  syncAccountRefs(nextAccount)
+}
+
 const handleAccountUpdated = (updatedAccount: Account) => {
   patchAccountInList(updatedAccount)
   enterAutoRefreshSilentWindow()
 }
+
+const handleRateMultiplierCommit = async (account: Account, event: Event) => {
+  if (savingRateMultiplier.value === account.id) return
+  const input = event.target as HTMLInputElement
+  const raw = input.value.trim()
+  const nextValue = Number(raw)
+  const currentValue = Number(account.rate_multiplier ?? 1)
+  if (!raw || !Number.isFinite(nextValue) || nextValue < 0) {
+    input.value = formatRateInput(currentValue)
+    appStore.showError(t('admin.accounts.rateMultiplierInvalid'))
+    return
+  }
+  const normalized = Math.round(nextValue * 10000) / 10000
+  if (Math.abs(normalized - currentValue) < 0.0001) {
+    input.value = formatRateInput(currentValue)
+    return
+  }
+  savingRateMultiplier.value = account.id
+  try {
+    const updated = await adminAPI.accounts.updateRateMultiplier(account.id, normalized)
+    patchAccountInList(updated)
+    enterAutoRefreshSilentWindow()
+    appStore.showSuccess(t('admin.accounts.rateMultiplierSaved'))
+  } catch (error: any) {
+    input.value = formatRateInput(currentValue)
+    appStore.showError(error?.message || t('admin.accounts.rateMultiplierSaveFailed'))
+  } finally {
+    savingRateMultiplier.value = null
+  }
+}
+
+const handleHealthProbe = async (account: Account) => {
+  probingHealth.value = account.id
+  try {
+    const health = await adminAPI.accounts.probeHealth(account.id)
+    patchAccountHealthInList(account.id, health)
+    enterAutoRefreshSilentWindow()
+    appStore.showSuccess(t('admin.accounts.healthProbeSuccess'))
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.healthProbeFailed'))
+  } finally {
+    probingHealth.value = null
+  }
+}
+
+const saveHealthProbeSettings = async () => {
+  const account = healthDetailAccount.value
+  if (!account) return
+  const rawInterval = String(healthProbeSettings.interval ?? '').trim()
+  const interval = rawInterval === '' ? null : Number(rawInterval)
+	  if (interval !== null && (!Number.isInteger(interval) || interval < 0)) {
+	    appStore.showError(t('admin.accounts.probeIntervalInvalid'))
+	    return
+	  }
+	  const healthyInterval = Number(healthProbeSettings.healthyInterval || 6)
+	  if (!Number.isInteger(healthyInterval) || healthyInterval <= 0) {
+	    appStore.showError(t('admin.accounts.healthyProbeIntervalInvalid'))
+	    return
+	  }
+	  savingProbeSettings.value = true
+	  try {
+	    const health = await adminAPI.accounts.updateHealthProbeSettings(account.id, {
+	      health_probe_enabled: healthProbeSettings.enabled,
+	      health_probe_interval_minutes: interval && interval > 0 ? interval : null,
+	      healthy_probe_enabled: healthProbeSettings.healthyEnabled,
+	      healthy_probe_interval_hours: healthyInterval === 6 ? null : healthyInterval
+	    })
+    patchAccountHealthInList(account.id, health)
+    enterAutoRefreshSilentWindow()
+    appStore.showSuccess(t('admin.accounts.probeSettingsSaved'))
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.probeSettingsSaveFailed'))
+  } finally {
+    savingProbeSettings.value = false
+  }
+}
+
 const formatExportTimestamp = () => {
   const now = new Date()
   const pad2 = (value: number) => String(value).padStart(2, '0')
@@ -1723,5 +2157,26 @@ onUnmounted(() => {
 
 .account-tools-menu-icon {
   @apply inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md;
+}
+
+.account-rate-input {
+  @apply h-8 w-full rounded-md border border-gray-200 bg-white py-1 pl-2 pr-5 font-mono text-sm text-gray-700 outline-none transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-100 disabled:cursor-wait disabled:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:focus:border-primary-500 dark:focus:ring-primary-900/40;
+}
+
+.health-probe-interval-select,
+.health-probe-interval-select option {
+  color: #111827;
+  background-color: #ffffff;
+}
+
+:global(.dark) .health-probe-interval-select {
+  color: #e5e7eb;
+  background-color: #1f2937;
+  border-color: #374151;
+}
+
+:global(.dark) .health-probe-interval-select option {
+  color: #111827;
+  background-color: #ffffff;
 }
 </style>

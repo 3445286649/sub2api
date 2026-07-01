@@ -70,6 +70,11 @@ func (s *FailoverState) HandleFailoverError(
 	failoverErr *service.UpstreamFailoverError,
 ) FailoverAction {
 	s.LastFailoverErr = failoverErr
+	if recorder, ok := gatewayService.(interface {
+		RecordAccountHealthFailure(ctx context.Context, accountID int64, failoverErr *service.UpstreamFailoverError)
+	}); ok {
+		recorder.RecordAccountHealthFailure(ctx, accountID, failoverErr)
+	}
 
 	// 缓存计费判断
 	if needForceCacheBilling(s.hasBoundSession, failoverErr) {

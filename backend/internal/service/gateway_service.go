@@ -612,6 +612,21 @@ func (s *GatewayService) TempUnscheduleRetryableError(ctx context.Context, accou
 	}
 }
 
+func (s *GatewayService) RecordAccountHealthFailure(ctx context.Context, accountID int64, failoverErr *UpstreamFailoverError) {
+	if s == nil || s.accountHealthService == nil || failoverErr == nil || accountID <= 0 {
+		return
+	}
+	category := accountHealthFailureCategory(failoverErr.StatusCode)
+	_ = s.accountHealthService.RecordFailure(ctx, accountID, category, string(failoverErr.ResponseBody))
+}
+
+func (s *GatewayService) RecordAccountHealthSuccess(ctx context.Context, accountID int64, latencyMs int64) {
+	if s == nil || s.accountHealthService == nil || accountID <= 0 {
+		return
+	}
+	_ = s.accountHealthService.RecordSuccess(ctx, accountID, latencyMs)
+}
+
 // GatewayService handles API gateway operations
 type GatewayService struct {
 	accountRepo           AccountRepository
@@ -650,6 +665,7 @@ type GatewayService struct {
 	tlsFPProfileService   *TLSFingerprintProfileService
 	balanceNotifyService  *BalanceNotifyService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	accountHealthService  *AccountHealthService
 }
 
 // NewGatewayService creates a new GatewayService
@@ -731,6 +747,12 @@ func NewGatewayService(
 		svc.initDebugGatewayBodyFile(path)
 	}
 	return svc
+}
+
+func (s *GatewayService) SetAccountHealthService(healthSvc *AccountHealthService) {
+	if s != nil {
+		s.accountHealthService = healthSvc
+	}
 }
 
 // GenerateSessionHash 从预解析请求计算粘性会话 hash
@@ -1747,6 +1769,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	if len(accounts) == 0 {
 		return nil, ErrNoAvailableAccounts
 	}
+	healthByAccountID := s.loadAccountHealthSummaries(ctx, accounts)
 	ctx = s.withWindowCostPrefetch(ctx, accounts)
 	ctx = s.withRPMPrefetch(ctx, accounts)
 
@@ -1959,26 +1982,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 
 			if len(routingAvailable) > 0 {
-				// 排序：优先级 > 负载率 > 最后使用时间
-				sort.SliceStable(routingAvailable, func(i, j int) bool {
-					a, b := routingAvailable[i], routingAvailable[j]
-					if a.account.Priority != b.account.Priority {
-						return a.account.Priority < b.account.Priority
-					}
-					if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
-						return a.loadInfo.LoadRate < b.loadInfo.LoadRate
-					}
-					switch {
-					case a.account.LastUsedAt == nil && b.account.LastUsedAt != nil:
-						return true
-					case a.account.LastUsedAt != nil && b.account.LastUsedAt == nil:
-						return false
-					case a.account.LastUsedAt == nil && b.account.LastUsedAt == nil:
-						return false
-					default:
-						return a.account.LastUsedAt.Before(*b.account.LastUsedAt)
-					}
-				})
+				sortAccountWithLoadByHealthCostAndLoad(routingAvailable, healthByAccountID, preferOAuth)
 				shuffleWithinSortGroups(routingAvailable)
 
 				// 4. 尝试获取槽位
@@ -2218,21 +2222,15 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 		}
 
-		// 分层过滤选择：优先级 →（可选）最早重置 → 负载率 → LRU
+		sortAccountWithLoadByHealthCostAndLoad(available, healthByAccountID, preferOAuth)
+		// 分层过滤选择：健康度/成本/优先级/负载率/LRU 排序后逐个尝试；
+		// PreferSoonestReset 仍在相同优先条件内保留 use-it-or-lose-it 行为。
 		for len(available) > 0 {
-			// 1. 取优先级最小的集合
-			candidates := filterByMinPriority(available)
-			// 2. （可选）use-it-or-lose-it：优先选用会话窗口最早重置的账号
+			candidates := available
 			if cfg.PreferSoonestReset {
-				candidates = filterBySoonestReset(candidates)
+				candidates = filterBySoonestReset(filterByMinPriority(available))
 			}
-			// 3. 取负载率最低的集合
-			candidates = filterByMinLoadRate(candidates)
-			// 4. LRU 选择最久未用的账号
-			selected := selectByLRU(candidates, preferOAuth)
-			if selected == nil {
-				break
-			}
+			selected := &candidates[0]
 
 			result, err := s.tryAcquireAccountSlot(ctx, selected.account.ID, selected.account.Concurrency)
 			if err == nil && result.Acquired {
@@ -2278,7 +2276,8 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 
 func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates []*Account, groupID *int64, sessionHash string, preferOAuth bool) (*AccountSelectionResult, bool, error) {
 	ordered := append([]*Account(nil), candidates...)
-	sortAccountsByPriorityAndLastUsed(ordered, preferOAuth)
+	healthByAccountID := s.loadAccountHealthSummariesForPointers(ctx, ordered)
+	sortAccountPointersByHealthCostAndLRU(ordered, healthByAccountID, preferOAuth)
 
 	for _, acc := range ordered {
 		result, err := s.tryAcquireAccountSlot(ctx, acc.ID, acc.Concurrency)
@@ -2300,6 +2299,38 @@ func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates
 	}
 
 	return nil, false, nil
+}
+
+func (s *GatewayService) loadAccountHealthSummaries(ctx context.Context, accounts []Account) map[int64]*AccountHealthSummary {
+	if s == nil || s.accountHealthService == nil || len(accounts) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(accounts))
+	for i := range accounts {
+		ids = append(ids, accounts[i].ID)
+	}
+	summaries, err := s.accountHealthService.ListByAccountIDs(ctx, ids)
+	if err != nil {
+		return nil
+	}
+	return summaries
+}
+
+func (s *GatewayService) loadAccountHealthSummariesForPointers(ctx context.Context, accounts []*Account) map[int64]*AccountHealthSummary {
+	if s == nil || s.accountHealthService == nil || len(accounts) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(accounts))
+	for _, account := range accounts {
+		if account != nil {
+			ids = append(ids, account.ID)
+		}
+	}
+	summaries, err := s.accountHealthService.ListByAccountIDs(ctx, ids)
+	if err != nil {
+		return nil
+	}
+	return summaries
 }
 
 func (s *GatewayService) schedulingConfig() config.GatewaySchedulingConfig {

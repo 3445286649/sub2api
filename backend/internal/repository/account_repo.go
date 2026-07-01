@@ -95,6 +95,8 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 		SetStatus(account.Status).
 		SetErrorMessage(account.ErrorMessage).
 		SetSchedulable(account.Schedulable).
+		SetHealthProbeEnabled(account.HealthProbeEnabled).
+		SetHealthyProbeEnabled(account.HealthyProbeEnabled).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
 
 	if account.RateMultiplier != nil {
@@ -102,6 +104,12 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 	}
 	if account.LoadFactor != nil {
 		builder.SetLoadFactor(*account.LoadFactor)
+	}
+	if account.HealthProbeIntervalMinutes != nil {
+		builder.SetHealthProbeIntervalMinutes(*account.HealthProbeIntervalMinutes)
+	}
+	if account.HealthyProbeIntervalHours != nil {
+		builder.SetHealthyProbeIntervalHours(*account.HealthyProbeIntervalHours)
 	}
 
 	if account.ProxyID != nil {
@@ -336,6 +344,8 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		SetStatus(account.Status).
 		SetErrorMessage(account.ErrorMessage).
 		SetSchedulable(schedulable).
+		SetHealthProbeEnabled(account.HealthProbeEnabled).
+		SetHealthyProbeEnabled(account.HealthyProbeEnabled).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
 
 	if account.RateMultiplier != nil {
@@ -345,6 +355,16 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		builder.SetLoadFactor(*account.LoadFactor)
 	} else {
 		builder.ClearLoadFactor()
+	}
+	if account.HealthProbeIntervalMinutes != nil {
+		builder.SetHealthProbeIntervalMinutes(*account.HealthProbeIntervalMinutes)
+	} else {
+		builder.ClearHealthProbeIntervalMinutes()
+	}
+	if account.HealthyProbeIntervalHours != nil {
+		builder.SetHealthyProbeIntervalHours(*account.HealthyProbeIntervalHours)
+	} else {
+		builder.ClearHealthyProbeIntervalHours()
 	}
 
 	if account.ProxyID != nil {
@@ -692,6 +712,69 @@ func (r *accountRepository) ListOAuthRefreshCandidates(ctx context.Context) ([]s
 		return []service.Account{}, nil
 	}
 
+	accounts, err := r.GetByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]service.Account, 0, len(accounts))
+	for _, account := range accounts {
+		if account != nil {
+			out = append(out, *account)
+		}
+	}
+	return out, nil
+}
+
+func (r *accountRepository) ListHealthyProbeCandidates(ctx context.Context, now time.Time, limit int) ([]service.Account, error) {
+	if limit <= 0 {
+		return []service.Account{}, nil
+	}
+	if r.sql == nil {
+		return nil, errors.New("account repository SQL executor not configured")
+	}
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT a.id
+		FROM accounts a
+		LEFT JOIN account_health_states ahs ON ahs.account_id = a.id
+		WHERE a.deleted_at IS NULL
+			AND a.status = 'active'
+			AND a.schedulable IS TRUE
+			AND a.health_probe_enabled IS TRUE
+			AND a.healthy_probe_enabled IS TRUE
+			AND (
+				a.temp_unschedulable_until IS NULL
+				OR a.temp_unschedulable_until <= $1
+			)
+			AND (
+				ahs.account_id IS NULL
+				OR (
+					ahs.status = 'healthy'
+					AND COALESCE(ahs.last_checked_at, ahs.last_success_at, ahs.updated_at, ahs.created_at, a.updated_at, a.created_at)
+						+ (CASE WHEN a.healthy_probe_interval_hours IS NOT NULL AND a.healthy_probe_interval_hours > 0 THEN a.healthy_probe_interval_hours ELSE 6 END * INTERVAL '1 hour') <= $1
+				)
+			)
+		ORDER BY COALESCE(ahs.last_checked_at, ahs.last_success_at, ahs.updated_at, ahs.created_at, a.updated_at, a.created_at) ASC, a.id ASC
+		LIMIT $2
+	`, now, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return []service.Account{}, nil
+	}
 	accounts, err := r.GetByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
@@ -1514,6 +1597,34 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 			idx++
 		}
 	}
+	if updates.HealthProbeEnabled != nil {
+		setClauses = append(setClauses, "health_probe_enabled = $"+itoa(idx))
+		args = append(args, *updates.HealthProbeEnabled)
+		idx++
+	}
+	if updates.HealthProbeIntervalMinutes != nil {
+		if *updates.HealthProbeIntervalMinutes <= 0 {
+			setClauses = append(setClauses, "health_probe_interval_minutes = NULL")
+		} else {
+			setClauses = append(setClauses, "health_probe_interval_minutes = $"+itoa(idx))
+			args = append(args, *updates.HealthProbeIntervalMinutes)
+			idx++
+		}
+	}
+	if updates.HealthyProbeEnabled != nil {
+		setClauses = append(setClauses, "healthy_probe_enabled = $"+itoa(idx))
+		args = append(args, *updates.HealthyProbeEnabled)
+		idx++
+	}
+	if updates.HealthyProbeIntervalHours != nil {
+		if *updates.HealthyProbeIntervalHours <= 0 {
+			setClauses = append(setClauses, "healthy_probe_interval_hours = NULL")
+		} else {
+			setClauses = append(setClauses, "healthy_probe_interval_hours = $"+itoa(idx))
+			args = append(args, *updates.HealthyProbeIntervalHours)
+			idx++
+		}
+	}
 	if updates.Status != nil {
 		setClauses = append(setClauses, "status = $"+itoa(idx))
 		args = append(args, *updates.Status)
@@ -1901,35 +2012,39 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 	rateMultiplier := m.RateMultiplier
 
 	return &service.Account{
-		ID:                      m.ID,
-		Name:                    m.Name,
-		Notes:                   m.Notes,
-		Platform:                m.Platform,
-		Type:                    m.Type,
-		Credentials:             copyJSONMap(m.Credentials),
-		Extra:                   copyJSONMap(m.Extra),
-		ProxyID:                 m.ProxyID,
-		ProxyFallbackOriginID:   m.ProxyFallbackOriginID,
-		Concurrency:             m.Concurrency,
-		Priority:                m.Priority,
-		RateMultiplier:          &rateMultiplier,
-		LoadFactor:              m.LoadFactor,
-		Status:                  m.Status,
-		ErrorMessage:            derefString(m.ErrorMessage),
-		LastUsedAt:              m.LastUsedAt,
-		ExpiresAt:               m.ExpiresAt,
-		AutoPauseOnExpired:      m.AutoPauseOnExpired,
-		CreatedAt:               m.CreatedAt,
-		UpdatedAt:               m.UpdatedAt,
-		Schedulable:             m.Schedulable,
-		RateLimitedAt:           m.RateLimitedAt,
-		RateLimitResetAt:        m.RateLimitResetAt,
-		OverloadUntil:           m.OverloadUntil,
-		TempUnschedulableUntil:  m.TempUnschedulableUntil,
-		TempUnschedulableReason: derefString(m.TempUnschedulableReason),
-		SessionWindowStart:      m.SessionWindowStart,
-		SessionWindowEnd:        m.SessionWindowEnd,
-		SessionWindowStatus:     derefString(m.SessionWindowStatus),
+		ID:                         m.ID,
+		Name:                       m.Name,
+		Notes:                      m.Notes,
+		Platform:                   m.Platform,
+		Type:                       m.Type,
+		Credentials:                copyJSONMap(m.Credentials),
+		Extra:                      copyJSONMap(m.Extra),
+		ProxyID:                    m.ProxyID,
+		ProxyFallbackOriginID:      m.ProxyFallbackOriginID,
+		Concurrency:                m.Concurrency,
+		Priority:                   m.Priority,
+		RateMultiplier:             &rateMultiplier,
+		LoadFactor:                 m.LoadFactor,
+		Status:                     m.Status,
+		ErrorMessage:               derefString(m.ErrorMessage),
+		LastUsedAt:                 m.LastUsedAt,
+		ExpiresAt:                  m.ExpiresAt,
+		AutoPauseOnExpired:         m.AutoPauseOnExpired,
+		CreatedAt:                  m.CreatedAt,
+		UpdatedAt:                  m.UpdatedAt,
+		Schedulable:                m.Schedulable,
+		HealthProbeEnabled:         m.HealthProbeEnabled,
+		HealthProbeIntervalMinutes: m.HealthProbeIntervalMinutes,
+		HealthyProbeEnabled:        m.HealthyProbeEnabled,
+		HealthyProbeIntervalHours:  m.HealthyProbeIntervalHours,
+		RateLimitedAt:              m.RateLimitedAt,
+		RateLimitResetAt:           m.RateLimitResetAt,
+		OverloadUntil:              m.OverloadUntil,
+		TempUnschedulableUntil:     m.TempUnschedulableUntil,
+		TempUnschedulableReason:    derefString(m.TempUnschedulableReason),
+		SessionWindowStart:         m.SessionWindowStart,
+		SessionWindowEnd:           m.SessionWindowEnd,
+		SessionWindowStatus:        derefString(m.SessionWindowStatus),
 	}
 }
 

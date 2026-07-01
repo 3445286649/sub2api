@@ -936,11 +936,16 @@ export interface Account {
 
   // Rate limit & scheduling fields
   schedulable: boolean
+  health_probe_enabled: boolean
+  health_probe_interval_minutes?: number | null
+  healthy_probe_enabled: boolean
+  healthy_probe_interval_hours?: number | null
   rate_limited_at: string | null
   rate_limit_reset_at: string | null
   overload_until: string | null
   temp_unschedulable_until: string | null
   temp_unschedulable_reason: string | null
+  health?: AccountHealthSummary | null
 
   // Session window fields (5-hour window)
   session_window_start: string | null
@@ -999,6 +1004,50 @@ export interface Account {
   current_window_cost?: number | null // 当前窗口费用
   active_sessions?: number | null // 当前活跃会话数
   current_rpm?: number | null // 当前分钟 RPM 计数
+}
+
+export interface AccountHealthSummary {
+  account_id: number
+  score: number
+  consecutive_successes: number
+  consecutive_failures: number
+  status: 'healthy' | 'degraded' | 'isolated' | 'recovering'
+  last_success_at?: string | null
+  last_failure_at?: string | null
+  last_checked_at?: string | null
+  last_error_category?: string
+  last_error_message?: string
+  latency_ewma_ms?: number | null
+  backoff_level: number
+  next_probe_at?: string | null
+  isolated_at?: string | null
+  base_url?: string
+  key_fingerprint?: string
+  account_name?: string
+  platform?: AccountPlatform
+  type?: AccountType
+  rate_multiplier: number
+  rate_multiplier_configured: boolean
+  schedulable: boolean
+  temp_unschedulable_until?: string | null
+  health_probe_enabled: boolean
+  health_probe_interval_minutes?: number | null
+  healthy_probe_enabled: boolean
+  healthy_probe_interval_hours?: number | null
+  group_ids?: number[]
+  group_names?: string[]
+}
+
+export interface AccountHealthURLOverview {
+  base_url: string
+  accounts: AccountHealthSummary[]
+  insufficient_group_ids?: number[]
+  insufficient_group_names?: string[]
+}
+
+export interface AccountHealthOverview {
+  generated_at: string
+  urls: AccountHealthURLOverview[]
 }
 
 // Account Usage types

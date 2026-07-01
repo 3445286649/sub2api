@@ -370,6 +370,88 @@ func (_u *AccountUpdate) SetNillableSchedulable(v *bool) *AccountUpdate {
 	return _u
 }
 
+// SetHealthProbeEnabled sets the "health_probe_enabled" field.
+func (_u *AccountUpdate) SetHealthProbeEnabled(v bool) *AccountUpdate {
+	_u.mutation.SetHealthProbeEnabled(v)
+	return _u
+}
+
+// SetNillableHealthProbeEnabled sets the "health_probe_enabled" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableHealthProbeEnabled(v *bool) *AccountUpdate {
+	if v != nil {
+		_u.SetHealthProbeEnabled(*v)
+	}
+	return _u
+}
+
+// SetHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field.
+func (_u *AccountUpdate) SetHealthProbeIntervalMinutes(v int) *AccountUpdate {
+	_u.mutation.ResetHealthProbeIntervalMinutes()
+	_u.mutation.SetHealthProbeIntervalMinutes(v)
+	return _u
+}
+
+// SetNillableHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableHealthProbeIntervalMinutes(v *int) *AccountUpdate {
+	if v != nil {
+		_u.SetHealthProbeIntervalMinutes(*v)
+	}
+	return _u
+}
+
+// AddHealthProbeIntervalMinutes adds value to the "health_probe_interval_minutes" field.
+func (_u *AccountUpdate) AddHealthProbeIntervalMinutes(v int) *AccountUpdate {
+	_u.mutation.AddHealthProbeIntervalMinutes(v)
+	return _u
+}
+
+// ClearHealthProbeIntervalMinutes clears the value of the "health_probe_interval_minutes" field.
+func (_u *AccountUpdate) ClearHealthProbeIntervalMinutes() *AccountUpdate {
+	_u.mutation.ClearHealthProbeIntervalMinutes()
+	return _u
+}
+
+// SetHealthyProbeEnabled sets the "healthy_probe_enabled" field.
+func (_u *AccountUpdate) SetHealthyProbeEnabled(v bool) *AccountUpdate {
+	_u.mutation.SetHealthyProbeEnabled(v)
+	return _u
+}
+
+// SetNillableHealthyProbeEnabled sets the "healthy_probe_enabled" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableHealthyProbeEnabled(v *bool) *AccountUpdate {
+	if v != nil {
+		_u.SetHealthyProbeEnabled(*v)
+	}
+	return _u
+}
+
+// SetHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field.
+func (_u *AccountUpdate) SetHealthyProbeIntervalHours(v int) *AccountUpdate {
+	_u.mutation.ResetHealthyProbeIntervalHours()
+	_u.mutation.SetHealthyProbeIntervalHours(v)
+	return _u
+}
+
+// SetNillableHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableHealthyProbeIntervalHours(v *int) *AccountUpdate {
+	if v != nil {
+		_u.SetHealthyProbeIntervalHours(*v)
+	}
+	return _u
+}
+
+// AddHealthyProbeIntervalHours adds value to the "healthy_probe_interval_hours" field.
+func (_u *AccountUpdate) AddHealthyProbeIntervalHours(v int) *AccountUpdate {
+	_u.mutation.AddHealthyProbeIntervalHours(v)
+	return _u
+}
+
+// ClearHealthyProbeIntervalHours clears the value of the "healthy_probe_interval_hours" field.
+func (_u *AccountUpdate) ClearHealthyProbeIntervalHours() *AccountUpdate {
+	_u.mutation.ClearHealthyProbeIntervalHours()
+	return _u
+}
+
 // SetRateLimitedAt sets the "rate_limited_at" field.
 func (_u *AccountUpdate) SetRateLimitedAt(v time.Time) *AccountUpdate {
 	_u.mutation.SetRateLimitedAt(v)
@@ -682,6 +764,16 @@ func (_u *AccountUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Account.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.HealthProbeIntervalMinutes(); ok {
+		if err := account.HealthProbeIntervalMinutesValidator(v); err != nil {
+			return &ValidationError{Name: "health_probe_interval_minutes", err: fmt.Errorf(`ent: validator failed for field "Account.health_probe_interval_minutes": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.HealthyProbeIntervalHours(); ok {
+		if err := account.HealthyProbeIntervalHoursValidator(v); err != nil {
+			return &ValidationError{Name: "healthy_probe_interval_hours", err: fmt.Errorf(`ent: validator failed for field "Account.healthy_probe_interval_hours": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SessionWindowStatus(); ok {
 		if err := account.SessionWindowStatusValidator(v); err != nil {
 			return &ValidationError{Name: "session_window_status", err: fmt.Errorf(`ent: validator failed for field "Account.session_window_status": %w`, err)}
@@ -794,6 +886,30 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Schedulable(); ok {
 		_spec.SetField(account.FieldSchedulable, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.HealthProbeEnabled(); ok {
+		_spec.SetField(account.FieldHealthProbeEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.HealthProbeIntervalMinutes(); ok {
+		_spec.SetField(account.FieldHealthProbeIntervalMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedHealthProbeIntervalMinutes(); ok {
+		_spec.AddField(account.FieldHealthProbeIntervalMinutes, field.TypeInt, value)
+	}
+	if _u.mutation.HealthProbeIntervalMinutesCleared() {
+		_spec.ClearField(account.FieldHealthProbeIntervalMinutes, field.TypeInt)
+	}
+	if value, ok := _u.mutation.HealthyProbeEnabled(); ok {
+		_spec.SetField(account.FieldHealthyProbeEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.HealthyProbeIntervalHours(); ok {
+		_spec.SetField(account.FieldHealthyProbeIntervalHours, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedHealthyProbeIntervalHours(); ok {
+		_spec.AddField(account.FieldHealthyProbeIntervalHours, field.TypeInt, value)
+	}
+	if _u.mutation.HealthyProbeIntervalHoursCleared() {
+		_spec.ClearField(account.FieldHealthyProbeIntervalHours, field.TypeInt)
 	}
 	if value, ok := _u.mutation.RateLimitedAt(); ok {
 		_spec.SetField(account.FieldRateLimitedAt, field.TypeTime, value)
@@ -1333,6 +1449,88 @@ func (_u *AccountUpdateOne) SetNillableSchedulable(v *bool) *AccountUpdateOne {
 	return _u
 }
 
+// SetHealthProbeEnabled sets the "health_probe_enabled" field.
+func (_u *AccountUpdateOne) SetHealthProbeEnabled(v bool) *AccountUpdateOne {
+	_u.mutation.SetHealthProbeEnabled(v)
+	return _u
+}
+
+// SetNillableHealthProbeEnabled sets the "health_probe_enabled" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableHealthProbeEnabled(v *bool) *AccountUpdateOne {
+	if v != nil {
+		_u.SetHealthProbeEnabled(*v)
+	}
+	return _u
+}
+
+// SetHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field.
+func (_u *AccountUpdateOne) SetHealthProbeIntervalMinutes(v int) *AccountUpdateOne {
+	_u.mutation.ResetHealthProbeIntervalMinutes()
+	_u.mutation.SetHealthProbeIntervalMinutes(v)
+	return _u
+}
+
+// SetNillableHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableHealthProbeIntervalMinutes(v *int) *AccountUpdateOne {
+	if v != nil {
+		_u.SetHealthProbeIntervalMinutes(*v)
+	}
+	return _u
+}
+
+// AddHealthProbeIntervalMinutes adds value to the "health_probe_interval_minutes" field.
+func (_u *AccountUpdateOne) AddHealthProbeIntervalMinutes(v int) *AccountUpdateOne {
+	_u.mutation.AddHealthProbeIntervalMinutes(v)
+	return _u
+}
+
+// ClearHealthProbeIntervalMinutes clears the value of the "health_probe_interval_minutes" field.
+func (_u *AccountUpdateOne) ClearHealthProbeIntervalMinutes() *AccountUpdateOne {
+	_u.mutation.ClearHealthProbeIntervalMinutes()
+	return _u
+}
+
+// SetHealthyProbeEnabled sets the "healthy_probe_enabled" field.
+func (_u *AccountUpdateOne) SetHealthyProbeEnabled(v bool) *AccountUpdateOne {
+	_u.mutation.SetHealthyProbeEnabled(v)
+	return _u
+}
+
+// SetNillableHealthyProbeEnabled sets the "healthy_probe_enabled" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableHealthyProbeEnabled(v *bool) *AccountUpdateOne {
+	if v != nil {
+		_u.SetHealthyProbeEnabled(*v)
+	}
+	return _u
+}
+
+// SetHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field.
+func (_u *AccountUpdateOne) SetHealthyProbeIntervalHours(v int) *AccountUpdateOne {
+	_u.mutation.ResetHealthyProbeIntervalHours()
+	_u.mutation.SetHealthyProbeIntervalHours(v)
+	return _u
+}
+
+// SetNillableHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableHealthyProbeIntervalHours(v *int) *AccountUpdateOne {
+	if v != nil {
+		_u.SetHealthyProbeIntervalHours(*v)
+	}
+	return _u
+}
+
+// AddHealthyProbeIntervalHours adds value to the "healthy_probe_interval_hours" field.
+func (_u *AccountUpdateOne) AddHealthyProbeIntervalHours(v int) *AccountUpdateOne {
+	_u.mutation.AddHealthyProbeIntervalHours(v)
+	return _u
+}
+
+// ClearHealthyProbeIntervalHours clears the value of the "healthy_probe_interval_hours" field.
+func (_u *AccountUpdateOne) ClearHealthyProbeIntervalHours() *AccountUpdateOne {
+	_u.mutation.ClearHealthyProbeIntervalHours()
+	return _u
+}
+
 // SetRateLimitedAt sets the "rate_limited_at" field.
 func (_u *AccountUpdateOne) SetRateLimitedAt(v time.Time) *AccountUpdateOne {
 	_u.mutation.SetRateLimitedAt(v)
@@ -1658,6 +1856,16 @@ func (_u *AccountUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Account.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.HealthProbeIntervalMinutes(); ok {
+		if err := account.HealthProbeIntervalMinutesValidator(v); err != nil {
+			return &ValidationError{Name: "health_probe_interval_minutes", err: fmt.Errorf(`ent: validator failed for field "Account.health_probe_interval_minutes": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.HealthyProbeIntervalHours(); ok {
+		if err := account.HealthyProbeIntervalHoursValidator(v); err != nil {
+			return &ValidationError{Name: "healthy_probe_interval_hours", err: fmt.Errorf(`ent: validator failed for field "Account.healthy_probe_interval_hours": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SessionWindowStatus(); ok {
 		if err := account.SessionWindowStatusValidator(v); err != nil {
 			return &ValidationError{Name: "session_window_status", err: fmt.Errorf(`ent: validator failed for field "Account.session_window_status": %w`, err)}
@@ -1787,6 +1995,30 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if value, ok := _u.mutation.Schedulable(); ok {
 		_spec.SetField(account.FieldSchedulable, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.HealthProbeEnabled(); ok {
+		_spec.SetField(account.FieldHealthProbeEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.HealthProbeIntervalMinutes(); ok {
+		_spec.SetField(account.FieldHealthProbeIntervalMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedHealthProbeIntervalMinutes(); ok {
+		_spec.AddField(account.FieldHealthProbeIntervalMinutes, field.TypeInt, value)
+	}
+	if _u.mutation.HealthProbeIntervalMinutesCleared() {
+		_spec.ClearField(account.FieldHealthProbeIntervalMinutes, field.TypeInt)
+	}
+	if value, ok := _u.mutation.HealthyProbeEnabled(); ok {
+		_spec.SetField(account.FieldHealthyProbeEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.HealthyProbeIntervalHours(); ok {
+		_spec.SetField(account.FieldHealthyProbeIntervalHours, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedHealthyProbeIntervalHours(); ok {
+		_spec.AddField(account.FieldHealthyProbeIntervalHours, field.TypeInt, value)
+	}
+	if _u.mutation.HealthyProbeIntervalHoursCleared() {
+		_spec.ClearField(account.FieldHealthyProbeIntervalHours, field.TypeInt)
 	}
 	if value, ok := _u.mutation.RateLimitedAt(); ok {
 		_spec.SetField(account.FieldRateLimitedAt, field.TypeTime, value)

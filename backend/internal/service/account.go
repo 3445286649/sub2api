@@ -44,6 +44,11 @@ type Account struct {
 
 	Schedulable bool
 
+	HealthProbeEnabled         bool
+	HealthProbeIntervalMinutes *int
+	HealthyProbeEnabled        bool
+	HealthyProbeIntervalHours  *int
+
 	RateLimitedAt    *time.Time
 	RateLimitResetAt *time.Time
 	OverloadUntil    *time.Time

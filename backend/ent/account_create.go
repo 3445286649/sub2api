@@ -279,6 +279,62 @@ func (_c *AccountCreate) SetNillableSchedulable(v *bool) *AccountCreate {
 	return _c
 }
 
+// SetHealthProbeEnabled sets the "health_probe_enabled" field.
+func (_c *AccountCreate) SetHealthProbeEnabled(v bool) *AccountCreate {
+	_c.mutation.SetHealthProbeEnabled(v)
+	return _c
+}
+
+// SetNillableHealthProbeEnabled sets the "health_probe_enabled" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableHealthProbeEnabled(v *bool) *AccountCreate {
+	if v != nil {
+		_c.SetHealthProbeEnabled(*v)
+	}
+	return _c
+}
+
+// SetHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field.
+func (_c *AccountCreate) SetHealthProbeIntervalMinutes(v int) *AccountCreate {
+	_c.mutation.SetHealthProbeIntervalMinutes(v)
+	return _c
+}
+
+// SetNillableHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableHealthProbeIntervalMinutes(v *int) *AccountCreate {
+	if v != nil {
+		_c.SetHealthProbeIntervalMinutes(*v)
+	}
+	return _c
+}
+
+// SetHealthyProbeEnabled sets the "healthy_probe_enabled" field.
+func (_c *AccountCreate) SetHealthyProbeEnabled(v bool) *AccountCreate {
+	_c.mutation.SetHealthyProbeEnabled(v)
+	return _c
+}
+
+// SetNillableHealthyProbeEnabled sets the "healthy_probe_enabled" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableHealthyProbeEnabled(v *bool) *AccountCreate {
+	if v != nil {
+		_c.SetHealthyProbeEnabled(*v)
+	}
+	return _c
+}
+
+// SetHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field.
+func (_c *AccountCreate) SetHealthyProbeIntervalHours(v int) *AccountCreate {
+	_c.mutation.SetHealthyProbeIntervalHours(v)
+	return _c
+}
+
+// SetNillableHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableHealthyProbeIntervalHours(v *int) *AccountCreate {
+	if v != nil {
+		_c.SetHealthyProbeIntervalHours(*v)
+	}
+	return _c
+}
+
 // SetRateLimitedAt sets the "rate_limited_at" field.
 func (_c *AccountCreate) SetRateLimitedAt(v time.Time) *AccountCreate {
 	_c.mutation.SetRateLimitedAt(v)
@@ -515,6 +571,14 @@ func (_c *AccountCreate) defaults() error {
 		v := account.DefaultSchedulable
 		_c.mutation.SetSchedulable(v)
 	}
+	if _, ok := _c.mutation.HealthProbeEnabled(); !ok {
+		v := account.DefaultHealthProbeEnabled
+		_c.mutation.SetHealthProbeEnabled(v)
+	}
+	if _, ok := _c.mutation.HealthyProbeEnabled(); !ok {
+		v := account.DefaultHealthyProbeEnabled
+		_c.mutation.SetHealthyProbeEnabled(v)
+	}
 	return nil
 }
 
@@ -578,6 +642,22 @@ func (_c *AccountCreate) check() error {
 	}
 	if _, ok := _c.mutation.Schedulable(); !ok {
 		return &ValidationError{Name: "schedulable", err: errors.New(`ent: missing required field "Account.schedulable"`)}
+	}
+	if _, ok := _c.mutation.HealthProbeEnabled(); !ok {
+		return &ValidationError{Name: "health_probe_enabled", err: errors.New(`ent: missing required field "Account.health_probe_enabled"`)}
+	}
+	if v, ok := _c.mutation.HealthProbeIntervalMinutes(); ok {
+		if err := account.HealthProbeIntervalMinutesValidator(v); err != nil {
+			return &ValidationError{Name: "health_probe_interval_minutes", err: fmt.Errorf(`ent: validator failed for field "Account.health_probe_interval_minutes": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.HealthyProbeEnabled(); !ok {
+		return &ValidationError{Name: "healthy_probe_enabled", err: errors.New(`ent: missing required field "Account.healthy_probe_enabled"`)}
+	}
+	if v, ok := _c.mutation.HealthyProbeIntervalHours(); ok {
+		if err := account.HealthyProbeIntervalHoursValidator(v); err != nil {
+			return &ValidationError{Name: "healthy_probe_interval_hours", err: fmt.Errorf(`ent: validator failed for field "Account.healthy_probe_interval_hours": %w`, err)}
+		}
 	}
 	if v, ok := _c.mutation.SessionWindowStatus(); ok {
 		if err := account.SessionWindowStatusValidator(v); err != nil {
@@ -690,6 +770,22 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Schedulable(); ok {
 		_spec.SetField(account.FieldSchedulable, field.TypeBool, value)
 		_node.Schedulable = value
+	}
+	if value, ok := _c.mutation.HealthProbeEnabled(); ok {
+		_spec.SetField(account.FieldHealthProbeEnabled, field.TypeBool, value)
+		_node.HealthProbeEnabled = value
+	}
+	if value, ok := _c.mutation.HealthProbeIntervalMinutes(); ok {
+		_spec.SetField(account.FieldHealthProbeIntervalMinutes, field.TypeInt, value)
+		_node.HealthProbeIntervalMinutes = &value
+	}
+	if value, ok := _c.mutation.HealthyProbeEnabled(); ok {
+		_spec.SetField(account.FieldHealthyProbeEnabled, field.TypeBool, value)
+		_node.HealthyProbeEnabled = value
+	}
+	if value, ok := _c.mutation.HealthyProbeIntervalHours(); ok {
+		_spec.SetField(account.FieldHealthyProbeIntervalHours, field.TypeInt, value)
+		_node.HealthyProbeIntervalHours = &value
 	}
 	if value, ok := _c.mutation.RateLimitedAt(); ok {
 		_spec.SetField(account.FieldRateLimitedAt, field.TypeTime, value)
@@ -1143,6 +1239,78 @@ func (u *AccountUpsert) SetSchedulable(v bool) *AccountUpsert {
 // UpdateSchedulable sets the "schedulable" field to the value that was provided on create.
 func (u *AccountUpsert) UpdateSchedulable() *AccountUpsert {
 	u.SetExcluded(account.FieldSchedulable)
+	return u
+}
+
+// SetHealthProbeEnabled sets the "health_probe_enabled" field.
+func (u *AccountUpsert) SetHealthProbeEnabled(v bool) *AccountUpsert {
+	u.Set(account.FieldHealthProbeEnabled, v)
+	return u
+}
+
+// UpdateHealthProbeEnabled sets the "health_probe_enabled" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateHealthProbeEnabled() *AccountUpsert {
+	u.SetExcluded(account.FieldHealthProbeEnabled)
+	return u
+}
+
+// SetHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field.
+func (u *AccountUpsert) SetHealthProbeIntervalMinutes(v int) *AccountUpsert {
+	u.Set(account.FieldHealthProbeIntervalMinutes, v)
+	return u
+}
+
+// UpdateHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateHealthProbeIntervalMinutes() *AccountUpsert {
+	u.SetExcluded(account.FieldHealthProbeIntervalMinutes)
+	return u
+}
+
+// AddHealthProbeIntervalMinutes adds v to the "health_probe_interval_minutes" field.
+func (u *AccountUpsert) AddHealthProbeIntervalMinutes(v int) *AccountUpsert {
+	u.Add(account.FieldHealthProbeIntervalMinutes, v)
+	return u
+}
+
+// ClearHealthProbeIntervalMinutes clears the value of the "health_probe_interval_minutes" field.
+func (u *AccountUpsert) ClearHealthProbeIntervalMinutes() *AccountUpsert {
+	u.SetNull(account.FieldHealthProbeIntervalMinutes)
+	return u
+}
+
+// SetHealthyProbeEnabled sets the "healthy_probe_enabled" field.
+func (u *AccountUpsert) SetHealthyProbeEnabled(v bool) *AccountUpsert {
+	u.Set(account.FieldHealthyProbeEnabled, v)
+	return u
+}
+
+// UpdateHealthyProbeEnabled sets the "healthy_probe_enabled" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateHealthyProbeEnabled() *AccountUpsert {
+	u.SetExcluded(account.FieldHealthyProbeEnabled)
+	return u
+}
+
+// SetHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field.
+func (u *AccountUpsert) SetHealthyProbeIntervalHours(v int) *AccountUpsert {
+	u.Set(account.FieldHealthyProbeIntervalHours, v)
+	return u
+}
+
+// UpdateHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateHealthyProbeIntervalHours() *AccountUpsert {
+	u.SetExcluded(account.FieldHealthyProbeIntervalHours)
+	return u
+}
+
+// AddHealthyProbeIntervalHours adds v to the "healthy_probe_interval_hours" field.
+func (u *AccountUpsert) AddHealthyProbeIntervalHours(v int) *AccountUpsert {
+	u.Add(account.FieldHealthyProbeIntervalHours, v)
+	return u
+}
+
+// ClearHealthyProbeIntervalHours clears the value of the "healthy_probe_interval_hours" field.
+func (u *AccountUpsert) ClearHealthyProbeIntervalHours() *AccountUpsert {
+	u.SetNull(account.FieldHealthyProbeIntervalHours)
 	return u
 }
 
@@ -1703,6 +1871,90 @@ func (u *AccountUpsertOne) SetSchedulable(v bool) *AccountUpsertOne {
 func (u *AccountUpsertOne) UpdateSchedulable() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateSchedulable()
+	})
+}
+
+// SetHealthProbeEnabled sets the "health_probe_enabled" field.
+func (u *AccountUpsertOne) SetHealthProbeEnabled(v bool) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetHealthProbeEnabled(v)
+	})
+}
+
+// UpdateHealthProbeEnabled sets the "health_probe_enabled" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateHealthProbeEnabled() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateHealthProbeEnabled()
+	})
+}
+
+// SetHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field.
+func (u *AccountUpsertOne) SetHealthProbeIntervalMinutes(v int) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetHealthProbeIntervalMinutes(v)
+	})
+}
+
+// AddHealthProbeIntervalMinutes adds v to the "health_probe_interval_minutes" field.
+func (u *AccountUpsertOne) AddHealthProbeIntervalMinutes(v int) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddHealthProbeIntervalMinutes(v)
+	})
+}
+
+// UpdateHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateHealthProbeIntervalMinutes() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateHealthProbeIntervalMinutes()
+	})
+}
+
+// ClearHealthProbeIntervalMinutes clears the value of the "health_probe_interval_minutes" field.
+func (u *AccountUpsertOne) ClearHealthProbeIntervalMinutes() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearHealthProbeIntervalMinutes()
+	})
+}
+
+// SetHealthyProbeEnabled sets the "healthy_probe_enabled" field.
+func (u *AccountUpsertOne) SetHealthyProbeEnabled(v bool) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetHealthyProbeEnabled(v)
+	})
+}
+
+// UpdateHealthyProbeEnabled sets the "healthy_probe_enabled" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateHealthyProbeEnabled() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateHealthyProbeEnabled()
+	})
+}
+
+// SetHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field.
+func (u *AccountUpsertOne) SetHealthyProbeIntervalHours(v int) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetHealthyProbeIntervalHours(v)
+	})
+}
+
+// AddHealthyProbeIntervalHours adds v to the "healthy_probe_interval_hours" field.
+func (u *AccountUpsertOne) AddHealthyProbeIntervalHours(v int) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddHealthyProbeIntervalHours(v)
+	})
+}
+
+// UpdateHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateHealthyProbeIntervalHours() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateHealthyProbeIntervalHours()
+	})
+}
+
+// ClearHealthyProbeIntervalHours clears the value of the "healthy_probe_interval_hours" field.
+func (u *AccountUpsertOne) ClearHealthyProbeIntervalHours() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearHealthyProbeIntervalHours()
 	})
 }
 
@@ -2453,6 +2705,90 @@ func (u *AccountUpsertBulk) SetSchedulable(v bool) *AccountUpsertBulk {
 func (u *AccountUpsertBulk) UpdateSchedulable() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateSchedulable()
+	})
+}
+
+// SetHealthProbeEnabled sets the "health_probe_enabled" field.
+func (u *AccountUpsertBulk) SetHealthProbeEnabled(v bool) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetHealthProbeEnabled(v)
+	})
+}
+
+// UpdateHealthProbeEnabled sets the "health_probe_enabled" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateHealthProbeEnabled() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateHealthProbeEnabled()
+	})
+}
+
+// SetHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field.
+func (u *AccountUpsertBulk) SetHealthProbeIntervalMinutes(v int) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetHealthProbeIntervalMinutes(v)
+	})
+}
+
+// AddHealthProbeIntervalMinutes adds v to the "health_probe_interval_minutes" field.
+func (u *AccountUpsertBulk) AddHealthProbeIntervalMinutes(v int) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddHealthProbeIntervalMinutes(v)
+	})
+}
+
+// UpdateHealthProbeIntervalMinutes sets the "health_probe_interval_minutes" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateHealthProbeIntervalMinutes() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateHealthProbeIntervalMinutes()
+	})
+}
+
+// ClearHealthProbeIntervalMinutes clears the value of the "health_probe_interval_minutes" field.
+func (u *AccountUpsertBulk) ClearHealthProbeIntervalMinutes() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearHealthProbeIntervalMinutes()
+	})
+}
+
+// SetHealthyProbeEnabled sets the "healthy_probe_enabled" field.
+func (u *AccountUpsertBulk) SetHealthyProbeEnabled(v bool) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetHealthyProbeEnabled(v)
+	})
+}
+
+// UpdateHealthyProbeEnabled sets the "healthy_probe_enabled" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateHealthyProbeEnabled() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateHealthyProbeEnabled()
+	})
+}
+
+// SetHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field.
+func (u *AccountUpsertBulk) SetHealthyProbeIntervalHours(v int) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetHealthyProbeIntervalHours(v)
+	})
+}
+
+// AddHealthyProbeIntervalHours adds v to the "healthy_probe_interval_hours" field.
+func (u *AccountUpsertBulk) AddHealthyProbeIntervalHours(v int) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddHealthyProbeIntervalHours(v)
+	})
+}
+
+// UpdateHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateHealthyProbeIntervalHours() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateHealthyProbeIntervalHours()
+	})
+}
+
+// ClearHealthyProbeIntervalHours clears the value of the "healthy_probe_interval_hours" field.
+func (u *AccountUpsertBulk) ClearHealthyProbeIntervalHours() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearHealthyProbeIntervalHours()
 	})
 }
 

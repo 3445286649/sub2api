@@ -13,6 +13,8 @@ import type {
   WindowStats,
   ClaudeModel,
   AccountUsageStatsResponse,
+  AccountHealthSummary,
+  AccountHealthOverview,
   TempUnschedulableStatus,
   AdminDataPayload,
   AdminDataImportResult,
@@ -464,6 +466,46 @@ export async function setSchedulable(id: number, schedulable: boolean): Promise<
   return data
 }
 
+export async function updateRateMultiplier(id: number, rateMultiplier: number): Promise<Account> {
+  const { data } = await apiClient.patch<Account>(`/admin/accounts/${id}/rate-multiplier`, {
+    rate_multiplier: rateMultiplier
+  })
+  return data
+}
+
+export async function getHealth(id: number): Promise<AccountHealthSummary> {
+  const { data } = await apiClient.get<AccountHealthSummary>(`/admin/accounts/${id}/health`)
+  return data
+}
+
+export async function updateHealthProbeSettings(
+  id: number,
+  payload: {
+    health_probe_enabled: boolean
+    health_probe_interval_minutes?: number | null
+    healthy_probe_enabled: boolean
+    healthy_probe_interval_hours?: number | null
+  }
+): Promise<AccountHealthSummary> {
+  const { data } = await apiClient.patch<AccountHealthSummary>(`/admin/accounts/${id}/health/probe-settings`, payload)
+  return data
+}
+
+export async function resetHealth(id: number): Promise<AccountHealthSummary> {
+  const { data } = await apiClient.post<AccountHealthSummary>(`/admin/accounts/${id}/health/reset`)
+  return data
+}
+
+export async function probeHealth(id: number): Promise<AccountHealthSummary> {
+  const { data } = await apiClient.post<AccountHealthSummary>(`/admin/accounts/${id}/health/probe`)
+  return data
+}
+
+export async function getHealthOverview(): Promise<AccountHealthOverview> {
+  const { data } = await apiClient.get<AccountHealthOverview>('/admin/accounts/health/overview')
+  return data
+}
+
 /**
  * Get available models for an account
  * @param id - Account ID
@@ -804,6 +846,12 @@ export const accountsAPI = {
   getTempUnschedulableStatus,
   resetTempUnschedulable,
   setSchedulable,
+  updateRateMultiplier,
+  getHealth,
+  resetHealth,
+  probeHealth,
+  updateHealthProbeSettings,
+  getHealthOverview,
   getAvailableModels,
   syncUpstreamModels,
   syncUpstreamModelsPreview,

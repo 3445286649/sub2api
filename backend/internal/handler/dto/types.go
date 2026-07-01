@@ -178,7 +178,11 @@ type Account struct {
 	CreatedAt               time.Time       `json:"created_at"`
 	UpdatedAt               time.Time       `json:"updated_at"`
 
-	Schedulable bool `json:"schedulable"`
+	Schedulable                bool `json:"schedulable"`
+	HealthProbeEnabled         bool `json:"health_probe_enabled"`
+	HealthProbeIntervalMinutes *int `json:"health_probe_interval_minutes,omitempty"`
+	HealthyProbeEnabled        bool `json:"healthy_probe_enabled"`
+	HealthyProbeIntervalHours  *int `json:"healthy_probe_interval_hours,omitempty"`
 
 	RateLimitedAt    *time.Time `json:"rate_limited_at"`
 	RateLimitResetAt *time.Time `json:"rate_limit_reset_at"`
@@ -186,6 +190,7 @@ type Account struct {
 
 	TempUnschedulableUntil  *time.Time `json:"temp_unschedulable_until"`
 	TempUnschedulableReason string     `json:"temp_unschedulable_reason"`
+	Health                  any        `json:"health,omitempty"`
 
 	SessionWindowStart  *time.Time `json:"session_window_start"`
 	SessionWindowEnd    *time.Time `json:"session_window_end"`

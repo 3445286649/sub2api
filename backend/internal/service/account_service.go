@@ -87,16 +87,20 @@ type AccountRepository interface {
 // AccountBulkUpdate describes the fields that can be updated in a bulk operation.
 // Nil pointers mean "do not change".
 type AccountBulkUpdate struct {
-	Name           *string
-	ProxyID        *int64
-	Concurrency    *int
-	Priority       *int
-	RateMultiplier *float64
-	LoadFactor     *int
-	Status         *string
-	Schedulable    *bool
-	Credentials    map[string]any
-	Extra          map[string]any
+	Name                       *string
+	ProxyID                    *int64
+	Concurrency                *int
+	Priority                   *int
+	RateMultiplier             *float64
+	LoadFactor                 *int
+	HealthProbeEnabled         *bool
+	HealthProbeIntervalMinutes *int
+	HealthyProbeEnabled        *bool
+	HealthyProbeIntervalHours  *int
+	Status                     *string
+	Schedulable                *bool
+	Credentials                map[string]any
+	Extra                      map[string]any
 }
 
 // CreateAccountRequest 创建账号请求
@@ -170,6 +174,8 @@ func (s *AccountService) Create(ctx context.Context, req CreateAccountRequest) (
 		Priority:    req.Priority,
 		Status:      StatusActive,
 		ExpiresAt:   req.ExpiresAt,
+		// 后台异常恢复探活默认开启；健康态低频巡检由管理员按账号显式打开。
+		HealthProbeEnabled: true,
 	}
 	if req.AutoPauseOnExpired != nil {
 		account.AutoPauseOnExpired = *req.AutoPauseOnExpired

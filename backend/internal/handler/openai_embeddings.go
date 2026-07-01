@@ -186,6 +186,7 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 					h.handleFailoverExhausted(c, failoverErr, true)
 					return
 				}
+				h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
 				h.gatewayService.RecordOpenAIAccountSwitch()
 				failedAccountIDs[account.ID] = struct{}{}
@@ -215,6 +216,7 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 		}
 
 		h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, nil)
+		h.gatewayService.RecordAccountHealthSuccess(c.Request.Context(), account.ID, forwardDurationMs)
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		inboundEndpoint := GetInboundEndpoint(c)

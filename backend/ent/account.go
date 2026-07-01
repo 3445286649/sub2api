@@ -61,6 +61,14 @@ type Account struct {
 	AutoPauseOnExpired bool `json:"auto_pause_on_expired,omitempty"`
 	// Schedulable holds the value of the "schedulable" field.
 	Schedulable bool `json:"schedulable,omitempty"`
+	// Whether background health probes are enabled for this account.
+	HealthProbeEnabled bool `json:"health_probe_enabled,omitempty"`
+	// Optional fixed health probe interval in minutes for unhealthy accounts; NULL uses default backoff.
+	HealthProbeIntervalMinutes *int `json:"health_probe_interval_minutes,omitempty"`
+	// Whether low-frequency background probes are enabled while this account is healthy.
+	HealthyProbeEnabled bool `json:"healthy_probe_enabled,omitempty"`
+	// Low-frequency probe interval in hours for healthy accounts; NULL uses default 6 hours when enabled.
+	HealthyProbeIntervalHours *int `json:"healthy_probe_interval_hours,omitempty"`
 	// RateLimitedAt holds the value of the "rate_limited_at" field.
 	RateLimitedAt *time.Time `json:"rate_limited_at,omitempty"`
 	// RateLimitResetAt holds the value of the "rate_limit_reset_at" field.
@@ -143,11 +151,11 @@ func (*Account) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case account.FieldCredentials, account.FieldExtra:
 			values[i] = new([]byte)
-		case account.FieldAutoPauseOnExpired, account.FieldSchedulable:
+		case account.FieldAutoPauseOnExpired, account.FieldSchedulable, account.FieldHealthProbeEnabled, account.FieldHealthyProbeEnabled:
 			values[i] = new(sql.NullBool)
 		case account.FieldRateMultiplier:
 			values[i] = new(sql.NullFloat64)
-		case account.FieldID, account.FieldProxyID, account.FieldProxyFallbackOriginID, account.FieldConcurrency, account.FieldLoadFactor, account.FieldPriority:
+		case account.FieldID, account.FieldProxyID, account.FieldProxyFallbackOriginID, account.FieldConcurrency, account.FieldLoadFactor, account.FieldPriority, account.FieldHealthProbeIntervalMinutes, account.FieldHealthyProbeIntervalHours:
 			values[i] = new(sql.NullInt64)
 		case account.FieldName, account.FieldNotes, account.FieldPlatform, account.FieldType, account.FieldStatus, account.FieldErrorMessage, account.FieldTempUnschedulableReason, account.FieldSessionWindowStatus:
 			values[i] = new(sql.NullString)
@@ -311,6 +319,32 @@ func (_m *Account) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field schedulable", values[i])
 			} else if value.Valid {
 				_m.Schedulable = value.Bool
+			}
+		case account.FieldHealthProbeEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field health_probe_enabled", values[i])
+			} else if value.Valid {
+				_m.HealthProbeEnabled = value.Bool
+			}
+		case account.FieldHealthProbeIntervalMinutes:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field health_probe_interval_minutes", values[i])
+			} else if value.Valid {
+				_m.HealthProbeIntervalMinutes = new(int)
+				*_m.HealthProbeIntervalMinutes = int(value.Int64)
+			}
+		case account.FieldHealthyProbeEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field healthy_probe_enabled", values[i])
+			} else if value.Valid {
+				_m.HealthyProbeEnabled = value.Bool
+			}
+		case account.FieldHealthyProbeIntervalHours:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field healthy_probe_interval_hours", values[i])
+			} else if value.Valid {
+				_m.HealthyProbeIntervalHours = new(int)
+				*_m.HealthyProbeIntervalHours = int(value.Int64)
 			}
 		case account.FieldRateLimitedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -502,6 +536,22 @@ func (_m *Account) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("schedulable=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Schedulable))
+	builder.WriteString(", ")
+	builder.WriteString("health_probe_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.HealthProbeEnabled))
+	builder.WriteString(", ")
+	if v := _m.HealthProbeIntervalMinutes; v != nil {
+		builder.WriteString("health_probe_interval_minutes=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("healthy_probe_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.HealthyProbeEnabled))
+	builder.WriteString(", ")
+	if v := _m.HealthyProbeIntervalHours; v != nil {
+		builder.WriteString("healthy_probe_interval_hours=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	if v := _m.RateLimitedAt; v != nil {
 		builder.WriteString("rate_limited_at=")
