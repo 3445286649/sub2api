@@ -136,6 +136,16 @@
 </td>
 </tr>
 
+<tr>
+<td width="180"><a href="https://anpin.ai"><img src="assets/partners/logos/anpin.jpg" alt="anpin" width="150"></a></td>
+<td>感谢 <a href="https://anpin.ai">anpin.ai</a> 赞助本项目！anpin.ai 是一家致力于推动 AI 普惠的高端 AI 中转服务平台。我们以先进的技术架构和全球分布式部署，为用户提供直达国际顶尖大模型的高速通道。<br>
+自建一手号池：1-3S超快响应 支持同行分发<br>
+极致稳定：多线智能路由 + 冗余备份系统，确保服务全年无休、高可用运行；<br>
+模型真实性：不做任何内容干预与二次过滤，让您体验到最纯粹、最强大的原生模型能力。<br>
+充值1：1 企业级服务可开票，安品Ai不只是中转站，更是您连接前沿智能世界的安全、可靠、高效桥梁
+</td>
+</tr>
+
 </table>
 
 ## 项目概述
@@ -462,7 +472,8 @@ pnpm run build
 
 # 4. 编译后端（嵌入前端）
 cd ../backend
-go build -tags embed -o sub2api ./cmd/server
+VERSION="$(./scripts/resolve-version.sh)"
+go build -tags embed -ldflags="-X main.Version=${VERSION}" -o sub2api ./cmd/server
 
 # 5. 创建配置文件
 cp ../deploy/config.example.yaml ./config.yaml
@@ -538,20 +549,6 @@ gateway:
 - `security.url_allowlist.enabled` 可关闭 URL 校验（慎用）
 - `security.url_allowlist.allow_insecure_http` 关闭校验时允许 HTTP URL
 - `security.url_allowlist.allow_private_hosts` 允许私有/本地 IP 地址
-
-### 本地自研：上游账号自动健康调度
-
-本地版本包含账号级上游健康管理能力：按 `account_id` 独立计算健康度，同 URL 多 Key 不合并；真实请求失败会扣分并可能写入 `temp_unschedulable_until` 自动隔离，恢复探活连续成功后自动回到调度池。账号倍率 `rate_multiplier` 表示上游成本倍率，用于成本统计和调度排序，不是用户售卖倍率。
-
-调度默认开启健康排序：先按上游成本倍率，再按健康分和平均延迟排序；如线上排障需要回退旧排序，可设置：
-
-```yaml
-gateway:
-  scheduling:
-    health_sort_enabled: false
-```
-
-蓝绿发布可使用 `deploy/bluegreen-deploy.sh` 固化当前 `8080 <-> 8081` 切流流程。脚本支持 `--dry-run`，会先启动目标容器并检查 `/health`、首页、后台路由和登录接口 smoke，切流后观察失败会自动回滚 nginx，旧容器默认保留为回滚点。
 - `security.response_headers.enabled` 可启用可配置响应头过滤（关闭时使用默认白名单）
 - `security.csp` 配置 Content-Security-Policy
 - `billing.circuit_breaker` 计费异常时 fail-closed
