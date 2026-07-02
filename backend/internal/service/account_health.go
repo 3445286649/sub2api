@@ -317,6 +317,12 @@ func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int6
 		if err := s.clearStaleHealthTempUnschedulable(ctx, accountID); err != nil {
 			return err
 		}
+		if err := s.syncHealthyProbeSchedule(ctx, accountID, state, now); err != nil {
+			return err
+		}
+	} else if probe && state.Status == AccountHealthStatusDegraded {
+		next := now.Add(s.nextProbeDelayForState(ctx, accountID, state))
+		state.NextProbeAt = &next
 	}
 	state.UpdatedAt = now
 	if err := s.repo.Upsert(ctx, state); err != nil {
@@ -373,6 +379,10 @@ func (s *AccountHealthService) recordFailure(ctx context.Context, accountID int6
 	nextProbe := now.Add(s.nextProbeDelayForState(ctx, accountID, state))
 	state.NextProbeAt = &nextProbe
 	if state.Status == AccountHealthStatusIsolated {
+		if err := s.accountRepo.SetTempUnschedulable(ctx, accountID, nextProbe, accountHealthIsolationReason); err != nil {
+			return err
+		}
+	} else if s.shouldSoftUnscheduleDegraded(state) {
 		if err := s.accountRepo.SetTempUnschedulable(ctx, accountID, nextProbe, accountHealthIsolationReason); err != nil {
 			return err
 		}
@@ -545,17 +555,25 @@ func (s *AccountHealthService) RecordSettingsChanged(ctx context.Context, accoun
 	if err != nil {
 		return err
 	}
+	before := *state
+	if err := s.rescheduleProbeAfterSettingsChanged(ctx, accountID, state, now); err != nil {
+		return err
+	}
 	event := &AccountHealthEvent{
 		AccountID:        accountID,
 		Source:           AccountHealthEventSourceSystem,
 		EventType:        AccountHealthEventTypeSettingsChanged,
-		ScoreBefore:      state.Score,
+		ScoreBefore:      before.Score,
 		ScoreAfter:       state.Score,
-		StatusBefore:     state.Status,
+		StatusBefore:     before.Status,
 		StatusAfter:      state.Status,
 		ActorUserID:      actorUserID,
 		CreatedAt:        now,
 		AffectedGroupIDs: s.affectedGroupIDs(ctx, accountID),
+	}
+	state.UpdatedAt = now
+	if err := s.repo.Upsert(ctx, state); err != nil {
+		return err
 	}
 	_ = s.repo.InsertEvent(ctx, event)
 	return nil
@@ -596,6 +614,43 @@ func (s *AccountHealthService) clearStaleHealthTempUnschedulable(ctx context.Con
 		return nil
 	}
 	return s.accountRepo.ClearTempUnschedulable(ctx, accountID)
+}
+
+func (s *AccountHealthService) syncHealthyProbeSchedule(ctx context.Context, accountID int64, state *AccountHealthState, now time.Time) error {
+	if s == nil || s.accountRepo == nil || state == nil || state.Status != AccountHealthStatusHealthy {
+		return nil
+	}
+	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil || account == nil {
+		return err
+	}
+	if shouldProbeHealthyAccount(account) {
+		next := now.Add(healthyProbeInterval(account))
+		state.NextProbeAt = &next
+		return nil
+	}
+	state.NextProbeAt = nil
+	return nil
+}
+
+func (s *AccountHealthService) rescheduleProbeAfterSettingsChanged(ctx context.Context, accountID int64, state *AccountHealthState, now time.Time) error {
+	if s == nil || s.accountRepo == nil || state == nil {
+		return nil
+	}
+	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil || account == nil {
+		return err
+	}
+	if state.Status == AccountHealthStatusHealthy {
+		return s.syncHealthyProbeSchedule(ctx, accountID, state, now)
+	}
+	if shouldProbeUnhealthyAccount(account) {
+		next := now.Add(s.nextProbeDelayForState(ctx, accountID, state))
+		state.NextProbeAt = &next
+		return nil
+	}
+	state.NextProbeAt = nil
+	return nil
 }
 
 func (s *AccountHealthService) ListDueForProbe(ctx context.Context, now time.Time, limit int) ([]*AccountHealthState, error) {
@@ -929,10 +984,8 @@ func backoffDuration(level int) time.Duration {
 }
 
 func (s *AccountHealthService) nextProbeDelay(ctx context.Context, accountID int64, backoffLevel int) time.Duration {
-	if s != nil && s.accountRepo != nil {
-		if account, err := s.accountRepo.GetByID(ctx, accountID); err == nil && account != nil && account.HealthProbeIntervalMinutes != nil && *account.HealthProbeIntervalMinutes > 0 {
-			return time.Duration(*account.HealthProbeIntervalMinutes) * time.Minute
-		}
+	if delay, ok := s.configuredProbeDelay(ctx, accountID); ok {
+		return delay
 	}
 	return backoffDuration(backoffLevel)
 }
@@ -942,9 +995,33 @@ func (s *AccountHealthService) nextProbeDelayForState(ctx context.Context, accou
 		return s.nextProbeDelay(ctx, accountID, 0)
 	}
 	if state.LastErrorCategory != "auth_error" && (state.Status == AccountHealthStatusIsolated || state.Status == AccountHealthStatusRecovering) {
+		if delay, ok := s.configuredProbeDelay(ctx, accountID); ok {
+			return delay
+		}
 		return 5 * time.Minute
 	}
 	return s.nextProbeDelay(ctx, accountID, state.BackoffLevel)
+}
+
+func (s *AccountHealthService) configuredProbeDelay(ctx context.Context, accountID int64) (time.Duration, bool) {
+	if s == nil || s.accountRepo == nil {
+		return 0, false
+	}
+	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil || account == nil || account.HealthProbeIntervalMinutes == nil || *account.HealthProbeIntervalMinutes <= 0 {
+		return 0, false
+	}
+	return time.Duration(*account.HealthProbeIntervalMinutes) * time.Minute, true
+}
+
+func (s *AccountHealthService) shouldSoftUnscheduleDegraded(state *AccountHealthState) bool {
+	if state == nil || state.Status != AccountHealthStatusDegraded {
+		return false
+	}
+	if state.Score < accountHealthRecoveryScore {
+		return true
+	}
+	return accountHealthIsModelConfigFailure(state.LastErrorCategory, state.LastErrorMessage) && state.ConsecutiveFailures >= 2
 }
 
 func (s *AccountHealthService) insertHealthEvent(ctx context.Context, before, after *AccountHealthState, source, eventType, category, message string, latencyMs int64, actorUserID *int64) error {

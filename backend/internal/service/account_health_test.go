@@ -193,6 +193,28 @@ func (r *healthAccountRepoStub) ClearTempUnschedulable(_ context.Context, id int
 	return nil
 }
 
+func TestOpenAIGatewayService_FilterAccountsByHealthSchedulable(t *testing.T) {
+	ctx := context.Background()
+	healthRepo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 100, Status: AccountHealthStatusHealthy},
+		2: {AccountID: 2, Score: 0, Status: AccountHealthStatusIsolated},
+		3: {AccountID: 3, Score: 55, Status: AccountHealthStatusRecovering},
+		4: {AccountID: 4, Score: 55, Status: AccountHealthStatusDegraded},
+	}}
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true},
+		2: {ID: 2, Status: StatusActive, Schedulable: true},
+		3: {ID: 3, Status: StatusActive, Schedulable: true},
+		4: {ID: 4, Status: StatusActive, Schedulable: true},
+	}}
+	healthSvc := &AccountHealthService{repo: healthRepo, accountRepo: accountRepo}
+	svc := &OpenAIGatewayService{accountHealthService: healthSvc}
+
+	filtered := svc.filterAccountsByHealthSchedulable(ctx, []Account{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}})
+
+	require.Equal(t, []int64{1, 4}, []int64{filtered[0].ID, filtered[1].ID})
+}
+
 func TestAccountHealthService_IsolatesByAccountID(t *testing.T) {
 	ctx := context.Background()
 	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
@@ -390,7 +412,8 @@ func TestAccountHealthService_RateLimitAndModelConfigFailuresAreGentle(t *testin
 	}
 	require.Equal(t, 30, repo.states[2].Score)
 	require.Equal(t, AccountHealthStatusDegraded, repo.states[2].Status)
-	require.Zero(t, accountRepo.tempSetCalls, "probe model config errors should not auto-isolate the account")
+	require.Greater(t, accountRepo.tempSetCalls, 0, "repeated model config errors should be soft-unscheduled")
+	require.Equal(t, int64(2), accountRepo.lastTempAccountID)
 }
 
 func TestAccountHealthService_DegradedRealRequestSuccessesRaiseFloorToSixty(t *testing.T) {
@@ -616,6 +639,62 @@ func TestAccountHealthService_HealthyProbeUsesCustomHourInterval(t *testing.T) {
 	require.Equal(t, int64(1), due[0].AccountID)
 }
 
+func TestAccountHealthService_ProbeSuccessSchedulesNextHealthyProbe(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	oldNext := now.Add(-time.Hour)
+	interval := 2
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, HealthyProbeEnabled: true, HealthyProbeIntervalHours: &interval},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 95, Status: AccountHealthStatusHealthy, NextProbeAt: &oldNext, CreatedAt: oldNext, UpdatedAt: oldNext},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordManualProbeSuccess(ctx, 1, 120, nil))
+
+	require.NotNil(t, repo.states[1].NextProbeAt)
+	require.Equal(t, now.Add(2*time.Hour), *repo.states[1].NextProbeAt)
+}
+
+func TestAccountHealthService_ProbeSuccessClearsNextProbeWhenHealthyProbeDisabled(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	oldNext := now.Add(-time.Hour)
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, HealthyProbeEnabled: false},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 95, Status: AccountHealthStatusHealthy, NextProbeAt: &oldNext, CreatedAt: oldNext, UpdatedAt: oldNext},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordProbeSuccess(ctx, 1, 120))
+
+	require.Nil(t, repo.states[1].NextProbeAt)
+}
+
+func TestAccountHealthService_DegradedProbeSuccessReschedulesCustomInterval(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	leaseUntil := now.Add(5 * time.Minute)
+	interval := 1
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, HealthProbeIntervalMinutes: &interval},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 55, Status: AccountHealthStatusDegraded, NextProbeAt: &leaseUntil, CreatedAt: now, UpdatedAt: now},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordProbeSuccess(ctx, 1, 120))
+
+	require.Equal(t, AccountHealthStatusDegraded, repo.states[1].Status)
+	require.Equal(t, 60, repo.states[1].Score)
+	require.Equal(t, now.Add(time.Minute), *repo.states[1].NextProbeAt)
+}
+
 func TestAccountHealthService_HealthyProbeSkipsManualUnschedulableAccount(t *testing.T) {
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	lastChecked := now.Add(-24 * time.Hour)
@@ -651,6 +730,65 @@ func TestAccountHealthService_HealthyProbeFailureEntersDegradedBackoff(t *testin
 	require.Equal(t, AccountHealthStatusDegraded, state.Status)
 	require.NotNil(t, state.NextProbeAt)
 	require.True(t, state.NextProbeAt.After(now))
+}
+
+func TestAccountHealthService_DegradedLowScoreSoftUnschedulesUntilNextProbe(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	interval := 1
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, HealthProbeIntervalMinutes: &interval},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 65, Status: AccountHealthStatusHealthy, CreatedAt: now, UpdatedAt: now},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
+
+	state := repo.states[1]
+	require.Equal(t, AccountHealthStatusDegraded, state.Status)
+	require.Less(t, state.Score, accountHealthRecoveryScore)
+	require.Equal(t, now.Add(time.Minute), *state.NextProbeAt)
+	require.Equal(t, now.Add(time.Minute), accountRepo.lastTempUntil)
+	require.Equal(t, int64(1), accountRepo.lastTempAccountID)
+}
+
+func TestAccountHealthService_IsolatedTemporaryFailureRespectsCustomProbeInterval(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	interval := 1
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, HealthProbeIntervalMinutes: &interval},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 30, Status: AccountHealthStatusIsolated, ConsecutiveFailures: 3, CreatedAt: now, UpdatedAt: now},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "upstream_5xx", "bad gateway"))
+
+	require.Equal(t, AccountHealthStatusIsolated, repo.states[1].Status)
+	require.Equal(t, now.Add(time.Minute), *repo.states[1].NextProbeAt)
+	require.Equal(t, now.Add(time.Minute), accountRepo.lastTempUntil)
+}
+
+func TestAccountHealthService_SettingsChangedReschedulesExistingProbe(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	oldNext := now.Add(30 * time.Minute)
+	interval := 1
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, HealthProbeIntervalMinutes: &interval},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 70, Status: AccountHealthStatusDegraded, NextProbeAt: &oldNext, CreatedAt: now, UpdatedAt: now},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordSettingsChanged(ctx, 1, nil))
+
+	require.Equal(t, now.Add(time.Minute), *repo.states[1].NextProbeAt)
 }
 
 func TestAccountHealthService_HealthyProbeWithoutStateIsDueImmediately(t *testing.T) {

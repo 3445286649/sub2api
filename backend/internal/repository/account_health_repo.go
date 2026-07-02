@@ -134,11 +134,23 @@ func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID i
 		FROM accounts a
 		WHERE a.id = $1
 		  AND a.deleted_at IS NULL
-		  AND a.status = 'active'
-		  AND a.schedulable IS TRUE
 		  AND a.health_probe_enabled IS TRUE
-		  AND a.healthy_probe_enabled IS TRUE
-		  AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $2)
+		  AND (
+			(
+			  a.status = 'active'
+			  AND a.schedulable IS TRUE
+			  AND a.healthy_probe_enabled IS TRUE
+			  AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $2)
+			)
+			OR EXISTS (
+			  SELECT 1
+			  FROM account_health_states s
+			  WHERE s.account_id = a.id
+			    AND s.status IN ('isolated', 'recovering', 'degraded')
+			    AND s.next_probe_at IS NOT NULL
+			    AND s.next_probe_at <= $2
+			)
+		  )
 		ON CONFLICT (account_id) DO UPDATE SET
 			next_probe_at = EXCLUDED.next_probe_at,
 			updated_at = CASE

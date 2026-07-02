@@ -424,6 +424,39 @@ func (s *OpenAIGatewayService) loadAccountHealthSummaries(ctx context.Context, a
 	return summaries
 }
 
+func (s *OpenAIGatewayService) filterAccountsByHealthSchedulable(ctx context.Context, accounts []Account) []Account {
+	if s == nil || s.accountHealthService == nil || len(accounts) == 0 {
+		return accounts
+	}
+	health := s.loadAccountHealthSummaries(ctx, accounts)
+	if len(health) == 0 {
+		return accounts
+	}
+	filtered := make([]Account, 0, len(accounts))
+	for _, account := range accounts {
+		if !accountHealthSummarySchedulable(health[account.ID]) {
+			continue
+		}
+		filtered = append(filtered, account)
+	}
+	return filtered
+}
+
+func (s *OpenAIGatewayService) isAccountHealthSchedulable(ctx context.Context, accountID int64) bool {
+	if s == nil || s.accountHealthService == nil || accountID <= 0 {
+		return true
+	}
+	health, err := s.accountHealthService.ListByAccountIDs(ctx, []int64{accountID})
+	if err != nil {
+		return true
+	}
+	return accountHealthSummarySchedulable(health[accountID])
+}
+
+func accountHealthSummarySchedulable(summary *AccountHealthSummary) bool {
+	return summary == nil || (summary.Status != AccountHealthStatusIsolated && summary.Status != AccountHealthStatusRecovering)
+}
+
 // NewOpenAIGatewayService creates a new OpenAIGatewayService
 func NewOpenAIGatewayService(
 	accountRepo AccountRepository,
@@ -2107,10 +2140,14 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 			account, err := s.getSchedulableAccount(ctx, accountID)
 			if err == nil {
 				clearSticky := shouldClearStickySession(account, requestedModel)
+				healthBlocked := false
 				if clearSticky {
 					_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
+				} else if !s.isAccountHealthSchedulable(ctx, account.ID) {
+					healthBlocked = true
+					_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 				}
-				if !clearSticky && isOpenAICompatibleAccountEligibleForRequest(ctx, account, platform, requestedModel, false, requiredCapability) {
+				if !clearSticky && !healthBlocked && isOpenAICompatibleAccountEligibleForRequest(ctx, account, platform, requestedModel, false, requiredCapability) {
 					account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, platform, requestedModel, requireCompact, requiredCapability)
 					if account == nil {
 						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
@@ -2351,7 +2388,10 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 	platform = normalizeOpenAICompatiblePlatform(platform)
 	if s.schedulerSnapshot != nil {
 		accounts, _, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, false)
-		return accounts, err
+		if err != nil {
+			return accounts, err
+		}
+		return s.filterAccountsByHealthSchedulable(ctx, accounts), nil
 	}
 	var accounts []Account
 	var err error
@@ -2365,7 +2405,7 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 	if err != nil {
 		return nil, fmt.Errorf("query accounts failed: %w", err)
 	}
-	return accounts, nil
+	return s.filterAccountsByHealthSchedulable(ctx, accounts), nil
 }
 
 func (s *OpenAIGatewayService) tryAcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int) (*AcquireResult, error) {
@@ -2391,6 +2431,9 @@ func (s *OpenAIGatewayService) resolveFreshSchedulableOpenAIAccount(ctx context.
 	}
 
 	if !isOpenAICompatibleAccountEligibleForRequest(ctx, fresh, platform, requestedModel, requireCompact, requiredCapability) {
+		return nil
+	}
+	if !s.isAccountHealthSchedulable(ctx, fresh.ID) {
 		return nil
 	}
 	if !parentHealthyForShadow(fresh, s.parentAccountLookup(ctx)) {
