@@ -588,7 +588,7 @@
             </label>
             <button
               class="btn btn-primary px-3 py-2 text-sm"
-              :disabled="savingProbeSettings"
+              :disabled="savingProbeSettings || healthDetailLoading || !healthDetailLoaded"
               @click="saveHealthProbeSettings"
             >
               {{ savingProbeSettings ? t('common.saving') : t('common.save') }}
@@ -812,6 +812,9 @@ const healthOverview = ref<AccountHealthOverview | null>(null)
 const healthOverviewLoading = ref(false)
 const healthOverviewError = ref('')
 const healthDetailAccount = ref<Account | null>(null)
+const healthDetailLoading = ref(false)
+const healthDetailLoaded = ref(false)
+const healthDetailRequestToken = ref(0)
 const savingRateMultiplier = ref<number | null>(null)
 const probingHealth = ref<number | null>(null)
 const savingProbeSettings = ref(false)
@@ -1246,10 +1249,12 @@ const shouldReplaceAutoRefreshRow = (current: Account, next: Account) => {
     current.health?.next_probe_at !== next.health?.next_probe_at ||
     current.health_probe_enabled !== next.health_probe_enabled ||
     current.health_probe_interval_minutes !== next.health_probe_interval_minutes ||
+    current.health_probe_model !== next.health_probe_model ||
     current.healthy_probe_enabled !== next.healthy_probe_enabled ||
     current.healthy_probe_interval_hours !== next.healthy_probe_interval_hours ||
     current.health?.health_probe_enabled !== next.health?.health_probe_enabled ||
     current.health?.health_probe_interval_minutes !== next.health?.health_probe_interval_minutes ||
+    current.health?.health_probe_model !== next.health?.health_probe_model ||
     current.health?.healthy_probe_enabled !== next.health?.healthy_probe_enabled ||
     current.health?.healthy_probe_interval_hours !== next.health?.healthy_probe_interval_hours ||
     buildOpenAIUsageRefreshKey(current) !== buildOpenAIUsageRefreshKey(next)
@@ -1384,6 +1389,10 @@ const openHealthOverview = async () => {
 }
 
 const openHealthDetail = async (account: Account) => {
+  const requestToken = healthDetailRequestToken.value + 1
+  healthDetailRequestToken.value = requestToken
+  healthDetailLoading.value = true
+  healthDetailLoaded.value = false
   healthDetailAccount.value = account
   healthEventFilter.value = ''
   healthEvents.value = []
@@ -1392,15 +1401,32 @@ const openHealthDetail = async (account: Account) => {
   healthProbeModelOptions.value = []
   try {
     const health = await adminAPI.accounts.getHealth(account.id)
+    if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== account.id) return
     patchAccountHealthInList(account.id, health)
-    await loadHealthProbeModels(account.id)
-    await loadHealthEvents(1)
+    await loadHealthProbeModels(account.id, requestToken)
+    if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== account.id) return
+    await loadHealthEvents(1, requestToken)
+    if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== account.id) return
+    healthDetailLoaded.value = true
   } catch (error: any) {
+    if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== account.id) return
     appStore.showError(error?.message || t('admin.accounts.healthDetailLoadFailed'))
+    healthDetailAccount.value = null
+    healthEvents.value = []
+    healthProbeModelOptions.value = []
+  } finally {
+    if (healthDetailRequestToken.value === requestToken) {
+      healthDetailLoading.value = false
+    }
   }
 }
 
 watch(healthDetailAccount, (account) => {
+  if (!account) {
+    healthDetailRequestToken.value += 1
+    healthDetailLoading.value = false
+    healthDetailLoaded.value = false
+  }
   healthProbeSettings.enabled = account?.health?.health_probe_enabled ?? account?.health_probe_enabled ?? true
   const interval = account?.health?.health_probe_interval_minutes ?? account?.health_probe_interval_minutes
   healthProbeSettings.interval = interval && interval > 0 ? interval : ''
@@ -1424,15 +1450,20 @@ const normalizeHealthProbeModels = (models: Array<ClaudeModel | string>): Claude
   return out
 }
 
-const loadHealthProbeModels = async (accountID: number) => {
+const loadHealthProbeModels = async (accountID: number, requestToken = healthDetailRequestToken.value) => {
   loadingHealthProbeModels.value = true
   try {
-    healthProbeModelOptions.value = normalizeHealthProbeModels(await adminAPI.accounts.getAvailableModels(accountID))
+    const models = await adminAPI.accounts.getAvailableModels(accountID)
+    if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== accountID) return
+    healthProbeModelOptions.value = normalizeHealthProbeModels(models)
   } catch (error) {
+    if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== accountID) return
     console.error('Failed to load health probe models:', error)
     healthProbeModelOptions.value = []
   } finally {
-    loadingHealthProbeModels.value = false
+    if (healthDetailRequestToken.value === requestToken) {
+      loadingHealthProbeModels.value = false
+    }
   }
 }
 
@@ -2172,6 +2203,10 @@ const handleHealthProbe = async (account: Account) => {
 const saveHealthProbeSettings = async () => {
   const account = healthDetailAccount.value
   if (!account) return
+  if (!healthDetailLoaded.value) {
+    appStore.showError(t('admin.accounts.healthDetailLoadFailed'))
+    return
+  }
   const rawInterval = String(healthProbeSettings.interval ?? '').trim()
   const interval = rawInterval === '' ? null : Number(rawInterval)
   if (interval !== null && (!Number.isInteger(interval) || interval < 0)) {
@@ -2184,16 +2219,17 @@ const saveHealthProbeSettings = async () => {
     return
   }
   const probeModel = String(healthProbeSettings.model || '').trim()
+  const requestAccountID = account.id
   savingProbeSettings.value = true
   try {
-    const health = await adminAPI.accounts.updateHealthProbeSettings(account.id, {
+    const health = await adminAPI.accounts.updateHealthProbeSettings(requestAccountID, {
       health_probe_enabled: healthProbeSettings.enabled,
       health_probe_interval_minutes: interval && interval > 0 ? interval : null,
       health_probe_model: probeModel || null,
       healthy_probe_enabled: healthProbeSettings.healthyEnabled,
       healthy_probe_interval_hours: healthyInterval === 6 ? null : healthyInterval
     })
-    patchAccountHealthInList(account.id, health)
+    patchAccountHealthInList(requestAccountID, health)
     await loadHealthEvents(1)
     enterAutoRefreshSilentWindow()
     appStore.showSuccess(t('admin.accounts.probeSettingsSaved'))
@@ -2204,24 +2240,29 @@ const saveHealthProbeSettings = async () => {
   }
 }
 
-const loadHealthEvents = async (page = healthEventsPage.value) => {
+const loadHealthEvents = async (page = healthEventsPage.value, requestToken = healthDetailRequestToken.value) => {
   const account = healthDetailAccount.value
   if (!account) return
+  const accountID = account.id
   healthEventsLoading.value = true
   healthEventsError.value = ''
   try {
-    const result = await adminAPI.accounts.getHealthEvents(account.id, {
+    const result = await adminAPI.accounts.getHealthEvents(accountID, {
       page,
       page_size: 10,
       event_type: healthEventFilter.value || undefined
     })
+    if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== accountID) return
     healthEvents.value = result.items || []
     healthEventsPage.value = result.page || page
     healthEventsTotalPages.value = result.total_pages || 1
   } catch (error: any) {
+    if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== accountID) return
     healthEventsError.value = error?.message || t('admin.accounts.healthEventsLoadFailed')
   } finally {
-    healthEventsLoading.value = false
+    if (healthDetailRequestToken.value === requestToken) {
+      healthEventsLoading.value = false
+    }
   }
 }
 

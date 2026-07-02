@@ -1,16 +1,26 @@
 package service
 
-import "sort"
+import (
+	"math"
+	"sort"
 
-func sortAccountWithLoadByHealthCostAndLoad(items []accountWithLoad, health map[int64]*AccountHealthSummary, preferOAuth bool, healthSortEnabled bool) {
-	if !healthSortEnabled {
+	"github.com/Wei-Shaw/sub2api/internal/config"
+)
+
+const accountHealthDefaultTierDegradedMin = 60
+
+func sortAccountWithLoadByHealthCostAndLoad(items []accountWithLoad, health map[int64]*AccountHealthSummary, preferOAuth bool, cfg config.GatewaySchedulingConfig) {
+	if !cfg.HealthSortEnabled {
 		sortAccountWithLoadByLegacyLoad(items, preferOAuth)
 		return
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i], items[j]
-		aScore, aLatency := AccountHealthSortValue(health, a.account.ID)
-		bScore, bLatency := AccountHealthSortValue(health, b.account.ID)
+		aScore, aLatency := accountHealthSortValueForScheduling(health, a.account.ID, cfg)
+		bScore, bLatency := accountHealthSortValueForScheduling(health, b.account.ID, cfg)
+		if at, bt := accountHealthTier(aScore, cfg), accountHealthTier(bScore, cfg); at != bt {
+			return at < bt
+		}
 		if ar, br := a.account.BillingRateMultiplier(), b.account.BillingRateMultiplier(); ar != br {
 			return ar < br
 		}
@@ -33,15 +43,18 @@ func sortAccountWithLoadByHealthCostAndLoad(items []accountWithLoad, health map[
 	})
 }
 
-func sortAccountPointersByHealthCostAndLRU(items []*Account, health map[int64]*AccountHealthSummary, preferOAuth bool, healthSortEnabled bool) {
-	if !healthSortEnabled {
+func sortAccountPointersByHealthCostAndLRU(items []*Account, health map[int64]*AccountHealthSummary, preferOAuth bool, cfg config.GatewaySchedulingConfig) {
+	if !cfg.HealthSortEnabled {
 		sortAccountPointersByLegacyLRU(items, preferOAuth)
 		return
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i], items[j]
-		aScore, aLatency := AccountHealthSortValue(health, a.ID)
-		bScore, bLatency := AccountHealthSortValue(health, b.ID)
+		aScore, aLatency := accountHealthSortValueForScheduling(health, a.ID, cfg)
+		bScore, bLatency := accountHealthSortValueForScheduling(health, b.ID, cfg)
+		if at, bt := accountHealthTier(aScore, cfg), accountHealthTier(bScore, cfg); at != bt {
+			return at < bt
+		}
 		if ar, br := a.BillingRateMultiplier(), b.BillingRateMultiplier(); ar != br {
 			return ar < br
 		}
@@ -59,6 +72,39 @@ func sortAccountPointersByHealthCostAndLRU(items []*Account, health map[int64]*A
 		}
 		return accountLRULess(a, b)
 	})
+}
+
+func accountHealthSortValueForScheduling(states map[int64]*AccountHealthSummary, accountID int64, cfg config.GatewaySchedulingConfig) (score int, latency int) {
+	if state := states[accountID]; state != nil {
+		return AccountHealthSortValue(states, accountID)
+	}
+	baseline := defaultAccountHealthScore
+	healthyMin, _ := accountHealthTierThresholds(cfg)
+	if healthyMin > baseline {
+		baseline = healthyMin
+	}
+	return baseline, math.MaxInt
+}
+
+func accountHealthTier(score int, cfg config.GatewaySchedulingConfig) int {
+	healthyMin, degradedMin := accountHealthTierThresholds(cfg)
+	switch {
+	case score >= healthyMin:
+		return 0
+	case score >= degradedMin:
+		return 1
+	default:
+		return 2
+	}
+}
+
+func accountHealthTierThresholds(cfg config.GatewaySchedulingConfig) (healthyMin int, degradedMin int) {
+	healthyMin = cfg.HealthTierHealthyMin
+	degradedMin = cfg.HealthTierDegradedMin
+	if healthyMin < 0 || healthyMin > 100 || degradedMin < 0 || degradedMin > 100 || healthyMin <= degradedMin {
+		return defaultAccountHealthScore, accountHealthDefaultTierDegradedMin
+	}
+	return healthyMin, degradedMin
 }
 
 func sortAccountWithLoadByLegacyLoad(items []accountWithLoad, preferOAuth bool) {

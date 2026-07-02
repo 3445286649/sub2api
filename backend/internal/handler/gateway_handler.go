@@ -61,6 +61,7 @@ type GatewayHandler struct {
 	maxAccountSwitchesGemini  int
 	cfg                       *config.Config
 	settingService            *service.SettingService
+	channelMonitorSigner      *service.ChannelMonitorSigner
 }
 
 // NewGatewayHandler creates a new GatewayHandler
@@ -117,6 +118,13 @@ func NewGatewayHandler(
 		cfg:                       cfg,
 		settingService:            settingService,
 	}
+}
+
+func (h *GatewayHandler) SetChannelMonitorSigner(signer *service.ChannelMonitorSigner) {
+	if h == nil {
+		return
+	}
+	h.channelMonitorSigner = signer
 }
 
 // Messages handles Claude API compatible messages endpoint
@@ -452,6 +460,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if errors.As(err, &failoverErr) {
 					// 流式内容已写入客户端，无法撤销，禁止 failover 以防止流拼接腐化
 					if c.Writer.Size() != writerSizeBeforeForward {
+						h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 						h.handleFailoverExhausted(c, failoverErr, service.PlatformGemini, true)
 						return
 					}
@@ -567,6 +576,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		fallbackGroupID = apiKey.Group.FallbackGroupIDOnInvalidRequest
 	}
 	fallbackUsed := false
+	excluded, isChannelMonitorRequest := channelMonitorRequestContext(c, h.channelMonitorSigner)
 
 	// 单账号分组提前设置 SingleAccountRetry 标记，让 Service 层首次 503 就不设模型限流标记。
 	// 避免单账号分组收到 503 (MODEL_CAPACITY_EXHAUSTED) 时设 29s 限流，导致后续请求连续快速失败。
@@ -577,6 +587,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 	for {
 		fs := NewFailoverState(h.maxAccountSwitches, hasBoundSession)
+		for id := range excluded {
+			fs.FailedAccountIDs[id] = struct{}{}
+		}
 		retryWithFallback := false
 
 		for {
@@ -634,6 +647,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 			account := selection.Account
 			setOpsSelectedAccount(c, account.ID, account.Platform)
+			if isChannelMonitorRequest {
+				writeChannelMonitorSelectedAccountHeader(c, account.ID)
+			}
 
 			// [DEBUG-STICKY] 打印账号选择结果
 			reqLog.Info("sticky.account_selected",
@@ -875,6 +891,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				if errors.As(err, &failoverErr) {
 					// 流式内容已写入客户端，无法撤销，禁止 failover 以防止流拼接腐化
 					if c.Writer.Size() != writerSizeBeforeForward {
+						h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 						h.handleFailoverExhausted(c, failoverErr, account.Platform, true)
 						return
 					}

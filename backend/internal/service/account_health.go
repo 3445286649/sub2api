@@ -146,6 +146,7 @@ type AccountHealthRepository interface {
 	Upsert(ctx context.Context, state *AccountHealthState) error
 	Delete(ctx context.Context, accountID int64) error
 	ListDueForProbe(ctx context.Context, now time.Time, limit int) ([]*AccountHealthState, error)
+	ClaimDueProbe(ctx context.Context, accountID int64, now time.Time, leaseUntil time.Time) (bool, error)
 	InsertEvent(ctx context.Context, event *AccountHealthEvent) error
 	ListEvents(ctx context.Context, accountID int64, eventType string, params pagination.PaginationParams) (*AccountHealthEventList, error)
 	DeleteEventsBefore(ctx context.Context, before time.Time) (int64, error)
@@ -270,7 +271,7 @@ func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int6
 	state.ConsecutiveFailures = 0
 	state.LastSuccessAt = &now
 	state.LastCheckedAt = &now
-	if !authRecovery {
+	if !authRecovery || (source == AccountHealthEventSourceRealRequest && before.Status != AccountHealthStatusIsolated && before.Status != AccountHealthStatusRecovering) {
 		state.LastErrorCategory = ""
 		state.LastErrorMessage = ""
 	}
@@ -406,7 +407,16 @@ func (s *AccountHealthService) shouldSkipDuplicateProbeFailure(accountID int64, 
 }
 
 func accountHealthProbeFailureDedupeKey(accountID int64, category, message string) string {
-	return strconv.FormatInt(accountID, 10)
+	category = strings.TrimSpace(category)
+	if category == "" {
+		category = "unknown"
+	}
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return strconv.FormatInt(accountID, 10) + ":" + category
+	}
+	sum := sha256.Sum256([]byte(message))
+	return strconv.FormatInt(accountID, 10) + ":" + category + ":" + hex.EncodeToString(sum[:])[:12]
 }
 
 func accountHealthFailurePenaltyFor(category, message string, consecutiveFailuresBefore int) int {
@@ -634,6 +644,13 @@ func (s *AccountHealthService) ListDueForProbe(ctx context.Context, now time.Tim
 		}
 	}
 	return filtered, nil
+}
+
+func (s *AccountHealthService) ClaimDueProbe(ctx context.Context, accountID int64, now time.Time, leaseUntil time.Time) (bool, error) {
+	if s == nil || s.repo == nil || accountID <= 0 || !leaseUntil.After(now) {
+		return false, nil
+	}
+	return s.repo.ClaimDueProbe(ctx, accountID, now, leaseUntil)
 }
 
 func (s *AccountHealthService) appendHealthyProbeDueStates(ctx context.Context, now time.Time, states []*AccountHealthState, limit int) []*AccountHealthState {

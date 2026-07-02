@@ -6,21 +6,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
 // ============ shuffleWithinSortGroups 测试 ============
 
 func TestShuffleWithinSortGroups_Empty(t *testing.T) {
-	shuffleWithinSortGroups(nil)
-	shuffleWithinSortGroups([]accountWithLoad{})
+	shuffleWithinSortGroups(nil, nil, testShuffleLegacyConfig())
+	shuffleWithinSortGroups([]accountWithLoad{}, nil, testShuffleLegacyConfig())
 }
 
 func TestShuffleWithinSortGroups_SingleElement(t *testing.T) {
 	accounts := []accountWithLoad{
 		{account: &Account{ID: 1, Priority: 1}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
 	}
-	shuffleWithinSortGroups(accounts)
+	shuffleWithinSortGroups(accounts, nil, testShuffleLegacyConfig())
 	require.Equal(t, int64(1), accounts[0].account.ID)
 }
 
@@ -38,7 +39,7 @@ func TestShuffleWithinSortGroups_DifferentGroups_OrderPreserved(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		cpy := make([]accountWithLoad, len(accounts))
 		copy(cpy, accounts)
-		shuffleWithinSortGroups(cpy)
+		shuffleWithinSortGroups(cpy, nil, testShuffleLegacyConfig())
 		require.Equal(t, int64(1), cpy[0].account.ID)
 		require.Equal(t, int64(2), cpy[1].account.ID)
 		require.Equal(t, int64(3), cpy[2].account.ID)
@@ -62,7 +63,7 @@ func TestShuffleWithinSortGroups_SameGroup_Shuffled(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		cpy := make([]accountWithLoad, len(accounts))
 		copy(cpy, accounts)
-		shuffleWithinSortGroups(cpy)
+		shuffleWithinSortGroups(cpy, nil, testShuffleLegacyConfig())
 		seen[cpy[0].account.ID] = true
 		// 无论怎么打乱，所有 ID 都应在候选中
 		ids := map[int64]bool{}
@@ -86,7 +87,7 @@ func TestShuffleWithinSortGroups_NilLastUsedAt_SameGroup(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		cpy := make([]accountWithLoad, len(accounts))
 		copy(cpy, accounts)
-		shuffleWithinSortGroups(cpy)
+		shuffleWithinSortGroups(cpy, nil, testShuffleLegacyConfig())
 		seen[cpy[0].account.ID] = true
 	}
 	require.GreaterOrEqual(t, len(seen), 2, "nil LastUsedAt accounts should be shuffled")
@@ -110,7 +111,7 @@ func TestShuffleWithinSortGroups_MixedGroups(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		cpy := make([]accountWithLoad, len(accounts))
 		copy(cpy, accounts)
-		shuffleWithinSortGroups(cpy)
+		shuffleWithinSortGroups(cpy, nil, testShuffleLegacyConfig())
 
 		// 组间顺序不变
 		require.Equal(t, int64(1), cpy[0].account.ID, "group 1 position fixed")
@@ -119,6 +120,68 @@ func TestShuffleWithinSortGroups_MixedGroups(t *testing.T) {
 		// 组2 内部可以打乱，但仍在位置 1 和 2
 		mid := map[int64]bool{cpy[1].account.ID: true, cpy[2].account.ID: true}
 		require.True(t, mid[2] && mid[3], "group 2 elements should stay in positions 1-2")
+	}
+}
+
+func TestShuffleWithinSortGroups_HealthSortKeepsDifferentHealthGroups(t *testing.T) {
+	rate := 0.1
+	accounts := []accountWithLoad{
+		{account: &Account{ID: 1, Priority: 1, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: 2, Priority: 1, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+	}
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 90}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 65}},
+	}
+
+	for i := 0; i < 50; i++ {
+		cpy := make([]accountWithLoad, len(accounts))
+		copy(cpy, accounts)
+		shuffleWithinSortGroups(cpy, health, testShuffleHealthConfig())
+		require.Equal(t, int64(1), cpy[0].account.ID)
+		require.Equal(t, int64(2), cpy[1].account.ID)
+	}
+}
+
+func TestShuffleWithinSortGroups_HealthSortShufflesSameTierAndCost(t *testing.T) {
+	rate := 0.1
+	accounts := []accountWithLoad{
+		{account: &Account{ID: 1, Priority: 1, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: 2, Priority: 9, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 90}},
+	}
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 85}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 90}},
+	}
+
+	seen := map[int64]bool{}
+	for i := 0; i < 100; i++ {
+		cpy := make([]accountWithLoad, len(accounts))
+		copy(cpy, accounts)
+		shuffleWithinSortGroups(cpy, health, testShuffleHealthConfig())
+		seen[cpy[0].account.ID] = true
+	}
+	require.GreaterOrEqual(t, len(seen), 2, "same tier and cost accounts should be shuffled even when score/load differ")
+}
+
+func TestShuffleWithinSortGroups_HealthSortKeepsDifferentCostGroups(t *testing.T) {
+	cheap := 0.1
+	expensive := 0.2
+	accounts := []accountWithLoad{
+		{account: &Account{ID: 1, Priority: 1, RateMultiplier: &cheap}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: 2, Priority: 1, RateMultiplier: &expensive}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+	}
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 85}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 90}},
+	}
+
+	for i := 0; i < 50; i++ {
+		cpy := make([]accountWithLoad, len(accounts))
+		copy(cpy, accounts)
+		shuffleWithinSortGroups(cpy, health, testShuffleHealthConfig())
+		require.Equal(t, int64(1), cpy[0].account.ID)
+		require.Equal(t, int64(2), cpy[1].account.ID)
 	}
 }
 
@@ -228,33 +291,45 @@ func TestSameAccountWithLoadGroup(t *testing.T) {
 	t.Run("same group", func(t *testing.T) {
 		a := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 10}}
 		b := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: &sameSecond}, loadInfo: &AccountLoadInfo{LoadRate: 10}}
-		require.True(t, sameAccountWithLoadGroup(a, b))
+		require.True(t, sameAccountWithLoadGroup(a, b, nil, testShuffleLegacyConfig()))
 	})
 
 	t.Run("different priority", func(t *testing.T) {
 		a := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 10}}
 		b := accountWithLoad{account: &Account{Priority: 2, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 10}}
-		require.False(t, sameAccountWithLoadGroup(a, b))
+		require.False(t, sameAccountWithLoadGroup(a, b, nil, testShuffleLegacyConfig()))
 	})
 
 	t.Run("different load rate", func(t *testing.T) {
 		a := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 10}}
 		b := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 20}}
-		require.False(t, sameAccountWithLoadGroup(a, b))
+		require.False(t, sameAccountWithLoadGroup(a, b, nil, testShuffleLegacyConfig()))
 	})
 
 	t.Run("different last used at", func(t *testing.T) {
 		later := now.Add(1 * time.Second)
 		a := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: &now}, loadInfo: &AccountLoadInfo{LoadRate: 10}}
 		b := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: &later}, loadInfo: &AccountLoadInfo{LoadRate: 10}}
-		require.False(t, sameAccountWithLoadGroup(a, b))
+		require.False(t, sameAccountWithLoadGroup(a, b, nil, testShuffleLegacyConfig()))
 	})
 
 	t.Run("both nil LastUsedAt", func(t *testing.T) {
 		a := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: nil}, loadInfo: &AccountLoadInfo{LoadRate: 0}}
 		b := accountWithLoad{account: &Account{Priority: 1, LastUsedAt: nil}, loadInfo: &AccountLoadInfo{LoadRate: 0}}
-		require.True(t, sameAccountWithLoadGroup(a, b))
+		require.True(t, sameAccountWithLoadGroup(a, b, nil, testShuffleLegacyConfig()))
 	})
+}
+
+func testShuffleLegacyConfig() config.GatewaySchedulingConfig {
+	return config.GatewaySchedulingConfig{HealthSortEnabled: false}
+}
+
+func testShuffleHealthConfig() config.GatewaySchedulingConfig {
+	return config.GatewaySchedulingConfig{
+		HealthSortEnabled:     true,
+		HealthTierHealthyMin:  80,
+		HealthTierDegradedMin: 60,
+	}
 }
 
 // ============ sameAccountGroup 测试 ============

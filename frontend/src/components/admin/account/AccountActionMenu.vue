@@ -4,7 +4,7 @@
       <!-- Backdrop: click anywhere outside to close -->
       <div class="fixed inset-0 z-[9998]" @click="emit('close')"></div>
       <div
-        class="action-menu-content fixed z-[9999] w-52 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 dark:bg-dark-800"
+        class="action-menu-content fixed z-[9999] w-52 overflow-hidden rounded-xl bg-white text-gray-700 shadow-lg ring-1 ring-black/5 dark:bg-dark-800 dark:text-gray-200"
         :style="{ top: position.top + 'px', left: position.left + 'px' }"
         @click.stop
       >

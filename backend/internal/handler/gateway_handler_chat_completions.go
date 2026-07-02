@@ -251,6 +251,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				if c.Writer.Size() != writerSizeBeforeForward {
+					h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 					h.handleCCFailoverExhausted(c, failoverErr, true)
 					return
 				}

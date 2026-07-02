@@ -504,6 +504,7 @@ func TestOpenAISelectAccountWithLoadAwareness_ImageRateLimitSkipsOnlyImageReques
 	svc := &OpenAIGatewayService{
 		accountRepo:        stubOpenAIAccountRepo{accounts: []Account{imageLimited, available}},
 		concurrencyService: NewConcurrencyService(stubConcurrencyCache{}),
+		cfg:                &config.Config{Gateway: config.GatewayConfig{Scheduling: config.GatewaySchedulingConfig{HealthSortEnabled: false, LoadBatchEnabled: true}}},
 	}
 
 	imageSelection, err := svc.SelectAccountWithLoadAwareness(WithOpenAIImageGenerationIntent(context.Background()), &groupID, "", "gpt-5.4", nil)
@@ -759,6 +760,7 @@ func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorFallback(t *testing.
 		accountRepo:        repo,
 		cache:              cache,
 		concurrencyService: NewConcurrencyService(concurrencyCache),
+		cfg:                &config.Config{Gateway: config.GatewayConfig{Scheduling: config.GatewaySchedulingConfig{HealthSortEnabled: false, LoadBatchEnabled: true}}},
 	}
 
 	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, "fallback", "gpt-4", nil)
@@ -798,6 +800,7 @@ func TestOpenAISelectAccountWithLoadAwareness_NoSlotFallbackWait(t *testing.T) {
 		accountRepo:        repo,
 		cache:              cache,
 		concurrencyService: NewConcurrencyService(concurrencyCache),
+		cfg:                &config.Config{Gateway: config.GatewayConfig{Scheduling: config.GatewaySchedulingConfig{HealthSortEnabled: false, LoadBatchEnabled: true}}},
 	}
 
 	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, "", "gpt-4", nil)
@@ -858,6 +861,7 @@ func TestOpenAISelectAccountWithLoadAwareness_StickyWaitPlan(t *testing.T) {
 		accountRepo:        repo,
 		cache:              cache,
 		concurrencyService: NewConcurrencyService(concurrencyCache),
+		cfg:                &config.Config{Gateway: config.GatewayConfig{Scheduling: config.GatewaySchedulingConfig{HealthSortEnabled: false, LoadBatchEnabled: true}}},
 	}
 
 	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, sessionHash, "gpt-4", nil)
@@ -892,6 +896,7 @@ func TestOpenAISelectAccountWithLoadAwareness_PrefersLowerLoad(t *testing.T) {
 		accountRepo:        repo,
 		cache:              cache,
 		concurrencyService: NewConcurrencyService(concurrencyCache),
+		cfg:                &config.Config{Gateway: config.GatewayConfig{Scheduling: config.GatewaySchedulingConfig{HealthSortEnabled: false, LoadBatchEnabled: true}}},
 	}
 
 	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, "load", "gpt-4", nil)
@@ -995,6 +1000,7 @@ func TestOpenAISelectAccountWithLoadAwareness_NoCandidates(t *testing.T) {
 		accountRepo:        repo,
 		cache:              cache,
 		concurrencyService: NewConcurrencyService(concurrencyCache),
+		cfg:                &config.Config{Gateway: config.GatewayConfig{Scheduling: config.GatewaySchedulingConfig{HealthSortEnabled: false, LoadBatchEnabled: true}}},
 	}
 
 	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, "", "gpt-4", nil)
@@ -1024,6 +1030,7 @@ func TestOpenAISelectAccountWithLoadAwareness_AllFullWaitPlan(t *testing.T) {
 		accountRepo:        repo,
 		cache:              cache,
 		concurrencyService: NewConcurrencyService(concurrencyCache),
+		cfg:                &config.Config{Gateway: config.GatewayConfig{Scheduling: config.GatewaySchedulingConfig{HealthSortEnabled: false, LoadBatchEnabled: true}}},
 	}
 
 	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, "", "gpt-4", nil)
@@ -1052,6 +1059,7 @@ func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorNoAcquire(t *testing
 		accountRepo:        repo,
 		cache:              cache,
 		concurrencyService: NewConcurrencyService(concurrencyCache),
+		cfg:                &config.Config{Gateway: config.GatewayConfig{Scheduling: config.GatewaySchedulingConfig{HealthSortEnabled: false, LoadBatchEnabled: true}}},
 	}
 
 	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, "", "gpt-4", nil)
@@ -1083,6 +1091,7 @@ func TestOpenAISelectAccountWithLoadAwareness_MissingLoadInfo(t *testing.T) {
 		accountRepo:        repo,
 		cache:              cache,
 		concurrencyService: NewConcurrencyService(concurrencyCache),
+		cfg:                &config.Config{Gateway: config.GatewayConfig{Scheduling: config.GatewaySchedulingConfig{HealthSortEnabled: false, LoadBatchEnabled: true}}},
 	}
 
 	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, "", "gpt-4", nil)

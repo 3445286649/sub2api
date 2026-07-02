@@ -1990,8 +1990,8 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 
 			if len(routingAvailable) > 0 {
-				sortAccountWithLoadByHealthCostAndLoad(routingAvailable, healthByAccountID, preferOAuth, cfg.HealthSortEnabled)
-				shuffleWithinSortGroups(routingAvailable)
+				sortAccountWithLoadByHealthCostAndLoad(routingAvailable, healthByAccountID, preferOAuth, cfg)
+				shuffleWithinSortGroups(routingAvailable, healthByAccountID, cfg)
 
 				// 4. 尝试获取槽位
 				for _, item := range routingAvailable {
@@ -2230,7 +2230,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 		}
 
-		sortAccountWithLoadByHealthCostAndLoad(available, healthByAccountID, preferOAuth, cfg.HealthSortEnabled)
+		sortAccountWithLoadByHealthCostAndLoad(available, healthByAccountID, preferOAuth, cfg)
 		// 分层过滤选择：健康度/成本/优先级/负载率/LRU 排序后逐个尝试；
 		// PreferSoonestReset 仍在相同优先条件内保留 use-it-or-lose-it 行为。
 		for len(available) > 0 {
@@ -2285,7 +2285,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates []*Account, groupID *int64, sessionHash string, preferOAuth bool) (*AccountSelectionResult, bool, error) {
 	ordered := append([]*Account(nil), candidates...)
 	healthByAccountID := s.loadAccountHealthSummariesForPointers(ctx, ordered)
-	sortAccountPointersByHealthCostAndLRU(ordered, healthByAccountID, preferOAuth, s.schedulingConfig().HealthSortEnabled)
+	sortAccountPointersByHealthCostAndLRU(ordered, healthByAccountID, preferOAuth, s.schedulingConfig())
 
 	for _, acc := range ordered {
 		result, err := s.tryAcquireAccountSlot(ctx, acc.ID, acc.Concurrency)
@@ -2324,6 +2324,25 @@ func (s *GatewayService) loadAccountHealthSummaries(ctx context.Context, account
 	return summaries
 }
 
+func (s *GatewayService) filterAccountsByHealthSchedulable(ctx context.Context, accounts []Account) []Account {
+	if s == nil || s.accountHealthService == nil || len(accounts) == 0 {
+		return accounts
+	}
+	health := s.loadAccountHealthSummaries(ctx, accounts)
+	if len(health) == 0 {
+		return accounts
+	}
+	filtered := make([]Account, 0, len(accounts))
+	for _, account := range accounts {
+		summary := health[account.ID]
+		if summary != nil && (summary.Status == AccountHealthStatusIsolated || summary.Status == AccountHealthStatusRecovering) {
+			continue
+		}
+		filtered = append(filtered, account)
+	}
+	return filtered
+}
+
 func (s *GatewayService) loadAccountHealthSummariesForPointers(ctx context.Context, accounts []*Account) map[int64]*AccountHealthSummary {
 	if s == nil || s.accountHealthService == nil || len(accounts) == 0 {
 		return nil
@@ -2351,6 +2370,8 @@ func (s *GatewayService) schedulingConfig() config.GatewaySchedulingConfig {
 		FallbackWaitTimeout:      30 * time.Second,
 		FallbackMaxWaiting:       100,
 		HealthSortEnabled:        true,
+		HealthTierHealthyMin:     defaultAccountHealthScore,
+		HealthTierDegradedMin:    accountHealthDefaultTierDegradedMin,
 		LoadBatchEnabled:         true,
 		SlotCleanupInterval:      30 * time.Second,
 	}
@@ -2487,6 +2508,7 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 	if s.schedulerSnapshot != nil {
 		accounts, useMixed, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, hasForcePlatform)
 		if err == nil {
+			accounts = s.filterAccountsByHealthSchedulable(ctx, accounts)
 			slog.Debug("account_scheduling_list_snapshot",
 				"group_id", derefGroupID(groupID),
 				"platform", platform,
@@ -2548,7 +2570,7 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 					"tls_fingerprint", acc.IsTLSFingerprintEnabled())
 			}
 		}
-		return filtered, useMixed, nil
+		return s.filterAccountsByHealthSchedulable(ctx, filtered), useMixed, nil
 	}
 
 	var accounts []Account
@@ -2583,7 +2605,7 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 				"tls_fingerprint", acc.IsTLSFingerprintEnabled())
 		}
 	}
-	return accounts, useMixed, nil
+	return s.filterAccountsByHealthSchedulable(ctx, accounts), useMixed, nil
 }
 
 // IsSingleAntigravityAccountGroup 检查指定分组是否只有一个 antigravity 平台的可调度账号。
@@ -3143,16 +3165,16 @@ func sortAccountsByPriorityAndLastUsed(accounts []*Account, preferOAuth bool) {
 	shuffleWithinPriorityAndLastUsed(accounts, preferOAuth)
 }
 
-// shuffleWithinSortGroups 对排序后的 accountWithLoad 切片，按 (Priority, LoadRate, LastUsedAt) 分组后组内随机打乱。
+// shuffleWithinSortGroups 对排序后的 accountWithLoad 切片，按同一排序组内随机打乱。
 // 防止并发请求读取同一快照时，确定性排序导致所有请求命中相同账号。
-func shuffleWithinSortGroups(accounts []accountWithLoad) {
+func shuffleWithinSortGroups(accounts []accountWithLoad, health map[int64]*AccountHealthSummary, cfg config.GatewaySchedulingConfig) {
 	if len(accounts) <= 1 {
 		return
 	}
 	i := 0
 	for i < len(accounts) {
 		j := i + 1
-		for j < len(accounts) && sameAccountWithLoadGroup(accounts[i], accounts[j]) {
+		for j < len(accounts) && sameAccountWithLoadGroup(accounts[i], accounts[j], health, cfg) {
 			j++
 		}
 		if j-i > 1 {
@@ -3165,7 +3187,18 @@ func shuffleWithinSortGroups(accounts []accountWithLoad) {
 }
 
 // sameAccountWithLoadGroup 判断两个 accountWithLoad 是否属于同一排序组
-func sameAccountWithLoadGroup(a, b accountWithLoad) bool {
+func sameAccountWithLoadGroup(a, b accountWithLoad, health map[int64]*AccountHealthSummary, cfg config.GatewaySchedulingConfig) bool {
+	if cfg.HealthSortEnabled {
+		aScore, _ := accountHealthSortValueForScheduling(health, a.account.ID, cfg)
+		bScore, _ := accountHealthSortValueForScheduling(health, b.account.ID, cfg)
+		if accountHealthTier(aScore, cfg) != accountHealthTier(bScore, cfg) {
+			return false
+		}
+		if a.account.BillingRateMultiplier() != b.account.BillingRateMultiplier() {
+			return false
+		}
+		return true
+	}
 	if a.account.Priority != b.account.Priority {
 		return false
 	}

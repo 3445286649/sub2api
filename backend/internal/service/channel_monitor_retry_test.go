@@ -67,6 +67,27 @@ func TestRunCheckForModelWithSequentialProbeExcludesSelectedAccountOnRetry(t *te
 	}
 }
 
+func TestCallProviderWithRetryExcludesSelectedAccountOnInternalRetry(t *testing.T) {
+	h := &openAICaptureHandler{emptyResponseUntil: 1}
+	endpoint := setupFakeOpenAI(t, h)
+	signer := NewChannelMonitorSigner()
+
+	out := callProviderWithRetry(context.Background(), MonitorProviderOpenAI, endpoint, "sk-openai", "gpt-test", "ping", nil, signer, nil)
+
+	if out.attempts != 2 {
+		t.Fatalf("expected internal retry, got attempts=%d", out.attempts)
+	}
+	if len(h.seenHeaders) != 2 {
+		t.Fatalf("expected two HTTP calls, got %d", len(h.seenHeaders))
+	}
+	if got := h.seenHeaders[1].Get(ChannelMonitorHeaderExcludeAccounts); got != "774" {
+		t.Fatalf("expected internal retry to exclude selected account 774, got %q", got)
+	}
+	if h.seenHeaders[1].Get(ChannelMonitorHeaderSignature) == "" {
+		t.Fatal("expected signed monitor retry header")
+	}
+}
+
 func TestChannelMonitorServiceOnlySignsSameOriginEndpoint(t *testing.T) {
 	svc := NewChannelMonitorService(nil, nil)
 	svc.SetSettingReader(channelMonitorSettingReaderStub{apiBaseURL: "https://api.example.com"})

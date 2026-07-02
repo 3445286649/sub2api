@@ -38,6 +38,45 @@ func TestRedactText_GOCSPX(t *testing.T) {
 	}
 }
 
+func TestRedactText_BareTokens(t *testing.T) {
+	cases := []struct {
+		name        string
+		input       string
+		mustRemove  string
+		mustContain string
+	}{
+		{
+			name:        "openai key",
+			input:       "Incorrect API key provided: sk-1234567890abcdef1234567890abcdef",
+			mustRemove:  "sk-1234567890abcdef",
+			mustContain: "sk-***",
+		},
+		{
+			name:        "bearer token",
+			input:       "Authorization failed for Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig",
+			mustRemove:  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+			mustContain: "Bearer ***",
+		},
+		{
+			name:        "slack token",
+			input:       "upstream returned token xoxb-123456789012-abcdefghi",
+			mustRemove:  "xoxb-123456789012-abcdefghi",
+			mustContain: "xox*-***",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out := RedactText(tc.input)
+			if strings.Contains(out, tc.mustRemove) {
+				t.Fatalf("expected sensitive token removed, got %q", out)
+			}
+			if !strings.Contains(out, tc.mustContain) {
+				t.Fatalf("expected %q in %q", tc.mustContain, out)
+			}
+		})
+	}
+}
+
 func TestRedactText_ExtraKeyCacheUsesNormalizedSortedKey(t *testing.T) {
 	clearExtraTextPatternCache()
 

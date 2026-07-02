@@ -16,7 +16,8 @@ import (
 
 // mockTempUnscheduler 记录 TempUnscheduleRetryableError 的调用信息。
 type mockTempUnscheduler struct {
-	calls []tempUnscheduleCall
+	calls       []tempUnscheduleCall
+	healthCalls []tempUnscheduleCall
 }
 
 type tempUnscheduleCall struct {
@@ -26,6 +27,10 @@ type tempUnscheduleCall struct {
 
 func (m *mockTempUnscheduler) TempUnscheduleRetryableError(_ context.Context, accountID int64, failoverErr *service.UpstreamFailoverError) {
 	m.calls = append(m.calls, tempUnscheduleCall{accountID: accountID, failoverErr: failoverErr})
+}
+
+func (m *mockTempUnscheduler) RecordAccountHealthFailure(_ context.Context, accountID int64, failoverErr *service.UpstreamFailoverError) {
+	m.healthCalls = append(m.healthCalls, tempUnscheduleCall{accountID: accountID, failoverErr: failoverErr})
 }
 
 // ---------------------------------------------------------------------------
@@ -286,6 +291,7 @@ func TestHandleFailoverError_SameAccountRetry(t *testing.T) {
 		require.Equal(t, 0, fs.SwitchCount, "同账号重试不应增加切换计数")
 		require.NotContains(t, fs.FailedAccountIDs, int64(100), "同账号重试不应加入失败列表")
 		require.Empty(t, mock.calls, "同账号重试期间不应调用 TempUnschedule")
+		require.Empty(t, mock.healthCalls, "同账号重试期间不应记录健康失败")
 		// 验证等待了 sameAccountRetryDelay (500ms)
 		require.GreaterOrEqual(t, elapsed, 400*time.Millisecond)
 		require.Less(t, elapsed, 2*time.Second)
@@ -303,6 +309,7 @@ func TestHandleFailoverError_SameAccountRetry(t *testing.T) {
 		}
 
 		require.Empty(t, mock.calls, "达到最大重试次数前均不应调用 TempUnschedule")
+		require.Empty(t, mock.healthCalls, "达到最大重试次数前均不应记录健康失败")
 	})
 
 	t.Run("超过最大重试次数后触发TempUnschedule并切换", func(t *testing.T) {
@@ -325,6 +332,8 @@ func TestHandleFailoverError_SameAccountRetry(t *testing.T) {
 		require.Len(t, mock.calls, 1)
 		require.Equal(t, int64(100), mock.calls[0].accountID)
 		require.Equal(t, err, mock.calls[0].failoverErr)
+		require.Len(t, mock.healthCalls, 1)
+		require.Equal(t, int64(100), mock.healthCalls[0].accountID)
 	})
 
 	t.Run("不同账号独立跟踪重试次数", func(t *testing.T) {

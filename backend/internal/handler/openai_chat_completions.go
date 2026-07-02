@@ -238,8 +238,8 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			} else {
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
-					h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 					if c.Writer.Size() != writerSizeBeforeForward {
+						h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 						h.handleFailoverExhausted(c, failoverErr, true)
 						return
 					}
@@ -263,6 +263,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 							continue
 						}
 					}
+					h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 					h.gatewayService.RecordOpenAIAccountSwitch()
 					failedAccountIDs[account.ID] = struct{}{}
 					lastFailoverErr = failoverErr

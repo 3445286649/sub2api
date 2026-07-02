@@ -155,6 +155,10 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 
 	// 3. Account selection + failover loop
 	fs := NewFailoverState(h.maxAccountSwitches, false)
+	excluded, isChannelMonitorRequest := channelMonitorRequestContext(c, h.channelMonitorSigner)
+	for id := range excluded {
+		fs.FailedAccountIDs[id] = struct{}{}
+	}
 
 	for {
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(requestCtx, apiKey.GroupID, sessionHash, reqModel, fs.FailedAccountIDs, "", int64(0))
@@ -188,6 +192,9 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		}
 		account := selection.Account
 		setOpsSelectedAccount(c, account.ID, account.Platform)
+		if isChannelMonitorRequest {
+			writeChannelMonitorSelectedAccountHeader(c, account.ID)
+		}
 
 		// 4. Acquire account concurrency slot
 		accountReleaseFunc := selection.ReleaseFunc
@@ -230,6 +237,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 			if errors.As(err, &failoverErr) {
 				// Can't failover if streaming content already sent
 				if c.Writer.Size() != writerSizeBeforeForward {
+					h.gatewayService.RecordAccountHealthFailure(requestCtx, account.ID, failoverErr)
 					h.handleResponsesFailoverExhausted(c, failoverErr, true)
 					return
 				}

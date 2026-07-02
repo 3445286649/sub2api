@@ -79,6 +79,12 @@ func TestLoadDefaultSchedulingConfig(t *testing.T) {
 	if cfg.Gateway.Scheduling.SlotCleanupInterval != 30*time.Second {
 		t.Fatalf("SlotCleanupInterval = %v, want 30s", cfg.Gateway.Scheduling.SlotCleanupInterval)
 	}
+	if cfg.Gateway.Scheduling.HealthTierHealthyMin != 80 {
+		t.Fatalf("HealthTierHealthyMin = %d, want 80", cfg.Gateway.Scheduling.HealthTierHealthyMin)
+	}
+	if cfg.Gateway.Scheduling.HealthTierDegradedMin != 60 {
+		t.Fatalf("HealthTierDegradedMin = %d, want 60", cfg.Gateway.Scheduling.HealthTierDegradedMin)
+	}
 }
 
 func TestLoadDefaultOpenAIWSConfig(t *testing.T) {
@@ -273,6 +279,8 @@ func TestLoadIdempotencyConfigFromEnv(t *testing.T) {
 func TestLoadSchedulingConfigFromEnv(t *testing.T) {
 	resetViperWithJWTSecret(t)
 	t.Setenv("GATEWAY_SCHEDULING_STICKY_SESSION_MAX_WAITING", "5")
+	t.Setenv("GATEWAY_SCHEDULING_HEALTH_TIER_HEALTHY_MIN", "85")
+	t.Setenv("GATEWAY_SCHEDULING_HEALTH_TIER_DEGRADED_MIN", "60")
 
 	cfg, err := Load()
 	if err != nil {
@@ -281,6 +289,48 @@ func TestLoadSchedulingConfigFromEnv(t *testing.T) {
 
 	if cfg.Gateway.Scheduling.StickySessionMaxWaiting != 5 {
 		t.Fatalf("StickySessionMaxWaiting = %d, want 5", cfg.Gateway.Scheduling.StickySessionMaxWaiting)
+	}
+	if cfg.Gateway.Scheduling.HealthTierHealthyMin != 85 {
+		t.Fatalf("HealthTierHealthyMin = %d, want 85", cfg.Gateway.Scheduling.HealthTierHealthyMin)
+	}
+	if cfg.Gateway.Scheduling.HealthTierDegradedMin != 60 {
+		t.Fatalf("HealthTierDegradedMin = %d, want 60", cfg.Gateway.Scheduling.HealthTierDegradedMin)
+	}
+}
+
+func TestLoadSchedulingHealthTierInvalidConfigFallsBack(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("GATEWAY_SCHEDULING_HEALTH_TIER_HEALTHY_MIN", "50")
+	t.Setenv("GATEWAY_SCHEDULING_HEALTH_TIER_DEGRADED_MIN", "60")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	if cfg.Gateway.Scheduling.HealthTierHealthyMin != 80 {
+		t.Fatalf("HealthTierHealthyMin = %d, want fallback 80", cfg.Gateway.Scheduling.HealthTierHealthyMin)
+	}
+	if cfg.Gateway.Scheduling.HealthTierDegradedMin != 60 {
+		t.Fatalf("HealthTierDegradedMin = %d, want fallback 60", cfg.Gateway.Scheduling.HealthTierDegradedMin)
+	}
+}
+
+func TestLoadSchedulingHealthTierNonNumericEnvFallsBack(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("GATEWAY_SCHEDULING_HEALTH_TIER_HEALTHY_MIN", "abc")
+	t.Setenv("GATEWAY_SCHEDULING_HEALTH_TIER_DEGRADED_MIN", "60")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	if cfg.Gateway.Scheduling.HealthTierHealthyMin != 80 {
+		t.Fatalf("HealthTierHealthyMin = %d, want fallback 80", cfg.Gateway.Scheduling.HealthTierHealthyMin)
+	}
+	if cfg.Gateway.Scheduling.HealthTierDegradedMin != 60 {
+		t.Fatalf("HealthTierDegradedMin = %d, want fallback 60", cfg.Gateway.Scheduling.HealthTierDegradedMin)
 	}
 }
 

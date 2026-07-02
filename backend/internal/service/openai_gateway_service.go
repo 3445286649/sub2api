@@ -2220,8 +2220,8 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 			return nil, false, nil
 		}
 
-		sortAccountWithLoadByHealthCostAndLoad(available, healthByAccountID, false, cfg.HealthSortEnabled)
-		shuffleWithinSortGroups(available)
+		sortAccountWithLoadByHealthCostAndLoad(available, healthByAccountID, false, cfg)
+		shuffleWithinSortGroups(available, healthByAccountID, cfg)
 
 		selectionOrder := make([]accountWithLoad, 0, len(available))
 		if requireCompact {
@@ -2272,7 +2272,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	loadMap, err := s.concurrencyService.GetAccountsLoadBatch(ctx, accountLoads)
 	if err != nil {
 		ordered := append([]*Account(nil), candidates...)
-		sortAccountPointersByHealthCostAndLRU(ordered, healthByAccountID, false, cfg.HealthSortEnabled)
+		sortAccountPointersByHealthCostAndLRU(ordered, healthByAccountID, false, cfg)
 		if requireCompact {
 			ordered = prioritizeOpenAICompactAccounts(ordered)
 		}
@@ -2317,7 +2317,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	}
 
 	// ============ Layer 3: Fallback wait ============
-	sortAccountPointersByHealthCostAndLRU(candidates, healthByAccountID, false, cfg.HealthSortEnabled)
+	sortAccountPointersByHealthCostAndLRU(candidates, healthByAccountID, false, cfg)
 	if requireCompact {
 		candidates = prioritizeOpenAICompactAccounts(candidates)
 	}
@@ -2508,6 +2508,8 @@ func (s *OpenAIGatewayService) schedulingConfig() config.GatewaySchedulingConfig
 		FallbackWaitTimeout:      30 * time.Second,
 		FallbackMaxWaiting:       100,
 		HealthSortEnabled:        true,
+		HealthTierHealthyMin:     defaultAccountHealthScore,
+		HealthTierDegradedMin:    accountHealthDefaultTierDegradedMin,
 		LoadBatchEnabled:         true,
 		SlotCleanupInterval:      30 * time.Second,
 	}

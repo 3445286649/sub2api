@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -1072,6 +1073,10 @@ type GatewaySchedulingConfig struct {
 	// HealthSortEnabled 开启后，账号调度会在硬过滤后按「成本倍率 → 健康分 → 平均延迟」优化排序。
 	// 关闭后回退旧的优先级/负载/LRU 排序，方便线上排障。
 	HealthSortEnabled bool `mapstructure:"health_sort_enabled"`
+	// HealthTierHealthyMin / HealthTierDegradedMin 控制健康分层调度阈值。
+	// 默认 80/60；非法配置会在加载阶段回退默认值，不阻止启动。
+	HealthTierHealthyMin  int `mapstructure:"health_tier_healthy_min"`
+	HealthTierDegradedMin int `mapstructure:"health_tier_degraded_min"`
 
 	// 负载计算
 	LoadBatchEnabled    bool `mapstructure:"load_batch_enabled"`
@@ -1367,6 +1372,54 @@ func NormalizeRunMode(value string) string {
 	}
 }
 
+const (
+	defaultSchedulingHealthTierHealthyMin  = 80
+	defaultSchedulingHealthTierDegradedMin = 60
+)
+
+func normalizeGatewaySchedulingHealthTiers(cfg *GatewaySchedulingConfig) {
+	if cfg == nil {
+		return
+	}
+	healthyMin := cfg.HealthTierHealthyMin
+	degradedMin := cfg.HealthTierDegradedMin
+	if healthyMin < 0 || healthyMin > 100 || degradedMin < 0 || degradedMin > 100 || healthyMin <= degradedMin {
+		slog.Warn("invalid gateway scheduling health tier thresholds, falling back to defaults",
+			"health_tier_healthy_min", healthyMin,
+			"health_tier_degraded_min", degradedMin,
+			"default_health_tier_healthy_min", defaultSchedulingHealthTierHealthyMin,
+			"default_health_tier_degraded_min", defaultSchedulingHealthTierDegradedMin)
+		cfg.HealthTierHealthyMin = defaultSchedulingHealthTierHealthyMin
+		cfg.HealthTierDegradedMin = defaultSchedulingHealthTierDegradedMin
+	}
+}
+
+func normalizeGatewaySchedulingHealthTierRawValues() {
+	keys := []string{
+		"gateway.scheduling.health_tier_healthy_min",
+		"gateway.scheduling.health_tier_degraded_min",
+	}
+	for _, key := range keys {
+		if !viper.IsSet(key) {
+			continue
+		}
+		raw := strings.TrimSpace(viper.GetString(key))
+		if raw == "" {
+			continue
+		}
+		if _, err := strconv.Atoi(raw); err != nil {
+			slog.Warn("invalid gateway scheduling health tier threshold value, falling back to defaults",
+				"key", key,
+				"value", raw,
+				"default_health_tier_healthy_min", defaultSchedulingHealthTierHealthyMin,
+				"default_health_tier_degraded_min", defaultSchedulingHealthTierDegradedMin)
+			viper.Set("gateway.scheduling.health_tier_healthy_min", defaultSchedulingHealthTierHealthyMin)
+			viper.Set("gateway.scheduling.health_tier_degraded_min", defaultSchedulingHealthTierDegradedMin)
+			return
+		}
+	}
+}
+
 // Load 读取并校验完整配置（要求 jwt.secret 已显式提供）。
 func Load() (*Config, error) {
 	return load(false)
@@ -1410,6 +1463,8 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		}
 		// 配置文件不存在时使用默认值
 	}
+
+	normalizeGatewaySchedulingHealthTierRawValues()
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
@@ -1499,6 +1554,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 			"valid_modes", []string{UMQModeSerialize, UMQModeThrottle})
 		cfg.Gateway.UserMessageQueue.Mode = ""
 	}
+	normalizeGatewaySchedulingHealthTiers(&cfg.Gateway.Scheduling)
 
 	// Auto-generate TOTP encryption key if not set (32 bytes = 64 hex chars for AES-256)
 	cfg.Totp.EncryptionKey = strings.TrimSpace(cfg.Totp.EncryptionKey)
@@ -1929,6 +1985,8 @@ func setDefaults() {
 	viper.SetDefault("gateway.scheduling.fallback_selection_mode", "last_used")
 	viper.SetDefault("gateway.scheduling.prefer_soonest_reset", false)
 	viper.SetDefault("gateway.scheduling.health_sort_enabled", true)
+	viper.SetDefault("gateway.scheduling.health_tier_healthy_min", 80)
+	viper.SetDefault("gateway.scheduling.health_tier_degraded_min", 60)
 	viper.SetDefault("gateway.scheduling.load_batch_enabled", true)
 	viper.SetDefault("gateway.scheduling.load_batch_cache_ttl_ms", 200)
 	viper.SetDefault("gateway.scheduling.snapshot_mget_chunk_size", 128)

@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -342,6 +343,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
 	failedAccountIDs := make(map[int64]struct{})
+	excluded, isChannelMonitorRequest := channelMonitorRequestContext(c, h.channelMonitorSigner)
+	for id := range excluded {
+		failedAccountIDs[id] = struct{}{}
+	}
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
 
@@ -409,6 +414,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 		reqLog.Debug("openai.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 		setOpsSelectedAccount(c, account.ID, account.Platform)
+		if isChannelMonitorRequest {
+			writeChannelMonitorSelectedAccountHeader(c, account.ID)
+		}
 
 		accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
 		if !acquired {
@@ -452,8 +460,8 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			} else {
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
-					h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 					if c.Writer.Size() != writerSizeBeforeForward {
+						h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 						h.handleFailoverExhausted(c, failoverErr, true)
 						return
 					}
@@ -477,6 +485,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 							continue
 						}
 					}
+					h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 					h.gatewayService.RecordOpenAIAccountSwitch()
 					failedAccountIDs[account.ID] = struct{}{}
 					lastFailoverErr = failoverErr
@@ -774,6 +783,10 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
 	failedAccountIDs := make(map[int64]struct{})
+	excluded, isChannelMonitorRequest := channelMonitorRequestContext(c, h.channelMonitorSigner)
+	for id := range excluded {
+		failedAccountIDs[id] = struct{}{}
+	}
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
 	effectiveMappedModel := preferredMappedModel
@@ -832,6 +845,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		reqLog.Debug("openai_messages.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 		_ = scheduleDecision
 		setOpsSelectedAccount(c, account.ID, account.Platform)
+		if isChannelMonitorRequest {
+			writeChannelMonitorSelectedAccountHeader(c, account.ID)
+		}
 
 		accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
 		if !acquired {
@@ -878,8 +894,8 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			} else {
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
-					h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 					if c.Writer.Size() != writerSizeBeforeForward {
+						h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 						h.handleAnthropicFailoverExhausted(c, failoverErr, true)
 						return
 					}
@@ -903,6 +919,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 							continue
 						}
 					}
+					h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 					h.gatewayService.RecordOpenAIAccountSwitch()
 					failedAccountIDs[account.ID] = struct{}{}
 					lastFailoverErr = failoverErr
@@ -1381,6 +1398,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
 	failedAccountIDs := make(map[int64]struct{})
+	excluded, isChannelMonitorRequest := channelMonitorRequestContext(c, h.channelMonitorSigner)
+	for id := range excluded {
+		failedAccountIDs[id] = struct{}{}
+	}
 	var lastFailoverErr *service.UpstreamFailoverError
 
 	for {
@@ -1419,6 +1440,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		}
 
 		account := selection.Account
+		if isChannelMonitorRequest {
+			writeChannelMonitorSelectedAccountHeader(c, account.ID)
+		}
 		accountMaxConcurrency := account.Concurrency
 		if selection.WaitPlan != nil && selection.WaitPlan.MaxConcurrency > 0 {
 			accountMaxConcurrency = selection.WaitPlan.MaxConcurrency
@@ -1465,6 +1489,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		)
 
 		var requestPayloadHash string
+		var wsTurnFailureRecorded atomic.Bool
 		hooks := &service.OpenAIWSIngressHooks{
 			InitialRequestModel: reqModel,
 			BeforeRequest: func(turn int, payload []byte, originalModel string) error {
@@ -1533,6 +1558,13 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					cyberBlockedThisConn = true
 				}
 				if turnErr != nil {
+					var failoverErr *service.UpstreamFailoverError
+					if errors.As(turnErr, &failoverErr) {
+						h.gatewayService.RecordAccountHealthFailure(ctx, account.ID, failoverErr)
+					} else {
+						h.gatewayService.RecordAccountHealthForwardError(ctx, account.ID, turnErr)
+					}
+					wsTurnFailureRecorded.Store(true)
 					if result == nil || result.ImageCount <= 0 {
 						return
 					}
@@ -1555,6 +1587,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					h.gatewayService.UpdateCodexUsageSnapshotFromHeaders(ctx, account.ID, result.ResponseHeaders)
 				}
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, result.FirstTokenMs)
+				h.gatewayService.RecordAccountHealthSuccess(ctx, account.ID, result.Duration.Milliseconds())
 				inboundEndpoint := GetInboundEndpoint(c)
 				upstreamEndpoint := resolveOpenAIUpstreamEndpoint(c, account)
 				quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
@@ -1611,6 +1644,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
+				if !wsTurnFailureRecorded.Load() {
+					h.gatewayService.RecordAccountHealthFailure(ctx, account.ID, failoverErr)
+				}
 				releaseAccountSlot()
 				failedAccountIDs[account.ID] = struct{}{}
 				lastFailoverErr = failoverErr
@@ -1637,6 +1673,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			}
 
 			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
+			h.gatewayService.RecordAccountHealthForwardError(ctx, account.ID, err)
 			closeStatus, closeReason := summarizeWSCloseErrorForLog(err)
 			reqLog.Warn("openai.websocket_proxy_failed",
 				zap.Int64("account_id", account.ID),

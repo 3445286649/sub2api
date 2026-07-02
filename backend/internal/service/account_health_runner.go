@@ -10,6 +10,7 @@ import (
 )
 
 const accountHealthProbeMaxWorkers = 5
+const accountHealthProbeLease = 5 * time.Minute
 
 type AccountHealthRunner struct {
 	healthSvc      *AccountHealthService
@@ -79,6 +80,17 @@ func (r *AccountHealthRunner) runDueProbes() {
 	var wg sync.WaitGroup
 	for _, state := range states {
 		if state == nil || !r.tryClaim(state.AccountID) {
+			continue
+		}
+		now := time.Now()
+		claimed, err := r.healthSvc.ClaimDueProbe(ctx, state.AccountID, now, now.Add(accountHealthProbeLease))
+		if err != nil {
+			r.release(state.AccountID)
+			logger.LegacyPrintf("service.account_health_runner", "[AccountHealthRunner] ClaimDueProbe account_id=%d error: %v", state.AccountID, err)
+			continue
+		}
+		if state.NextProbeAt != nil && !claimed {
+			r.release(state.AccountID)
 			continue
 		}
 		sem <- struct{}{}

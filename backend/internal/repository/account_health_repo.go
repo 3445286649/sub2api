@@ -120,6 +120,81 @@ func (r *accountHealthRepository) ListDueForProbe(ctx context.Context, now time.
 	return out, rows.Err()
 }
 
+func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID int64, now time.Time, leaseUntil time.Time) (bool, error) {
+	res, err := r.sql.ExecContext(ctx, `
+		INSERT INTO account_health_states (
+			account_id, score, consecutive_successes, consecutive_failures, status,
+			last_success_at, last_failure_at, last_checked_at, last_error_category, last_error_message,
+			latency_ewma_ms, backoff_level, next_probe_at, isolated_at, created_at, updated_at
+		)
+		SELECT
+			a.id, 80, 0, 0, 'healthy',
+			NULL, NULL, NULL, NULL, NULL,
+			NULL, 0, $3, NULL, COALESCE(a.created_at, $2), COALESCE(a.updated_at, a.created_at, $2)
+		FROM accounts a
+		WHERE a.id = $1
+		  AND a.deleted_at IS NULL
+		  AND a.status = 'active'
+		  AND a.schedulable IS TRUE
+		  AND a.health_probe_enabled IS TRUE
+		  AND a.healthy_probe_enabled IS TRUE
+		  AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $2)
+		ON CONFLICT (account_id) DO UPDATE SET
+			next_probe_at = EXCLUDED.next_probe_at,
+			updated_at = CASE
+				WHEN account_health_states.status = 'healthy' THEN account_health_states.updated_at
+				ELSE $2
+			END
+		WHERE EXISTS (
+			SELECT 1
+			FROM accounts a
+			WHERE a.id = account_health_states.account_id
+			  AND a.deleted_at IS NULL
+			  AND a.health_probe_enabled IS TRUE
+			  AND (
+				(
+				  account_health_states.status IN ('isolated', 'recovering', 'degraded')
+				  AND account_health_states.next_probe_at IS NOT NULL
+				  AND account_health_states.next_probe_at <= $2
+				)
+				OR (
+				  account_health_states.status = 'healthy'
+				  AND a.status = 'active'
+				  AND a.schedulable IS TRUE
+				  AND a.healthy_probe_enabled IS TRUE
+				  AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $2)
+				  AND (
+					account_health_states.next_probe_at IS NULL
+					OR account_health_states.next_probe_at <= $2
+				  )
+				  AND COALESCE(
+					account_health_states.last_checked_at,
+					account_health_states.last_success_at,
+					account_health_states.updated_at,
+					account_health_states.created_at,
+					a.updated_at,
+					a.created_at
+				  ) + (
+					CASE
+					  WHEN a.healthy_probe_interval_hours IS NOT NULL AND a.healthy_probe_interval_hours > 0
+					  THEN a.healthy_probe_interval_hours
+					  ELSE 6
+					END * INTERVAL '1 hour'
+				  ) <= $2
+				)
+			  )
+		)
+	`, accountID, now, leaseUntil)
+	if err != nil {
+		return false, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected > 0, nil
+}
+
 func (r *accountHealthRepository) InsertEvent(ctx context.Context, event *service.AccountHealthEvent) error {
 	if event == nil {
 		return nil

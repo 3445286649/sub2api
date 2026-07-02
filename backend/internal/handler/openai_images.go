@@ -257,9 +257,9 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 				}
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
-					h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 					h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
 					if c.Writer.Size() != writerSizeBeforeForward {
+						h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 						reqLog.Warn("openai.images.upstream_failover_skipped_after_flush",
 							zap.Int64("account_id", account.ID),
 							zap.Int("upstream_status", failoverErr.StatusCode),
@@ -285,6 +285,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 							continue
 						}
 					}
+					h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 					h.gatewayService.RecordOpenAIAccountSwitch()
 					failedAccountIDs[account.ID] = struct{}{}
 					lastFailoverErr = failoverErr

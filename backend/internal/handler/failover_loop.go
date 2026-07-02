@@ -70,11 +70,6 @@ func (s *FailoverState) HandleFailoverError(
 	failoverErr *service.UpstreamFailoverError,
 ) FailoverAction {
 	s.LastFailoverErr = failoverErr
-	if recorder, ok := gatewayService.(interface {
-		RecordAccountHealthFailure(ctx context.Context, accountID int64, failoverErr *service.UpstreamFailoverError)
-	}); ok {
-		recorder.RecordAccountHealthFailure(ctx, accountID, failoverErr)
-	}
 
 	// 缓存计费判断
 	if needForceCacheBilling(s.hasBoundSession, failoverErr) {
@@ -94,6 +89,12 @@ func (s *FailoverState) HandleFailoverError(
 			return FailoverCanceled
 		}
 		return FailoverContinue
+	}
+
+	if recorder, ok := gatewayService.(interface {
+		RecordAccountHealthFailure(ctx context.Context, accountID int64, failoverErr *service.UpstreamFailoverError)
+	}); ok {
+		recorder.RecordAccountHealthFailure(ctx, accountID, failoverErr)
 	}
 
 	// 同账号重试用尽，执行临时封禁

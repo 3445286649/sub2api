@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
@@ -61,6 +62,32 @@ func (r *memoryAccountHealthRepo) ListDueForProbe(_ context.Context, now time.Ti
 		}
 	}
 	return out, nil
+}
+
+func (r *memoryAccountHealthRepo) ClaimDueProbe(_ context.Context, accountID int64, now time.Time, leaseUntil time.Time) (bool, error) {
+	state := r.states[accountID]
+	if state == nil {
+		state = defaultAccountHealthState(accountID, now)
+		if r.states == nil {
+			r.states = map[int64]*AccountHealthState{}
+		}
+		r.states[accountID] = state
+	}
+	if state.Status == AccountHealthStatusHealthy {
+		if state.NextProbeAt != nil && state.NextProbeAt.After(now) {
+			return false, nil
+		}
+		state.NextProbeAt = &leaseUntil
+		return true, nil
+	}
+	if state.NextProbeAt == nil || state.NextProbeAt.After(now) {
+		return false, nil
+	}
+	if state.Status != AccountHealthStatusIsolated && state.Status != AccountHealthStatusRecovering && state.Status != AccountHealthStatusDegraded {
+		return false, nil
+	}
+	state.NextProbeAt = &leaseUntil
+	return true, nil
 }
 
 func (r *memoryAccountHealthRepo) InsertEvent(_ context.Context, event *AccountHealthEvent) error {
@@ -678,6 +705,62 @@ func TestAccountHealthRunnerClaimPreventsDuplicateInFlightProbe(t *testing.T) {
 	require.True(t, runner.tryClaim(1))
 }
 
+func TestAccountHealthService_ClaimDueProbeLeasesDueState(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	due := now.Add(-time.Minute)
+	leaseUntil := now.Add(accountHealthProbeLease)
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Status: AccountHealthStatusIsolated, NextProbeAt: &due},
+	}}
+	svc := &AccountHealthService{repo: repo}
+
+	claimed, err := svc.ClaimDueProbe(ctx, 1, now, leaseUntil)
+	require.NoError(t, err)
+	require.True(t, claimed)
+	require.Equal(t, leaseUntil, *repo.states[1].NextProbeAt)
+
+	claimed, err = svc.ClaimDueProbe(ctx, 1, now, now.Add(2*accountHealthProbeLease))
+	require.NoError(t, err)
+	require.False(t, claimed)
+	require.Equal(t, leaseUntil, *repo.states[1].NextProbeAt)
+}
+
+func TestAccountHealthService_ClaimDueProbeLeasesHealthyState(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	leaseUntil := now.Add(accountHealthProbeLease)
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Status: AccountHealthStatusHealthy},
+	}}
+	svc := &AccountHealthService{repo: repo}
+
+	claimed, err := svc.ClaimDueProbe(ctx, 1, now, leaseUntil)
+	require.NoError(t, err)
+	require.True(t, claimed)
+	require.Equal(t, leaseUntil, *repo.states[1].NextProbeAt)
+
+	claimed, err = svc.ClaimDueProbe(ctx, 1, now, now.Add(2*accountHealthProbeLease))
+	require.NoError(t, err)
+	require.False(t, claimed)
+	require.Equal(t, leaseUntil, *repo.states[1].NextProbeAt)
+}
+
+func TestAccountHealthService_ClaimDueProbeCreatesHealthyLeaseState(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	leaseUntil := now.Add(accountHealthProbeLease)
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo}
+
+	claimed, err := svc.ClaimDueProbe(ctx, 9, now, leaseUntil)
+	require.NoError(t, err)
+	require.True(t, claimed)
+	require.NotNil(t, repo.states[9])
+	require.Equal(t, AccountHealthStatusHealthy, repo.states[9].Status)
+	require.Equal(t, leaseUntil, *repo.states[9].NextProbeAt)
+}
+
 func TestAccountHealthService_RecordFailureRedactsSensitiveMessage(t *testing.T) {
 	ctx := context.Background()
 	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
@@ -695,7 +778,7 @@ func TestAccountHealthService_RecordFailureRedactsSensitiveMessage(t *testing.T)
 	require.Contains(t, message, "***")
 }
 
-func TestAccountHealthService_DedupesBackgroundProbeFailureWithinWindow(t *testing.T) {
+func TestAccountHealthService_DedupesSameBackgroundProbeFailureWithinWindow(t *testing.T) {
 	base := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	current := base
 	ctx := context.Background()
@@ -706,14 +789,59 @@ func TestAccountHealthService_DedupesBackgroundProbeFailureWithinWindow(t *testi
 	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return current }}
 
 	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "probe_failed", "upstream temporarily unavailable"))
-	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "forward_error", "model unavailable during probe"))
-	require.Equal(t, 72, repo.states[1].Score)
-	require.Len(t, repo.events, 1)
+	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "timeout", "request timeout"))
+	require.Equal(t, 60, repo.states[1].Score)
+	require.Equal(t, "timeout", repo.states[1].LastErrorCategory)
+	require.Len(t, repo.events, 2)
 
-	current = base.Add(accountHealthProbeFailureDedupeWindow + time.Second)
-	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "probe_failed", "upstream temporarily unavailable"))
+	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "timeout", "request timeout"))
 	require.Equal(t, 60, repo.states[1].Score)
 	require.Len(t, repo.events, 2)
+
+	current = base.Add(accountHealthProbeFailureDedupeWindow + time.Second)
+	require.NoError(t, svc.RecordProbeFailure(ctx, 1, "timeout", "request timeout"))
+	require.Equal(t, 40, repo.states[1].Score)
+	require.Len(t, repo.events, 3)
+}
+
+func TestAccountHealthService_RecordRealSuccessClearsAuthError(t *testing.T) {
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: time.Now}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", "invalid api key"))
+	require.Equal(t, "auth_error", repo.states[1].LastErrorCategory)
+
+	require.NoError(t, svc.RecordSuccess(ctx, 1, 123))
+	require.Empty(t, repo.states[1].LastErrorCategory)
+	require.Empty(t, repo.states[1].LastErrorMessage)
+}
+
+func TestAccountHealthService_AuthErrorIsolationDoesNotFastRecoverAfterRealSuccess(t *testing.T) {
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: time.Now}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", "invalid api key"))
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", "invalid api key"))
+	require.Equal(t, AccountHealthStatusIsolated, repo.states[1].Status)
+	require.Equal(t, "auth_error", repo.states[1].LastErrorCategory)
+
+	require.NoError(t, svc.RecordSuccess(ctx, 1, 100))
+	require.Equal(t, AccountHealthStatusRecovering, repo.states[1].Status)
+	require.Equal(t, 25, repo.states[1].Score)
+	require.Equal(t, "auth_error", repo.states[1].LastErrorCategory)
+
+	require.NoError(t, svc.RecordProbeSuccess(ctx, 1, 100))
+	require.Equal(t, 30, repo.states[1].Score, "auth_error recovery probe should use normal +5 reward, not fast +25")
+	require.Equal(t, AccountHealthStatusRecovering, repo.states[1].Status)
+	require.Equal(t, "auth_error", repo.states[1].LastErrorCategory)
 }
 
 func TestAccountHealthService_OverviewBuildsRiskSummary(t *testing.T) {
@@ -755,9 +883,91 @@ func TestSortAccountPointersByHealthCostAndLRU_CostBeforeHealthThenLatency(t *te
 		3: {AccountHealthState: AccountHealthState{AccountID: 3, Score: 90, LatencyEWMAMs: &latency3}},
 	}
 
-	sortAccountPointersByHealthCostAndLRU(accounts, health, false, true)
+	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
 
 	require.Equal(t, []int64{2, 3, 1}, []int64{accounts[0].ID, accounts[1].ID, accounts[2].ID})
+}
+
+func TestSortAccountPointersByHealthCostAndLRU_StableHealthBeforeDegradedCost(t *testing.T) {
+	cheap := 0.1
+	expensive := 0.2
+	accounts := []*Account{
+		{ID: 1, RateMultiplier: &cheap},
+		{ID: 2, RateMultiplier: &expensive},
+	}
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 65, Status: AccountHealthStatusDegraded}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 90, Status: AccountHealthStatusHealthy}},
+	}
+
+	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
+
+	require.Equal(t, []int64{2, 1}, []int64{accounts[0].ID, accounts[1].ID})
+}
+
+func TestSortAccountPointersByHealthCostAndLRU_HealthTierBeforeCost(t *testing.T) {
+	cheap := 0.5
+	mid := 1.0
+	expensive := 1.5
+	accounts := []*Account{
+		{ID: 1, RateMultiplier: &cheap},
+		{ID: 2, RateMultiplier: &mid},
+		{ID: 3, RateMultiplier: &expensive},
+	}
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 65}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 90}},
+		3: {AccountHealthState: AccountHealthState{AccountID: 3, Score: 95}},
+	}
+
+	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
+
+	require.Equal(t, []int64{2, 3, 1}, []int64{accounts[0].ID, accounts[1].ID, accounts[2].ID})
+}
+
+func TestSortAccountPointersByHealthCostAndLRU_UnknownHealthUsesConfiguredHealthyTier(t *testing.T) {
+	cheap := 0.5
+	expensive := 1.0
+	accounts := []*Account{
+		{ID: 1, RateMultiplier: &cheap},
+		{ID: 2, RateMultiplier: &expensive},
+	}
+	cfg := testHealthSortConfig()
+	cfg.HealthTierHealthyMin = 85
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 65}},
+	}
+
+	sortAccountPointersByHealthCostAndLRU(accounts, health, false, cfg)
+
+	require.Equal(t, []int64{2, 1}, []int64{accounts[0].ID, accounts[1].ID})
+	score, _ := accountHealthSortValueForScheduling(health, 2, cfg)
+	require.Equal(t, 85, score)
+	require.Equal(t, 0, accountHealthTier(score, cfg))
+}
+
+func TestSortAccountWithLoadByHealthCostAndLoad_ScoreLatencyThenLoad(t *testing.T) {
+	rate := 0.1
+	accounts := []accountWithLoad{
+		{account: &Account{ID: 1, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 90}},
+		{account: &Account{ID: 2, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 80}},
+		{account: &Account{ID: 3, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 20}},
+		{account: &Account{ID: 4, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+	}
+	latency1 := 100
+	latency2 := 300
+	latency3 := 300
+	latency4 := 300
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 95, LatencyEWMAMs: &latency1}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, LatencyEWMAMs: &latency2}},
+		3: {AccountHealthState: AccountHealthState{AccountID: 3, Score: 90, LatencyEWMAMs: &latency3}},
+		4: {AccountHealthState: AccountHealthState{AccountID: 4, Score: 90, LatencyEWMAMs: &latency4}},
+	}
+
+	sortAccountWithLoadByHealthCostAndLoad(accounts, health, false, testHealthSortConfig())
+
+	require.Equal(t, []int64{1, 2, 4, 3}, []int64{accounts[0].account.ID, accounts[1].account.ID, accounts[2].account.ID, accounts[3].account.ID})
 }
 
 func TestSortAccountPointersByHealthCostAndLRU_DisabledUsesLegacyPriorityLRU(t *testing.T) {
@@ -775,9 +985,19 @@ func TestSortAccountPointersByHealthCostAndLRU_DisabledUsesLegacyPriorityLRU(t *
 		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 10}},
 	}
 
-	sortAccountPointersByHealthCostAndLRU(accounts, health, false, false)
+	cfg := testHealthSortConfig()
+	cfg.HealthSortEnabled = false
+	sortAccountPointersByHealthCostAndLRU(accounts, health, false, cfg)
 
 	require.Equal(t, []int64{2, 1}, []int64{accounts[0].ID, accounts[1].ID})
+}
+
+func testHealthSortConfig() config.GatewaySchedulingConfig {
+	return config.GatewaySchedulingConfig{
+		HealthSortEnabled:     true,
+		HealthTierHealthyMin:  80,
+		HealthTierDegradedMin: 60,
+	}
 }
 
 func riskTypes(risks []AccountHealthRisk) []string {

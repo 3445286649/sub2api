@@ -13,6 +13,7 @@ CONTAINER_PREFIX="${CONTAINER_PREFIX:-sub2api}"
 APP_PORT="${APP_PORT:-8080}"
 OBSERVE_SECONDS="${OBSERVE_SECONDS:-120}"
 SMOKE_HOST="${SMOKE_HOST:-127.0.0.1}"
+STOP_OLD_AFTER_OBSERVE="${STOP_OLD_AFTER_OBSERVE:-1}"
 DRY_RUN=0
 
 usage() {
@@ -25,7 +26,7 @@ Options:
   --target-port PORT         Target host port. Defaults to the opposite side of active 8080/8081.
   --active-port PORT         Override detected active port.
   --nginx-conf PATH          Nginx vhost config. Default: /etc/nginx/conf.d/subapi.loucer.cn.conf
-  --nginx-template PATH      Template with {{UPSTREAM_PORT}}. Default: deploy/nginx-sub2api-bluegreen.conf.tmpl
+  --nginx-template PATH      Deprecated fallback template; normal mode edits proxy_pass port in existing config.
   --compose-dir PATH         Deployment directory used for backups and .env discovery.
   --env-file PATH            Optional env file passed to docker run. Contents are never printed.
   --network NAME             Docker network. Defaults to active container network if detectable.
@@ -33,8 +34,9 @@ Options:
   --dry-run                  Print plan only; do not mutate docker/nginx.
   -h, --help                 Show this help.
 
-The script keeps the old container as rollback point and only switches nginx after
-the target container passes smoke checks.
+The script switches nginx only after the target container passes smoke checks.
+By default it stops the old app container after the observation window, keeping
+the stopped container/image as rollback point.
 EOF
 }
 
@@ -52,6 +54,8 @@ while [[ $# -gt 0 ]]; do
     --env-file) ENV_FILE="${2:-}"; shift 2 ;;
     --network) NETWORK="${2:-}"; shift 2 ;;
     --observe-seconds) OBSERVE_SECONDS="${2:-}"; shift 2 ;;
+    --stop-old-after-observe) STOP_OLD_AFTER_OBSERVE=1; shift ;;
+    --keep-old-running) STOP_OLD_AFTER_OBSERVE=0; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) fail "unknown argument: $1" ;;
@@ -73,7 +77,10 @@ detect_active_port() {
   fi
   [[ -f "$NGINX_CONF" ]] || fail "nginx config not found: $NGINX_CONF"
   local port
-  port="$(grep -Eo '127\.0\.0\.1:(8080|8081)' "$NGINX_CONF" | tail -n 1 | awk -F: '{print $2}')"
+  local ports
+  ports="$(grep -E '^[[:space:]]*proxy_pass[[:space:]]+http://127\.0\.0\.1:(8080|8081)' "$NGINX_CONF" | sed -E 's/.*127\.0\.0\.1:(8080|8081).*/\1/' | sort -u)"
+  [[ "$(printf '%s\n' "$ports" | sed '/^$/d' | wc -l)" -le 1 ]] || fail "multiple active upstream ports found in $NGINX_CONF; please resolve manually"
+  port="$(printf '%s\n' "$ports" | sed '/^$/d' | head -n 1)"
   [[ -n "$port" ]] || fail "could not detect active 8080/8081 port from $NGINX_CONF"
   printf '%s' "$port"
 }
@@ -90,7 +97,7 @@ container_name_for_port() {
   if [[ "$1" == "8081" ]]; then
     printf '%s-next' "$CONTAINER_PREFIX"
   else
-    printf '%s-blue' "$CONTAINER_PREFIX"
+    printf '%s' "$CONTAINER_PREFIX"
   fi
 }
 
@@ -100,7 +107,7 @@ detect_network() {
     return
   fi
   local active_name="$1"
-	docker inspect "$active_name" --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' 2>/dev/null | head -n 1 || true
+  docker inspect "$active_name" --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' 2>/dev/null | head -n 1 || true
 }
 
 container_on_port() {
@@ -124,21 +131,22 @@ smoke_target() {
   log "smoke invalid login endpoint on ${SMOKE_HOST}:${port}"
   local code
   code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 -H 'Content-Type: application/json' -d '{"username":"__smoke__","password":"__smoke__"}' "http://${SMOKE_HOST}:${port}/api/v1/auth/login" || true)"
-  [[ "$code" =~ ^(400|401|403|404|405|422)$ ]] || return 1
+  [[ "$code" =~ ^(400|401|403|422)$ ]] || return 1
 }
 
-render_nginx() {
+switch_nginx_port() {
   local port="$1"
-  [[ -f "$NGINX_TEMPLATE" ]] || fail "nginx template not found: $NGINX_TEMPLATE"
-  sed "s/{{UPSTREAM_PORT}}/${port}/g" "$NGINX_TEMPLATE"
+  [[ -f "$NGINX_CONF" ]] || fail "nginx config not found: $NGINX_CONF"
+  perl -0pi -e "s#(proxy_pass\\s+http://127\\.0\\.0\\.1:)(8080|8081)#\${1}${port}#g" "$NGINX_CONF"
 }
 
 backup_state() {
   local backup_dir="$1"
-  mkdir -p "$backup_dir"
+  mkdir -m 700 -p "$backup_dir"
   cp "$NGINX_CONF" "$backup_dir/nginx.conf"
   if [[ -d "$COMPOSE_DIR" ]]; then
     find "$COMPOSE_DIR" -maxdepth 1 \( -name 'docker-compose*.yml' -o -name 'compose*.yml' -o -name '.env' \) -exec cp -p {} "$backup_dir/" \;
+    find "$backup_dir" -maxdepth 1 -name '.env' -exec chmod 600 {} \;
   fi
 	docker inspect "$ACTIVE_CONTAINER" >"$backup_dir/${ACTIVE_CONTAINER}.inspect.json" 2>/dev/null || true
 	docker inspect "$TARGET_CONTAINER" >"$backup_dir/${TARGET_CONTAINER}.inspect.json" 2>/dev/null || true
@@ -239,8 +247,8 @@ for _ in $(seq 1 30); do
 done
 smoke_target "$TARGET_PORT"
 
-log "rendering nginx to target port $TARGET_PORT"
-render_nginx "$TARGET_PORT" >"$NGINX_CONF"
+log "switching nginx proxy_pass to target port $TARGET_PORT"
+switch_nginx_port "$TARGET_PORT"
 nginx -t
 nginx -s reload
 
@@ -254,4 +262,10 @@ while (( SECONDS < deadline )); do
   sleep 10
 done
 
-log "switch complete; old container $ACTIVE_CONTAINER is kept for rollback"
+if [[ "$STOP_OLD_AFTER_OBSERVE" == "1" && -n "$ACTIVE_CONTAINER" ]]; then
+  log "stopping old container $ACTIVE_CONTAINER after successful observation"
+  docker stop "$ACTIVE_CONTAINER" >/dev/null 2>&1 || true
+  log "switch complete; old container $ACTIVE_CONTAINER is stopped and kept for rollback"
+else
+  log "switch complete; old container $ACTIVE_CONTAINER is still running"
+fi

@@ -388,11 +388,25 @@ func callProviderWithRetry(ctx context.Context, provider, endpoint, apiKey, mode
 			out.err = ctx.Err()
 			return out
 		}
-		next := callProvider(ctx, provider, endpoint, apiKey, model, prompt, opts, signer, excludedAccountIDs)
+		retryExcluded := appendUniqueMonitorAccountID(excludedAccountIDs, out.selectedAccountID)
+		next := callProvider(ctx, provider, endpoint, apiKey, model, prompt, opts, signer, retryExcluded)
 		next.attempts = 2
 		return next
 	}
 	return out
+}
+
+func appendUniqueMonitorAccountID(ids []int64, accountID int64) []int64 {
+	if accountID <= 0 {
+		return ids
+	}
+	for _, id := range ids {
+		if id == accountID {
+			return ids
+		}
+	}
+	out := append([]int64{}, ids...)
+	return append(out, accountID)
 }
 
 func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt string, opts *CheckOptions, signer *ChannelMonitorSigner, excludedAccountIDs []int64) providerCallOutcome {

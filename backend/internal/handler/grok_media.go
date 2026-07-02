@@ -269,6 +269,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 						continue
 					}
 				}
+				h.gatewayService.RecordAccountHealthFailure(c.Request.Context(), account.ID, failoverErr)
 				h.gatewayService.RecordOpenAIAccountSwitch()
 				failedAccountIDs[account.ID] = struct{}{}
 				lastFailoverErr = failoverErr
@@ -286,6 +287,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 				continue
 			}
 			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
+			h.gatewayService.RecordAccountHealthForwardError(c.Request.Context(), account.ID, err)
 			if c.Writer.Size() == writerSizeBeforeForward {
 				h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Upstream request failed")
 			}
@@ -297,6 +299,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		}
 
 		h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, nil)
+		h.gatewayService.RecordAccountHealthSuccess(c.Request.Context(), account.ID, forwardDurationMs)
 		if endpoint == service.GrokMediaEndpointVideosGenerations && strings.TrimSpace(result.ResponseID) != "" {
 			if err := h.gatewayService.BindGrokMediaVideoRequestAccount(requestCtx, apiKey.GroupID, result.ResponseID, account.ID); err != nil {
 				reqLog.Warn("grok_media.bind_video_request_account_failed",

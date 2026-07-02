@@ -64,12 +64,14 @@ func shouldRecordAccountHealthForwardError(err error) bool {
 		"unsupported model",
 		"timeout",
 		"deadline exceeded",
-		"eof",
 	}
 	for _, marker := range recordMarkers {
 		if strings.Contains(msg, marker) {
 			return true
 		}
+	}
+	if accountHealthForwardErrorIsNetwork(msg) {
+		return true
 	}
 	return false
 }
@@ -86,6 +88,8 @@ func accountHealthForwardErrorCategory(err error) string {
 		return "model_not_found"
 	case strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline exceeded"):
 		return "timeout"
+	case accountHealthForwardErrorIsNetwork(msg):
+		return "network_error"
 	case strings.Contains(msg, "empty response"):
 		return "empty_response"
 	case strings.Contains(msg, "upstream temporarily unavailable"):
@@ -95,6 +99,20 @@ func accountHealthForwardErrorCategory(err error) string {
 	default:
 		return "forward_error"
 	}
+}
+
+func accountHealthForwardErrorIsNetwork(msg string) bool {
+	msg = strings.ToLower(strings.TrimSpace(msg))
+	if msg == "" {
+		return false
+	}
+	return strings.Contains(msg, "connection reset") ||
+		strings.Contains(msg, "connection refused") ||
+		msg == "eof" ||
+		strings.Contains(msg, "unexpected eof") ||
+		strings.HasSuffix(msg, ": eof") ||
+		strings.HasSuffix(msg, " eof") ||
+		strings.Contains(msg, " eof ")
 }
 
 func accountHealthProbeFailureCategory(message string) string {
