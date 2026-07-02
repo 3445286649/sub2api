@@ -330,6 +330,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		accounts.GET("", h.Admin.Account.List)
 		accounts.GET("/health/overview", h.Admin.Account.HealthOverview)
+		accounts.POST("/health/overview/balance/refresh", h.Admin.Account.RefreshHealthOverviewBalance)
 		accounts.POST("", h.Admin.Account.Create)
 		accounts.POST("/check-mixed-channel", h.Admin.Account.CheckMixedChannel)
 		accounts.POST("/import/codex-session", h.Admin.Account.ImportCodexSession)

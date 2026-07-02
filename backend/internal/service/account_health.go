@@ -89,11 +89,12 @@ type AccountHealthSummary struct {
 }
 
 type AccountHealthURLOverview struct {
-	BaseURL                string                 `json:"base_url"`
-	Accounts               []AccountHealthSummary `json:"accounts"`
-	Risks                  []AccountHealthRisk    `json:"risks,omitempty"`
-	InsufficientGroupIDs   []int64                `json:"insufficient_group_ids,omitempty"`
-	InsufficientGroupNames []string               `json:"insufficient_group_names,omitempty"`
+	BaseURL                string                          `json:"base_url"`
+	Accounts               []AccountHealthSummary          `json:"accounts"`
+	Balance                *AccountUpstreamBalanceSnapshot `json:"balance,omitempty"`
+	Risks                  []AccountHealthRisk             `json:"risks,omitempty"`
+	InsufficientGroupIDs   []int64                         `json:"insufficient_group_ids,omitempty"`
+	InsufficientGroupNames []string                        `json:"insufficient_group_names,omitempty"`
 }
 
 type AccountHealthOverview struct {

@@ -49,20 +49,21 @@ func NewOAuthHandler(oauthService *service.OAuthService) *OAuthHandler {
 
 // AccountHandler handles admin account management
 type AccountHandler struct {
-	adminService            service.AdminService
-	oauthService            *service.OAuthService
-	openaiOAuthService      *service.OpenAIOAuthService
-	geminiOAuthService      *service.GeminiOAuthService
-	antigravityOAuthService *service.AntigravityOAuthService
-	rateLimitService        *service.RateLimitService
-	accountUsageService     *service.AccountUsageService
-	accountTestService      *service.AccountTestService
-	concurrencyService      *service.ConcurrencyService
-	crsSyncService          *service.CRSSyncService
-	sessionLimitCache       service.SessionLimitCache
-	rpmCache                service.RPMCache
-	tokenCacheInvalidator   service.TokenCacheInvalidator
-	accountHealthService    *service.AccountHealthService
+	adminService                  service.AdminService
+	oauthService                  *service.OAuthService
+	openaiOAuthService            *service.OpenAIOAuthService
+	geminiOAuthService            *service.GeminiOAuthService
+	antigravityOAuthService       *service.AntigravityOAuthService
+	rateLimitService              *service.RateLimitService
+	accountUsageService           *service.AccountUsageService
+	accountTestService            *service.AccountTestService
+	concurrencyService            *service.ConcurrencyService
+	crsSyncService                *service.CRSSyncService
+	sessionLimitCache             service.SessionLimitCache
+	rpmCache                      service.RPMCache
+	tokenCacheInvalidator         service.TokenCacheInvalidator
+	accountHealthService          *service.AccountHealthService
+	accountUpstreamBalanceService *service.AccountUpstreamBalanceService
 }
 
 // NewAccountHandler creates a new admin account handler
@@ -102,6 +103,10 @@ func NewAccountHandler(
 		tokenCacheInvalidator:   tokenCacheInvalidator,
 		accountHealthService:    accountHealthService,
 	}
+}
+
+func (h *AccountHandler) SetAccountUpstreamBalanceService(svc *service.AccountUpstreamBalanceService) {
+	h.accountUpstreamBalanceService = svc
 }
 
 // CreateAccountRequest represents create account request
@@ -518,7 +523,56 @@ func (h *AccountHandler) HealthOverview(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.attachUpstreamBalanceOverview(c.Request.Context(), overview)
 	response.Success(c, overview)
+}
+
+type refreshUpstreamBalanceRequest struct {
+	BaseURL string `json:"base_url" binding:"required"`
+}
+
+func (h *AccountHandler) RefreshHealthOverviewBalance(c *gin.Context) {
+	if h.accountUpstreamBalanceService == nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("UPSTREAM_BALANCE_UNAVAILABLE", "upstream balance service unavailable"))
+		return
+	}
+	var req refreshUpstreamBalanceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	snapshot, err := h.accountUpstreamBalanceService.RefreshByBaseURL(c.Request.Context(), req.BaseURL)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, snapshot)
+}
+
+func (h *AccountHandler) attachUpstreamBalanceOverview(ctx context.Context, overview *service.AccountHealthOverview) {
+	if h.accountUpstreamBalanceService == nil || overview == nil || len(overview.URLs) == 0 {
+		return
+	}
+	baseURLs := make([]string, 0, len(overview.URLs))
+	for i := range overview.URLs {
+		if overview.URLs[i].BaseURL != "" && overview.URLs[i].BaseURL != "(no upstream url)" {
+			baseURLs = append(baseURLs, overview.URLs[i].BaseURL)
+		}
+	}
+	h.accountUpstreamBalanceService.EnsureKnownBaseURLs(ctx, baseURLs)
+	snapshots, err := h.accountUpstreamBalanceService.SnapshotMap(ctx, baseURLs)
+	if err != nil {
+		return
+	}
+	for i := range overview.URLs {
+		if snapshot := snapshots[normalizeHealthOverviewBalanceBaseURL(overview.URLs[i].BaseURL)]; snapshot != nil {
+			overview.URLs[i].Balance = snapshot
+		}
+	}
+}
+
+func normalizeHealthOverviewBalanceBaseURL(raw string) string {
+	return strings.TrimRight(strings.TrimSpace(raw), "/")
 }
 
 func (h *AccountHandler) ListHealthEvents(c *gin.Context) {

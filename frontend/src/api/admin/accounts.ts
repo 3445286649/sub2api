@@ -15,6 +15,7 @@ import type {
   AccountUsageStatsResponse,
   AccountHealthSummary,
   AccountHealthOverview,
+  AccountUpstreamBalanceSnapshot,
   AccountHealthEventList,
   TempUnschedulableStatus,
   AdminDataPayload,
@@ -508,6 +509,13 @@ export async function getHealthOverview(): Promise<AccountHealthOverview> {
   return data
 }
 
+export async function refreshHealthOverviewBalance(baseUrl: string): Promise<AccountUpstreamBalanceSnapshot> {
+  const { data } = await apiClient.post<AccountUpstreamBalanceSnapshot>('/admin/accounts/health/overview/balance/refresh', {
+    base_url: baseUrl
+  })
+  return data
+}
+
 export async function getHealthEvents(
   id: number,
   params?: {
@@ -878,6 +886,7 @@ export const accountsAPI = {
   probeHealth,
   updateHealthProbeSettings,
   getHealthOverview,
+  refreshHealthOverviewBalance,
   getHealthEvents,
   getAvailableModels,
   syncUpstreamModels,

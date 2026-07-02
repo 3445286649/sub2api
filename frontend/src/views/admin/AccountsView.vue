@@ -277,12 +277,14 @@
           </template>
           <template #cell-health="{ row }">
             <button
-              class="inline-flex min-w-[104px] items-center gap-2 rounded-md border border-gray-200 px-2 py-1 text-left text-xs transition-colors hover:border-primary-300 hover:bg-primary-50 dark:border-gray-700 dark:hover:border-primary-700 dark:hover:bg-primary-900/20"
+              type="button"
+              class="account-compact-metric account-health-metric"
+              :title="`${t('admin.accounts.healthDetail')}: ${(row.health?.score ?? 80)} / ${healthStatusLabel(row.health?.status)}`"
               @click="openHealthDetail(row)"
             >
-              <span :class="['h-2 w-2 rounded-full', healthDotClass(row.health?.status)]"></span>
-              <span class="font-medium text-gray-800 dark:text-gray-100">{{ row.health?.score ?? 80 }}</span>
-              <span class="text-gray-500 dark:text-gray-400">{{ healthStatusLabel(row.health?.status) }}</span>
+              <span :class="['account-health-dot', healthDotClass(row.health?.status)]"></span>
+              <span class="account-metric-number">{{ row.health?.score ?? 80 }}</span>
+              <span class="account-metric-muted">{{ healthStatusLabel(row.health?.status) }}</span>
             </button>
           </template>
           <template #cell-auto_status="{ row }">
@@ -336,8 +338,8 @@
             </div>
           </template>
           <template #cell-rate_multiplier="{ row }">
-            <div class="flex min-w-[116px] flex-col gap-0.5">
-              <div class="relative inline-flex w-[92px] items-center">
+            <div class="flex min-w-[104px] flex-col gap-0.5">
+              <div class="account-rate-shell">
                 <input
                   class="account-rate-input"
                   type="number"
@@ -350,9 +352,13 @@
                   @keydown.enter.prevent="handleRateMultiplierCommit(row, $event)"
                   @blur="handleRateMultiplierCommit(row, $event)"
                 />
-                <span class="pointer-events-none absolute right-2 text-[11px] font-medium text-gray-400">x</span>
+                <span class="account-rate-suffix">x</span>
               </div>
-              <span v-if="!row.health?.rate_multiplier_configured && (row.rate_multiplier ?? 1) === 1" class="text-[11px] text-amber-600 dark:text-amber-300">
+              <span
+                v-if="!row.health?.rate_multiplier_configured && (row.rate_multiplier ?? 1) === 1"
+                class="max-w-[104px] truncate text-[11px] leading-4 text-amber-600 dark:text-amber-300"
+                :title="t('admin.accounts.rateMultiplierMissing')"
+              >
                 {{ t('admin.accounts.rateMultiplierMissing') }}
               </span>
             </div>
@@ -452,7 +458,7 @@
         <div v-else class="max-h-[68vh] space-y-3 overflow-y-auto pr-1">
           <div
             v-if="healthOverview?.risks?.length"
-            class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30"
+            class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40"
           >
             <div class="mb-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ t('admin.accounts.riskSummary') }}</div>
             <div class="flex flex-wrap gap-1.5">
@@ -460,6 +466,7 @@
                 v-for="risk in healthOverview.risks.slice(0, 20)"
                 :key="`${risk.level}-${risk.type}-${risk.base_url}-${risk.account_id}-${risk.group_id}`"
                 :class="['inline-flex max-w-full items-center rounded-md px-2 py-1 text-xs font-medium', healthRiskClass(risk.level)]"
+                :title="healthRiskLabel(risk)"
               >
                 <span class="truncate">{{ healthRiskLabel(risk) }}</span>
               </span>
@@ -470,57 +477,118 @@
             :key="url.base_url"
             class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
           >
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-3 py-2 dark:border-gray-700">
-              <div class="min-w-0">
-                <div class="truncate font-mono text-sm font-semibold text-gray-900 dark:text-gray-100">{{ url.base_url }}</div>
-                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-                  <span class="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ t('admin.accounts.healthAccountCount', { count: url.accounts.length }) }}</span>
-                  <span class="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{{ t('admin.accounts.healthStatus.healthy') }} {{ countOverviewStatus(url, 'healthy') }}</span>
-                  <span class="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{{ t('admin.accounts.healthStatus.degraded') }} {{ countOverviewStatus(url, 'degraded') }}</span>
-                  <span class="rounded bg-red-50 px-1.5 py-0.5 text-red-700 dark:bg-red-900/30 dark:text-red-300">{{ t('admin.accounts.healthStatus.isolated') }} {{ countOverviewStatus(url, 'isolated') }}</span>
-                  <span class="rounded bg-blue-50 px-1.5 py-0.5 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{{ t('admin.accounts.healthStatus.recovering') }} {{ countOverviewStatus(url, 'recovering') }}</span>
+            <div class="border-b border-gray-100 px-3 py-2 dark:border-gray-700/80">
+              <div class="flex min-w-0 items-center justify-between gap-3">
+                <div class="flex min-w-0 items-center gap-2">
+                  <a
+                    v-if="isValidUpstreamURL(url.base_url)"
+                    :href="upstreamURLHref(url.base_url)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="min-w-0 truncate font-mono text-sm font-semibold text-gray-900 underline-offset-4 transition-colors hover:text-primary-600 hover:underline dark:text-gray-100 dark:hover:text-primary-300"
+                    :title="url.base_url"
+                  >
+                    {{ url.base_url }}
+                  </a>
+                  <span
+                    v-else
+                    class="min-w-0 truncate font-mono text-sm font-semibold text-gray-900 dark:text-gray-100"
+                    :title="url.base_url"
+                  >
+                    {{ url.base_url }}
+                  </span>
+                  <span
+                    :class="['upstream-balance-pill', upstreamBalanceClass(url.balance)]"
+                    :title="upstreamBalanceTooltip(url.balance)"
+                  >
+                    <span class="truncate">{{ upstreamBalanceLabel(url.balance) }}</span>
+                  </span>
+                  <button
+                    type="button"
+                    class="upstream-balance-refresh"
+                    :disabled="isRefreshingUpstreamBalance(url.base_url)"
+                    :title="t('admin.accounts.upstreamBalanceRefresh')"
+                    @click="refreshUpstreamBalance(url.base_url)"
+                  >
+                    <Icon name="refresh" size="xs" :class="isRefreshingUpstreamBalance(url.base_url) ? 'animate-spin' : ''" />
+                  </button>
                 </div>
-                <div v-if="url.risks?.length" class="mt-1 flex flex-wrap gap-1">
+                <div class="flex max-w-[60%] shrink-0 items-center gap-1.5 overflow-x-auto text-xs">
+                  <span class="health-overview-stat bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ t('admin.accounts.healthAccountCount', { count: url.accounts.length }) }}</span>
+                  <span class="health-overview-stat bg-emerald-50 text-emerald-700 dark:bg-emerald-900/35 dark:text-emerald-300">{{ t('admin.accounts.healthStatus.healthy') }} {{ countOverviewStatus(url, 'healthy') }}</span>
+                  <span class="health-overview-stat bg-amber-50 text-amber-700 dark:bg-amber-900/35 dark:text-amber-300">{{ t('admin.accounts.healthStatus.degraded') }} {{ countOverviewStatus(url, 'degraded') }}</span>
+                  <span class="health-overview-stat bg-red-50 text-red-700 dark:bg-red-900/35 dark:text-red-300">{{ t('admin.accounts.healthStatus.isolated') }} {{ countOverviewStatus(url, 'isolated') }}</span>
+                  <span class="health-overview-stat bg-blue-50 text-blue-700 dark:bg-blue-900/35 dark:text-blue-300">{{ t('admin.accounts.healthStatus.recovering') }} {{ countOverviewStatus(url, 'recovering') }}</span>
+                </div>
+              </div>
+              <div class="mt-2 flex min-h-[22px] items-center gap-1.5 overflow-hidden">
+                <template v-if="url.risks?.length">
                   <span
                     v-for="risk in url.risks.slice(0, 8)"
                     :key="`${risk.level}-${risk.type}-${risk.account_id}-${risk.group_id}`"
-                    :class="['inline-flex max-w-full rounded px-1.5 py-0.5 text-[11px] font-medium', healthRiskClass(risk.level)]"
+                    :class="['inline-flex min-w-0 max-w-[220px] shrink rounded px-1.5 py-0.5 text-[11px] font-medium', healthRiskClass(risk.level)]"
+                    :title="healthRiskLabel(risk)"
                   >
                     <span class="truncate">{{ healthRiskLabel(risk) }}</span>
                   </span>
-                </div>
+                </template>
+                <span
+                  v-if="url.insufficient_group_names?.length"
+                  class="inline-flex min-w-0 max-w-[360px] rounded-md bg-red-100 px-2 py-1 text-xs font-medium text-red-700 dark:bg-red-900/35 dark:text-red-300"
+                  :title="t('admin.accounts.healthInsufficientGroups', { groups: url.insufficient_group_names.join(', ') })"
+                >
+                  <span class="truncate">{{ t('admin.accounts.healthInsufficientGroups', { groups: url.insufficient_group_names.join(', ') }) }}</span>
+                </span>
               </div>
-              <span
-                v-if="url.insufficient_group_names?.length"
-                class="rounded-md bg-red-100 px-2 py-1 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300"
-              >
-                {{ t('admin.accounts.healthInsufficientGroups', { groups: url.insufficient_group_names.join(', ') }) }}
-              </span>
             </div>
-            <div class="overflow-x-auto">
-              <table class="min-w-full text-sm">
-                <thead class="bg-gray-50 text-xs font-semibold uppercase text-gray-500 dark:bg-gray-900/30 dark:text-gray-400">
+            <div class="overflow-hidden">
+              <table class="health-overview-table w-full table-fixed text-sm">
+                <colgroup>
+                  <col style="width: 190px" />
+                  <col style="width: 120px" />
+                  <col style="width: 100px" />
+                  <col style="width: 112px" />
+                  <col />
+                  <col style="width: 94px" />
+                  <col style="width: 128px" />
+                  <col style="width: 72px" />
+                </colgroup>
+                <thead class="bg-gray-50 text-xs font-semibold uppercase text-gray-500 dark:bg-gray-900/50 dark:text-gray-400">
                   <tr>
-                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.account') }}</th>
-                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.key') }}</th>
-                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.health') }}</th>
-                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.autoStatus') }}</th>
-                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.groups') }}</th>
-                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.avgLatency') }}</th>
-                    <th class="px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.nextProbe') }}</th>
-                    <th class="px-3 py-2 text-right">{{ t('admin.accounts.overviewColumns.costRate') }}</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.account') }}</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.key') }}</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.health') }}</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.autoStatus') }}</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-left">{{ t('admin.accounts.overviewColumns.groups') }}</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-right">{{ t('admin.accounts.overviewColumns.avgLatency') }}</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-right">{{ t('admin.accounts.overviewColumns.nextProbe') }}</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-right">{{ t('admin.accounts.overviewColumns.costRate') }}</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                  <tr v-for="item in url.accounts" :key="item.account_id">
-                    <td class="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">#{{ item.account_id }} {{ item.account_name }}</td>
-                    <td class="px-3 py-2 font-mono text-xs text-gray-500">{{ item.key_fingerprint || '-' }}</td>
-                    <td class="px-3 py-2"><span :class="['inline-flex rounded-md px-2 py-0.5 text-xs font-medium', healthBadgeClass(item.status)]">{{ item.score }} / {{ healthStatusLabel(item.status) }}</span></td>
-                    <td class="px-3 py-2"><span :class="['inline-flex rounded-md px-2 py-0.5 text-xs font-medium', summaryAutoStatusClass(item)]">{{ summaryAutoStatusLabel(item) }}</span></td>
-                    <td class="max-w-[220px] px-3 py-2 text-gray-600 dark:text-gray-300"><span class="line-clamp-2">{{ item.group_names?.join(', ') || '-' }}</span></td>
-                    <td class="px-3 py-2 text-gray-500">{{ formatLatencyMs(item.latency_ewma_ms) }}</td>
-                    <td class="px-3 py-2 text-gray-500">{{ item.next_probe_at ? formatDateTime(item.next_probe_at) : '-' }}</td>
-                    <td class="px-3 py-2 text-right font-mono text-gray-700 dark:text-gray-300">{{ formatRateInput(item.rate_multiplier) }}x</td>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700/80">
+                  <tr v-for="item in url.accounts" :key="item.account_id" class="align-middle hover:bg-gray-50/70 dark:hover:bg-gray-700/25">
+                    <td class="overflow-hidden px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
+                      <span class="block truncate" :title="`#${item.account_id} ${item.account_name}`">#{{ item.account_id }} {{ item.account_name }}</span>
+                    </td>
+                    <td class="overflow-hidden px-3 py-2 font-mono text-xs text-gray-500 dark:text-gray-400">
+                      <span class="block truncate" :title="item.key_fingerprint || '-'">{{ item.key_fingerprint || '-' }}</span>
+                    </td>
+                    <td class="overflow-hidden px-3 py-2">
+                      <span :class="['inline-flex max-w-full rounded-md px-2 py-0.5 text-xs font-medium', healthBadgeClass(item.status)]" :title="`${item.score} / ${healthStatusLabel(item.status)}`">
+                        <span class="truncate">{{ item.score }} / {{ healthStatusLabel(item.status) }}</span>
+                      </span>
+                    </td>
+                    <td class="overflow-hidden px-3 py-2">
+                      <span :class="['inline-flex max-w-full rounded-md px-2 py-0.5 text-xs font-medium', summaryAutoStatusClass(item)]" :title="summaryAutoStatusLabel(item)">
+                        <span class="truncate">{{ summaryAutoStatusLabel(item) }}</span>
+                      </span>
+                    </td>
+                    <td class="min-w-0 overflow-hidden px-3 py-2 text-gray-600 dark:text-gray-300">
+                      <span class="block truncate" :title="item.group_names?.join(', ') || '-'">{{ item.group_names?.join(', ') || '-' }}</span>
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-right font-mono text-gray-500 dark:text-gray-400">{{ formatLatencyMs(item.latency_ewma_ms) }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 text-right font-mono text-xs text-gray-500 dark:text-gray-400" :title="item.next_probe_at ? formatDateTime(item.next_probe_at) : '-'">{{ item.next_probe_at ? formatDateTime(item.next_probe_at) : '-' }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 text-right font-mono text-gray-700 dark:text-gray-300">{{ formatRateInput(item.rate_multiplier) }}x</td>
                   </tr>
                 </tbody>
               </table>
@@ -742,7 +810,7 @@ import TLSFingerprintProfilesModal from '@/components/admin/TLSFingerprintProfil
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from '@/utils/proxyExpiry'
-import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, AccountHealthOverview, AccountHealthSummary, AccountHealthURLOverview, AccountHealthRisk, AccountHealthEvent } from '@/types'
+import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, AccountHealthOverview, AccountHealthSummary, AccountHealthURLOverview, AccountHealthRisk, AccountHealthEvent, AccountUpstreamBalanceSnapshot } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -811,6 +879,7 @@ const showHealthOverview = ref(false)
 const healthOverview = ref<AccountHealthOverview | null>(null)
 const healthOverviewLoading = ref(false)
 const healthOverviewError = ref('')
+const refreshingUpstreamBalances = ref<Set<string>>(new Set())
 const healthDetailAccount = ref<Account | null>(null)
 const healthDetailLoading = ref(false)
 const healthDetailLoaded = ref(false)
@@ -1388,6 +1457,35 @@ const openHealthOverview = async () => {
   }
 }
 
+const setUpstreamBalanceRefreshing = (baseURL: string, refreshing: boolean) => {
+  const next = new Set(refreshingUpstreamBalances.value)
+  if (refreshing) {
+    next.add(baseURL)
+  } else {
+    next.delete(baseURL)
+  }
+  refreshingUpstreamBalances.value = next
+}
+
+const isRefreshingUpstreamBalance = (baseURL: string) => refreshingUpstreamBalances.value.has(baseURL)
+
+const refreshUpstreamBalance = async (baseURL: string) => {
+  if (!baseURL || isRefreshingUpstreamBalance(baseURL)) return
+  setUpstreamBalanceRefreshing(baseURL, true)
+  try {
+    const snapshot = await adminAPI.accounts.refreshHealthOverviewBalance(baseURL)
+    const target = healthOverview.value?.urls.find(item => item.base_url === baseURL)
+    if (target) {
+      target.balance = snapshot
+    }
+    appStore.showSuccess(t('admin.accounts.upstreamBalanceRefreshSuccess'))
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.upstreamBalanceRefreshFailed'))
+  } finally {
+    setUpstreamBalanceRefreshing(baseURL, false)
+  }
+}
+
 const openHealthDetail = async (account: Account) => {
   const requestToken = healthDetailRequestToken.value + 1
   healthDetailRequestToken.value = requestToken
@@ -1665,6 +1763,80 @@ function summaryAutoStatusClass(summary: AccountHealthSummary): string {
 
 function countOverviewStatus(url: AccountHealthURLOverview, status: AccountHealthSummary['status']): number {
   return url.accounts.filter(account => account.status === status).length
+}
+
+function upstreamURLHref(baseURL: string): string {
+  const trimmed = String(baseURL || '').trim()
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  return '#'
+}
+
+function isValidUpstreamURL(baseURL: string): boolean {
+  return /^https?:\/\//i.test(String(baseURL || '').trim())
+}
+
+function upstreamBalanceValue(snapshot?: AccountUpstreamBalanceSnapshot | null): number | null {
+  if (!snapshot) return null
+  if (typeof snapshot.remaining === 'number') return snapshot.remaining
+  if (typeof snapshot.balance === 'number') return snapshot.balance
+  return null
+}
+
+function formatUpstreamBalanceAmount(value: number | null, unit?: string): string {
+  if (value === null || Number.isNaN(value)) return '-'
+  const digits = Math.abs(value) >= 100 ? 2 : 4
+  const amount = value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: digits })
+  const normalizedUnit = unit || 'USD'
+  return normalizedUnit.toUpperCase() === 'USD' ? `$${amount}` : `${amount} ${normalizedUnit}`
+}
+
+function upstreamBalanceLabel(snapshot?: AccountUpstreamBalanceSnapshot | null): string {
+  if (!snapshot) return t('admin.accounts.upstreamBalanceEmpty')
+  if (!snapshot.checked_at && snapshot.status !== 'checking') return t('admin.accounts.upstreamBalanceEmpty')
+  if (snapshot.status === 'checking') return t('admin.accounts.upstreamBalanceChecking')
+  if (snapshot.status === 'ok') {
+    return t('admin.accounts.upstreamBalanceValue', {
+      value: formatUpstreamBalanceAmount(upstreamBalanceValue(snapshot), snapshot.unit)
+    })
+  }
+  if (snapshot.status === 'auth_error') return t('admin.accounts.upstreamBalanceAuthError')
+  if (snapshot.status === 'error') return t('admin.accounts.upstreamBalanceError')
+  return t('admin.accounts.upstreamBalanceUnsupported')
+}
+
+function upstreamBalanceClass(snapshot?: AccountUpstreamBalanceSnapshot | null): string {
+  switch (snapshot?.status) {
+    case 'ok':
+      return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/35 dark:text-emerald-300'
+    case 'checking':
+      return 'bg-blue-50 text-blue-700 dark:bg-blue-900/35 dark:text-blue-300'
+    case 'auth_error':
+    case 'error':
+      return 'bg-red-50 text-red-700 dark:bg-red-900/35 dark:text-red-300'
+    case 'unsupported':
+      return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+    default:
+      return 'bg-gray-100 text-gray-500 dark:bg-gray-700/70 dark:text-gray-400'
+  }
+}
+
+function upstreamBalanceTooltip(snapshot?: AccountUpstreamBalanceSnapshot | null): string {
+  if (!snapshot) return t('admin.accounts.upstreamBalanceEmpty')
+  const lines = [
+    upstreamBalanceLabel(snapshot),
+    snapshot.representative_account_id ? t('admin.accounts.upstreamBalanceRepresentative', { id: snapshot.representative_account_id }) : '',
+    snapshot.checked_at ? t('admin.accounts.upstreamBalanceCheckedAt', { time: formatDateTime(snapshot.checked_at) }) : '',
+    snapshot.source_endpoint ? t('admin.accounts.upstreamBalanceEndpoint', { endpoint: snapshot.source_endpoint }) : '',
+    snapshot.http_status ? t('admin.accounts.upstreamBalanceHTTPStatus', { status: snapshot.http_status }) : '',
+    truncateUpstreamBalanceText(snapshot.error_message || '', 300)
+  ].filter(Boolean)
+  return lines.join('\n')
+}
+
+function truncateUpstreamBalanceText(value: string, maxLength: number): string {
+  const text = String(value || '').trim()
+  if (text.length <= maxLength) return text
+  return `${text.slice(0, maxLength)}...`
 }
 
 function healthRiskClass(level?: string): string {
@@ -2524,8 +2696,58 @@ onUnmounted(() => {
   @apply inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md;
 }
 
+.account-compact-metric {
+  @apply inline-flex h-7 min-w-[98px] items-center gap-1.5 rounded-md border border-transparent bg-transparent px-2 text-left text-xs leading-none text-gray-700 transition-colors hover:border-gray-200 hover:bg-gray-50 focus-visible:border-primary-300 focus-visible:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-100 dark:text-gray-200 dark:hover:border-gray-700 dark:hover:bg-gray-800/80 dark:focus-visible:border-primary-700 dark:focus-visible:bg-primary-900/20 dark:focus-visible:ring-primary-900/40;
+}
+
+.account-health-dot {
+  @apply h-2 w-2 flex-shrink-0 rounded-full;
+}
+
+.account-metric-number {
+  @apply font-mono text-sm font-semibold text-gray-800 dark:text-gray-100;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-metric-muted {
+  @apply max-w-[54px] truncate text-gray-500 dark:text-gray-400;
+}
+
+.account-rate-shell {
+  @apply relative inline-flex h-7 w-[88px] items-center rounded-md border border-transparent bg-transparent transition-colors hover:border-gray-200 hover:bg-gray-50 focus-within:border-primary-300 focus-within:bg-primary-50 focus-within:ring-2 focus-within:ring-primary-100 dark:hover:border-gray-700 dark:hover:bg-gray-800/80 dark:focus-within:border-primary-700 dark:focus-within:bg-primary-900/20 dark:focus-within:ring-primary-900/40;
+}
+
 .account-rate-input {
-  @apply h-8 w-full rounded-md border border-gray-200 bg-white py-1 pl-2 pr-5 font-mono text-sm text-gray-700 outline-none transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-100 disabled:cursor-wait disabled:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:focus:border-primary-500 dark:focus:ring-primary-900/40;
+  @apply h-full w-full rounded-md border-0 bg-transparent py-0 pl-2 pr-5 font-mono text-sm font-medium text-gray-700 outline-none disabled:cursor-wait disabled:opacity-60 dark:text-gray-200;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-rate-input::-webkit-outer-spin-button,
+.account-rate-input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.account-rate-input[type='number'] {
+  appearance: textfield;
+}
+
+.account-rate-suffix {
+  @apply pointer-events-none absolute right-2 text-[11px] font-medium text-gray-400 dark:text-gray-500;
+}
+
+.health-overview-stat {
+  @apply inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded px-1.5 text-[11px] font-medium;
+  font-variant-numeric: tabular-nums;
+}
+
+.upstream-balance-pill {
+  @apply inline-flex h-6 max-w-[180px] shrink-0 items-center rounded-md px-2 text-xs font-semibold;
+  font-variant-numeric: tabular-nums;
+}
+
+.upstream-balance-refresh {
+  @apply inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-transparent text-gray-400 transition-colors hover:border-gray-200 hover:bg-gray-50 hover:text-gray-700 disabled:cursor-wait disabled:opacity-60 dark:text-gray-500 dark:hover:border-gray-700 dark:hover:bg-gray-700/60 dark:hover:text-gray-200;
 }
 
 .health-detail-control {

@@ -1091,9 +1091,25 @@ export interface AccountHealthEventList {
 export interface AccountHealthURLOverview {
   base_url: string
   accounts: AccountHealthSummary[]
+  balance?: AccountUpstreamBalanceSnapshot | null
   risks?: AccountHealthRisk[]
   insufficient_group_ids?: number[]
   insufficient_group_names?: string[]
+}
+
+export interface AccountUpstreamBalanceSnapshot {
+  base_url: string
+  representative_account_id?: number | null
+  status: 'ok' | 'unsupported' | 'error' | 'auth_error' | 'checking'
+  balance?: number | null
+  remaining?: number | null
+  unit?: string
+  source_endpoint?: string
+  http_status?: number | null
+  error_message?: string
+  checked_at?: string | null
+  next_check_at?: string | null
+  updated_at: string
 }
 
 export interface AccountHealthOverview {

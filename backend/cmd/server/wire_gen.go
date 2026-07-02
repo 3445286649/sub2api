@@ -138,6 +138,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	balanceNotifyService := service.ProvideBalanceNotifyService(emailService, settingRepository, accountRepository, notificationEmailService)
 	accountHealthRepository := repository.NewAccountHealthRepository(db)
 	accountHealthService := service.NewAccountHealthService(accountHealthRepository, accountRepository)
+	accountUpstreamBalanceRepository := repository.NewAccountUpstreamBalanceRepository(db)
+	accountUpstreamBalanceService := service.NewAccountUpstreamBalanceService(accountUpstreamBalanceRepository, accountRepository)
 	gatewayService := service.ProvideGatewayService(accountRepository, groupRepository, usageLogRepository, usageBillingRepository, userRepository, userSubscriptionRepository, userGroupRateRepository, gatewayCache, configConfig, schedulerSnapshotService, concurrencyService, billingService, rateLimitService, billingCacheService, identityService, httpUpstream, deferredService, claudeTokenProvider, sessionLimitCache, rpmCache, digestSessionStore, settingService, tlsFingerprintProfileService, channelService, modelPricingResolver, balanceNotifyService, serviceUserPlatformQuotaRepository, accountHealthService)
 	openAIOAuthClient := repository.NewOpenAIOAuthClient()
 	privacyClientFactory := providePrivacyClientFactory()
@@ -193,7 +195,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	accountUsageService := service.NewAccountUsageService(accountRepository, usageLogRepository, claudeUsageFetcher, geminiQuotaService, antigravityQuotaFetcher, grokQuotaFetcher, openAIQuotaService, usageCache, identityCache, tlsFingerprintProfileService)
 	accountTestService := service.NewAccountTestService(accountRepository, geminiTokenProvider, claudeTokenProvider, grokTokenProvider, antigravityGatewayService, httpUpstream, configConfig, tlsFingerprintProfileService)
 	crsSyncService := service.NewCRSSyncService(accountRepository, proxyRepository, oAuthService, openAIOAuthService, geminiOAuthService, configConfig)
-	accountHandler := handler.ProvideAdminAccountHandler(adminService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, rateLimitService, accountUsageService, accountTestService, concurrencyService, crsSyncService, sessionLimitCache, rpmCache, compositeTokenCacheInvalidator, accountHealthService)
+	accountHandler := handler.ProvideAdminAccountHandler(adminService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, rateLimitService, accountUsageService, accountTestService, concurrencyService, crsSyncService, sessionLimitCache, rpmCache, compositeTokenCacheInvalidator, accountHealthService, accountUpstreamBalanceService)
 	adminAnnouncementHandler := admin.NewAnnouncementHandler(announcementService)
 	adminSupportHandler := admin.NewSupportHandler(supportService, settingService)
 	dataManagementService := service.NewDataManagementService()
@@ -296,10 +298,11 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig)
 	accountHealthRunner := service.ProvideAccountHealthRunner(accountHealthService, accountTestService)
 	accountHealthEventCleanupRunner := service.ProvideAccountHealthEventCleanupRunner(accountHealthService)
+	accountUpstreamBalanceRunner := service.ProvideAccountUpstreamBalanceRunner(accountUpstreamBalanceService)
 	paymentOrderExpiryService := service.ProvidePaymentOrderExpiryService(paymentService, leaderLockCache, db)
 	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService)
 	userPlatformQuotaUsageFlusher := service.ProvideUserPlatformQuotaUsageFlusher(configConfig, billingCache, serviceUserPlatformQuotaRepository, timingWheelService)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, accountHealthRunner, accountHealthEventCleanupRunner, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, acquisitionService)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, accountHealthRunner, accountHealthEventCleanupRunner, accountUpstreamBalanceRunner, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, acquisitionService)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -355,6 +358,7 @@ func provideCleanup(
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	accountHealthRunner *service.AccountHealthRunner,
 	accountHealthEventCleanup *service.AccountHealthEventCleanupRunner,
+	accountUpstreamBalanceRunner *service.AccountUpstreamBalanceRunner,
 	backupSvc *service.BackupService,
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
 	channelMonitorRunner *service.ChannelMonitorRunner,
@@ -508,6 +512,12 @@ func provideCleanup(
 			{"AccountHealthEventCleanupRunner", func() error {
 				if accountHealthEventCleanup != nil {
 					accountHealthEventCleanup.Stop()
+				}
+				return nil
+			}},
+			{"AccountUpstreamBalanceRunner", func() error {
+				if accountUpstreamBalanceRunner != nil {
+					accountUpstreamBalanceRunner.Stop()
 				}
 				return nil
 			}},

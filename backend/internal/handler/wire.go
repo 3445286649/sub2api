@@ -118,8 +118,9 @@ func ProvideAdminAccountHandler(
 	rpmCache service.RPMCache,
 	tokenCacheInvalidator service.TokenCacheInvalidator,
 	accountHealthService *service.AccountHealthService,
+	accountUpstreamBalanceService *service.AccountUpstreamBalanceService,
 ) *admin.AccountHandler {
-	return admin.NewAccountHandler(
+	h := admin.NewAccountHandler(
 		adminService,
 		oauthService,
 		openaiOAuthService,
@@ -135,6 +136,8 @@ func ProvideAdminAccountHandler(
 		tokenCacheInvalidator,
 		accountHealthService,
 	)
+	h.SetAccountUpstreamBalanceService(accountUpstreamBalanceService)
+	return h
 }
 
 // ProvideHandlers creates the Handlers struct
