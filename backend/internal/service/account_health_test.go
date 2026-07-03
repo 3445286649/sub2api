@@ -370,6 +370,107 @@ func TestAccountHealthService_AuthErrorDoesNotUseFastProbeRecovery(t *testing.T)
 	require.Equal(t, 0, accountRepo.tempClearCalls)
 }
 
+func TestAccountHealthService_ManualAuthErrorRecoveryAfterTwoSuccesses(t *testing.T) {
+	base := time.Date(2026, 7, 3, 8, 0, 0, 0, time.UTC)
+	current := base
+	ctx := context.Background()
+	until := base.Add(30 * time.Minute)
+	oneMinute := 1
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {
+			ID:                         1,
+			Status:                     StatusActive,
+			Schedulable:                true,
+			HealthProbeEnabled:         true,
+			TempUnschedulableUntil:     &until,
+			TempUnschedulableReason:    accountHealthIsolationReason,
+			HealthProbeIntervalMinutes: &oneMinute,
+		},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return current }}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", "invalid api key"))
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", "invalid api key"))
+	repo.states[1].Score = 25
+	repo.states[1].Status = AccountHealthStatusIsolated
+
+	current = base.Add(time.Minute)
+	require.NoError(t, svc.RecordManualProbeSuccess(ctx, 1, 120, nil))
+	require.Equal(t, 30, repo.states[1].Score)
+	require.Equal(t, AccountHealthStatusRecovering, repo.states[1].Status)
+	require.Equal(t, "auth_error", repo.states[1].LastErrorCategory)
+	require.Equal(t, 0, accountRepo.tempClearCalls)
+
+	current = base.Add(2 * time.Minute)
+	require.NoError(t, svc.RecordManualProbeSuccess(ctx, 1, 100, nil))
+
+	state := repo.states[1]
+	require.Equal(t, AccountHealthStatusHealthy, state.Status)
+	require.Equal(t, accountHealthRecoveredScore, state.Score)
+	require.Empty(t, state.LastErrorCategory)
+	require.Empty(t, state.LastErrorMessage)
+	require.Nil(t, state.NextProbeAt)
+	require.Nil(t, state.IsolatedAt)
+	require.Equal(t, 1, accountRepo.tempClearCalls)
+	require.Nil(t, accountRepo.accounts[1].TempUnschedulableUntil)
+	require.Equal(t, AccountHealthEventTypeRecovered, repo.events[len(repo.events)-1].EventType)
+	require.Equal(t, AccountHealthEventSourceManualProbe, repo.events[len(repo.events)-1].Source)
+}
+
+func TestAccountHealthService_BackgroundAuthErrorProbeDoesNotUseManualRecovery(t *testing.T) {
+	base := time.Date(2026, 7, 3, 8, 0, 0, 0, time.UTC)
+	current := base
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return current }}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", "invalid api key"))
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", "invalid api key"))
+	repo.states[1].Score = 25
+	repo.states[1].Status = AccountHealthStatusIsolated
+
+	current = base.Add(time.Minute)
+	require.NoError(t, svc.RecordManualProbeSuccess(ctx, 1, 120, nil))
+	current = base.Add(2 * time.Minute)
+	require.NoError(t, svc.RecordProbeSuccess(ctx, 1, 100))
+
+	require.Equal(t, 35, repo.states[1].Score)
+	require.Equal(t, AccountHealthStatusRecovering, repo.states[1].Status)
+	require.Equal(t, "auth_error", repo.states[1].LastErrorCategory)
+	require.Equal(t, 0, accountRepo.tempClearCalls)
+}
+
+func TestAccountHealthService_ManualAuthErrorRecoveryRequiresConsecutiveSuccesses(t *testing.T) {
+	base := time.Date(2026, 7, 3, 8, 0, 0, 0, time.UTC)
+	current := base
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return current }}
+
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", "invalid api key"))
+	require.NoError(t, svc.RecordFailure(ctx, 1, "auth_error", "invalid api key"))
+	repo.states[1].Score = 25
+	repo.states[1].Status = AccountHealthStatusIsolated
+
+	current = base.Add(time.Minute)
+	require.NoError(t, svc.RecordManualProbeSuccess(ctx, 1, 120, nil))
+	current = base.Add(2 * time.Minute)
+	require.NoError(t, svc.RecordManualProbeFailure(ctx, 1, "auth_error", "invalid api key", nil))
+	current = base.Add(3 * time.Minute)
+	require.NoError(t, svc.RecordManualProbeSuccess(ctx, 1, 100, nil))
+
+	require.Equal(t, AccountHealthStatusRecovering, repo.states[1].Status)
+	require.Equal(t, "auth_error", repo.states[1].LastErrorCategory)
+	require.Equal(t, 0, accountRepo.tempClearCalls)
+}
+
 func TestAccountHealthService_TemporaryFailuresUseProgressivePenaltyAndThirdFailureIsolates(t *testing.T) {
 	base := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	ctx := context.Background()

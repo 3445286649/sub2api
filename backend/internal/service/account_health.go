@@ -37,6 +37,7 @@ const (
 	accountHealthIsolationScore           = 40
 	accountHealthIsolationFailures        = 3
 	accountHealthRecoverySuccesses        = 2
+	accountHealthManualAuthRecoveries     = 2
 	accountHealthRecoveryScore            = 70
 	accountHealthProbeRecoveryScore       = 50
 	accountHealthRecoveredScore           = 70
@@ -267,6 +268,7 @@ func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int6
 	if probe && canFastRecoverFromProbeSuccess(state) {
 		reward = accountHealthProbeRecoveryReward
 	}
+	manualAuthRecovery := s.shouldRecoverAuthErrorAfterManualProbeSuccess(ctx, accountID, &before, source)
 	state.Score = clampHealthScore(state.Score + reward)
 	state.ConsecutiveSuccesses++
 	state.ConsecutiveFailures = 0
@@ -286,7 +288,20 @@ func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int6
 	if !probe && before.Status == AccountHealthStatusDegraded && state.ConsecutiveSuccesses >= accountHealthDegradedSuccessesFloor && state.Score < accountHealthDegradedSuccessFloor {
 		state.Score = accountHealthDegradedSuccessFloor
 	}
-	if state.Status == AccountHealthStatusIsolated || state.Status == AccountHealthStatusRecovering {
+	if manualAuthRecovery {
+		state.Status = AccountHealthStatusHealthy
+		if state.Score < accountHealthRecoveredScore {
+			state.Score = accountHealthRecoveredScore
+		}
+		state.BackoffLevel = 0
+		state.NextProbeAt = nil
+		state.IsolatedAt = nil
+		state.LastErrorCategory = ""
+		state.LastErrorMessage = ""
+		if err := s.accountRepo.ClearTempUnschedulable(ctx, accountID); err != nil {
+			return err
+		}
+	} else if state.Status == AccountHealthStatusIsolated || state.Status == AccountHealthStatusRecovering {
 		recoveryScore := accountHealthRecoveryScore
 		if probe && reward == accountHealthProbeRecoveryReward {
 			recoveryScore = accountHealthProbeRecoveryScore
@@ -329,7 +344,11 @@ func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int6
 		return err
 	}
 	if !shouldSkipAccountHealthSuccessEvent(&before, state, source) {
-		_ = s.insertHealthEvent(ctx, &before, state, source, accountHealthSuccessEventType(&before, state), "", "", latencyMs, actorUserID)
+		eventType := accountHealthSuccessEventType(&before, state)
+		if manualAuthRecovery {
+			eventType = AccountHealthEventTypeRecovered
+		}
+		_ = s.insertHealthEvent(ctx, &before, state, source, eventType, "", "", latencyMs, actorUserID)
 	}
 	return nil
 }
@@ -1208,6 +1227,45 @@ func canFastRecoverFromProbeSuccess(state *AccountHealthState) bool {
 		return false
 	}
 	return state.LastErrorCategory != "auth_error"
+}
+
+func (s *AccountHealthService) shouldRecoverAuthErrorAfterManualProbeSuccess(ctx context.Context, accountID int64, before *AccountHealthState, source string) bool {
+	if s == nil || s.repo == nil || before == nil || source != AccountHealthEventSourceManualProbe {
+		return false
+	}
+	if before.LastErrorCategory != "auth_error" {
+		return false
+	}
+	successes := 1 // current manual probe success, not inserted yet
+	events, err := s.repo.ListEvents(ctx, accountID, "", pagination.PaginationParams{Page: 1, PageSize: 20})
+	if err != nil || events == nil {
+		return false
+	}
+	sort.SliceStable(events.Items, func(i, j int) bool {
+		if events.Items[i].CreatedAt.Equal(events.Items[j].CreatedAt) {
+			return events.Items[i].ID > events.Items[j].ID
+		}
+		return events.Items[i].CreatedAt.After(events.Items[j].CreatedAt)
+	})
+	for _, event := range events.Items {
+		if before.LastFailureAt != nil && !event.CreatedAt.After(*before.LastFailureAt) {
+			continue
+		}
+		if event.EventType == AccountHealthEventTypeFailure {
+			return false
+		}
+		if event.Source != AccountHealthEventSourceManualProbe {
+			continue
+		}
+		switch event.EventType {
+		case AccountHealthEventTypeSuccess, AccountHealthEventTypeRecovering, AccountHealthEventTypeRecovered:
+			successes++
+		}
+		if successes >= accountHealthManualAuthRecoveries {
+			return true
+		}
+	}
+	return false
 }
 
 func accountHealthPtrTime(t time.Time) *time.Time { return &t }
