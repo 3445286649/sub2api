@@ -1073,13 +1073,19 @@ type GatewaySchedulingConfig struct {
 	// 默认 false，保持原有「优先级 → 负载率 → LRU」行为不变。
 	PreferSoonestReset bool `mapstructure:"prefer_soonest_reset"`
 
-	// HealthSortEnabled 开启后，账号调度会在硬过滤后按「成本倍率 → 健康分 → 平均延迟」优化排序。
+	// HealthSortEnabled 开启后，账号调度会在硬过滤后按「健康分层 → 同层加权评分」优化排序。
 	// 关闭后回退旧的优先级/负载/LRU 排序，方便线上排障。
 	HealthSortEnabled bool `mapstructure:"health_sort_enabled"`
 	// HealthTierHealthyMin / HealthTierDegradedMin 控制健康分层调度阈值。
 	// 默认 80/60；非法配置会在加载阶段回退默认值，不阻止启动。
 	HealthTierHealthyMin  int `mapstructure:"health_tier_healthy_min"`
 	HealthTierDegradedMin int `mapstructure:"health_tier_degraded_min"`
+	// 同一健康层内的加权评分权重。默认健康/延迟/成本/负载 = 35/35/20/10。
+	// 非法配置会在加载阶段回退默认值，不阻止启动。
+	ScoreWeightHealth  int `mapstructure:"score_weight_health"`
+	ScoreWeightLatency int `mapstructure:"score_weight_latency"`
+	ScoreWeightCost    int `mapstructure:"score_weight_cost"`
+	ScoreWeightLoad    int `mapstructure:"score_weight_load"`
 
 	// 负载计算
 	LoadBatchEnabled    bool `mapstructure:"load_batch_enabled"`
@@ -1378,6 +1384,10 @@ func NormalizeRunMode(value string) string {
 const (
 	defaultSchedulingHealthTierHealthyMin  = 80
 	defaultSchedulingHealthTierDegradedMin = 60
+	defaultSchedulingScoreWeightHealth     = 35
+	defaultSchedulingScoreWeightLatency    = 35
+	defaultSchedulingScoreWeightCost       = 20
+	defaultSchedulingScoreWeightLoad       = 10
 )
 
 func normalizeGatewaySchedulingHealthTiers(cfg *GatewaySchedulingConfig) {
@@ -1394,6 +1404,31 @@ func normalizeGatewaySchedulingHealthTiers(cfg *GatewaySchedulingConfig) {
 			"default_health_tier_degraded_min", defaultSchedulingHealthTierDegradedMin)
 		cfg.HealthTierHealthyMin = defaultSchedulingHealthTierHealthyMin
 		cfg.HealthTierDegradedMin = defaultSchedulingHealthTierDegradedMin
+	}
+}
+
+func normalizeGatewaySchedulingScoreWeights(cfg *GatewaySchedulingConfig) {
+	if cfg == nil {
+		return
+	}
+	health := cfg.ScoreWeightHealth
+	latency := cfg.ScoreWeightLatency
+	cost := cfg.ScoreWeightCost
+	load := cfg.ScoreWeightLoad
+	if health < 0 || latency < 0 || cost < 0 || load < 0 || health+latency+cost+load <= 0 {
+		slog.Warn("invalid gateway scheduling score weights, falling back to defaults",
+			"score_weight_health", health,
+			"score_weight_latency", latency,
+			"score_weight_cost", cost,
+			"score_weight_load", load,
+			"default_score_weight_health", defaultSchedulingScoreWeightHealth,
+			"default_score_weight_latency", defaultSchedulingScoreWeightLatency,
+			"default_score_weight_cost", defaultSchedulingScoreWeightCost,
+			"default_score_weight_load", defaultSchedulingScoreWeightLoad)
+		cfg.ScoreWeightHealth = defaultSchedulingScoreWeightHealth
+		cfg.ScoreWeightLatency = defaultSchedulingScoreWeightLatency
+		cfg.ScoreWeightCost = defaultSchedulingScoreWeightCost
+		cfg.ScoreWeightLoad = defaultSchedulingScoreWeightLoad
 	}
 }
 
@@ -1418,6 +1453,38 @@ func normalizeGatewaySchedulingHealthTierRawValues() {
 				"default_health_tier_degraded_min", defaultSchedulingHealthTierDegradedMin)
 			viper.Set("gateway.scheduling.health_tier_healthy_min", defaultSchedulingHealthTierHealthyMin)
 			viper.Set("gateway.scheduling.health_tier_degraded_min", defaultSchedulingHealthTierDegradedMin)
+			return
+		}
+	}
+}
+
+func normalizeGatewaySchedulingScoreWeightRawValues() {
+	keys := []string{
+		"gateway.scheduling.score_weight_health",
+		"gateway.scheduling.score_weight_latency",
+		"gateway.scheduling.score_weight_cost",
+		"gateway.scheduling.score_weight_load",
+	}
+	for _, key := range keys {
+		if !viper.IsSet(key) {
+			continue
+		}
+		raw := strings.TrimSpace(viper.GetString(key))
+		if raw == "" {
+			continue
+		}
+		if _, err := strconv.Atoi(raw); err != nil {
+			slog.Warn("invalid gateway scheduling score weight value, falling back to defaults",
+				"key", key,
+				"value", raw,
+				"default_score_weight_health", defaultSchedulingScoreWeightHealth,
+				"default_score_weight_latency", defaultSchedulingScoreWeightLatency,
+				"default_score_weight_cost", defaultSchedulingScoreWeightCost,
+				"default_score_weight_load", defaultSchedulingScoreWeightLoad)
+			viper.Set("gateway.scheduling.score_weight_health", defaultSchedulingScoreWeightHealth)
+			viper.Set("gateway.scheduling.score_weight_latency", defaultSchedulingScoreWeightLatency)
+			viper.Set("gateway.scheduling.score_weight_cost", defaultSchedulingScoreWeightCost)
+			viper.Set("gateway.scheduling.score_weight_load", defaultSchedulingScoreWeightLoad)
 			return
 		}
 	}
@@ -1468,6 +1535,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	}
 
 	normalizeGatewaySchedulingHealthTierRawValues()
+	normalizeGatewaySchedulingScoreWeightRawValues()
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
@@ -1558,6 +1626,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		cfg.Gateway.UserMessageQueue.Mode = ""
 	}
 	normalizeGatewaySchedulingHealthTiers(&cfg.Gateway.Scheduling)
+	normalizeGatewaySchedulingScoreWeights(&cfg.Gateway.Scheduling)
 
 	// Auto-generate TOTP encryption key if not set (32 bytes = 64 hex chars for AES-256)
 	cfg.Totp.EncryptionKey = strings.TrimSpace(cfg.Totp.EncryptionKey)
@@ -1991,6 +2060,10 @@ func setDefaults() {
 	viper.SetDefault("gateway.scheduling.health_sort_enabled", true)
 	viper.SetDefault("gateway.scheduling.health_tier_healthy_min", 80)
 	viper.SetDefault("gateway.scheduling.health_tier_degraded_min", 60)
+	viper.SetDefault("gateway.scheduling.score_weight_health", 35)
+	viper.SetDefault("gateway.scheduling.score_weight_latency", 35)
+	viper.SetDefault("gateway.scheduling.score_weight_cost", 20)
+	viper.SetDefault("gateway.scheduling.score_weight_load", 10)
 	viper.SetDefault("gateway.scheduling.load_batch_enabled", true)
 	viper.SetDefault("gateway.scheduling.load_batch_cache_ttl_ms", 200)
 	viper.SetDefault("gateway.scheduling.snapshot_mget_chunk_size", 128)

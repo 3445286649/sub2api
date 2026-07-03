@@ -1149,6 +1149,7 @@ func TestOpenAISelectAccountWithLoadAwareness_PreferNeverUsed(t *testing.T) {
 		accountRepo:        repo,
 		cache:              cache,
 		concurrencyService: NewConcurrencyService(concurrencyCache),
+		cfg:                &config.Config{Gateway: config.GatewayConfig{Scheduling: config.GatewaySchedulingConfig{HealthSortEnabled: false, LoadBatchEnabled: true}}},
 	}
 
 	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, "", "gpt-4", nil)

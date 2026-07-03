@@ -2554,6 +2554,10 @@ func (s *OpenAIGatewayService) schedulingConfig() config.GatewaySchedulingConfig
 		HealthSortEnabled:        true,
 		HealthTierHealthyMin:     defaultAccountHealthScore,
 		HealthTierDegradedMin:    accountHealthDefaultTierDegradedMin,
+		ScoreWeightHealth:        accountScheduleDefaultWeightHealth,
+		ScoreWeightLatency:       accountScheduleDefaultWeightLatency,
+		ScoreWeightCost:          accountScheduleDefaultWeightCost,
+		ScoreWeightLoad:          accountScheduleDefaultWeightLoad,
 		LoadBatchEnabled:         true,
 		SlotCleanupInterval:      30 * time.Second,
 	}

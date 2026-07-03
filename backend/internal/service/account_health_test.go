@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -1164,6 +1165,25 @@ func TestSortAccountPointersByHealthCostAndLRU_HealthTierBeforeCost(t *testing.T
 	require.Equal(t, []int64{2, 3, 1}, []int64{accounts[0].ID, accounts[1].ID, accounts[2].ID})
 }
 
+func TestSortAccountPointersByHealthCostAndLRU_WeightedScoreWithinSameTier(t *testing.T) {
+	cheap := 0.06
+	faster := 0.2
+	slowLatency := 9000
+	fastLatency := 1800
+	accounts := []*Account{
+		{ID: 1, RateMultiplier: &cheap},
+		{ID: 2, RateMultiplier: &faster},
+	}
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 100, LatencyEWMAMs: &slowLatency}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, LatencyEWMAMs: &fastLatency}},
+	}
+
+	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
+
+	require.Equal(t, []int64{2, 1}, []int64{accounts[0].ID, accounts[1].ID})
+}
+
 func TestSortAccountPointersByHealthCostAndLRU_UnknownHealthUsesConfiguredHealthyTier(t *testing.T) {
 	cheap := 0.5
 	expensive := 1.0
@@ -1185,28 +1205,48 @@ func TestSortAccountPointersByHealthCostAndLRU_UnknownHealthUsesConfiguredHealth
 	require.Equal(t, 0, accountHealthTier(score, cfg))
 }
 
-func TestSortAccountWithLoadByHealthCostAndLoad_ScoreLatencyThenLoad(t *testing.T) {
+func TestSortAccountWithLoadByHealthCostAndLoad_WeightedScoreIncludesLoad(t *testing.T) {
 	rate := 0.1
 	accounts := []accountWithLoad{
 		{account: &Account{ID: 1, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 90}},
-		{account: &Account{ID: 2, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 80}},
-		{account: &Account{ID: 3, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 20}},
-		{account: &Account{ID: 4, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: 2, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
 	}
-	latency1 := 100
-	latency2 := 300
-	latency3 := 300
-	latency4 := 300
+	latency := 1800
 	health := map[int64]*AccountHealthSummary{
-		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 95, LatencyEWMAMs: &latency1}},
-		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, LatencyEWMAMs: &latency2}},
-		3: {AccountHealthState: AccountHealthState{AccountID: 3, Score: 90, LatencyEWMAMs: &latency3}},
-		4: {AccountHealthState: AccountHealthState{AccountID: 4, Score: 90, LatencyEWMAMs: &latency4}},
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 95, LatencyEWMAMs: &latency}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, LatencyEWMAMs: &latency}},
 	}
 
 	sortAccountWithLoadByHealthCostAndLoad(accounts, health, false, testHealthSortConfig())
 
-	require.Equal(t, []int64{1, 2, 4, 3}, []int64{accounts[0].account.ID, accounts[1].account.ID, accounts[2].account.ID, accounts[3].account.ID})
+	require.Equal(t, []int64{2, 1}, []int64{accounts[0].account.ID, accounts[1].account.ID})
+}
+
+func TestSortAccountPointersByHealthCostAndLRU_UnknownLatencyDoesNotWin(t *testing.T) {
+	rate := 1.0
+	knownLatency := 1800
+	accounts := []*Account{
+		{ID: 1, RateMultiplier: &rate},
+		{ID: 2, RateMultiplier: &rate},
+	}
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 95}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, LatencyEWMAMs: &knownLatency}},
+	}
+
+	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
+
+	require.Equal(t, []int64{2, 1}, []int64{accounts[0].ID, accounts[1].ID})
+	require.Equal(t, 50.0, normalizeScheduleLatencyScore(math.MaxInt))
+}
+
+func TestScheduleScoreNormalizersClampExtremes(t *testing.T) {
+	require.Equal(t, 100.0, normalizeScheduleLatencyScore(50))
+	require.Equal(t, 0.0, normalizeScheduleLatencyScore(50000))
+	require.Equal(t, 100.0, normalizeScheduleCostScore(0.01, 1.0))
+	require.Equal(t, 0.0, normalizeScheduleCostScore(10.0, 1.0))
+	require.Equal(t, 100.0, normalizeScheduleLoadScore(-10))
+	require.Equal(t, 0.0, normalizeScheduleLoadScore(120))
 }
 
 func TestSortAccountPointersByHealthCostAndLRU_DisabledUsesLegacyPriorityLRU(t *testing.T) {
@@ -1236,6 +1276,10 @@ func testHealthSortConfig() config.GatewaySchedulingConfig {
 		HealthSortEnabled:     true,
 		HealthTierHealthyMin:  80,
 		HealthTierDegradedMin: 60,
+		ScoreWeightHealth:     35,
+		ScoreWeightLatency:    35,
+		ScoreWeightCost:       20,
+		ScoreWeightLoad:       10,
 	}
 }
 

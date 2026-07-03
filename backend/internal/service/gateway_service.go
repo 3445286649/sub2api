@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	mathrand "math/rand"
 	"net"
 	"net/http"
@@ -3173,10 +3174,11 @@ func shuffleWithinSortGroups(accounts []accountWithLoad, health map[int64]*Accou
 	if len(accounts) <= 1 {
 		return
 	}
+	costMedian := medianAccountWithLoadBillingRateMultiplier(accounts)
 	i := 0
 	for i < len(accounts) {
 		j := i + 1
-		for j < len(accounts) && sameAccountWithLoadGroup(accounts[i], accounts[j], health, cfg) {
+		for j < len(accounts) && sameAccountWithLoadGroupWithCostMedian(accounts[i], accounts[j], health, cfg, costMedian) {
 			j++
 		}
 		if j-i > 1 {
@@ -3190,16 +3192,19 @@ func shuffleWithinSortGroups(accounts []accountWithLoad, health map[int64]*Accou
 
 // sameAccountWithLoadGroup 判断两个 accountWithLoad 是否属于同一排序组
 func sameAccountWithLoadGroup(a, b accountWithLoad, health map[int64]*AccountHealthSummary, cfg config.GatewaySchedulingConfig) bool {
+	return sameAccountWithLoadGroupWithCostMedian(a, b, health, cfg, medianAccountWithLoadBillingRateMultiplier([]accountWithLoad{a, b}))
+}
+
+func sameAccountWithLoadGroupWithCostMedian(a, b accountWithLoad, health map[int64]*AccountHealthSummary, cfg config.GatewaySchedulingConfig, costMedian float64) bool {
 	if cfg.HealthSortEnabled {
 		aScore, _ := accountHealthSortValueForScheduling(health, a.account.ID, cfg)
 		bScore, _ := accountHealthSortValueForScheduling(health, b.account.ID, cfg)
 		if accountHealthTier(aScore, cfg) != accountHealthTier(bScore, cfg) {
 			return false
 		}
-		if a.account.BillingRateMultiplier() != b.account.BillingRateMultiplier() {
-			return false
-		}
-		return true
+		aWeighted := accountWithLoadScheduleWeightedScore(a, health, cfg, costMedian)
+		bWeighted := accountWithLoadScheduleWeightedScore(b, health, cfg, costMedian)
+		return math.Abs(aWeighted-bWeighted) <= accountScheduleShuffleScoreWindow
 	}
 	if a.account.Priority != b.account.Priority {
 		return false

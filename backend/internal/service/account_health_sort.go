@@ -9,11 +9,22 @@ import (
 
 const accountHealthDefaultTierDegradedMin = 60
 
+const (
+	accountScheduleDefaultWeightHealth  = 35
+	accountScheduleDefaultWeightLatency = 35
+	accountScheduleDefaultWeightCost    = 20
+	accountScheduleDefaultWeightLoad    = 10
+	accountScheduleScoreTieEpsilon      = 0.000001
+	accountScheduleShuffleScoreWindow   = 2.0
+	accountScheduleUnknownLatencyScore  = 50.0
+)
+
 func sortAccountWithLoadByHealthCostAndLoad(items []accountWithLoad, health map[int64]*AccountHealthSummary, preferOAuth bool, cfg config.GatewaySchedulingConfig) {
 	if !cfg.HealthSortEnabled {
 		sortAccountWithLoadByLegacyLoad(items, preferOAuth)
 		return
 	}
+	costMedian := medianAccountWithLoadBillingRateMultiplier(items)
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i], items[j]
 		aScore, aLatency := accountHealthSortValueForScheduling(health, a.account.ID, cfg)
@@ -21,14 +32,19 @@ func sortAccountWithLoadByHealthCostAndLoad(items []accountWithLoad, health map[
 		if at, bt := accountHealthTier(aScore, cfg), accountHealthTier(bScore, cfg); at != bt {
 			return at < bt
 		}
-		if ar, br := a.account.BillingRateMultiplier(), b.account.BillingRateMultiplier(); ar != br {
-			return ar < br
+		aWeighted := accountWithLoadScheduleWeightedScore(a, health, cfg, costMedian)
+		bWeighted := accountWithLoadScheduleWeightedScore(b, health, cfg, costMedian)
+		if math.Abs(aWeighted-bWeighted) > accountScheduleScoreTieEpsilon {
+			return aWeighted > bWeighted
 		}
 		if aScore != bScore {
 			return aScore > bScore
 		}
 		if aLatency != bLatency {
 			return aLatency < bLatency
+		}
+		if ar, br := a.account.BillingRateMultiplier(), b.account.BillingRateMultiplier(); ar != br {
+			return ar < br
 		}
 		if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
 			return a.loadInfo.LoadRate < b.loadInfo.LoadRate
@@ -48,6 +64,7 @@ func sortAccountPointersByHealthCostAndLRU(items []*Account, health map[int64]*A
 		sortAccountPointersByLegacyLRU(items, preferOAuth)
 		return
 	}
+	costMedian := medianAccountPointerBillingRateMultiplier(items)
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i], items[j]
 		aScore, aLatency := accountHealthSortValueForScheduling(health, a.ID, cfg)
@@ -55,14 +72,19 @@ func sortAccountPointersByHealthCostAndLRU(items []*Account, health map[int64]*A
 		if at, bt := accountHealthTier(aScore, cfg), accountHealthTier(bScore, cfg); at != bt {
 			return at < bt
 		}
-		if ar, br := a.BillingRateMultiplier(), b.BillingRateMultiplier(); ar != br {
-			return ar < br
+		aWeighted := accountPointerScheduleWeightedScore(a, health, cfg, costMedian)
+		bWeighted := accountPointerScheduleWeightedScore(b, health, cfg, costMedian)
+		if math.Abs(aWeighted-bWeighted) > accountScheduleScoreTieEpsilon {
+			return aWeighted > bWeighted
 		}
 		if aScore != bScore {
 			return aScore > bScore
 		}
 		if aLatency != bLatency {
 			return aLatency < bLatency
+		}
+		if ar, br := a.BillingRateMultiplier(), b.BillingRateMultiplier(); ar != br {
+			return ar < br
 		}
 		if preferOAuth && a.Type != b.Type {
 			return a.Type == AccountTypeOAuth
@@ -105,6 +127,159 @@ func accountHealthTierThresholds(cfg config.GatewaySchedulingConfig) (healthyMin
 		return defaultAccountHealthScore, accountHealthDefaultTierDegradedMin
 	}
 	return healthyMin, degradedMin
+}
+
+func accountWithLoadScheduleWeightedScore(item accountWithLoad, health map[int64]*AccountHealthSummary, cfg config.GatewaySchedulingConfig, costMedian float64) float64 {
+	if item.account == nil {
+		return 0
+	}
+	score, latency := accountHealthSortValueForScheduling(health, item.account.ID, cfg)
+	loadRate := 0
+	if item.loadInfo != nil {
+		loadRate = item.loadInfo.LoadRate
+	}
+	return accountScheduleWeightedScore(score, latency, item.account.BillingRateMultiplier(), costMedian, loadRate, cfg)
+}
+
+func accountPointerScheduleWeightedScore(account *Account, health map[int64]*AccountHealthSummary, cfg config.GatewaySchedulingConfig, costMedian float64) float64 {
+	if account == nil {
+		return 0
+	}
+	score, latency := accountHealthSortValueForScheduling(health, account.ID, cfg)
+	return accountScheduleWeightedScore(score, latency, account.BillingRateMultiplier(), costMedian, 0, cfg)
+}
+
+func accountScheduleWeightedScore(healthScore int, latency int, rateMultiplier float64, costMedian float64, loadRate int, cfg config.GatewaySchedulingConfig) float64 {
+	healthWeight, latencyWeight, costWeight, loadWeight := accountScheduleScoreWeights(cfg)
+	totalWeight := healthWeight + latencyWeight + costWeight + loadWeight
+	if totalWeight <= 0 {
+		return 0
+	}
+	score := normalizeScheduleHealthScore(healthScore)*healthWeight +
+		normalizeScheduleLatencyScore(latency)*latencyWeight +
+		normalizeScheduleCostScore(rateMultiplier, costMedian)*costWeight +
+		normalizeScheduleLoadScore(loadRate)*loadWeight
+	return score / totalWeight
+}
+
+func accountScheduleScoreWeights(cfg config.GatewaySchedulingConfig) (health, latency, cost, load float64) {
+	h := cfg.ScoreWeightHealth
+	l := cfg.ScoreWeightLatency
+	c := cfg.ScoreWeightCost
+	ld := cfg.ScoreWeightLoad
+	if h < 0 || l < 0 || c < 0 || ld < 0 || h+l+c+ld <= 0 {
+		h = accountScheduleDefaultWeightHealth
+		l = accountScheduleDefaultWeightLatency
+		c = accountScheduleDefaultWeightCost
+		ld = accountScheduleDefaultWeightLoad
+	}
+	return float64(h), float64(l), float64(c), float64(ld)
+}
+
+func normalizeScheduleHealthScore(score int) float64 {
+	if score < 0 {
+		return 0
+	}
+	if score > 100 {
+		return 100
+	}
+	return float64(score)
+}
+
+func normalizeScheduleLatencyScore(latency int) float64 {
+	if latency < 0 || latency == math.MaxInt {
+		return accountScheduleUnknownLatencyScore
+	}
+	points := []struct {
+		latency int
+		score   float64
+	}{
+		{latency: 1500, score: 100},
+		{latency: 3000, score: 80},
+		{latency: 6000, score: 50},
+		{latency: 10000, score: 20},
+		{latency: 15000, score: 0},
+	}
+	if latency <= points[0].latency {
+		return points[0].score
+	}
+	for i := 1; i < len(points); i++ {
+		prev := points[i-1]
+		next := points[i]
+		if latency <= next.latency {
+			ratio := float64(latency-prev.latency) / float64(next.latency-prev.latency)
+			return prev.score + (next.score-prev.score)*ratio
+		}
+	}
+	return 0
+}
+
+func normalizeScheduleCostScore(rateMultiplier float64, median float64) float64 {
+	if median <= 0 || math.IsNaN(median) || math.IsInf(median, 0) {
+		median = 1
+	}
+	if rateMultiplier < 0 || math.IsNaN(rateMultiplier) || math.IsInf(rateMultiplier, 0) {
+		rateMultiplier = 1
+	}
+	ratio := rateMultiplier / median
+	if ratio <= 0.5 {
+		return 100
+	}
+	if ratio >= 3.0 {
+		return 0
+	}
+	return (3.0 - ratio) / (3.0 - 0.5) * 100
+}
+
+func normalizeScheduleLoadScore(loadRate int) float64 {
+	if loadRate < 0 {
+		loadRate = 0
+	}
+	if loadRate > 100 {
+		loadRate = 100
+	}
+	return (1 - float64(loadRate)/100) * 100
+}
+
+func medianAccountWithLoadBillingRateMultiplier(items []accountWithLoad) float64 {
+	rates := make([]float64, 0, len(items))
+	for _, item := range items {
+		if item.account == nil {
+			continue
+		}
+		rates = append(rates, item.account.BillingRateMultiplier())
+	}
+	return medianFloat64(rates)
+}
+
+func medianAccountPointerBillingRateMultiplier(items []*Account) float64 {
+	rates := make([]float64, 0, len(items))
+	for _, account := range items {
+		if account == nil {
+			continue
+		}
+		rates = append(rates, account.BillingRateMultiplier())
+	}
+	return medianFloat64(rates)
+}
+
+func medianFloat64(values []float64) float64 {
+	cleaned := make([]float64, 0, len(values))
+	for _, value := range values {
+		if math.IsNaN(value) || math.IsInf(value, 0) {
+			continue
+		}
+		cleaned = append(cleaned, value)
+	}
+	if len(cleaned) == 0 {
+		return 1
+	}
+	sort.Float64s(cleaned)
+	mid := len(cleaned) / 2
+	if len(cleaned)%2 == 1 {
+		return cleaned[mid]
+	}
+	return (cleaned[mid-1] + cleaned[mid]) / 2
 }
 
 func sortAccountWithLoadByLegacyLoad(items []accountWithLoad, preferOAuth bool) {

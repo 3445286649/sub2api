@@ -85,6 +85,18 @@ func TestLoadDefaultSchedulingConfig(t *testing.T) {
 	if cfg.Gateway.Scheduling.HealthTierDegradedMin != 60 {
 		t.Fatalf("HealthTierDegradedMin = %d, want 60", cfg.Gateway.Scheduling.HealthTierDegradedMin)
 	}
+	if cfg.Gateway.Scheduling.ScoreWeightHealth != 35 {
+		t.Fatalf("ScoreWeightHealth = %d, want 35", cfg.Gateway.Scheduling.ScoreWeightHealth)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightLatency != 35 {
+		t.Fatalf("ScoreWeightLatency = %d, want 35", cfg.Gateway.Scheduling.ScoreWeightLatency)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightCost != 20 {
+		t.Fatalf("ScoreWeightCost = %d, want 20", cfg.Gateway.Scheduling.ScoreWeightCost)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightLoad != 10 {
+		t.Fatalf("ScoreWeightLoad = %d, want 10", cfg.Gateway.Scheduling.ScoreWeightLoad)
+	}
 }
 
 func TestLoadDefaultOpenAIWSConfig(t *testing.T) {
@@ -298,6 +310,10 @@ func TestLoadSchedulingConfigFromEnv(t *testing.T) {
 	t.Setenv("GATEWAY_SCHEDULING_STICKY_SESSION_MAX_WAITING", "5")
 	t.Setenv("GATEWAY_SCHEDULING_HEALTH_TIER_HEALTHY_MIN", "85")
 	t.Setenv("GATEWAY_SCHEDULING_HEALTH_TIER_DEGRADED_MIN", "60")
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_HEALTH", "30")
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_LATENCY", "45")
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_COST", "15")
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_LOAD", "10")
 
 	cfg, err := Load()
 	if err != nil {
@@ -312,6 +328,18 @@ func TestLoadSchedulingConfigFromEnv(t *testing.T) {
 	}
 	if cfg.Gateway.Scheduling.HealthTierDegradedMin != 60 {
 		t.Fatalf("HealthTierDegradedMin = %d, want 60", cfg.Gateway.Scheduling.HealthTierDegradedMin)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightHealth != 30 {
+		t.Fatalf("ScoreWeightHealth = %d, want 30", cfg.Gateway.Scheduling.ScoreWeightHealth)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightLatency != 45 {
+		t.Fatalf("ScoreWeightLatency = %d, want 45", cfg.Gateway.Scheduling.ScoreWeightLatency)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightCost != 15 {
+		t.Fatalf("ScoreWeightCost = %d, want 15", cfg.Gateway.Scheduling.ScoreWeightCost)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightLoad != 10 {
+		t.Fatalf("ScoreWeightLoad = %d, want 10", cfg.Gateway.Scheduling.ScoreWeightLoad)
 	}
 }
 
@@ -348,6 +376,58 @@ func TestLoadSchedulingHealthTierNonNumericEnvFallsBack(t *testing.T) {
 	}
 	if cfg.Gateway.Scheduling.HealthTierDegradedMin != 60 {
 		t.Fatalf("HealthTierDegradedMin = %d, want fallback 60", cfg.Gateway.Scheduling.HealthTierDegradedMin)
+	}
+}
+
+func TestLoadSchedulingScoreWeightsInvalidConfigFallsBack(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_HEALTH", "35")
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_LATENCY", "-1")
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_COST", "20")
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_LOAD", "10")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	if cfg.Gateway.Scheduling.ScoreWeightHealth != 35 {
+		t.Fatalf("ScoreWeightHealth = %d, want fallback 35", cfg.Gateway.Scheduling.ScoreWeightHealth)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightLatency != 35 {
+		t.Fatalf("ScoreWeightLatency = %d, want fallback 35", cfg.Gateway.Scheduling.ScoreWeightLatency)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightCost != 20 {
+		t.Fatalf("ScoreWeightCost = %d, want fallback 20", cfg.Gateway.Scheduling.ScoreWeightCost)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightLoad != 10 {
+		t.Fatalf("ScoreWeightLoad = %d, want fallback 10", cfg.Gateway.Scheduling.ScoreWeightLoad)
+	}
+}
+
+func TestLoadSchedulingScoreWeightsNonNumericEnvFallsBack(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_HEALTH", "abc")
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_LATENCY", "35")
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_COST", "20")
+	t.Setenv("GATEWAY_SCHEDULING_SCORE_WEIGHT_LOAD", "10")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	if cfg.Gateway.Scheduling.ScoreWeightHealth != 35 {
+		t.Fatalf("ScoreWeightHealth = %d, want fallback 35", cfg.Gateway.Scheduling.ScoreWeightHealth)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightLatency != 35 {
+		t.Fatalf("ScoreWeightLatency = %d, want fallback 35", cfg.Gateway.Scheduling.ScoreWeightLatency)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightCost != 20 {
+		t.Fatalf("ScoreWeightCost = %d, want fallback 20", cfg.Gateway.Scheduling.ScoreWeightCost)
+	}
+	if cfg.Gateway.Scheduling.ScoreWeightLoad != 10 {
+		t.Fatalf("ScoreWeightLoad = %d, want fallback 10", cfg.Gateway.Scheduling.ScoreWeightLoad)
 	}
 }
 

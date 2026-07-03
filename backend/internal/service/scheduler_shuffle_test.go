@@ -143,15 +143,38 @@ func TestShuffleWithinSortGroups_HealthSortKeepsDifferentHealthGroups(t *testing
 	}
 }
 
-func TestShuffleWithinSortGroups_HealthSortShufflesSameTierAndCost(t *testing.T) {
+func TestShuffleWithinSortGroups_HealthSortKeepsClearlyDifferentWeightedScores(t *testing.T) {
 	rate := 0.1
+	fastLatency := 1800
+	slowLatency := 9000
 	accounts := []accountWithLoad{
 		{account: &Account{ID: 1, Priority: 1, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
 		{account: &Account{ID: 2, Priority: 9, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 90}},
 	}
 	health := map[int64]*AccountHealthSummary{
-		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 85}},
-		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 90}},
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 90, LatencyEWMAMs: &fastLatency}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 90, LatencyEWMAMs: &slowLatency}},
+	}
+
+	for i := 0; i < 50; i++ {
+		cpy := make([]accountWithLoad, len(accounts))
+		copy(cpy, accounts)
+		shuffleWithinSortGroups(cpy, health, testShuffleHealthConfig())
+		require.Equal(t, int64(1), cpy[0].account.ID)
+		require.Equal(t, int64(2), cpy[1].account.ID)
+	}
+}
+
+func TestShuffleWithinSortGroups_HealthSortShufflesCloseWeightedScores(t *testing.T) {
+	rate := 0.1
+	latency := 1800
+	accounts := []accountWithLoad{
+		{account: &Account{ID: 1, Priority: 1, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+		{account: &Account{ID: 2, Priority: 9, RateMultiplier: &rate}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
+	}
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 90, LatencyEWMAMs: &latency}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 90, LatencyEWMAMs: &latency}},
 	}
 
 	seen := map[int64]bool{}
@@ -161,7 +184,7 @@ func TestShuffleWithinSortGroups_HealthSortShufflesSameTierAndCost(t *testing.T)
 		shuffleWithinSortGroups(cpy, health, testShuffleHealthConfig())
 		seen[cpy[0].account.ID] = true
 	}
-	require.GreaterOrEqual(t, len(seen), 2, "same tier and cost accounts should be shuffled even when score/load differ")
+	require.GreaterOrEqual(t, len(seen), 2, "close weighted scores should be shuffled to avoid hot spots")
 }
 
 func TestShuffleWithinSortGroups_HealthSortKeepsDifferentCostGroups(t *testing.T) {
@@ -329,6 +352,10 @@ func testShuffleHealthConfig() config.GatewaySchedulingConfig {
 		HealthSortEnabled:     true,
 		HealthTierHealthyMin:  80,
 		HealthTierDegradedMin: 60,
+		ScoreWeightHealth:     35,
+		ScoreWeightLatency:    35,
+		ScoreWeightCost:       20,
+		ScoreWeightLoad:       10,
 	}
 }
 
