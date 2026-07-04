@@ -270,6 +270,12 @@ func TestSettingService_UpdateSettings_PaymentVisibleMethodsAndAdvancedScheduler
 		PaymentVisibleMethodAlipayEnabled: true,
 		PaymentVisibleMethodWxpayEnabled:  false,
 		OpenAIAdvancedSchedulerEnabled:    true,
+		GatewaySchedulingWeights: GatewaySchedulingWeights{
+			Health:  25,
+			Latency: 50,
+			Cost:    15,
+			Load:    10,
+		},
 	})
 	require.NoError(t, err)
 	require.Equal(t, VisibleMethodSourceOfficialAlipay, repo.updates[SettingPaymentVisibleMethodAlipaySource])
@@ -277,6 +283,43 @@ func TestSettingService_UpdateSettings_PaymentVisibleMethodsAndAdvancedScheduler
 	require.Equal(t, "true", repo.updates[SettingPaymentVisibleMethodAlipayEnabled])
 	require.Equal(t, "false", repo.updates[SettingPaymentVisibleMethodWxpayEnabled])
 	require.Equal(t, "true", repo.updates[openAIAdvancedSchedulerSettingKey])
+	require.JSONEq(t, `{"health":25,"latency":50,"cost":15,"load":10}`, repo.updates[SettingKeyGatewaySchedulingWeights])
+}
+
+func TestSettingService_UpdateSettings_GatewaySchedulingWeightsRejectsInvalidTotal(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		GatewaySchedulingWeights: GatewaySchedulingWeights{
+			Health:  30,
+			Latency: 30,
+			Cost:    30,
+			Load:    30,
+		},
+	})
+	require.Error(t, err)
+	require.Equal(t, "INVALID_GATEWAY_SCHEDULING_WEIGHTS", infraerrors.Reason(err))
+	require.Nil(t, repo.updates)
+}
+
+func TestSettingService_GatewaySchedulingConfigWithRuntimeWeights(t *testing.T) {
+	repo := &settingAntigravityUARepoStub{values: map[string]string{
+		SettingKeyGatewaySchedulingWeights: `{"health":20,"latency":60,"cost":10,"load":10}`,
+	}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	cfg := svc.GatewaySchedulingConfigWithRuntimeWeights(context.Background(), config.GatewaySchedulingConfig{
+		ScoreWeightHealth:  30,
+		ScoreWeightLatency: 45,
+		ScoreWeightCost:    15,
+		ScoreWeightLoad:    10,
+	})
+
+	require.Equal(t, 20, cfg.ScoreWeightHealth)
+	require.Equal(t, 60, cfg.ScoreWeightLatency)
+	require.Equal(t, 10, cfg.ScoreWeightCost)
+	require.Equal(t, 10, cfg.ScoreWeightLoad)
 }
 
 func TestSettingService_UpdateSettings_AntigravityUserAgentVersion(t *testing.T) {

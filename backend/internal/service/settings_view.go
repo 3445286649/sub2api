@@ -11,6 +11,13 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+type GatewaySchedulingWeights struct {
+	Health  int `json:"health"`
+	Latency int `json:"latency"`
+	Cost    int `json:"cost"`
+	Load    int `json:"load"`
+}
+
 type SystemSettings struct {
 	RegistrationEnabled              bool
 	EmailVerifyEnabled               bool
@@ -238,6 +245,7 @@ type SystemSettings struct {
 
 	// OpenAI 账号调度
 	OpenAIAdvancedSchedulerEnabled bool
+	GatewaySchedulingWeights       GatewaySchedulingWeights
 
 	// 余额不足提醒
 	BalanceLowNotifyEnabled     bool

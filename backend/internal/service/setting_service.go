@@ -148,6 +148,11 @@ type cachedOpenAIQuotaAutoPauseSettings struct {
 	expiresAt int64
 }
 
+type cachedGatewaySchedulingWeights struct {
+	weights   GatewaySchedulingWeights
+	expiresAt int64
+}
+
 const openAICodexUserAgentCacheTTL = 60 * time.Second
 const openAICodexUserAgentErrorTTL = 5 * time.Second
 const openAICodexUserAgentDBTimeout = 5 * time.Second
@@ -177,6 +182,9 @@ const cyberSessionBlockRuntimeDBTimeout = 5 * time.Second
 const openAIQuotaAutoPauseSettingsCacheTTL = 60 * time.Second
 const openAIQuotaAutoPauseSettingsErrorTTL = 5 * time.Second
 const openAIQuotaAutoPauseSettingsDBTimeout = 5 * time.Second
+const gatewaySchedulingWeightsCacheTTL = 60 * time.Second
+const gatewaySchedulingWeightsErrorTTL = 5 * time.Second
+const gatewaySchedulingWeightsDBTimeout = 2 * time.Second
 
 const openAIQuotaAutoPauseSettingsRefreshKey = "openai_quota_auto_pause_settings"
 
@@ -216,6 +224,9 @@ type SettingService struct {
 	// instance owns its own cache, no shared package-level state.
 	openAIQuotaAutoPauseSettingsCache atomic.Value // *cachedOpenAIQuotaAutoPauseSettings
 	openAIQuotaAutoPauseSettingsSF    singleflight.Group
+
+	gatewaySchedulingWeightsCache atomic.Value // *cachedGatewaySchedulingWeights
+	gatewaySchedulingWeightsSF    singleflight.Group
 }
 
 // DefaultPlatformQuotaSetting 单 platform 三档限额（nil = 沿用上层；0 = 显式禁用；>0 = 上限）
@@ -343,6 +354,134 @@ const (
 	defaultLoginAgreementMode    = "modal"
 	defaultLoginAgreementDate    = "2026-03-31"
 )
+
+func defaultGatewaySchedulingWeights() GatewaySchedulingWeights {
+	return GatewaySchedulingWeights{
+		Health:  accountScheduleDefaultWeightHealth,
+		Latency: accountScheduleDefaultWeightLatency,
+		Cost:    accountScheduleDefaultWeightCost,
+		Load:    accountScheduleDefaultWeightLoad,
+	}
+}
+
+func gatewaySchedulingWeightsFromConfig(cfg config.GatewaySchedulingConfig) GatewaySchedulingWeights {
+	weights := GatewaySchedulingWeights{
+		Health:  cfg.ScoreWeightHealth,
+		Latency: cfg.ScoreWeightLatency,
+		Cost:    cfg.ScoreWeightCost,
+		Load:    cfg.ScoreWeightLoad,
+	}
+	normalized, err := normalizeGatewaySchedulingWeightsToTotal(weights, 100)
+	if err != nil {
+		return defaultGatewaySchedulingWeights()
+	}
+	return normalized
+}
+
+func normalizeGatewaySchedulingWeightsToTotal(weights GatewaySchedulingWeights, total int) (GatewaySchedulingWeights, error) {
+	if err := validateGatewaySchedulingWeightsNonNegative(weights); err != nil {
+		return GatewaySchedulingWeights{}, err
+	}
+	sum := weights.Health + weights.Latency + weights.Cost + weights.Load
+	if sum <= 0 {
+		return GatewaySchedulingWeights{}, fmt.Errorf("weight sum must be greater than 0")
+	}
+	if sum == total {
+		return weights, nil
+	}
+	values := []int{weights.Health, weights.Latency, weights.Cost, weights.Load}
+	result := make([]int, len(values))
+	remainders := make([]struct {
+		index     int
+		remainder int
+	}, len(values))
+	assigned := 0
+	for i, value := range values {
+		scaled := value * total
+		result[i] = scaled / sum
+		assigned += result[i]
+		remainders[i] = struct {
+			index     int
+			remainder int
+		}{index: i, remainder: scaled % sum}
+	}
+	sort.SliceStable(remainders, func(i, j int) bool {
+		return remainders[i].remainder > remainders[j].remainder
+	})
+	for remaining := total - assigned; remaining > 0; remaining-- {
+		result[remainders[(remaining-1)%len(remainders)].index]++
+	}
+	return GatewaySchedulingWeights{
+		Health:  result[0],
+		Latency: result[1],
+		Cost:    result[2],
+		Load:    result[3],
+	}, nil
+}
+
+func validateGatewaySchedulingWeightsNonNegative(weights GatewaySchedulingWeights) error {
+	if weights.Health < 0 || weights.Latency < 0 || weights.Cost < 0 || weights.Load < 0 {
+		return fmt.Errorf("weights must be between 0 and 100")
+	}
+	if weights.Health > 100 || weights.Latency > 100 || weights.Cost > 100 || weights.Load > 100 {
+		return fmt.Errorf("weights must be between 0 and 100")
+	}
+	return nil
+}
+
+func validateGatewaySchedulingWeights(weights GatewaySchedulingWeights) error {
+	if err := validateGatewaySchedulingWeightsNonNegative(weights); err != nil {
+		return err
+	}
+	if sum := weights.Health + weights.Latency + weights.Cost + weights.Load; sum != 100 {
+		return fmt.Errorf("weights must sum to 100")
+	}
+	return nil
+}
+
+func marshalGatewaySchedulingWeights(weights GatewaySchedulingWeights) (string, error) {
+	if err := validateGatewaySchedulingWeights(weights); err != nil {
+		return "", err
+	}
+	raw, err := json.Marshal(weights)
+	if err != nil {
+		return "", fmt.Errorf("marshal gateway scheduling weights: %w", err)
+	}
+	return string(raw), nil
+}
+
+func defaultGatewaySchedulingWeightsJSON() string {
+	raw, err := marshalGatewaySchedulingWeights(defaultGatewaySchedulingWeights())
+	if err != nil {
+		return `{"health":30,"latency":45,"cost":15,"load":10}`
+	}
+	return raw
+}
+
+func parseGatewaySchedulingWeights(raw string, fallback GatewaySchedulingWeights) GatewaySchedulingWeights {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return fallback
+	}
+	var weights GatewaySchedulingWeights
+	if err := json.Unmarshal([]byte(raw), &weights); err != nil {
+		slog.Warn("invalid gateway scheduling weights setting, using fallback", "error", err)
+		return fallback
+	}
+	if err := validateGatewaySchedulingWeights(weights); err != nil {
+		slog.Warn("invalid gateway scheduling weights setting, using fallback", "error", err)
+		return fallback
+	}
+	return weights
+}
+
+func applyGatewaySchedulingWeights(cfg config.GatewaySchedulingConfig, weights GatewaySchedulingWeights) config.GatewaySchedulingConfig {
+	cfg.ScoreWeightHealth = weights.Health
+	cfg.ScoreWeightLatency = weights.Latency
+	cfg.ScoreWeightCost = weights.Cost
+	cfg.ScoreWeightLoad = weights.Load
+	return cfg
+}
 
 func normalizeLoginAgreementMode(raw string) string {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
@@ -1023,6 +1162,54 @@ func clampChannelMonitorInterval(v int) int {
 		return channelMonitorIntervalMax
 	}
 	return v
+}
+
+// GatewaySchedulingConfigWithRuntimeWeights overlays DB-backed scheduling weights
+// onto the static config. It never fails the request path; bad/missing settings fall
+// back to the supplied config weights.
+func (s *SettingService) GatewaySchedulingConfigWithRuntimeWeights(ctx context.Context, cfg config.GatewaySchedulingConfig) config.GatewaySchedulingConfig {
+	if s == nil || s.settingRepo == nil {
+		return cfg
+	}
+	fallback := gatewaySchedulingWeightsFromConfig(cfg)
+	if cached, ok := s.gatewaySchedulingWeightsCache.Load().(*cachedGatewaySchedulingWeights); ok && cached != nil {
+		if time.Now().UnixNano() < cached.expiresAt {
+			return applyGatewaySchedulingWeights(cfg, cached.weights)
+		}
+	}
+
+	result, _, _ := s.gatewaySchedulingWeightsSF.Do(SettingKeyGatewaySchedulingWeights, func() (any, error) {
+		if cached, ok := s.gatewaySchedulingWeightsCache.Load().(*cachedGatewaySchedulingWeights); ok && cached != nil {
+			if time.Now().UnixNano() < cached.expiresAt {
+				return cached.weights, nil
+			}
+		}
+
+		dbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gatewaySchedulingWeightsDBTimeout)
+		defer cancel()
+		raw, err := s.settingRepo.GetValue(dbCtx, SettingKeyGatewaySchedulingWeights)
+		if err != nil && !errors.Is(err, ErrSettingNotFound) {
+			slog.Warn("failed to get gateway scheduling weights setting, using config fallback", "error", err)
+			s.gatewaySchedulingWeightsCache.Store(&cachedGatewaySchedulingWeights{
+				weights:   fallback,
+				expiresAt: time.Now().Add(gatewaySchedulingWeightsErrorTTL).UnixNano(),
+			})
+			return fallback, nil
+		}
+		weights := fallback
+		if err == nil {
+			weights = parseGatewaySchedulingWeights(raw, fallback)
+		}
+		s.gatewaySchedulingWeightsCache.Store(&cachedGatewaySchedulingWeights{
+			weights:   weights,
+			expiresAt: time.Now().Add(gatewaySchedulingWeightsCacheTTL).UnixNano(),
+		})
+		return weights, nil
+	})
+	if weights, ok := result.(GatewaySchedulingWeights); ok {
+		return applyGatewaySchedulingWeights(cfg, weights)
+	}
+	return applyGatewaySchedulingWeights(cfg, fallback)
 }
 
 // ChannelMonitorRuntime is the lightweight view of the channel monitor feature
@@ -2343,6 +2530,18 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingPaymentVisibleMethodAlipayEnabled] = strconv.FormatBool(settings.PaymentVisibleMethodAlipayEnabled)
 	updates[SettingPaymentVisibleMethodWxpayEnabled] = strconv.FormatBool(settings.PaymentVisibleMethodWxpayEnabled)
 	updates[openAIAdvancedSchedulerSettingKey] = strconv.FormatBool(settings.OpenAIAdvancedSchedulerEnabled)
+	if settings.GatewaySchedulingWeights == (GatewaySchedulingWeights{}) {
+		if s != nil && s.cfg != nil {
+			settings.GatewaySchedulingWeights = gatewaySchedulingWeightsFromConfig(s.cfg.Gateway.Scheduling)
+		} else {
+			settings.GatewaySchedulingWeights = defaultGatewaySchedulingWeights()
+		}
+	}
+	gatewaySchedulingWeightsJSON, err := marshalGatewaySchedulingWeights(settings.GatewaySchedulingWeights)
+	if err != nil {
+		return nil, infraerrors.BadRequest("INVALID_GATEWAY_SCHEDULING_WEIGHTS", err.Error())
+	}
+	updates[SettingKeyGatewaySchedulingWeights] = gatewaySchedulingWeightsJSON
 
 	// 余额、订阅到期与账号限额通知
 	updates[SettingKeyBalanceLowNotifyEnabled] = strconv.FormatBool(settings.BalanceLowNotifyEnabled)
@@ -2492,6 +2691,19 @@ func (s *SettingService) refreshCachedSettings(settings *SystemSettings) {
 	openAIAdvancedSchedulerSettingCache.Store(&cachedOpenAIAdvancedSchedulerSetting{
 		enabled:   settings.OpenAIAdvancedSchedulerEnabled,
 		expiresAt: time.Now().Add(openAIAdvancedSchedulerSettingCacheTTL).UnixNano(),
+	})
+	s.gatewaySchedulingWeightsSF.Forget(SettingKeyGatewaySchedulingWeights)
+	weights := settings.GatewaySchedulingWeights
+	if err := validateGatewaySchedulingWeights(weights); err != nil {
+		if s.cfg != nil {
+			weights = gatewaySchedulingWeightsFromConfig(s.cfg.Gateway.Scheduling)
+		} else {
+			weights = defaultGatewaySchedulingWeights()
+		}
+	}
+	s.gatewaySchedulingWeightsCache.Store(&cachedGatewaySchedulingWeights{
+		weights:   weights,
+		expiresAt: time.Now().Add(gatewaySchedulingWeightsCacheTTL).UnixNano(),
 	})
 	// Invalidate the quota auto-pause cache and let the next read trigger a fresh load.
 	// We can't know from here whether ops_advanced_settings was also touched, so be
@@ -3358,6 +3570,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingPaymentVisibleMethodAlipayEnabled:     "false",
 		SettingPaymentVisibleMethodWxpayEnabled:      "false",
 		openAIAdvancedSchedulerSettingKey:            "false",
+		SettingKeyGatewaySchedulingWeights:           defaultGatewaySchedulingWeightsJSON(),
 
 		SettingKeyAllowUserViewErrorRequests: "false",
 	}
@@ -3941,6 +4154,14 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.PaymentVisibleMethodAlipayEnabled = settings[SettingPaymentVisibleMethodAlipayEnabled] == "true"
 	result.PaymentVisibleMethodWxpayEnabled = settings[SettingPaymentVisibleMethodWxpayEnabled] == "true"
 	result.OpenAIAdvancedSchedulerEnabled = settings[openAIAdvancedSchedulerSettingKey] == "true"
+	gatewayWeightsFallback := defaultGatewaySchedulingWeights()
+	if s != nil && s.cfg != nil {
+		gatewayWeightsFallback = gatewaySchedulingWeightsFromConfig(s.cfg.Gateway.Scheduling)
+	}
+	result.GatewaySchedulingWeights = parseGatewaySchedulingWeights(
+		settings[SettingKeyGatewaySchedulingWeights],
+		gatewayWeightsFallback,
+	)
 
 	// 余额、订阅到期与账号限额通知
 	result.BalanceLowNotifyEnabled = settings[SettingKeyBalanceLowNotifyEnabled] == "true"

@@ -2364,20 +2364,30 @@ func (s *GatewayService) loadAccountHealthSummariesForPointers(ctx context.Conte
 }
 
 func (s *GatewayService) schedulingConfig() config.GatewaySchedulingConfig {
+	var cfg config.GatewaySchedulingConfig
 	if s.cfg != nil {
-		return s.cfg.Gateway.Scheduling
+		cfg = s.cfg.Gateway.Scheduling
+	} else {
+		cfg = config.GatewaySchedulingConfig{
+			StickySessionMaxWaiting:  3,
+			StickySessionWaitTimeout: 45 * time.Second,
+			FallbackWaitTimeout:      30 * time.Second,
+			FallbackMaxWaiting:       100,
+			HealthSortEnabled:        true,
+			HealthTierHealthyMin:     defaultAccountHealthScore,
+			HealthTierDegradedMin:    accountHealthDefaultTierDegradedMin,
+			ScoreWeightHealth:        accountScheduleDefaultWeightHealth,
+			ScoreWeightLatency:       accountScheduleDefaultWeightLatency,
+			ScoreWeightCost:          accountScheduleDefaultWeightCost,
+			ScoreWeightLoad:          accountScheduleDefaultWeightLoad,
+			LoadBatchEnabled:         true,
+			SlotCleanupInterval:      30 * time.Second,
+		}
 	}
-	return config.GatewaySchedulingConfig{
-		StickySessionMaxWaiting:  3,
-		StickySessionWaitTimeout: 45 * time.Second,
-		FallbackWaitTimeout:      30 * time.Second,
-		FallbackMaxWaiting:       100,
-		HealthSortEnabled:        true,
-		HealthTierHealthyMin:     defaultAccountHealthScore,
-		HealthTierDegradedMin:    accountHealthDefaultTierDegradedMin,
-		LoadBatchEnabled:         true,
-		SlotCleanupInterval:      30 * time.Second,
+	if s.settingService != nil {
+		return s.settingService.GatewaySchedulingConfigWithRuntimeWeights(context.Background(), cfg)
 	}
+	return cfg
 }
 
 func (s *GatewayService) withGroupContext(ctx context.Context, group *Group) context.Context {

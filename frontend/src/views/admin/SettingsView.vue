@@ -4014,6 +4014,109 @@
                 </div>
                 <Toggle v-model="form.openai_advanced_scheduler_enabled" />
               </div>
+
+              <div
+                class="rounded-lg border border-gray-200 bg-gray-50/70 p-4 dark:border-dark-700 dark:bg-dark-800/50"
+              >
+                <div
+                  class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div>
+                    <h3
+                      class="text-sm font-semibold text-gray-900 dark:text-white"
+                    >
+                      {{ localText("同层调度权重", "Same-tier scheduling weights") }}
+                    </h3>
+                    <p class="mt-1 max-w-2xl text-xs text-gray-500 dark:text-gray-400">
+                      {{
+                        localText(
+                          "硬过滤和健康分层仍优先执行；这里只决定同一健康层内，健康、延迟、成本、负载四个指标的占比。",
+                          "Hard filters and health tiers still run first; these weights only rank accounts inside the same health tier.",
+                        )
+                      }}
+                    </p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="preset in schedulingWeightPresets"
+                      :key="preset.label"
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      @click="applySchedulingWeightPreset(preset.weights)"
+                    >
+                      {{ preset.label }}
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  class="mt-4 flex flex-col gap-3 rounded-md border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-900/40 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <label class="text-xs font-medium text-gray-600 dark:text-gray-300">
+                    {{ localText("自动补齐项", "Auto-fill item") }}
+                  </label>
+                  <select
+                    class="form-select h-9 min-w-[160px] rounded-md border-gray-300 text-sm dark:border-dark-600 dark:bg-dark-800 dark:text-gray-100"
+                    :value="schedulingWeightAutoFillKey"
+                    @change="updateSchedulingAutoFillFromEvent"
+                  >
+                    <option
+                      v-for="item in schedulingWeightMeta"
+                      :key="item.key"
+                      :value="item.key"
+                    >
+                      {{ item.label }}
+                    </option>
+                  </select>
+                  <div
+                    :class="[
+                      'rounded-full px-3 py-1 text-xs font-semibold tabular-nums',
+                      schedulingWeightsTotal === 100
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                        : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+                    ]"
+                  >
+                    {{ localText("总和", "Total") }} {{ schedulingWeightsTotal }} / 100
+                  </div>
+                </div>
+
+                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                  <div
+                    v-for="item in schedulingWeightMeta"
+                    :key="item.key"
+                    class="rounded-md border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-900/40"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <div
+                          class="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-100"
+                        >
+                          <span>{{ item.label }}</span>
+                          <span
+                            v-if="item.key === schedulingWeightAutoFillKey"
+                            class="rounded bg-primary-50 px-1.5 py-0.5 text-[11px] font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                          >
+                            {{ localText("自动", "Auto") }}
+                          </span>
+                        </div>
+                        <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                          {{ item.description }}
+                        </p>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        class="form-input h-9 w-20 rounded-md text-right font-mono text-sm tabular-nums dark:bg-dark-800"
+                        :disabled="item.key === schedulingWeightAutoFillKey"
+                        :value="form.gateway_scheduling_weights[item.key]"
+                        @input="updateSchedulingWeightFromEvent(item.key, $event)"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -7559,6 +7662,7 @@ import type {
   UpdateSettingsRequest,
   DefaultSubscriptionSetting,
   DefaultPlatformQuotasMap,
+  GatewaySchedulingWeights,
   OpenAIFastPolicyRule,
   WeChatConnectMode,
   WebSearchEmulationConfig,
@@ -7612,6 +7716,169 @@ const isZhLocale = computed(() => locale.value.startsWith("zh"));
 function localText(zh: string, en: string): string {
   return isZhLocale.value ? zh : en;
 }
+
+type SchedulingWeightKey = keyof GatewaySchedulingWeights;
+
+const defaultGatewaySchedulingWeights: GatewaySchedulingWeights = {
+  health: 30,
+  latency: 45,
+  cost: 15,
+  load: 10,
+};
+
+const schedulingWeightKeys: SchedulingWeightKey[] = [
+  "health",
+  "latency",
+  "cost",
+  "load",
+];
+
+const schedulingWeightAutoFillKey = ref<SchedulingWeightKey>("load");
+
+const schedulingWeightMeta = computed(() => [
+  {
+    key: "health" as SchedulingWeightKey,
+    label: localText("健康", "Health"),
+    description: localText(
+      "越高越偏向健康分高、失败更少的账号。",
+      "Higher values prefer accounts with stronger health scores and fewer failures.",
+    ),
+  },
+  {
+    key: "latency" as SchedulingWeightKey,
+    label: localText("延迟", "Latency"),
+    description: localText(
+      "越高越偏向平均响应更快的账号。",
+      "Higher values prefer accounts with lower average latency.",
+    ),
+  },
+  {
+    key: "cost" as SchedulingWeightKey,
+    label: localText("成本", "Cost"),
+    description: localText(
+      "越高越偏向成本倍率更低的账号。",
+      "Higher values prefer lower upstream cost multipliers.",
+    ),
+  },
+  {
+    key: "load" as SchedulingWeightKey,
+    label: localText("负载", "Load"),
+    description: localText(
+      "越高越偏向当前负载更低的账号，用来分散流量。",
+      "Higher values prefer accounts with lower current load to spread traffic.",
+    ),
+  },
+]);
+
+const schedulingWeightPresets = computed(() => [
+  {
+    label: localText("体验优先", "Experience"),
+    weights: { health: 30, latency: 45, cost: 15, load: 10 },
+  },
+  {
+    label: localText("稳定优先", "Stability"),
+    weights: { health: 45, latency: 30, cost: 15, load: 10 },
+  },
+  {
+    label: localText("成本优先", "Cost"),
+    weights: { health: 30, latency: 25, cost: 35, load: 10 },
+  },
+]);
+
+function clampSchedulingWeight(value: unknown): number {
+  const numeric = Math.floor(Number(value));
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.min(100, Math.max(0, numeric));
+}
+
+function normalizeGatewaySchedulingWeights(
+  input?: Partial<GatewaySchedulingWeights> | null,
+): GatewaySchedulingWeights {
+  const candidate: GatewaySchedulingWeights = {
+    health: clampSchedulingWeight(input?.health),
+    latency: clampSchedulingWeight(input?.latency),
+    cost: clampSchedulingWeight(input?.cost),
+    load: clampSchedulingWeight(input?.load),
+  };
+  const sum =
+    candidate.health + candidate.latency + candidate.cost + candidate.load;
+  if (sum === 100) return candidate;
+  if (sum <= 0) return { ...defaultGatewaySchedulingWeights };
+  const rawValues = schedulingWeightKeys.map((key) => candidate[key]);
+  const scaled = rawValues.map((value) => Math.floor((value * 100) / sum));
+  let assigned = scaled.reduce((total, value) => total + value, 0);
+  const remainders = rawValues
+    .map((value, index) => ({ index, remainder: (value * 100) % sum }))
+    .sort((a, b) => b.remainder - a.remainder);
+  for (let i = 0; assigned < 100 && i < remainders.length; i += 1) {
+    scaled[remainders[i].index] += 1;
+    assigned += 1;
+  }
+  return {
+    health: scaled[0],
+    latency: scaled[1],
+    cost: scaled[2],
+    load: scaled[3],
+  };
+}
+
+function schedulingWeightsSum(weights: GatewaySchedulingWeights): number {
+  return schedulingWeightKeys.reduce((total, key) => total + weights[key], 0);
+}
+
+function syncSchedulingAutoFill(changedKey?: SchedulingWeightKey): void {
+  const weights = form.gateway_scheduling_weights;
+  const autoKey = schedulingWeightAutoFillKey.value;
+  if (!weights) return;
+
+  const manualKeys = schedulingWeightKeys.filter((key) => key !== autoKey);
+  for (const key of manualKeys) {
+    weights[key] = clampSchedulingWeight(weights[key]);
+  }
+  let manualSum = manualKeys.reduce((total, key) => total + weights[key], 0);
+  if (manualSum > 100 && changedKey && changedKey !== autoKey) {
+    const overflow = manualSum - 100;
+    weights[changedKey] = Math.max(0, weights[changedKey] - overflow);
+    manualSum = manualKeys.reduce((total, key) => total + weights[key], 0);
+  }
+  weights[autoKey] = Math.max(0, 100 - manualSum);
+}
+
+function setSchedulingWeightValue(key: SchedulingWeightKey, value: unknown): void {
+  if (key === schedulingWeightAutoFillKey.value) return;
+  form.gateway_scheduling_weights[key] = clampSchedulingWeight(value);
+  syncSchedulingAutoFill(key);
+}
+
+function updateSchedulingWeightFromEvent(
+  key: SchedulingWeightKey,
+  event: Event,
+): void {
+  const target = event.target as HTMLInputElement | null;
+  setSchedulingWeightValue(key, target?.value ?? 0);
+}
+
+function setSchedulingAutoFillKey(key: SchedulingWeightKey): void {
+  schedulingWeightAutoFillKey.value = key;
+  syncSchedulingAutoFill();
+}
+
+function updateSchedulingAutoFillFromEvent(event: Event): void {
+  const target = event.target as HTMLSelectElement | null;
+  const key = target?.value as SchedulingWeightKey;
+  if (schedulingWeightKeys.includes(key)) {
+    setSchedulingAutoFillKey(key);
+  }
+}
+
+function applySchedulingWeightPreset(weights: GatewaySchedulingWeights): void {
+  form.gateway_scheduling_weights = { ...weights };
+  syncSchedulingAutoFill();
+}
+
+const schedulingWeightsTotal = computed(() =>
+  schedulingWeightsSum(form.gateway_scheduling_weights),
+);
 
 const paymentGuideHref = computed(() =>
   locale.value.startsWith("zh")
@@ -8242,6 +8509,7 @@ type SettingsForm = Omit<
   google_oauth_client_secret: string;
   force_email_on_third_party_signup: boolean;
   openai_advanced_scheduler_enabled: boolean;
+  gateway_scheduling_weights: GatewaySchedulingWeights;
   // 系统全局平台限额 map；form 内始终归一化为全 4 平台对象（模板非空绑定依赖此不变量）
   default_platform_quotas: DefaultPlatformQuotasMap;
 };
@@ -8450,6 +8718,7 @@ const form = reactive<SettingsForm>({
   // 分组隔离
   allow_ungrouped_key_scheduling: false,
   openai_advanced_scheduler_enabled: false,
+  gateway_scheduling_weights: { ...defaultGatewaySchedulingWeights },
   // Gateway forwarding behavior
   enable_fingerprint_unification: true,
   enable_metadata_passthrough: false,
@@ -9157,6 +9426,10 @@ async function loadSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    form.gateway_scheduling_weights = normalizeGatewaySchedulingWeights(
+      settings.gateway_scheduling_weights,
+    );
+    syncSchedulingAutoFill();
     if (!form.claude_oauth_system_prompt_blocks?.trim()) {
       form.claude_oauth_system_prompt_blocks =
         defaultClaudeOAuthSystemPromptBlocks;
@@ -9484,6 +9757,19 @@ async function saveSettings() {
       );
       return;
     }
+    form.gateway_scheduling_weights = normalizeGatewaySchedulingWeights(
+      form.gateway_scheduling_weights,
+    );
+    syncSchedulingAutoFill();
+    if (schedulingWeightsSum(form.gateway_scheduling_weights) !== 100) {
+      appStore.showError(
+        localText(
+          "调度权重总和必须等于 100。",
+          "Scheduling weights must sum to 100.",
+        ),
+      );
+      return;
+    }
     // Validate URL fields — novalidate disables browser-native checks, so we validate here
     const isValidHttpUrl = (url: string): boolean => {
       if (!url) return true;
@@ -9762,6 +10048,7 @@ async function saveSettings() {
         form.payment_cancel_rate_limit_window_mode,
       payment_alipay_force_qrcode: form.payment_alipay_force_qrcode,
       openai_advanced_scheduler_enabled: form.openai_advanced_scheduler_enabled,
+      gateway_scheduling_weights: { ...form.gateway_scheduling_weights },
       // 余额、订阅到期与账号限额通知
       balance_low_notify_enabled: form.balance_low_notify_enabled,
       balance_low_notify_threshold:

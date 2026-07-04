@@ -289,6 +289,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PaymentVisibleMethodAlipayEnabled:         settings.PaymentVisibleMethodAlipayEnabled,
 		PaymentVisibleMethodWxpayEnabled:          settings.PaymentVisibleMethodWxpayEnabled,
 		OpenAIAdvancedSchedulerEnabled:            settings.OpenAIAdvancedSchedulerEnabled,
+		GatewaySchedulingWeights:                  settings.GatewaySchedulingWeights,
 		BalanceLowNotifyEnabled:                   settings.BalanceLowNotifyEnabled,
 		BalanceLowNotifyThreshold:                 settings.BalanceLowNotifyThreshold,
 		BalanceLowNotifyRechargeURL:               settings.BalanceLowNotifyRechargeURL,
@@ -652,7 +653,8 @@ type UpdateSettingsRequest struct {
 	PaymentVisibleMethodWxpayEnabled  *bool   `json:"payment_visible_method_wxpay_enabled"`
 
 	// OpenAI account scheduling
-	OpenAIAdvancedSchedulerEnabled *bool `json:"openai_advanced_scheduler_enabled"`
+	OpenAIAdvancedSchedulerEnabled *bool                             `json:"openai_advanced_scheduler_enabled"`
+	GatewaySchedulingWeights       *service.GatewaySchedulingWeights `json:"gateway_scheduling_weights"`
 
 	// 余额不足提醒
 	BalanceLowNotifyEnabled         *bool                   `json:"balance_low_notify_enabled"`
@@ -1821,6 +1823,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.OpenAIAdvancedSchedulerEnabled
 		}(),
+		GatewaySchedulingWeights: func() service.GatewaySchedulingWeights {
+			if req.GatewaySchedulingWeights != nil {
+				return *req.GatewaySchedulingWeights
+			}
+			return previousSettings.GatewaySchedulingWeights
+		}(),
 		BalanceLowNotifyEnabled: func() bool {
 			if req.BalanceLowNotifyEnabled != nil {
 				return *req.BalanceLowNotifyEnabled
@@ -2234,6 +2242,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentVisibleMethodAlipayEnabled:         updatedSettings.PaymentVisibleMethodAlipayEnabled,
 		PaymentVisibleMethodWxpayEnabled:          updatedSettings.PaymentVisibleMethodWxpayEnabled,
 		OpenAIAdvancedSchedulerEnabled:            updatedSettings.OpenAIAdvancedSchedulerEnabled,
+		GatewaySchedulingWeights:                  updatedSettings.GatewaySchedulingWeights,
 		BalanceLowNotifyEnabled:                   updatedSettings.BalanceLowNotifyEnabled,
 		BalanceLowNotifyThreshold:                 updatedSettings.BalanceLowNotifyThreshold,
 		BalanceLowNotifyRechargeURL:               updatedSettings.BalanceLowNotifyRechargeURL,
@@ -2795,6 +2804,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.OpenAIAdvancedSchedulerEnabled != after.OpenAIAdvancedSchedulerEnabled {
 		changed = append(changed, "openai_advanced_scheduler_enabled")
+	}
+	if before.GatewaySchedulingWeights != after.GatewaySchedulingWeights {
+		changed = append(changed, "gateway_scheduling_weights")
 	}
 	// 余额、订阅到期与账号限额通知
 	if before.BalanceLowNotifyEnabled != after.BalanceLowNotifyEnabled {
