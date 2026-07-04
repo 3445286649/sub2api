@@ -10,13 +10,16 @@ import (
 const accountHealthDefaultTierDegradedMin = 60
 
 const (
-	accountScheduleDefaultWeightHealth  = 35
-	accountScheduleDefaultWeightLatency = 35
-	accountScheduleDefaultWeightCost    = 20
-	accountScheduleDefaultWeightLoad    = 10
-	accountScheduleScoreTieEpsilon      = 0.000001
-	accountScheduleShuffleScoreWindow   = 2.0
-	accountScheduleUnknownLatencyScore  = 50.0
+	accountScheduleDefaultWeightHealth       = 30
+	accountScheduleDefaultWeightLatency      = 45
+	accountScheduleDefaultWeightCost         = 15
+	accountScheduleDefaultWeightLoad         = 10
+	accountScheduleDefaultLatencyPenaltyMS   = 15000
+	accountScheduleDefaultLatencyDowngradeMS = 30000
+	accountScheduleDefaultHighLatencyPenalty = 20
+	accountScheduleScoreTieEpsilon           = 0.000001
+	accountScheduleShuffleScoreWindow        = 2.0
+	accountScheduleUnknownLatencyScore       = 50.0
 )
 
 func sortAccountWithLoadByHealthCostAndLoad(items []accountWithLoad, health map[int64]*AccountHealthSummary, preferOAuth bool, cfg config.GatewaySchedulingConfig) {
@@ -29,7 +32,7 @@ func sortAccountWithLoadByHealthCostAndLoad(items []accountWithLoad, health map[
 		a, b := items[i], items[j]
 		aScore, aLatency := accountHealthSortValueForScheduling(health, a.account.ID, cfg)
 		bScore, bLatency := accountHealthSortValueForScheduling(health, b.account.ID, cfg)
-		if at, bt := accountHealthTier(aScore, cfg), accountHealthTier(bScore, cfg); at != bt {
+		if at, bt := accountScheduleTier(aScore, aLatency, cfg), accountScheduleTier(bScore, bLatency, cfg); at != bt {
 			return at < bt
 		}
 		aWeighted := accountWithLoadScheduleWeightedScore(a, health, cfg, costMedian)
@@ -69,7 +72,7 @@ func sortAccountPointersByHealthCostAndLRU(items []*Account, health map[int64]*A
 		a, b := items[i], items[j]
 		aScore, aLatency := accountHealthSortValueForScheduling(health, a.ID, cfg)
 		bScore, bLatency := accountHealthSortValueForScheduling(health, b.ID, cfg)
-		if at, bt := accountHealthTier(aScore, cfg), accountHealthTier(bScore, cfg); at != bt {
+		if at, bt := accountScheduleTier(aScore, aLatency, cfg), accountScheduleTier(bScore, bLatency, cfg); at != bt {
 			return at < bt
 		}
 		aWeighted := accountPointerScheduleWeightedScore(a, health, cfg, costMedian)
@@ -109,6 +112,10 @@ func accountHealthSortValueForScheduling(states map[int64]*AccountHealthSummary,
 }
 
 func accountHealthTier(score int, cfg config.GatewaySchedulingConfig) int {
+	return accountBaseHealthTier(score, cfg)
+}
+
+func accountBaseHealthTier(score int, cfg config.GatewaySchedulingConfig) int {
 	healthyMin, degradedMin := accountHealthTierThresholds(cfg)
 	switch {
 	case score >= healthyMin:
@@ -127,6 +134,15 @@ func accountHealthTierThresholds(cfg config.GatewaySchedulingConfig) (healthyMin
 		return defaultAccountHealthScore, accountHealthDefaultTierDegradedMin
 	}
 	return healthyMin, degradedMin
+}
+
+func accountScheduleTier(score int, latency int, cfg config.GatewaySchedulingConfig) int {
+	tier := accountBaseHealthTier(score, cfg)
+	_, downgradeMS, _ := accountScheduleLatencyGuards(cfg)
+	if latency != math.MaxInt && latency >= downgradeMS && tier < 2 {
+		tier++
+	}
+	return tier
 }
 
 func accountWithLoadScheduleWeightedScore(item accountWithLoad, health map[int64]*AccountHealthSummary, cfg config.GatewaySchedulingConfig, costMedian float64) float64 {
@@ -159,7 +175,15 @@ func accountScheduleWeightedScore(healthScore int, latency int, rateMultiplier f
 		normalizeScheduleLatencyScore(latency)*latencyWeight +
 		normalizeScheduleCostScore(rateMultiplier, costMedian)*costWeight +
 		normalizeScheduleLoadScore(loadRate)*loadWeight
-	return score / totalWeight
+	weighted := score / totalWeight
+	penaltyMS, downgradeMS, penaltyScore := accountScheduleLatencyGuards(cfg)
+	if latency != math.MaxInt && latency >= penaltyMS && latency < downgradeMS && penaltyScore > 0 {
+		weighted -= float64(penaltyScore)
+		if weighted < 0 {
+			return 0
+		}
+	}
+	return weighted
 }
 
 func accountScheduleScoreWeights(cfg config.GatewaySchedulingConfig) (health, latency, cost, load float64) {
@@ -174,6 +198,16 @@ func accountScheduleScoreWeights(cfg config.GatewaySchedulingConfig) (health, la
 		ld = accountScheduleDefaultWeightLoad
 	}
 	return float64(h), float64(l), float64(c), float64(ld)
+}
+
+func accountScheduleLatencyGuards(cfg config.GatewaySchedulingConfig) (penaltyMS int, downgradeMS int, penaltyScore int) {
+	penaltyMS = cfg.LatencyPenaltyMS
+	downgradeMS = cfg.LatencyTierDowngradeMS
+	penaltyScore = cfg.HighLatencyPenaltyScore
+	if penaltyMS <= 0 || downgradeMS <= penaltyMS || penaltyScore < 0 {
+		return accountScheduleDefaultLatencyPenaltyMS, accountScheduleDefaultLatencyDowngradeMS, accountScheduleDefaultHighLatencyPenalty
+	}
+	return penaltyMS, downgradeMS, penaltyScore
 }
 
 func normalizeScheduleHealthScore(score int) float64 {

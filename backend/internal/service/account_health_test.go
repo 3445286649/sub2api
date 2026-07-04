@@ -1240,6 +1240,46 @@ func TestSortAccountPointersByHealthCostAndLRU_UnknownLatencyDoesNotWin(t *testi
 	require.Equal(t, 50.0, normalizeScheduleLatencyScore(math.MaxInt))
 }
 
+func TestSortAccountPointersByHealthCostAndLRU_HighLatencyPenaltyWithinSameTier(t *testing.T) {
+	cheap := 0.01
+	expensive := 0.2
+	penalizedLatency := 18000
+	normalLatency := 7000
+	accounts := []*Account{
+		{ID: 1, RateMultiplier: &cheap},
+		{ID: 2, RateMultiplier: &expensive},
+	}
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 100, LatencyEWMAMs: &penalizedLatency}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 100, LatencyEWMAMs: &normalLatency}},
+	}
+
+	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
+
+	require.Equal(t, []int64{2, 1}, []int64{accounts[0].ID, accounts[1].ID})
+	require.Equal(t, 0, accountScheduleTier(100, penalizedLatency, testHealthSortConfig()))
+}
+
+func TestSortAccountPointersByHealthCostAndLRU_ExtremeLatencyDowngradesTier(t *testing.T) {
+	cheap := 0.01
+	expensive := 0.2
+	extremeLatency := 30000
+	normalLatency := 9000
+	accounts := []*Account{
+		{ID: 1, RateMultiplier: &cheap},
+		{ID: 2, RateMultiplier: &expensive},
+	}
+	health := map[int64]*AccountHealthSummary{
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 100, LatencyEWMAMs: &extremeLatency}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, LatencyEWMAMs: &normalLatency}},
+	}
+
+	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
+
+	require.Equal(t, []int64{2, 1}, []int64{accounts[0].ID, accounts[1].ID})
+	require.Equal(t, 1, accountScheduleTier(100, extremeLatency, testHealthSortConfig()))
+}
+
 func TestScheduleScoreNormalizersClampExtremes(t *testing.T) {
 	require.Equal(t, 100.0, normalizeScheduleLatencyScore(50))
 	require.Equal(t, 0.0, normalizeScheduleLatencyScore(50000))
@@ -1273,13 +1313,16 @@ func TestSortAccountPointersByHealthCostAndLRU_DisabledUsesLegacyPriorityLRU(t *
 
 func testHealthSortConfig() config.GatewaySchedulingConfig {
 	return config.GatewaySchedulingConfig{
-		HealthSortEnabled:     true,
-		HealthTierHealthyMin:  80,
-		HealthTierDegradedMin: 60,
-		ScoreWeightHealth:     35,
-		ScoreWeightLatency:    35,
-		ScoreWeightCost:       20,
-		ScoreWeightLoad:       10,
+		HealthSortEnabled:       true,
+		HealthTierHealthyMin:    80,
+		HealthTierDegradedMin:   60,
+		ScoreWeightHealth:       30,
+		ScoreWeightLatency:      45,
+		ScoreWeightCost:         15,
+		ScoreWeightLoad:         10,
+		LatencyPenaltyMS:        15000,
+		LatencyTierDowngradeMS:  30000,
+		HighLatencyPenaltyScore: 20,
 	}
 }
 

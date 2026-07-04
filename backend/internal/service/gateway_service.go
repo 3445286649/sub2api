@@ -3197,9 +3197,9 @@ func sameAccountWithLoadGroup(a, b accountWithLoad, health map[int64]*AccountHea
 
 func sameAccountWithLoadGroupWithCostMedian(a, b accountWithLoad, health map[int64]*AccountHealthSummary, cfg config.GatewaySchedulingConfig, costMedian float64) bool {
 	if cfg.HealthSortEnabled {
-		aScore, _ := accountHealthSortValueForScheduling(health, a.account.ID, cfg)
-		bScore, _ := accountHealthSortValueForScheduling(health, b.account.ID, cfg)
-		if accountHealthTier(aScore, cfg) != accountHealthTier(bScore, cfg) {
+		aScore, aLatency := accountHealthSortValueForScheduling(health, a.account.ID, cfg)
+		bScore, bLatency := accountHealthSortValueForScheduling(health, b.account.ID, cfg)
+		if accountScheduleTier(aScore, aLatency, cfg) != accountScheduleTier(bScore, bLatency, cfg) {
 			return false
 		}
 		aWeighted := accountWithLoadScheduleWeightedScore(a, health, cfg, costMedian)

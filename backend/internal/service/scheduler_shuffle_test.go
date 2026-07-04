@@ -349,13 +349,16 @@ func testShuffleLegacyConfig() config.GatewaySchedulingConfig {
 
 func testShuffleHealthConfig() config.GatewaySchedulingConfig {
 	return config.GatewaySchedulingConfig{
-		HealthSortEnabled:     true,
-		HealthTierHealthyMin:  80,
-		HealthTierDegradedMin: 60,
-		ScoreWeightHealth:     35,
-		ScoreWeightLatency:    35,
-		ScoreWeightCost:       20,
-		ScoreWeightLoad:       10,
+		HealthSortEnabled:       true,
+		HealthTierHealthyMin:    80,
+		HealthTierDegradedMin:   60,
+		ScoreWeightHealth:       30,
+		ScoreWeightLatency:      45,
+		ScoreWeightCost:         15,
+		ScoreWeightLoad:         10,
+		LatencyPenaltyMS:        15000,
+		LatencyTierDowngradeMS:  30000,
+		HighLatencyPenaltyScore: 20,
 	}
 }
 
