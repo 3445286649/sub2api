@@ -25,6 +25,9 @@ const (
 	SettingBalancePayDisabled          = "BALANCE_PAYMENT_DISABLED"
 	SettingBalanceRechargeMult         = "BALANCE_RECHARGE_MULTIPLIER"
 	SettingBalanceRechargeBonusDisplay = "BALANCE_RECHARGE_BONUS_DISPLAY_ENABLED"
+	// SettingSubscriptionUSDToCNYRate is the optional subscription CNY conversion rate (1 USD = X CNY).
+	// 0 or empty keeps the legacy behavior: subscription payments charge the plan price directly.
+	SettingSubscriptionUSDToCNYRate = "SUBSCRIPTION_USD_TO_CNY_RATE"
 	SettingRechargeFeeRate             = "RECHARGE_FEE_RATE"
 	SettingProductNamePrefix           = "PRODUCT_NAME_PREFIX"
 	SettingProductNameSuffix           = "PRODUCT_NAME_SUFFIX"
@@ -56,6 +59,7 @@ type PaymentConfig struct {
 	BalanceDisabled                    bool     `json:"balance_disabled"`
 	BalanceRechargeMultiplier          float64  `json:"balance_recharge_multiplier"`
 	BalanceRechargeBonusDisplayEnabled bool     `json:"balance_recharge_bonus_display_enabled"`
+	SubscriptionUSDToCNYRate           float64  `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate                    float64  `json:"recharge_fee_rate"`
 	LoadBalanceStrategy                string   `json:"load_balance_strategy"`
 	ProductNamePrefix                  string   `json:"product_name_prefix"`
@@ -87,6 +91,7 @@ type UpdatePaymentConfigRequest struct {
 	BalanceDisabled                    *bool    `json:"balance_disabled"`
 	BalanceRechargeMultiplier          *float64 `json:"balance_recharge_multiplier"`
 	BalanceRechargeBonusDisplayEnabled *bool    `json:"balance_recharge_bonus_display_enabled"`
+	SubscriptionUSDToCNYRate           *float64 `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate                    *float64 `json:"recharge_fee_rate"`
 	LoadBalanceStrategy                *string  `json:"load_balance_strategy"`
 	ProductNamePrefix                  *string  `json:"product_name_prefix"`
@@ -113,6 +118,7 @@ type UpdatePaymentConfigRequest struct {
 // MethodLimits holds per-payment-type limits.
 type MethodLimits struct {
 	PaymentType string  `json:"payment_type"`
+	DisplayName string  `json:"display_name,omitempty"`
 	Currency    string  `json:"currency"`
 	FeeRate     float64 `json:"fee_rate"`
 	DailyLimit  float64 `json:"daily_limit"`
@@ -213,7 +219,7 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 	keys := []string{
 		SettingPaymentEnabled, SettingMinRechargeAmount, SettingMaxRechargeAmount,
 		SettingDailyRechargeLimit, SettingOrderTimeoutMinutes, SettingMaxPendingOrders,
-		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingBalanceRechargeBonusDisplay, SettingRechargeFeeRate, SettingLoadBalanceStrategy,
+		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingBalanceRechargeBonusDisplay, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingLoadBalanceStrategy,
 		SettingProductNamePrefix, SettingProductNameSuffix,
 		SettingHelpImageURL, SettingHelpText,
 		SettingCancelRateLimitOn, SettingCancelRateLimitMax,
@@ -243,6 +249,7 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 		BalanceDisabled:                    vals[SettingBalancePayDisabled] == "true",
 		BalanceRechargeMultiplier:          normalizeBalanceRechargeMultiplier(pcParseFloat(vals[SettingBalanceRechargeMult], defaultBalanceRechargeMultiplier)),
 		BalanceRechargeBonusDisplayEnabled: vals[SettingBalanceRechargeBonusDisplay] == "true",
+		SubscriptionUSDToCNYRate:           normalizeSubscriptionUSDToCNYRate(pcParseFloat(vals[SettingSubscriptionUSDToCNYRate], 0)),
 		RechargeFeeRate:                    pcParseFloat(vals[SettingRechargeFeeRate], 0),
 		LoadBalanceStrategy:                vals[SettingLoadBalanceStrategy],
 		ProductNamePrefix:                  vals[SettingProductNamePrefix],
@@ -299,6 +306,20 @@ func (s *PaymentConfigService) getStripePublishableKey(ctx context.Context) stri
 // nil-check before serialisation — this is inherent to patch-style update patterns
 // and cannot be meaningfully decomposed without introducing unnecessary abstraction.
 func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req UpdatePaymentConfigRequest) error {
+	if req.VisibleMethodAlipaySource != nil {
+		source, err := normalizeVisibleMethodSettingSource(payment.TypeAlipay, *req.VisibleMethodAlipaySource, boolPtrEnabled(req.VisibleMethodAlipayEnabled))
+		if err != nil {
+			return err
+		}
+		req.VisibleMethodAlipaySource = &source
+	}
+	if req.VisibleMethodWxpaySource != nil {
+		source, err := normalizeVisibleMethodSettingSource(payment.TypeWxpay, *req.VisibleMethodWxpaySource, boolPtrEnabled(req.VisibleMethodWxpayEnabled))
+		if err != nil {
+			return err
+		}
+		req.VisibleMethodWxpaySource = &source
+	}
 	if req.BalanceRechargeMultiplier != nil {
 		if math.IsNaN(*req.BalanceRechargeMultiplier) || math.IsInf(*req.BalanceRechargeMultiplier, 0) || *req.BalanceRechargeMultiplier <= 0 {
 			return infraerrors.BadRequest("INVALID_BALANCE_RECHARGE_MULTIPLIER", "balance recharge multiplier must be greater than 0")
@@ -324,6 +345,7 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 		SettingBalancePayDisabled:                formatBoolOrEmpty(req.BalanceDisabled),
 		SettingBalanceRechargeMult:               formatPositiveFloat(req.BalanceRechargeMultiplier),
 		SettingBalanceRechargeBonusDisplay:       formatBoolOrEmpty(req.BalanceRechargeBonusDisplayEnabled),
+		SettingSubscriptionUSDToCNYRate:          formatPositiveFloatExact(req.SubscriptionUSDToCNYRate),
 		SettingRechargeFeeRate:                   formatNonNegativeFloat(req.RechargeFeeRate),
 		SettingLoadBalanceStrategy:               derefStr(req.LoadBalanceStrategy),
 		SettingProductNamePrefix:                 derefStr(req.ProductNamePrefix),
@@ -356,11 +378,22 @@ func formatBoolOrEmpty(v *bool) string {
 	return strconv.FormatBool(*v)
 }
 
+func boolPtrEnabled(v *bool) bool {
+	return v != nil && *v
+}
+
 func formatPositiveFloat(v *float64) string {
 	if v == nil || *v <= 0 {
 		return "" // empty → parsePaymentConfig uses default
 	}
 	return strconv.FormatFloat(*v, 'f', 2, 64)
+}
+
+func formatPositiveFloatExact(v *float64) string {
+	if v == nil || *v < 0 {
+		return ""
+	}
+	return strconv.FormatFloat(*v, 'f', -1, 64)
 }
 
 func formatNonNegativeFloat(v *float64) string {

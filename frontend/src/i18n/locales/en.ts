@@ -6528,6 +6528,10 @@ export default {
         rechargeBonusDisplay: 'Show Recharge Campaign',
         rechargeBonusDisplayHint: 'Only controls whether the user recharge page shows campaign copy; credited balance still uses the multiplier above.',
         rechargeBonusDisplayPreview: 'Currently shown as: bonus {percent}%',
+        subscriptionUsdToCnyRate: 'Subscription USD to CNY Rate',
+        subscriptionUsdToCnyRateHint:
+          'CNY charged per 1 USD of plan price on CNY channels (e.g. 7.15). 0 or empty = disabled, plan price is charged as-is. When enabled, all plan prices must be set in USD',
+        subscriptionUsdToCnyRateDisabled: 'Disabled (price charged as-is)',
         rechargeFeeRate: 'Recharge Fee Rate',
         rechargeFeeRateHint: 'Percentage of service fee charged on top of recharge amount, 0 means no fee',
         rechargeFeePreview: 'Preview: Recharge 100, fee {fee}',

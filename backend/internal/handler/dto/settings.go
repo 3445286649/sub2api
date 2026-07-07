@@ -223,8 +223,9 @@ type SystemSettings struct {
 	PaymentVisibleMethodWxpayEnabled  bool   `json:"payment_visible_method_wxpay_enabled"`
 
 	// OpenAI account scheduling
-	OpenAIAdvancedSchedulerEnabled bool                             `json:"openai_advanced_scheduler_enabled"`
-	GatewaySchedulingWeights       service.GatewaySchedulingWeights `json:"gateway_scheduling_weights"`
+	OpenAIAdvancedSchedulerEnabled                     bool                             `json:"openai_advanced_scheduler_enabled"`
+	OpenAIAdvancedSchedulerSubscriptionPriorityEnabled bool                             `json:"openai_advanced_scheduler_subscription_priority_enabled"`
+	GatewaySchedulingWeights                           service.GatewaySchedulingWeights `json:"gateway_scheduling_weights"`
 
 	// Payment configuration
 	PaymentEnabled                            bool     `json:"payment_enabled"`
@@ -237,6 +238,7 @@ type SystemSettings struct {
 	PaymentBalanceDisabled                    bool     `json:"payment_balance_disabled"`
 	PaymentBalanceRechargeMultiplier          float64  `json:"payment_balance_recharge_multiplier"`
 	PaymentBalanceRechargeBonusDisplayEnabled bool     `json:"payment_balance_recharge_bonus_display_enabled"`
+	PaymentSubscriptionUSDToCNYRate           float64  `json:"payment_subscription_usd_to_cny_rate"`
 	PaymentRechargeFeeRate                    float64  `json:"payment_recharge_fee_rate"`
 	PaymentLoadBalanceStrat                   string   `json:"payment_load_balance_strategy"`
 	PaymentProductNamePrefix                  string   `json:"payment_product_name_prefix"`

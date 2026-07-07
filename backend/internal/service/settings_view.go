@@ -244,8 +244,9 @@ type SystemSettings struct {
 	PaymentVisibleMethodWxpayEnabled  bool
 
 	// OpenAI 账号调度
-	OpenAIAdvancedSchedulerEnabled bool
-	GatewaySchedulingWeights       GatewaySchedulingWeights
+	OpenAIAdvancedSchedulerEnabled                     bool
+	OpenAIAdvancedSchedulerSubscriptionPriorityEnabled bool
+	GatewaySchedulingWeights                           GatewaySchedulingWeights
 
 	// 余额不足提醒
 	BalanceLowNotifyEnabled     bool
