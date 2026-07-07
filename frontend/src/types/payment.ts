@@ -69,6 +69,9 @@ export interface CheckoutInfoResponse {
   balance_disabled: boolean
   balance_recharge_multiplier: number
   balance_recharge_bonus_display_enabled?: boolean
+  balance_recharge_bonus_enabled?: boolean
+  balance_recharge_bonus_threshold?: number
+  balance_recharge_bonus_percent?: number
   recharge_fee_rate: number
   help_text: string
   help_image_url: string

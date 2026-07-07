@@ -575,10 +575,17 @@ function mountPaymentView() {
             modelValue: Number,
             bonusEnabled: Boolean,
             creditMultiplier: Number,
+            creditAmountFor: Function,
             formatCreditAmount: Function,
           },
           emits: ['update:modelValue'],
           setup(props, { emit }) {
+            const preview = () => {
+              if (typeof props.creditAmountFor === 'function') {
+                return Number(props.creditAmountFor(100)).toFixed(2)
+              }
+              return Number(props.creditMultiplier || 1).toFixed(2)
+            }
             return () => h('div', [
               h('input', {
                 class: 'amount-input-stub',
@@ -588,7 +595,7 @@ function mountPaymentView() {
                 },
               }),
               props.bonusEnabled
-                ? h('span', { class: 'amount-input-credit-preview-stub' }, `credit:${Number(props.creditMultiplier || 1).toFixed(2)}`)
+                ? h('span', { class: 'amount-input-credit-preview-stub' }, `credit:${preview()}`)
                 : null,
             ])
           },
@@ -631,7 +638,7 @@ describe('PaymentView recharge bonus campaign', () => {
     expect(wrapper.text()).toContain('payment.rechargeBonusBanner')
     expect(wrapper.text()).toContain('payment.rechargeBonusPreview')
     expect(wrapper.text()).toContain('$110.00')
-    expect(wrapper.text()).toContain('credit:1.10')
+    expect(wrapper.text()).toContain('credit:110.00')
   })
 
   it('does not show recharge bonus campaign when display switch is disabled even if multiplier is greater than 1', async () => {
@@ -648,5 +655,25 @@ describe('PaymentView recharge bonus campaign', () => {
     expect(wrapper.text()).not.toContain('payment.rechargeBonusBanner')
     expect(wrapper.text()).not.toContain('payment.rechargeBonusPreview')
     expect(wrapper.find('.amount-input-credit-preview-stub').exists()).toBe(false)
+  })
+
+  it('uses threshold bonus rule instead of recharge multiplier when enabled', async () => {
+    getCheckoutInfo.mockResolvedValue(checkoutInfoFixture({
+      balance_recharge_multiplier: 1.5,
+      balance_recharge_bonus_display_enabled: true,
+      balance_recharge_bonus_enabled: true,
+      balance_recharge_bonus_threshold: 100,
+      balance_recharge_bonus_percent: 20,
+    }))
+
+    const wrapper = mountPaymentView()
+    await flushPromises()
+    await wrapper.get('.amount-input-stub').setValue('80')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('payment.rechargeBonusBanner')
+    expect(wrapper.text()).toContain('payment.rechargeBonusPreview')
+    expect(wrapper.text()).toContain('$80.00')
+    expect(wrapper.text()).toContain('credit:120.00')
   })
 })

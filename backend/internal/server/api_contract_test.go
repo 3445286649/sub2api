@@ -233,6 +233,7 @@ func TestAPIContracts(t *testing.T) {
 					"ip_whitelist": null,
 					"ip_blacklist": null,
 					"last_used_at": null,
+					"current_concurrency": 0,
 					"quota": 0,
 					"quota_used": 0,
 					"rate_limit_5h": 0,
@@ -282,6 +283,7 @@ func TestAPIContracts(t *testing.T) {
 							"ip_whitelist": null,
 							"ip_blacklist": null,
 							"last_used_at": null,
+							"current_concurrency": 0,
 							"quota": 0,
 							"quota_used": 0,
 							"rate_limit_5h": 0,
@@ -875,13 +877,20 @@ func TestAPIContracts(t *testing.T) {
 					"web_search_emulation_enabled": false,
 					"payment_visible_method_alipay_source": "easypay_alipay",
 					"payment_visible_method_wxpay_source": "official_wxpay",
-					"payment_visible_method_alipay_enabled": true,
-					"payment_visible_method_wxpay_enabled": false,
-					"openai_advanced_scheduler_enabled": true,
-					"openai_codex_user_agent":           "",
-					"openai_fast_policy_settings": {
-						"rules": []
-					},
+						"payment_visible_method_alipay_enabled": true,
+						"payment_visible_method_wxpay_enabled": false,
+						"openai_advanced_scheduler_enabled": true,
+						"openai_advanced_scheduler_subscription_priority_enabled": false,
+						"gateway_scheduling_weights": {
+							"health": 30,
+							"latency": 45,
+							"cost": 15,
+							"load": 10
+						},
+						"openai_codex_user_agent":           "",
+						"openai_fast_policy_settings": {
+							"rules": []
+						},
 					"custom_menu_items": [],
 					"custom_endpoints": [],
 					"payment_enabled": false,
@@ -890,12 +899,16 @@ func TestAPIContracts(t *testing.T) {
 					"payment_daily_limit": 0,
 					"payment_order_timeout_minutes": 0,
 					"payment_max_pending_orders": 0,
-					"payment_balance_disabled": false,
-					"payment_balance_recharge_multiplier": 0,
-					"payment_balance_recharge_bonus_display_enabled": false,
-					"payment_recharge_fee_rate": 0,
-					"payment_load_balance_strategy": "",
-					"payment_product_name_prefix": "",
+						"payment_balance_disabled": false,
+						"payment_balance_recharge_multiplier": 0,
+						"payment_balance_recharge_bonus_display_enabled": false,
+						"payment_balance_recharge_bonus_enabled": false,
+						"payment_balance_recharge_bonus_threshold": 0,
+						"payment_balance_recharge_bonus_percent": 0,
+						"payment_subscription_usd_to_cny_rate": 0,
+						"payment_recharge_fee_rate": 0,
+						"payment_load_balance_strategy": "",
+						"payment_product_name_prefix": "",
 					"payment_product_name_suffix": "",
 					"payment_help_image_url": "",
 					"payment_help_text": "",
@@ -1144,13 +1157,20 @@ func TestAPIContracts(t *testing.T) {
 					"web_search_emulation_enabled": false,
 					"payment_visible_method_alipay_source": "",
 					"payment_visible_method_wxpay_source": "",
-					"payment_visible_method_alipay_enabled": false,
-					"payment_visible_method_wxpay_enabled": false,
-					"openai_advanced_scheduler_enabled": false,
-					"openai_codex_user_agent":           "",
-					"openai_fast_policy_settings": {
-						"rules": []
-					},
+						"payment_visible_method_alipay_enabled": false,
+						"payment_visible_method_wxpay_enabled": false,
+						"openai_advanced_scheduler_enabled": false,
+						"openai_advanced_scheduler_subscription_priority_enabled": false,
+						"gateway_scheduling_weights": {
+							"health": 30,
+							"latency": 45,
+							"cost": 15,
+							"load": 10
+						},
+						"openai_codex_user_agent":           "",
+						"openai_fast_policy_settings": {
+							"rules": []
+						},
 					"payment_enabled": false,
 					"payment_min_amount": 0,
 					"payment_max_amount": 0,
@@ -1158,12 +1178,16 @@ func TestAPIContracts(t *testing.T) {
 					"payment_order_timeout_minutes": 0,
 					"payment_max_pending_orders": 0,
 					"payment_enabled_types": null,
-					"payment_balance_disabled": false,
-					"payment_balance_recharge_multiplier": 0,
-					"payment_balance_recharge_bonus_display_enabled": false,
-					"payment_recharge_fee_rate": 0,
-					"payment_load_balance_strategy": "",
-					"payment_product_name_prefix": "",
+						"payment_balance_disabled": false,
+						"payment_balance_recharge_multiplier": 0,
+						"payment_balance_recharge_bonus_display_enabled": false,
+						"payment_balance_recharge_bonus_enabled": false,
+						"payment_balance_recharge_bonus_threshold": 0,
+						"payment_balance_recharge_bonus_percent": 0,
+						"payment_subscription_usd_to_cny_rate": 0,
+						"payment_recharge_fee_rate": 0,
+						"payment_load_balance_strategy": "",
+						"payment_product_name_prefix": "",
 					"payment_product_name_suffix": "",
 					"payment_help_image_url": "",
 					"payment_help_text": "",
@@ -1733,6 +1757,10 @@ func (s *stubAccountRepo) List(ctx context.Context, params pagination.Pagination
 
 func (s *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]service.Account, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) ListAllWithFilters(ctx context.Context, platform, accountType, status, search string, groupID int64, privacyMode string) ([]service.Account, error) {
+	return nil, errors.New("not implemented")
 }
 
 func (s *stubAccountRepo) ListByGroup(ctx context.Context, groupID int64) ([]service.Account, error) {

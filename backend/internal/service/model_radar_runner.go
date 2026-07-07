@@ -94,7 +94,5 @@ func ProvideModelRadarService(repo ModelRadarRepository, settingRepo SettingRepo
 }
 
 func ProvideModelRadarRunner(svc *ModelRadarService) *ModelRadarRunner {
-	r := NewModelRadarRunner(svc)
-	r.Start()
-	return r
+	return NewModelRadarRunner(svc)
 }

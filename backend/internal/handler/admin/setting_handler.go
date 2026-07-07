@@ -307,6 +307,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PaymentBalanceDisabled:                             paymentCfg.BalanceDisabled,
 		PaymentBalanceRechargeMultiplier:                   paymentCfg.BalanceRechargeMultiplier,
 		PaymentBalanceRechargeBonusDisplayEnabled:          paymentCfg.BalanceRechargeBonusDisplayEnabled,
+		PaymentBalanceRechargeBonusEnabled:                 paymentCfg.BalanceRechargeBonusEnabled,
+		PaymentBalanceRechargeBonusThreshold:               paymentCfg.BalanceRechargeBonusThreshold,
+		PaymentBalanceRechargeBonusPercent:                 paymentCfg.BalanceRechargeBonusPercent,
 		PaymentSubscriptionUSDToCNYRate:                    paymentCfg.SubscriptionUSDToCNYRate,
 		PaymentRechargeFeeRate:                             paymentCfg.RechargeFeeRate,
 		PaymentLoadBalanceStrat:                            paymentCfg.LoadBalanceStrategy,
@@ -678,6 +681,9 @@ type UpdateSettingsRequest struct {
 	PaymentBalanceDisabled                    *bool    `json:"payment_balance_disabled"`
 	PaymentBalanceRechargeMultiplier          *float64 `json:"payment_balance_recharge_multiplier"`
 	PaymentBalanceRechargeBonusDisplayEnabled *bool    `json:"payment_balance_recharge_bonus_display_enabled"`
+	PaymentBalanceRechargeBonusEnabled        *bool    `json:"payment_balance_recharge_bonus_enabled"`
+	PaymentBalanceRechargeBonusThreshold      *float64 `json:"payment_balance_recharge_bonus_threshold"`
+	PaymentBalanceRechargeBonusPercent        *float64 `json:"payment_balance_recharge_bonus_percent"`
 	PaymentSubscriptionUSDToCNYRate           *float64 `json:"payment_subscription_usd_to_cny_rate"`
 	PaymentRechargeFeeRate                    *float64 `json:"payment_recharge_fee_rate"`
 	PaymentLoadBalanceStrat                   *string  `json:"payment_load_balance_strategy"`
@@ -2031,6 +2037,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			BalanceDisabled:                    req.PaymentBalanceDisabled,
 			BalanceRechargeMultiplier:          req.PaymentBalanceRechargeMultiplier,
 			BalanceRechargeBonusDisplayEnabled: req.PaymentBalanceRechargeBonusDisplayEnabled,
+			BalanceRechargeBonusEnabled:        req.PaymentBalanceRechargeBonusEnabled,
+			BalanceRechargeBonusThreshold:      req.PaymentBalanceRechargeBonusThreshold,
+			BalanceRechargeBonusPercent:        req.PaymentBalanceRechargeBonusPercent,
 			SubscriptionUSDToCNYRate:           req.PaymentSubscriptionUSDToCNYRate,
 			RechargeFeeRate:                    req.PaymentRechargeFeeRate,
 			LoadBalanceStrategy:                req.PaymentLoadBalanceStrat,
@@ -2275,6 +2284,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentBalanceDisabled:                             updatedPaymentCfg.BalanceDisabled,
 		PaymentBalanceRechargeMultiplier:                   updatedPaymentCfg.BalanceRechargeMultiplier,
 		PaymentBalanceRechargeBonusDisplayEnabled:          updatedPaymentCfg.BalanceRechargeBonusDisplayEnabled,
+		PaymentBalanceRechargeBonusEnabled:                 updatedPaymentCfg.BalanceRechargeBonusEnabled,
+		PaymentBalanceRechargeBonusThreshold:               updatedPaymentCfg.BalanceRechargeBonusThreshold,
+		PaymentBalanceRechargeBonusPercent:                 updatedPaymentCfg.BalanceRechargeBonusPercent,
 		PaymentSubscriptionUSDToCNYRate:                    updatedPaymentCfg.SubscriptionUSDToCNYRate,
 		PaymentRechargeFeeRate:                             updatedPaymentCfg.RechargeFeeRate,
 		PaymentLoadBalanceStrat:                            updatedPaymentCfg.LoadBalanceStrategy,
@@ -2341,6 +2353,9 @@ func hasPaymentFields(req UpdateSettingsRequest) bool {
 		req.PaymentEnabledTypes != nil || req.PaymentBalanceDisabled != nil ||
 		req.PaymentBalanceRechargeMultiplier != nil ||
 		req.PaymentBalanceRechargeBonusDisplayEnabled != nil ||
+		req.PaymentBalanceRechargeBonusEnabled != nil ||
+		req.PaymentBalanceRechargeBonusThreshold != nil ||
+		req.PaymentBalanceRechargeBonusPercent != nil ||
 		req.PaymentSubscriptionUSDToCNYRate != nil ||
 		req.PaymentRechargeFeeRate != nil ||
 		req.PaymentLoadBalanceStrat != nil || req.PaymentProductNamePrefix != nil ||

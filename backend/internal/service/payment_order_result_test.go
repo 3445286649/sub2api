@@ -199,6 +199,29 @@ func TestCalculateCreditedBalanceStillUsesRechargeMultiplier(t *testing.T) {
 	}
 }
 
+func TestCalculateCreditedBalanceWithBonusRuleReplacesRechargeMultiplierWhenEnabled(t *testing.T) {
+	t.Parallel()
+
+	got := calculateCreditedBalanceWithBonusRule(80, 1.5, true, 100, 20)
+	if got != 80 {
+		t.Fatalf("credited balance below threshold = %v, want 80", got)
+	}
+
+	got = calculateCreditedBalanceWithBonusRule(100, 1.5, true, 100, 20)
+	if got != 120 {
+		t.Fatalf("credited balance at threshold = %v, want 120", got)
+	}
+}
+
+func TestCalculateCreditedBalanceWithBonusRuleFallsBackToMultiplierWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	got := calculateCreditedBalanceWithBonusRule(100, 1.5, false, 100, 20)
+	if got != 150 {
+		t.Fatalf("credited balance with disabled bonus = %v, want 150", got)
+	}
+}
+
 func TestCalculateCreateOrderPayAmountRejectsFractionalZeroDecimal(t *testing.T) {
 	t.Parallel()
 

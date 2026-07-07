@@ -612,6 +612,9 @@ export interface SystemSettings {
   payment_balance_disabled: boolean;
   payment_balance_recharge_multiplier: number;
   payment_balance_recharge_bonus_display_enabled: boolean;
+  payment_balance_recharge_bonus_enabled: boolean;
+  payment_balance_recharge_bonus_threshold: number;
+  payment_balance_recharge_bonus_percent: number;
   payment_subscription_usd_to_cny_rate: number;
   payment_recharge_fee_rate: number;
   payment_load_balance_strategy: string;
@@ -887,6 +890,9 @@ export interface UpdateSettingsRequest {
   payment_balance_disabled?: boolean;
   payment_balance_recharge_multiplier?: number;
   payment_balance_recharge_bonus_display_enabled?: boolean;
+  payment_balance_recharge_bonus_enabled?: boolean;
+  payment_balance_recharge_bonus_threshold?: number;
+  payment_balance_recharge_bonus_percent?: number;
   payment_subscription_usd_to_cny_rate?: number;
   payment_recharge_fee_rate?: number;
   payment_load_balance_strategy?: string;

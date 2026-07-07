@@ -50,4 +50,21 @@ describe('AmountInput recharge bonus preview', () => {
 
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([88])
   })
+
+  it('prefers per-amount credited calculator when provided', () => {
+    const wrapper = mount(AmountInput, {
+      props: {
+        modelValue: null,
+        amounts: [80, 100],
+        bonusEnabled: true,
+        creditMultiplier: 9.9,
+        creditAmountFor: (amount: number) => amount >= 100 ? amount * 1.2 : amount,
+        formatCreditAmount: (value: number) => value.toFixed(2),
+      },
+    })
+
+    expect(wrapper.text()).toContain('80.00')
+    expect(wrapper.text()).toContain('120.00')
+    expect(wrapper.text()).not.toContain('792.00')
+  })
 })

@@ -54,7 +54,9 @@
                 :min="globalMinAmount"
                 :max="globalMaxAmount"
                 :bonus-enabled="rechargeBonusEnabled"
-                :credit-multiplier="balanceRechargeMultiplier"
+                :credit-multiplier="balanceRechargeCreditMultiplier"
+                :bonus-threshold="bonusThreshold"
+                :credit-amount-for="creditedBalanceAmountFor"
                 :format-credit-amount="formatCreditedBalanceAmount"
               />
               <p v-if="amountError" class="mt-2 text-xs text-amber-600 dark:text-amber-300">{{ amountError }}</p>
@@ -564,13 +566,34 @@ const balanceRechargeMultiplier = computed(() => {
   const multiplier = checkout.value.balance_recharge_multiplier
   return Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1
 })
-const creditedAmount = computed(() => Math.round((validAmount.value * balanceRechargeMultiplier.value) * 100) / 100)
+const bonusRuleEnabled = computed(() =>
+  checkout.value.balance_recharge_bonus_enabled === true
+  && Number(checkout.value.balance_recharge_bonus_threshold || 0) > 0
+  && Number(checkout.value.balance_recharge_bonus_percent || 0) > 0
+)
+const bonusThreshold = computed(() => Number(checkout.value.balance_recharge_bonus_threshold || 0))
+const bonusPercent = computed(() => Number(checkout.value.balance_recharge_bonus_percent || 0))
+const balanceRechargeCreditMultiplier = computed(() => {
+  if (bonusRuleEnabled.value) {
+    if (validAmount.value >= bonusThreshold.value) {
+      return 1 + (bonusPercent.value / 100)
+    }
+    return 1
+  }
+  return balanceRechargeMultiplier.value
+})
+const creditedAmount = computed(() => Math.round((validAmount.value * balanceRechargeCreditMultiplier.value) * 100) / 100)
 const rechargeBonusEnabled = computed(() =>
   checkout.value.balance_recharge_bonus_display_enabled === true &&
-  balanceRechargeMultiplier.value > 1
+  (
+    bonusRuleEnabled.value
+    || (!bonusRuleEnabled.value && balanceRechargeMultiplier.value > 1)
+  )
 )
 const rechargeBonusPercent = computed(() => {
-  const percent = Math.round((balanceRechargeMultiplier.value - 1) * 10000) / 100
+  const percent = bonusRuleEnabled.value
+    ? Math.round(bonusPercent.value * 100) / 100
+    : Math.round((balanceRechargeMultiplier.value - 1) * 10000) / 100
   return Number.isInteger(percent) ? String(percent) : percent.toFixed(2).replace(/\.?0+$/, '')
 })
 
@@ -678,6 +701,14 @@ function formatSelectedPaymentAmount(value: number): string {
 
 function formatCreditedBalanceAmount(value: number): string {
   return value.toFixed(2)
+}
+
+function creditedBalanceAmountFor(inputAmount: number): number {
+  if (!Number.isFinite(inputAmount) || inputAmount <= 0) return 0
+  const multiplier = bonusRuleEnabled.value
+    ? (inputAmount >= bonusThreshold.value ? 1 + (bonusPercent.value / 100) : 1)
+    : balanceRechargeMultiplier.value
+  return Math.round((inputAmount * multiplier) * 100) / 100
 }
 
 function formatSelectedSubscriptionPaymentAmount(value: number): string {

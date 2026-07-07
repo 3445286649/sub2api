@@ -248,6 +248,11 @@ type SystemSettings struct {
 	OpenAIAdvancedSchedulerSubscriptionPriorityEnabled bool
 	GatewaySchedulingWeights                           GatewaySchedulingWeights
 
+	// Payment recharge bonus rule
+	PaymentBalanceRechargeBonusEnabled   bool
+	PaymentBalanceRechargeBonusThreshold float64
+	PaymentBalanceRechargeBonusPercent   float64
+
 	// 余额不足提醒
 	BalanceLowNotifyEnabled     bool
 	BalanceLowNotifyThreshold   float64

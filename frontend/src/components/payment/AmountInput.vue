@@ -62,6 +62,8 @@ const props = withDefaults(defineProps<{
   max?: number
   bonusEnabled?: boolean
   creditMultiplier?: number
+  bonusThreshold?: number
+  creditAmountFor?: (amount: number) => number
   formatCreditAmount?: (value: number) => string
 }>(), {
   amounts: () => [10, 20, 50, 100, 200, 500, 1000, 2000, 5000],
@@ -69,6 +71,7 @@ const props = withDefaults(defineProps<{
   max: 0,
   bonusEnabled: false,
   creditMultiplier: 1,
+  bonusThreshold: 0,
   formatCreditAmount: undefined,
 })
 
@@ -92,12 +95,15 @@ const placeholderText = computed(() => {
   return t('payment.enterAmount')
 })
 
-const showBonusPreview = computed(() => props.bonusEnabled && props.creditMultiplier > 1)
+const showBonusPreview = computed(() => props.bonusEnabled)
 
 const AMOUNT_PATTERN = /^\d*(\.\d{0,2})?$/
 
 function creditedAmountFor(amt: number) {
-  return Math.round((amt * props.creditMultiplier) * 100) / 100
+  if (props.creditAmountFor) {
+    return props.creditAmountFor(amt)
+  }
+ return Math.round((amt * props.creditMultiplier) * 100) / 100
 }
 
 function formatCreditAmount(value: number) {

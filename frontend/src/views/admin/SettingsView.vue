@@ -6835,6 +6835,112 @@
                         />
                       </div>
                     </div>
+                    <div class="mt-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+                      <div class="flex items-start justify-between gap-4">
+                        <div>
+                          <label class="input-label">{{
+                            t("admin.settings.payment.rechargeBonusRule")
+                          }}</label>
+                          <p class="mt-0.5 text-xs text-gray-400">
+                            {{
+                              t(
+                                "admin.settings.payment.rechargeBonusRuleHint",
+                              )
+                            }}
+                          </p>
+                        </div>
+                        <Toggle
+                          v-model="form.payment_balance_recharge_bonus_enabled"
+                          :aria-label="
+                            t('admin.settings.payment.rechargeBonusRule')
+                          "
+                        />
+                      </div>
+                      <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label class="input-label">{{
+                            t("admin.settings.payment.rechargeBonusThreshold")
+                          }}</label>
+                          <input
+                            :value="form.payment_balance_recharge_bonus_threshold || ''"
+                            @input="
+                              form.payment_balance_recharge_bonus_threshold =
+                                parseFloat(
+                                  ($event.target as HTMLInputElement).value,
+                                ) || 0
+                            "
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            class="input"
+                          />
+                          <p class="mt-0.5 text-xs text-gray-400">
+                            {{
+                              t(
+                                'admin.settings.payment.rechargeBonusThresholdHint',
+                              )
+                            }}
+                          </p>
+                        </div>
+                        <div>
+                          <label class="input-label">{{
+                            t("admin.settings.payment.rechargeBonusPercent")
+                          }}</label>
+                          <input
+                            :value="form.payment_balance_recharge_bonus_percent || ''"
+                            @input="
+                              form.payment_balance_recharge_bonus_percent =
+                                parseFloat(
+                                  ($event.target as HTMLInputElement).value,
+                                ) || 0
+                            "
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            class="input"
+                          />
+                          <p class="mt-0.5 text-xs text-gray-400">
+                            {{
+                              t(
+                                'admin.settings.payment.rechargeBonusPercentHint',
+                              )
+                            }}
+                          </p>
+                        </div>
+                      </div>
+                      <p
+                        v-if="
+                          form.payment_balance_recharge_bonus_enabled &&
+                          form.payment_balance_recharge_bonus_threshold > 0 &&
+                          form.payment_balance_recharge_bonus_percent > 0
+                        "
+                        class="mt-3 text-xs font-medium text-primary-600 dark:text-primary-400"
+                      >
+                        {{
+                          t("admin.settings.payment.rechargeBonusRulePreview", {
+                            threshold:
+                              Number(
+                                form.payment_balance_recharge_bonus_threshold,
+                              ).toFixed(2),
+                            percent: Number(
+                              form.payment_balance_recharge_bonus_percent,
+                            )
+                              .toFixed(2)
+                              .replace(/\.?0+$/, ""),
+                          })
+                        }}
+                      </p>
+                      <p
+                        v-if="form.payment_balance_recharge_bonus_enabled"
+                        class="mt-1 text-xs text-amber-600 dark:text-amber-300"
+                      >
+                        {{
+                          t(
+                            "admin.settings.payment.rechargeBonusRuleMultiplierFallback",
+                          )
+                        }}
+                      </p>
+                    </div>
 	                  </div>
 	                  <div>
 	                    <label class="input-label">{{
@@ -8602,6 +8708,9 @@ const form = reactive<SettingsForm>({
   payment_balance_disabled: false,
   payment_balance_recharge_multiplier: 1,
   payment_balance_recharge_bonus_display_enabled: false,
+  payment_balance_recharge_bonus_enabled: false,
+  payment_balance_recharge_bonus_threshold: 0,
+  payment_balance_recharge_bonus_percent: 0,
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
   payment_enabled_types: [],
@@ -10060,6 +10169,12 @@ async function saveSettings() {
         Number(form.payment_balance_recharge_multiplier) || 1,
       payment_balance_recharge_bonus_display_enabled:
         form.payment_balance_recharge_bonus_display_enabled,
+      payment_balance_recharge_bonus_enabled:
+        form.payment_balance_recharge_bonus_enabled,
+      payment_balance_recharge_bonus_threshold:
+        Number(form.payment_balance_recharge_bonus_threshold) || 0,
+      payment_balance_recharge_bonus_percent:
+        Number(form.payment_balance_recharge_bonus_percent) || 0,
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,

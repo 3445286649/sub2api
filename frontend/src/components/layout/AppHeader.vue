@@ -401,7 +401,6 @@
     </teleport>
 
     <UsageHelpModal v-model:open="usageHelpOpen" />
-    <ModelRadarModal v-model:open="modelRadarOpen" />
   </header>
 </template>
 
@@ -415,7 +414,6 @@ import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import UsageHelpModal from '@/components/help/UsageHelpModal.vue'
-import ModelRadarModal from '@/components/model-radar/ModelRadarModal.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const router = useRouter()
@@ -431,7 +429,6 @@ const dropdownOpen = ref(false)
 const rechargeStorefrontOpen = ref(false)
 const supportGroupOpen = ref(false)
 const usageHelpOpen = ref(false)
-const modelRadarOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => appStore.docUrl)
@@ -567,7 +564,7 @@ function openUsageHelpFromMenu() {
 }
 
 function openModelRadar() {
-  modelRadarOpen.value = true
+  window.open('https://codexradar.com/#model-ratings', '_blank', 'noopener,noreferrer')
 }
 
 function openModelRadarFromMenu() {

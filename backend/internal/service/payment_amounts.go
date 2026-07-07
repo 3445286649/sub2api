@@ -32,6 +32,23 @@ func calculateCreditedBalance(paymentAmount, multiplier float64) float64 {
 		InexactFloat64()
 }
 
+func calculateCreditedBalanceWithBonusRule(paymentAmount, multiplier float64, bonusEnabled bool, threshold float64, percent float64) float64 {
+	if bonusEnabled {
+		if threshold > 0 && percent > 0 && paymentAmount >= threshold {
+			bonusMultiplier := decimal.NewFromFloat(1).
+				Add(decimal.NewFromFloat(percent).Div(decimal.NewFromFloat(100)))
+			return decimal.NewFromFloat(paymentAmount).
+				Mul(bonusMultiplier).
+				Round(2).
+				InexactFloat64()
+		}
+		return decimal.NewFromFloat(paymentAmount).
+			Round(2).
+			InexactFloat64()
+	}
+	return calculateCreditedBalance(paymentAmount, multiplier)
+}
+
 func calculateGatewayRefundAmount(orderAmount, payAmount, refundAmount float64, currency string) float64 {
 	if orderAmount <= 0 || payAmount <= 0 || refundAmount <= 0 {
 		return 0
