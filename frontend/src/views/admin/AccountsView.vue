@@ -712,8 +712,9 @@
             <label class="block">
               <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthyProbeInterval') }}</span>
               <select v-model.number="healthProbeSettings.healthyInterval" class="health-detail-control form-select w-full">
-                <option v-for="hour in healthyProbeIntervalOptions" :key="hour" :value="hour">{{ t('admin.accounts.healthyProbeIntervalOption', { hours: hour }) }}</option>
+                <option v-for="minutes in healthyProbeIntervalOptions" :key="minutes" :value="minutes">{{ healthyProbeIntervalLabel(minutes) }}</option>
               </select>
+              <p class="mt-1 text-[11px] leading-4 text-amber-600 dark:text-amber-300">{{ t('admin.accounts.healthyProbeIntervalHint') }}</p>
             </label>
           </div>
         </div>
@@ -889,7 +890,7 @@ const probingHealth = ref<number | null>(null)
 const savingProbeSettings = ref(false)
 const loadingHealthProbeModels = ref(false)
 const syncingHealthProbeModels = ref(false)
-const healthyProbeIntervalOptions = [1, 3, 6, 12, 24]
+const healthyProbeIntervalOptions = [1, 5, 15, 30, 60, 180, 360, 720, 1440]
 const healthEventTypes = ['success', 'failure', 'isolated', 'recovering', 'recovered', 'settings_changed']
 const healthEvents = ref<AccountHealthEvent[]>([])
 const healthEventsLoading = ref(false)
@@ -902,7 +903,7 @@ const healthProbeSettings = reactive({
   interval: '' as string | number,
   model: '',
   healthyEnabled: false,
-  healthyInterval: 6
+  healthyInterval: 360
 })
 const healthProbeModelOptions = ref<ClaudeModel[]>([])
 const edAcc = ref<Account | null>(null)
@@ -1320,11 +1321,13 @@ const shouldReplaceAutoRefreshRow = (current: Account, next: Account) => {
     current.health_probe_interval_minutes !== next.health_probe_interval_minutes ||
     current.health_probe_model !== next.health_probe_model ||
     current.healthy_probe_enabled !== next.healthy_probe_enabled ||
+    current.healthy_probe_interval_minutes !== next.healthy_probe_interval_minutes ||
     current.healthy_probe_interval_hours !== next.healthy_probe_interval_hours ||
     current.health?.health_probe_enabled !== next.health?.health_probe_enabled ||
     current.health?.health_probe_interval_minutes !== next.health?.health_probe_interval_minutes ||
     current.health?.health_probe_model !== next.health?.health_probe_model ||
     current.health?.healthy_probe_enabled !== next.health?.healthy_probe_enabled ||
+    current.health?.healthy_probe_interval_minutes !== next.health?.healthy_probe_interval_minutes ||
     current.health?.healthy_probe_interval_hours !== next.health?.healthy_probe_interval_hours ||
     buildOpenAIUsageRefreshKey(current) !== buildOpenAIUsageRefreshKey(next)
   )
@@ -1530,8 +1533,13 @@ watch(healthDetailAccount, (account) => {
   healthProbeSettings.interval = interval && interval > 0 ? interval : ''
   healthProbeSettings.model = account?.health?.health_probe_model ?? account?.health_probe_model ?? ''
   healthProbeSettings.healthyEnabled = account?.health?.healthy_probe_enabled ?? account?.healthy_probe_enabled ?? false
-  const healthyInterval = account?.health?.healthy_probe_interval_hours ?? account?.healthy_probe_interval_hours
-  healthProbeSettings.healthyInterval = healthyInterval && healthyInterval > 0 ? healthyInterval : 6
+  const healthyIntervalMinutes = account?.health?.healthy_probe_interval_minutes ?? account?.healthy_probe_interval_minutes
+  const legacyHealthyIntervalHours = account?.health?.healthy_probe_interval_hours ?? account?.healthy_probe_interval_hours
+  healthProbeSettings.healthyInterval = healthyIntervalMinutes && healthyIntervalMinutes > 0
+    ? healthyIntervalMinutes
+    : legacyHealthyIntervalHours && legacyHealthyIntervalHours > 0
+      ? legacyHealthyIntervalHours * 60
+      : 360
 })
 
 const normalizeHealthProbeModels = (models: Array<ClaudeModel | string>): ClaudeModel[] => {
@@ -1787,7 +1795,13 @@ function formatUpstreamBalanceAmount(value: number | null, unit?: string): strin
   const digits = Math.abs(value) >= 100 ? 2 : 4
   const amount = value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: digits })
   const normalizedUnit = unit || 'USD'
+  if (normalizedUnit.toLowerCase() === 'upstream') return t('admin.accounts.upstreamBalanceUnitUpstream', { value: amount })
   return normalizedUnit.toUpperCase() === 'USD' ? `$${amount}` : `${amount} ${normalizedUnit}`
+}
+
+function healthyProbeIntervalLabel(minutes: number): string {
+  if (minutes % 60 === 0) return t('admin.accounts.healthyProbeIntervalOptionHours', { hours: minutes / 60 })
+  return t('admin.accounts.healthyProbeIntervalOptionMinutes', { minutes })
 }
 
 function upstreamBalanceLabel(snapshot?: AccountUpstreamBalanceSnapshot | null): string {
@@ -1827,6 +1841,7 @@ function upstreamBalanceTooltip(snapshot?: AccountUpstreamBalanceSnapshot | null
     snapshot.representative_account_id ? t('admin.accounts.upstreamBalanceRepresentative', { id: snapshot.representative_account_id }) : '',
     snapshot.checked_at ? t('admin.accounts.upstreamBalanceCheckedAt', { time: formatDateTime(snapshot.checked_at) }) : '',
     snapshot.source_endpoint ? t('admin.accounts.upstreamBalanceEndpoint', { endpoint: snapshot.source_endpoint }) : '',
+    snapshot.unit?.toLowerCase() === 'upstream' ? t('admin.accounts.upstreamBalanceUnitHint') : '',
     snapshot.http_status ? t('admin.accounts.upstreamBalanceHTTPStatus', { status: snapshot.http_status }) : '',
     truncateUpstreamBalanceText(snapshot.error_message || '', 300)
   ].filter(Boolean)
@@ -2385,7 +2400,7 @@ const saveHealthProbeSettings = async () => {
     appStore.showError(t('admin.accounts.probeIntervalInvalid'))
     return
   }
-  const healthyInterval = Number(healthProbeSettings.healthyInterval || 6)
+  const healthyInterval = Number(healthProbeSettings.healthyInterval || 360)
   if (!Number.isInteger(healthyInterval) || healthyInterval <= 0) {
     appStore.showError(t('admin.accounts.healthyProbeIntervalInvalid'))
     return
@@ -2399,7 +2414,7 @@ const saveHealthProbeSettings = async () => {
       health_probe_interval_minutes: interval && interval > 0 ? interval : null,
       health_probe_model: probeModel || null,
       healthy_probe_enabled: healthProbeSettings.healthyEnabled,
-      healthy_probe_interval_hours: healthyInterval === 6 ? null : healthyInterval
+      healthy_probe_interval_minutes: healthyInterval === 360 ? null : healthyInterval
     })
     patchAccountHealthInList(requestAccountID, health)
     await loadHealthEvents(1)

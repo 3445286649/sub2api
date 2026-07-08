@@ -170,6 +170,11 @@ func HealthyProbeEnabled(v bool) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldHealthyProbeEnabled, v))
 }
 
+// HealthyProbeIntervalMinutes applies equality check predicate on the "healthy_probe_interval_minutes" field. It's identical to HealthyProbeIntervalMinutesEQ.
+func HealthyProbeIntervalMinutes(v int) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldHealthyProbeIntervalMinutes, v))
+}
+
 // HealthyProbeIntervalHours applies equality check predicate on the "healthy_probe_interval_hours" field. It's identical to HealthyProbeIntervalHoursEQ.
 func HealthyProbeIntervalHours(v int) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldHealthyProbeIntervalHours, v))
@@ -1273,6 +1278,56 @@ func HealthyProbeEnabledEQ(v bool) predicate.Account {
 // HealthyProbeEnabledNEQ applies the NEQ predicate on the "healthy_probe_enabled" field.
 func HealthyProbeEnabledNEQ(v bool) predicate.Account {
 	return predicate.Account(sql.FieldNEQ(FieldHealthyProbeEnabled, v))
+}
+
+// HealthyProbeIntervalMinutesEQ applies the EQ predicate on the "healthy_probe_interval_minutes" field.
+func HealthyProbeIntervalMinutesEQ(v int) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldHealthyProbeIntervalMinutes, v))
+}
+
+// HealthyProbeIntervalMinutesNEQ applies the NEQ predicate on the "healthy_probe_interval_minutes" field.
+func HealthyProbeIntervalMinutesNEQ(v int) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldHealthyProbeIntervalMinutes, v))
+}
+
+// HealthyProbeIntervalMinutesIn applies the In predicate on the "healthy_probe_interval_minutes" field.
+func HealthyProbeIntervalMinutesIn(vs ...int) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldHealthyProbeIntervalMinutes, vs...))
+}
+
+// HealthyProbeIntervalMinutesNotIn applies the NotIn predicate on the "healthy_probe_interval_minutes" field.
+func HealthyProbeIntervalMinutesNotIn(vs ...int) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldHealthyProbeIntervalMinutes, vs...))
+}
+
+// HealthyProbeIntervalMinutesGT applies the GT predicate on the "healthy_probe_interval_minutes" field.
+func HealthyProbeIntervalMinutesGT(v int) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldHealthyProbeIntervalMinutes, v))
+}
+
+// HealthyProbeIntervalMinutesGTE applies the GTE predicate on the "healthy_probe_interval_minutes" field.
+func HealthyProbeIntervalMinutesGTE(v int) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldHealthyProbeIntervalMinutes, v))
+}
+
+// HealthyProbeIntervalMinutesLT applies the LT predicate on the "healthy_probe_interval_minutes" field.
+func HealthyProbeIntervalMinutesLT(v int) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldHealthyProbeIntervalMinutes, v))
+}
+
+// HealthyProbeIntervalMinutesLTE applies the LTE predicate on the "healthy_probe_interval_minutes" field.
+func HealthyProbeIntervalMinutesLTE(v int) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldHealthyProbeIntervalMinutes, v))
+}
+
+// HealthyProbeIntervalMinutesIsNil applies the IsNil predicate on the "healthy_probe_interval_minutes" field.
+func HealthyProbeIntervalMinutesIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldHealthyProbeIntervalMinutes))
+}
+
+// HealthyProbeIntervalMinutesNotNil applies the NotNil predicate on the "healthy_probe_interval_minutes" field.
+func HealthyProbeIntervalMinutesNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldHealthyProbeIntervalMinutes))
 }
 
 // HealthyProbeIntervalHoursEQ applies the EQ predicate on the "healthy_probe_interval_hours" field.

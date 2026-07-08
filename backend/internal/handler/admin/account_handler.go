@@ -180,11 +180,12 @@ type UpdateAccountRateMultiplierRequest struct {
 }
 
 type UpdateHealthProbeSettingsRequest struct {
-	HealthProbeEnabled         *bool   `json:"health_probe_enabled"`
-	HealthProbeIntervalMinutes *int    `json:"health_probe_interval_minutes"`
-	HealthProbeModel           *string `json:"health_probe_model"`
-	HealthyProbeEnabled        *bool   `json:"healthy_probe_enabled"`
-	HealthyProbeIntervalHours  *int    `json:"healthy_probe_interval_hours"`
+	HealthProbeEnabled          *bool   `json:"health_probe_enabled"`
+	HealthProbeIntervalMinutes  *int    `json:"health_probe_interval_minutes"`
+	HealthProbeModel            *string `json:"health_probe_model"`
+	HealthyProbeEnabled         *bool   `json:"healthy_probe_enabled"`
+	HealthyProbeIntervalMinutes *int    `json:"healthy_probe_interval_minutes"`
+	HealthyProbeIntervalHours   *int    `json:"healthy_probe_interval_hours"`
 }
 
 // CheckMixedChannelRequest represents check mixed channel risk request
@@ -906,11 +907,16 @@ func (h *AccountHandler) UpdateHealthProbeSettings(c *gin.Context) {
 		response.BadRequest(c, "health_probe_interval_minutes must be >= 0")
 		return
 	}
+	if req.HealthyProbeIntervalMinutes != nil && *req.HealthyProbeIntervalMinutes < 0 {
+		response.BadRequest(c, "healthy_probe_interval_minutes must be >= 0")
+		return
+	}
 	if req.HealthyProbeIntervalHours != nil && *req.HealthyProbeIntervalHours < 0 {
 		response.BadRequest(c, "healthy_probe_interval_hours must be >= 0")
 		return
 	}
 	interval := req.HealthProbeIntervalMinutes
+	healthyIntervalMinutes := req.HealthyProbeIntervalMinutes
 	healthyInterval := req.HealthyProbeIntervalHours
 	probeModel := req.HealthProbeModel
 	if interval == nil {
@@ -922,14 +928,23 @@ func (h *AccountHandler) UpdateHealthProbeSettings(c *gin.Context) {
 			}
 		}
 	}
-	if healthyInterval == nil {
-		var raw map[string]json.RawMessage
-		if err := json.Unmarshal(body, &raw); err == nil {
-			if _, ok := raw["healthy_probe_interval_hours"]; ok {
-				clear := 0
-				healthyInterval = &clear
-			}
+	var raw map[string]json.RawMessage
+	_ = json.Unmarshal(body, &raw)
+	if healthyIntervalMinutes == nil {
+		if _, ok := raw["healthy_probe_interval_minutes"]; ok {
+			clear := 0
+			healthyIntervalMinutes = &clear
 		}
+	}
+	if healthyInterval == nil {
+		if _, ok := raw["healthy_probe_interval_hours"]; ok {
+			clear := 0
+			healthyInterval = &clear
+		}
+	}
+	if healthyIntervalMinutes != nil && healthyInterval == nil {
+		clearLegacyHours := 0
+		healthyInterval = &clearLegacyHours
 	}
 	if probeModel == nil {
 		var raw map[string]json.RawMessage
@@ -941,11 +956,12 @@ func (h *AccountHandler) UpdateHealthProbeSettings(c *gin.Context) {
 		}
 	}
 	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
-		HealthProbeEnabled:         req.HealthProbeEnabled,
-		HealthProbeIntervalMinutes: interval,
-		HealthProbeModel:           probeModel,
-		HealthyProbeEnabled:        req.HealthyProbeEnabled,
-		HealthyProbeIntervalHours:  healthyInterval,
+		HealthProbeEnabled:          req.HealthProbeEnabled,
+		HealthProbeIntervalMinutes:  interval,
+		HealthProbeModel:            probeModel,
+		HealthyProbeEnabled:         req.HealthyProbeEnabled,
+		HealthyProbeIntervalMinutes: healthyIntervalMinutes,
+		HealthyProbeIntervalHours:   healthyInterval,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

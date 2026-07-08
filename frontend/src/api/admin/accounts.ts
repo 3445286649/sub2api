@@ -487,6 +487,7 @@ export async function updateHealthProbeSettings(
     health_probe_interval_minutes?: number | null
     health_probe_model?: string | null
     healthy_probe_enabled: boolean
+    healthy_probe_interval_minutes?: number | null
     healthy_probe_interval_hours?: number | null
   }
 ): Promise<AccountHealthSummary> {

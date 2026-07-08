@@ -188,10 +188,12 @@ func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID i
 					a.created_at
 				  ) + (
 					CASE
+					  WHEN a.healthy_probe_interval_minutes IS NOT NULL AND a.healthy_probe_interval_minutes > 0
+					  THEN a.healthy_probe_interval_minutes
 					  WHEN a.healthy_probe_interval_hours IS NOT NULL AND a.healthy_probe_interval_hours > 0
-					  THEN a.healthy_probe_interval_hours
-					  ELSE 6
-					END * INTERVAL '1 hour'
+					  THEN a.healthy_probe_interval_hours * 60
+					  ELSE 360
+					END * INTERVAL '1 minute'
 				  ) <= $2
 				)
 			  )

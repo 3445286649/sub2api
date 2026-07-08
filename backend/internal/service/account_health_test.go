@@ -741,6 +741,30 @@ func TestAccountHealthService_HealthyProbeUsesCustomHourInterval(t *testing.T) {
 	require.Equal(t, int64(1), due[0].AccountID)
 }
 
+func TestAccountHealthService_HealthyProbeUsesCustomMinuteInterval(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	lastChecked := now.Add(-30 * time.Second)
+	interval := 1
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, HealthyProbeEnabled: true, HealthyProbeIntervalMinutes: &interval},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 80, Status: AccountHealthStatusHealthy, LastCheckedAt: &lastChecked, CreatedAt: lastChecked, UpdatedAt: lastChecked},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	due, err := svc.ListDueForProbe(ctx, now, 10)
+	require.NoError(t, err)
+	require.Empty(t, due)
+
+	repo.states[1].LastCheckedAt = accountHealthPtrTime(now.Add(-time.Minute - time.Second))
+	due, err = svc.ListDueForProbe(ctx, now, 10)
+	require.NoError(t, err)
+	require.Len(t, due, 1)
+	require.Equal(t, int64(1), due[0].AccountID)
+}
+
 func TestAccountHealthService_ProbeSuccessSchedulesNextHealthyProbe(t *testing.T) {
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	oldNext := now.Add(-time.Hour)
@@ -758,6 +782,25 @@ func TestAccountHealthService_ProbeSuccessSchedulesNextHealthyProbe(t *testing.T
 
 	require.NotNil(t, repo.states[1].NextProbeAt)
 	require.Equal(t, now.Add(2*time.Hour), *repo.states[1].NextProbeAt)
+}
+
+func TestAccountHealthService_ProbeSuccessSchedulesNextHealthyMinuteProbe(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	oldNext := now.Add(-time.Hour)
+	interval := 1
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true, HealthyProbeEnabled: true, HealthyProbeIntervalMinutes: &interval},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 95, Status: AccountHealthStatusHealthy, NextProbeAt: &oldNext, CreatedAt: oldNext, UpdatedAt: oldNext},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordManualProbeSuccess(ctx, 1, 120, nil))
+
+	require.NotNil(t, repo.states[1].NextProbeAt)
+	require.Equal(t, now.Add(time.Minute), *repo.states[1].NextProbeAt)
 }
 
 func TestAccountHealthService_ProbeSuccessClearsNextProbeWhenHealthyProbeDisabled(t *testing.T) {

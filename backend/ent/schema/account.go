@@ -164,11 +164,16 @@ func (Account) Fields() []ent.Field {
 		field.Bool("healthy_probe_enabled").
 			Default(false).
 			Comment("Whether low-frequency background probes are enabled while this account is healthy."),
+		field.Int("healthy_probe_interval_minutes").
+			Optional().
+			Nillable().
+			Positive().
+			Comment("Low-frequency probe interval in minutes for healthy accounts; NULL falls back to healthy_probe_interval_hours or default 360 minutes."),
 		field.Int("healthy_probe_interval_hours").
 			Optional().
 			Nillable().
 			Positive().
-			Comment("Low-frequency probe interval in hours for healthy accounts; NULL uses default 6 hours when enabled."),
+			Comment("Legacy low-frequency probe interval in hours for healthy accounts; healthy_probe_interval_minutes takes precedence."),
 
 		// rate_limited_at: 触发速率限制的时间
 		// 当收到 429 错误时记录

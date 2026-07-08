@@ -66,6 +66,8 @@ const (
 	FieldHealthProbeModel = "health_probe_model"
 	// FieldHealthyProbeEnabled holds the string denoting the healthy_probe_enabled field in the database.
 	FieldHealthyProbeEnabled = "healthy_probe_enabled"
+	// FieldHealthyProbeIntervalMinutes holds the string denoting the healthy_probe_interval_minutes field in the database.
+	FieldHealthyProbeIntervalMinutes = "healthy_probe_interval_minutes"
 	// FieldHealthyProbeIntervalHours holds the string denoting the healthy_probe_interval_hours field in the database.
 	FieldHealthyProbeIntervalHours = "healthy_probe_interval_hours"
 	// FieldRateLimitedAt holds the string denoting the rate_limited_at field in the database.
@@ -166,6 +168,7 @@ var Columns = []string{
 	FieldHealthProbeIntervalMinutes,
 	FieldHealthProbeModel,
 	FieldHealthyProbeEnabled,
+	FieldHealthyProbeIntervalMinutes,
 	FieldHealthyProbeIntervalHours,
 	FieldRateLimitedAt,
 	FieldRateLimitResetAt,
@@ -239,6 +242,8 @@ var (
 	HealthProbeIntervalMinutesValidator func(int) error
 	// DefaultHealthyProbeEnabled holds the default value on creation for the "healthy_probe_enabled" field.
 	DefaultHealthyProbeEnabled bool
+	// HealthyProbeIntervalMinutesValidator is a validator for the "healthy_probe_interval_minutes" field. It is called by the builders before save.
+	HealthyProbeIntervalMinutesValidator func(int) error
 	// HealthyProbeIntervalHoursValidator is a validator for the "healthy_probe_interval_hours" field. It is called by the builders before save.
 	HealthyProbeIntervalHoursValidator func(int) error
 	// SessionWindowStatusValidator is a validator for the "session_window_status" field. It is called by the builders before save.
@@ -392,6 +397,11 @@ func ByHealthProbeModel(opts ...sql.OrderTermOption) OrderOption {
 // ByHealthyProbeEnabled orders the results by the healthy_probe_enabled field.
 func ByHealthyProbeEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldHealthyProbeEnabled, opts...).ToFunc()
+}
+
+// ByHealthyProbeIntervalMinutes orders the results by the healthy_probe_interval_minutes field.
+func ByHealthyProbeIntervalMinutes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHealthyProbeIntervalMinutes, opts...).ToFunc()
 }
 
 // ByHealthyProbeIntervalHours orders the results by the healthy_probe_interval_hours field.

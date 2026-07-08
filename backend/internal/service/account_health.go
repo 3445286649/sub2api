@@ -71,22 +71,23 @@ type AccountHealthState struct {
 
 type AccountHealthSummary struct {
 	AccountHealthState
-	BaseURL                    string     `json:"base_url,omitempty"`
-	KeyFingerprint             string     `json:"key_fingerprint,omitempty"`
-	AccountName                string     `json:"account_name,omitempty"`
-	Platform                   string     `json:"platform,omitempty"`
-	Type                       string     `json:"type,omitempty"`
-	RateMultiplier             float64    `json:"rate_multiplier"`
-	RateMultiplierConfigured   bool       `json:"rate_multiplier_configured"`
-	Schedulable                bool       `json:"schedulable"`
-	TempUnschedulableUntil     *time.Time `json:"temp_unschedulable_until,omitempty"`
-	HealthProbeEnabled         bool       `json:"health_probe_enabled"`
-	HealthProbeIntervalMinutes *int       `json:"health_probe_interval_minutes,omitempty"`
-	HealthProbeModel           *string    `json:"health_probe_model,omitempty"`
-	HealthyProbeEnabled        bool       `json:"healthy_probe_enabled"`
-	HealthyProbeIntervalHours  *int       `json:"healthy_probe_interval_hours,omitempty"`
-	GroupIDs                   []int64    `json:"group_ids,omitempty"`
-	GroupNames                 []string   `json:"group_names,omitempty"`
+	BaseURL                     string     `json:"base_url,omitempty"`
+	KeyFingerprint              string     `json:"key_fingerprint,omitempty"`
+	AccountName                 string     `json:"account_name,omitempty"`
+	Platform                    string     `json:"platform,omitempty"`
+	Type                        string     `json:"type,omitempty"`
+	RateMultiplier              float64    `json:"rate_multiplier"`
+	RateMultiplierConfigured    bool       `json:"rate_multiplier_configured"`
+	Schedulable                 bool       `json:"schedulable"`
+	TempUnschedulableUntil      *time.Time `json:"temp_unschedulable_until,omitempty"`
+	HealthProbeEnabled          bool       `json:"health_probe_enabled"`
+	HealthProbeIntervalMinutes  *int       `json:"health_probe_interval_minutes,omitempty"`
+	HealthProbeModel            *string    `json:"health_probe_model,omitempty"`
+	HealthyProbeEnabled         bool       `json:"healthy_probe_enabled"`
+	HealthyProbeIntervalMinutes *int       `json:"healthy_probe_interval_minutes,omitempty"`
+	HealthyProbeIntervalHours   *int       `json:"healthy_probe_interval_hours,omitempty"`
+	GroupIDs                    []int64    `json:"group_ids,omitempty"`
+	GroupNames                  []string   `json:"group_names,omitempty"`
 }
 
 type AccountHealthURLOverview struct {
@@ -909,6 +910,7 @@ func (s *AccountHealthService) enrichSummary(state *AccountHealthState, account 
 	summary.HealthProbeIntervalMinutes = account.HealthProbeIntervalMinutes
 	summary.HealthProbeModel = account.HealthProbeModel
 	summary.HealthyProbeEnabled = account.HealthyProbeEnabled
+	summary.HealthyProbeIntervalMinutes = account.HealthyProbeIntervalMinutes
 	summary.HealthyProbeIntervalHours = account.HealthyProbeIntervalHours
 	summary.BaseURL = accountHealthBaseURL(account)
 	summary.KeyFingerprint = accountHealthKeyFingerprint(account)
@@ -1180,6 +1182,9 @@ func sortAccountHealthRisks(risks []AccountHealthRisk) {
 }
 
 func healthyProbeInterval(account *Account) time.Duration {
+	if account != nil && account.HealthyProbeIntervalMinutes != nil && *account.HealthyProbeIntervalMinutes > 0 {
+		return time.Duration(*account.HealthyProbeIntervalMinutes) * time.Minute
+	}
 	if account != nil && account.HealthyProbeIntervalHours != nil && *account.HealthyProbeIntervalHours > 0 {
 		return time.Duration(*account.HealthyProbeIntervalHours) * time.Hour
 	}

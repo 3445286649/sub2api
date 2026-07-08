@@ -120,6 +120,7 @@ var (
 		{Name: "health_probe_interval_minutes", Type: field.TypeInt, Nullable: true},
 		{Name: "health_probe_model", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "healthy_probe_enabled", Type: field.TypeBool, Default: false},
+		{Name: "healthy_probe_interval_minutes", Type: field.TypeInt, Nullable: true},
 		{Name: "healthy_probe_interval_hours", Type: field.TypeInt, Nullable: true},
 		{Name: "rate_limited_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "rate_limit_reset_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
@@ -141,13 +142,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "accounts_proxies_proxy",
-				Columns:    []*schema.Column{AccountsColumns[35]},
+				Columns:    []*schema.Column{AccountsColumns[36]},
 				RefColumns: []*schema.Column{ProxiesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "accounts_accounts_children",
-				Columns:    []*schema.Column{AccountsColumns[36]},
+				Columns:    []*schema.Column{AccountsColumns[37]},
 				RefColumns: []*schema.Column{AccountsColumns[0]},
 				OnDelete:   schema.Restrict,
 			},
@@ -171,7 +172,7 @@ var (
 			{
 				Name:    "account_proxy_id",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[35]},
+				Columns: []*schema.Column{AccountsColumns[36]},
 			},
 			{
 				Name:    "account_priority",
@@ -191,17 +192,17 @@ var (
 			{
 				Name:    "account_rate_limited_at",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[26]},
+				Columns: []*schema.Column{AccountsColumns[27]},
 			},
 			{
 				Name:    "account_rate_limit_reset_at",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[27]},
+				Columns: []*schema.Column{AccountsColumns[28]},
 			},
 			{
 				Name:    "account_overload_until",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[28]},
+				Columns: []*schema.Column{AccountsColumns[29]},
 			},
 			{
 				Name:    "account_platform_priority",
@@ -221,7 +222,7 @@ var (
 			{
 				Name:    "account_parent_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[36]},
+				Columns: []*schema.Column{AccountsColumns[37]},
 			},
 		},
 	}

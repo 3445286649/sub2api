@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -243,6 +244,28 @@ func (s *AccountUpstreamBalanceService) queryAccountBalance(ctx context.Context,
 			return snapshot
 		}
 	}
+	for _, pair := range upstreamBalanceNewAPIEndpointPairs(baseURL) {
+		status, result, message := s.fetchNewAPIBalanceEndpointPair(ctx, account, pair, apiKey)
+		lastStatus = status
+		lastMessage = message
+		if result != nil {
+			snapshot.Status = UpstreamBalanceStatusOK
+			snapshot.Balance = result.balance
+			snapshot.Remaining = result.remaining
+			snapshot.Unit = result.unit
+			snapshot.SourceEndpoint = pair.subscriptionEndpoint + " + " + pair.usageEndpoint
+			snapshot.HTTPStatus = &status
+			snapshot.ErrorMessage = ""
+			return snapshot
+		}
+		if status == http.StatusUnauthorized || status == http.StatusForbidden {
+			snapshot.Status = UpstreamBalanceStatusAuthError
+			snapshot.SourceEndpoint = pair.subscriptionEndpoint
+			snapshot.HTTPStatus = &status
+			snapshot.ErrorMessage = sanitizeUpstreamBalanceError(message)
+			return snapshot
+		}
+	}
 	if lastStatus > 0 {
 		snapshot.HTTPStatus = &lastStatus
 	}
@@ -262,6 +285,21 @@ type upstreamBalanceParseResult struct {
 }
 
 func (s *AccountUpstreamBalanceService) fetchBalanceEndpoint(ctx context.Context, account *Account, endpoint string, apiKey string) (int, *upstreamBalanceParseResult, string) {
+	status, body, message := s.fetchBalanceEndpointRaw(ctx, account, endpoint, apiKey)
+	if status < 200 || status >= 300 || len(body) == 0 {
+		return status, nil, message
+	}
+	result, err := parseUpstreamBalanceResponse(body)
+	if err != nil {
+		return status, nil, err.Error()
+	}
+	if result == nil {
+		return status, nil, "balance fields not found"
+	}
+	return status, result, ""
+}
+
+func (s *AccountUpstreamBalanceService) fetchBalanceEndpointRaw(ctx context.Context, account *Account, endpoint string, apiKey string) (int, []byte, string) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return 0, nil, err.Error()
@@ -295,14 +333,76 @@ func (s *AccountUpstreamBalanceService) fetchBalanceEndpoint(ctx context.Context
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return resp.StatusCode, nil, string(body)
 	}
-	result, err := parseUpstreamBalanceResponse(body)
+	return resp.StatusCode, body, ""
+}
+
+func (s *AccountUpstreamBalanceService) fetchNewAPIBalanceEndpointPair(ctx context.Context, account *Account, pair upstreamBalanceNewAPIEndpointPair, apiKey string) (int, *upstreamBalanceParseResult, string) {
+	subStatus, subBody, subMessage := s.fetchBalanceEndpointRaw(ctx, account, pair.subscriptionEndpoint, apiKey)
+	if subStatus < 200 || subStatus >= 300 || len(subBody) == 0 {
+		return subStatus, nil, subMessage
+	}
+	usageStatus, usageBody, usageMessage := s.fetchBalanceEndpointRaw(ctx, account, pair.usageEndpoint, apiKey)
+	if usageStatus < 200 || usageStatus >= 300 || len(usageBody) == 0 {
+		return usageStatus, nil, usageMessage
+	}
+	result, err := parseNewAPIUpstreamBalanceResponse(subBody, usageBody)
 	if err != nil {
-		return resp.StatusCode, nil, err.Error()
+		return usageStatus, nil, err.Error()
 	}
-	if result == nil {
-		return resp.StatusCode, nil, "balance fields not found"
+	return usageStatus, result, ""
+}
+
+func parseNewAPIUpstreamBalanceResponse(subscriptionBody, usageBody []byte) (*upstreamBalanceParseResult, error) {
+	var subscription map[string]any
+	if err := json.Unmarshal(subscriptionBody, &subscription); err != nil {
+		return nil, err
 	}
-	return resp.StatusCode, result, ""
+	if msg := upstreamBalanceEmbeddedError(subscription); msg != "" {
+		return nil, fmt.Errorf("subscription error: %s", msg)
+	}
+	limit, ok := floatFromAny(subscription["hard_limit_usd"])
+	if !ok {
+		limit, ok = floatFromAny(subscription["system_hard_limit_usd"])
+	}
+	if !ok {
+		limit, ok = floatFromAny(subscription["soft_limit_usd"])
+	}
+	if !ok {
+		return nil, fmt.Errorf("subscription limit fields not found")
+	}
+
+	var usage map[string]any
+	if err := json.Unmarshal(usageBody, &usage); err != nil {
+		return nil, err
+	}
+	if msg := upstreamBalanceEmbeddedError(usage); msg != "" {
+		return nil, fmt.Errorf("usage error: %s", msg)
+	}
+	totalUsage, ok := floatFromAny(usage["total_usage"])
+	if !ok {
+		return nil, fmt.Errorf("usage total_usage field not found")
+	}
+	remaining := limit - totalUsage/100
+	return &upstreamBalanceParseResult{balance: &remaining, remaining: &remaining, unit: "upstream"}, nil
+}
+
+func upstreamBalanceEmbeddedError(data map[string]any) string {
+	if data == nil {
+		return ""
+	}
+	errorValue, ok := data["error"]
+	if !ok || errorValue == nil {
+		return ""
+	}
+	if message, ok := errorValue.(string); ok {
+		return strings.TrimSpace(message)
+	}
+	if errorMap, ok := errorValue.(map[string]any); ok {
+		if message, ok := errorMap["message"].(string); ok {
+			return strings.TrimSpace(message)
+		}
+	}
+	return "upstream returned error"
 }
 
 func parseUpstreamBalanceResponse(body []byte) (*upstreamBalanceParseResult, error) {
@@ -398,21 +498,53 @@ func upstreamBalanceRepresentativeRank(account Account) int {
 	return 2
 }
 
+type upstreamBalanceNewAPIEndpointPair struct {
+	subscriptionEndpoint string
+	usageEndpoint        string
+}
+
 func upstreamBalanceCandidateEndpoints(baseURL string) []string {
-	root := strings.TrimRight(baseURL, "/")
-	apiRoot := root
+	root, apiRoot := upstreamBalanceRoots(baseURL)
+	endpoints := []string{
+		apiRoot + "/usage",
+		root + "/dashboard/billing/credit_grants",
+		apiRoot + "/dashboard/billing/credit_grants",
+	}
+	return dedupeUpstreamBalanceEndpoints(endpoints)
+}
+
+func upstreamBalanceNewAPIEndpointPairs(baseURL string) []upstreamBalanceNewAPIEndpointPair {
+	root, apiRoot := upstreamBalanceRoots(baseURL)
+	pairs := []upstreamBalanceNewAPIEndpointPair{
+		{subscriptionEndpoint: root + "/dashboard/billing/subscription", usageEndpoint: root + "/dashboard/billing/usage"},
+		{subscriptionEndpoint: apiRoot + "/dashboard/billing/subscription", usageEndpoint: apiRoot + "/dashboard/billing/usage"},
+	}
+	out := make([]upstreamBalanceNewAPIEndpointPair, 0, len(pairs))
+	seen := map[string]struct{}{}
+	for _, pair := range pairs {
+		key := pair.subscriptionEndpoint + "\n" + pair.usageEndpoint
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, pair)
+	}
+	return out
+}
+
+func upstreamBalanceRoots(baseURL string) (root string, apiRoot string) {
+	root = strings.TrimRight(baseURL, "/")
+	apiRoot = root
 	if !strings.HasSuffix(strings.ToLower(apiRoot), "/v1") {
 		apiRoot += "/v1"
 	}
-	billingRoot := root
-	if strings.HasSuffix(strings.ToLower(billingRoot), "/v1") {
-		billingRoot = strings.TrimRight(billingRoot[:len(billingRoot)-3], "/")
+	if strings.HasSuffix(strings.ToLower(root), "/v1") {
+		root = strings.TrimRight(root[:len(root)-3], "/")
 	}
-	endpoints := []string{
-		apiRoot + "/usage",
-		billingRoot + "/dashboard/billing/credit_grants",
-		apiRoot + "/dashboard/billing/credit_grants",
-	}
+	return root, apiRoot
+}
+
+func dedupeUpstreamBalanceEndpoints(endpoints []string) []string {
 	out := make([]string, 0, len(endpoints))
 	seen := map[string]struct{}{}
 	for _, endpoint := range endpoints {

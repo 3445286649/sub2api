@@ -262,12 +262,16 @@ func init() {
 	accountDescHealthyProbeEnabled := accountFields[21].Descriptor()
 	// account.DefaultHealthyProbeEnabled holds the default value on creation for the healthy_probe_enabled field.
 	account.DefaultHealthyProbeEnabled = accountDescHealthyProbeEnabled.Default.(bool)
+	// accountDescHealthyProbeIntervalMinutes is the schema descriptor for healthy_probe_interval_minutes field.
+	accountDescHealthyProbeIntervalMinutes := accountFields[22].Descriptor()
+	// account.HealthyProbeIntervalMinutesValidator is a validator for the "healthy_probe_interval_minutes" field. It is called by the builders before save.
+	account.HealthyProbeIntervalMinutesValidator = accountDescHealthyProbeIntervalMinutes.Validators[0].(func(int) error)
 	// accountDescHealthyProbeIntervalHours is the schema descriptor for healthy_probe_interval_hours field.
-	accountDescHealthyProbeIntervalHours := accountFields[22].Descriptor()
+	accountDescHealthyProbeIntervalHours := accountFields[23].Descriptor()
 	// account.HealthyProbeIntervalHoursValidator is a validator for the "healthy_probe_interval_hours" field. It is called by the builders before save.
 	account.HealthyProbeIntervalHoursValidator = accountDescHealthyProbeIntervalHours.Validators[0].(func(int) error)
 	// accountDescSessionWindowStatus is the schema descriptor for session_window_status field.
-	accountDescSessionWindowStatus := accountFields[30].Descriptor()
+	accountDescSessionWindowStatus := accountFields[31].Descriptor()
 	// account.SessionWindowStatusValidator is a validator for the "session_window_status" field. It is called by the builders before save.
 	account.SessionWindowStatusValidator = accountDescSessionWindowStatus.Validators[0].(func(string) error)
 	accountgroupFields := schema.AccountGroup{}.Fields()

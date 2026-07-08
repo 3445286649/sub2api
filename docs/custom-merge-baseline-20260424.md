@@ -1,6 +1,6 @@
 # Sub2API 本地严格合并基线
 
-更新时间：2026-04-24
+更新时间：2026-07-08
 
 ## 结论
 
@@ -85,6 +85,55 @@
 - 截图资源位于：[docs-site/docs/public/images/subapi](D:\项目\subapi\docs-site\docs\public\images\subapi)
 - 构建命令：`cd docs-site && npm run build`
 - 构建产物：`docs-site/docs/.vitepress/dist`，只上传静态产物到服务器，不提交构建目录
+
+### 7. 健康账号低频巡检分钟级配置
+
+- 迁移文件：[167_healthy_probe_interval_minutes.sql](D:/项目/subapi/backend/migrations/167_healthy_probe_interval_minutes.sql)
+- 后端字段：healthy_probe_interval_minutes；旧字段 healthy_probe_interval_hours 保留作为兼容回退
+- 核心文件：account_health_repo.go、account_health.go、account_handler.go、AccountsView.vue
+- 当前规则：
+  - 健康态低频巡检优先使用分钟字段
+  - 分钟字段为空时回退旧小时字段
+  - 两者都为空时默认 360 分钟
+  - 保存探活设置后会重新推进 next_probe_at
+  - 关闭低频巡检时清空健康态旧 next_probe_at
+- 前端行为：支持 1/5/15/30 分钟 和 1/3/6/12/24 小时，并支持自定义分钟
+- 已验证：LAX 测试机迁移成功；设置 1 分钟后 next_probe_at 能推进到约 60 秒后；日本主服务器已通过蓝绿上线
+
+### 8. 上游余额查询 new-api 适配
+
+- 核心文件：[account_upstream_balance.go](D:/项目/subapi/backend/internal/service/account_upstream_balance.go)
+- 适配目标：QuantumNous/new-api
+- 新增候选接口：
+  - {root}/dashboard/billing/subscription
+  - {root}/dashboard/billing/usage
+  - {apiRoot}/dashboard/billing/subscription
+  - {apiRoot}/dashboard/billing/usage
+- 查询规则：
+  - 继续按 base_url 聚合，每个上游只选一个代表账号查询
+  - 鉴权仍使用账号现有 api_key，请求头为 Authorization: Bearer key
+  - 不需要网页登录态、cookie 或管理员 token
+  - 组合查询 subscription.hard_limit_usd 和 usage.total_usage
+  - 余额按 hard_limit_usd - total_usage / 100 计算
+  - 单位标记为 upstream，表示按上游站点展示口径理解
+- 安全边界：不存储 key，不存储完整响应体，错误信息继续脱敏和截断；查询失败只影响余额展示，不影响账号健康、调度、隔离状态
+- 已验证：LAX mock new-api 返回 hard_limit_usd=100、total_usage=2500 时余额为 75；日本主服务器已随本次镜像蓝绿上线
+
+### 9. 日本本地镜像蓝绿脚本
+
+- 脚本文件：[japan-bluegreen-local-image.sh](D:\项目\subapi\deploy\japan-bluegreen-local-image.sh)
+- 使用场景：本地构建镜像，上传到日本服务器，远端 docker load，然后使用服务器本地镜像 tag 做 8080/8081 蓝绿
+- 关键行为：
+  - 不执行 docker pull
+  - 自动检测当前 nginx 活跃端口
+  - 目标端口被运行容器占用时阻断
+  - 自动备份 nginx 配置和容器 inspect
+  - 显式挂载 /root/sub2api-deploy/data:/app/data
+  - 切换前 smoke：/health、首页、/admin、无效登录
+  - 切换后默认观察 60 秒
+  - 切换后失败会自动恢复 nginx
+  - 成功后停止旧容器但保留回滚点
+- 默认域名验证可传：--public-health https://subapi.loucer.cn/health 和 --public-health https://jp.loucer.cn/health
 
 ## 这次新增确认的修复
 

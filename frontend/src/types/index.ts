@@ -958,6 +958,7 @@ export interface Account {
   health_probe_interval_minutes?: number | null
   health_probe_model?: string | null
   healthy_probe_enabled: boolean
+  healthy_probe_interval_minutes?: number | null
   healthy_probe_interval_hours?: number | null
   rate_limited_at: string | null
   rate_limit_reset_at: string | null
@@ -1063,6 +1064,7 @@ export interface AccountHealthSummary {
   health_probe_interval_minutes?: number | null
   health_probe_model?: string | null
   healthy_probe_enabled: boolean
+  healthy_probe_interval_minutes?: number | null
   healthy_probe_interval_hours?: number | null
   group_ids?: number[]
   group_names?: string[]

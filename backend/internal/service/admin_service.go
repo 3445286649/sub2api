@@ -327,47 +327,49 @@ type ShadowOptions struct {
 }
 
 type UpdateAccountInput struct {
-	Name                       string
-	Notes                      *string
-	Type                       string // Account type: oauth, setup-token, apikey
-	Credentials                map[string]any
-	Extra                      map[string]any
-	ProxyID                    *int64
-	Concurrency                *int     // 使用指针区分"未提供"和"设置为0"
-	Priority                   *int     // 使用指针区分"未提供"和"设置为0"
-	RateMultiplier             *float64 // 账号计费倍率（>=0，允许 0）
-	LoadFactor                 *int
-	HealthProbeEnabled         *bool
-	HealthProbeIntervalMinutes *int
-	HealthProbeModel           *string
-	HealthyProbeEnabled        *bool
-	HealthyProbeIntervalHours  *int
-	Status                     string
-	GroupIDs                   *[]int64
-	ExpiresAt                  *int64
-	AutoPauseOnExpired         *bool
-	SkipMixedChannelCheck      bool // 跳过混合渠道检查（用户已确认风险）
+	Name                        string
+	Notes                       *string
+	Type                        string // Account type: oauth, setup-token, apikey
+	Credentials                 map[string]any
+	Extra                       map[string]any
+	ProxyID                     *int64
+	Concurrency                 *int     // 使用指针区分"未提供"和"设置为0"
+	Priority                    *int     // 使用指针区分"未提供"和"设置为0"
+	RateMultiplier              *float64 // 账号计费倍率（>=0，允许 0）
+	LoadFactor                  *int
+	HealthProbeEnabled          *bool
+	HealthProbeIntervalMinutes  *int
+	HealthProbeModel            *string
+	HealthyProbeEnabled         *bool
+	HealthyProbeIntervalMinutes *int
+	HealthyProbeIntervalHours   *int
+	Status                      string
+	GroupIDs                    *[]int64
+	ExpiresAt                   *int64
+	AutoPauseOnExpired          *bool
+	SkipMixedChannelCheck       bool // 跳过混合渠道检查（用户已确认风险）
 }
 
 // BulkUpdateAccountsInput describes the payload for bulk updating accounts.
 type BulkUpdateAccountsInput struct {
-	AccountIDs                 []int64
-	Filters                    *BulkUpdateAccountFilters
-	Name                       string
-	ProxyID                    *int64
-	Concurrency                *int
-	Priority                   *int
-	RateMultiplier             *float64 // 账号计费倍率（>=0，允许 0）
-	LoadFactor                 *int
-	HealthProbeEnabled         *bool
-	HealthProbeIntervalMinutes *int
-	HealthyProbeEnabled        *bool
-	HealthyProbeIntervalHours  *int
-	Status                     string
-	Schedulable                *bool
-	GroupIDs                   *[]int64
-	Credentials                map[string]any
-	Extra                      map[string]any
+	AccountIDs                  []int64
+	Filters                     *BulkUpdateAccountFilters
+	Name                        string
+	ProxyID                     *int64
+	Concurrency                 *int
+	Priority                    *int
+	RateMultiplier              *float64 // 账号计费倍率（>=0，允许 0）
+	LoadFactor                  *int
+	HealthProbeEnabled          *bool
+	HealthProbeIntervalMinutes  *int
+	HealthyProbeEnabled         *bool
+	HealthyProbeIntervalMinutes *int
+	HealthyProbeIntervalHours   *int
+	Status                      string
+	Schedulable                 *bool
+	GroupIDs                    *[]int64
+	Credentials                 map[string]any
+	Extra                       map[string]any
 	// SkipMixedChannelCheck skips the mixed channel risk check when binding groups.
 	// This should only be set when the caller has explicitly confirmed the risk.
 	SkipMixedChannelCheck bool
@@ -2927,6 +2929,13 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if input.HealthyProbeEnabled != nil {
 		account.HealthyProbeEnabled = *input.HealthyProbeEnabled
 	}
+	if input.HealthyProbeIntervalMinutes != nil {
+		if *input.HealthyProbeIntervalMinutes <= 0 {
+			account.HealthyProbeIntervalMinutes = nil
+		} else {
+			account.HealthyProbeIntervalMinutes = input.HealthyProbeIntervalMinutes
+		}
+	}
 	if input.HealthyProbeIntervalHours != nil {
 		if *input.HealthyProbeIntervalHours <= 0 {
 			account.HealthyProbeIntervalHours = nil
@@ -3131,6 +3140,9 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 	}
 	if input.HealthyProbeEnabled != nil {
 		repoUpdates.HealthyProbeEnabled = input.HealthyProbeEnabled
+	}
+	if input.HealthyProbeIntervalMinutes != nil {
+		repoUpdates.HealthyProbeIntervalMinutes = input.HealthyProbeIntervalMinutes
 	}
 	if input.HealthyProbeIntervalHours != nil {
 		repoUpdates.HealthyProbeIntervalHours = input.HealthyProbeIntervalHours

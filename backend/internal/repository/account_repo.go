@@ -111,6 +111,9 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 	if account.HealthProbeModel != nil {
 		builder.SetHealthProbeModel(*account.HealthProbeModel)
 	}
+	if account.HealthyProbeIntervalMinutes != nil {
+		builder.SetHealthyProbeIntervalMinutes(*account.HealthyProbeIntervalMinutes)
+	}
 	if account.HealthyProbeIntervalHours != nil {
 		builder.SetHealthyProbeIntervalHours(*account.HealthyProbeIntervalHours)
 	}
@@ -380,6 +383,11 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		builder.SetHealthProbeModel(*account.HealthProbeModel)
 	} else {
 		builder.ClearHealthProbeModel()
+	}
+	if account.HealthyProbeIntervalMinutes != nil {
+		builder.SetHealthyProbeIntervalMinutes(*account.HealthyProbeIntervalMinutes)
+	} else {
+		builder.ClearHealthyProbeIntervalMinutes()
 	}
 	if account.HealthyProbeIntervalHours != nil {
 		builder.SetHealthyProbeIntervalHours(*account.HealthyProbeIntervalHours)
@@ -825,7 +833,7 @@ func (r *accountRepository) ListHealthyProbeCandidates(ctx context.Context, now 
 				OR (
 					ahs.status = 'healthy'
 					AND COALESCE(ahs.last_checked_at, ahs.last_success_at, ahs.updated_at, ahs.created_at, a.updated_at, a.created_at)
-						+ (CASE WHEN a.healthy_probe_interval_hours IS NOT NULL AND a.healthy_probe_interval_hours > 0 THEN a.healthy_probe_interval_hours ELSE 6 END * INTERVAL '1 hour') <= $1
+						+ (CASE WHEN a.healthy_probe_interval_minutes IS NOT NULL AND a.healthy_probe_interval_minutes > 0 THEN a.healthy_probe_interval_minutes WHEN a.healthy_probe_interval_hours IS NOT NULL AND a.healthy_probe_interval_hours > 0 THEN a.healthy_probe_interval_hours * 60 ELSE 360 END * INTERVAL '1 minute') <= $1
 				)
 			)
 		ORDER BY COALESCE(ahs.last_checked_at, ahs.last_success_at, ahs.updated_at, ahs.created_at, a.updated_at, a.created_at) ASC, a.id ASC
@@ -1785,6 +1793,15 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 		args = append(args, *updates.HealthyProbeEnabled)
 		idx++
 	}
+	if updates.HealthyProbeIntervalMinutes != nil {
+		if *updates.HealthyProbeIntervalMinutes <= 0 {
+			setClauses = append(setClauses, "healthy_probe_interval_minutes = NULL")
+		} else {
+			setClauses = append(setClauses, "healthy_probe_interval_minutes = $"+itoa(idx))
+			args = append(args, *updates.HealthyProbeIntervalMinutes)
+			idx++
+		}
+	}
 	if updates.HealthyProbeIntervalHours != nil {
 		if *updates.HealthyProbeIntervalHours <= 0 {
 			setClauses = append(setClauses, "healthy_probe_interval_hours = NULL")
@@ -2181,42 +2198,43 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 	rateMultiplier := m.RateMultiplier
 
 	return &service.Account{
-		ID:                         m.ID,
-		Name:                       m.Name,
-		Notes:                      m.Notes,
-		Platform:                   m.Platform,
-		Type:                       m.Type,
-		Credentials:                copyJSONMap(m.Credentials),
-		Extra:                      copyJSONMap(m.Extra),
-		ProxyID:                    m.ProxyID,
-		ProxyFallbackOriginID:      m.ProxyFallbackOriginID,
-		Concurrency:                m.Concurrency,
-		Priority:                   m.Priority,
-		RateMultiplier:             &rateMultiplier,
-		LoadFactor:                 m.LoadFactor,
-		Status:                     m.Status,
-		ErrorMessage:               derefString(m.ErrorMessage),
-		LastUsedAt:                 m.LastUsedAt,
-		ExpiresAt:                  m.ExpiresAt,
-		AutoPauseOnExpired:         m.AutoPauseOnExpired,
-		CreatedAt:                  m.CreatedAt,
-		UpdatedAt:                  m.UpdatedAt,
-		Schedulable:                m.Schedulable,
-		HealthProbeEnabled:         m.HealthProbeEnabled,
-		HealthProbeIntervalMinutes: m.HealthProbeIntervalMinutes,
-		HealthProbeModel:           m.HealthProbeModel,
-		HealthyProbeEnabled:        m.HealthyProbeEnabled,
-		HealthyProbeIntervalHours:  m.HealthyProbeIntervalHours,
-		RateLimitedAt:              m.RateLimitedAt,
-		RateLimitResetAt:           m.RateLimitResetAt,
-		OverloadUntil:              m.OverloadUntil,
-		TempUnschedulableUntil:     m.TempUnschedulableUntil,
-		TempUnschedulableReason:    derefString(m.TempUnschedulableReason),
-		SessionWindowStart:         m.SessionWindowStart,
-		SessionWindowEnd:           m.SessionWindowEnd,
-		SessionWindowStatus:        derefString(m.SessionWindowStatus),
-		ParentAccountID:            m.ParentAccountID,
-		QuotaDimension:             string(m.QuotaDimension),
+		ID:                          m.ID,
+		Name:                        m.Name,
+		Notes:                       m.Notes,
+		Platform:                    m.Platform,
+		Type:                        m.Type,
+		Credentials:                 copyJSONMap(m.Credentials),
+		Extra:                       copyJSONMap(m.Extra),
+		ProxyID:                     m.ProxyID,
+		ProxyFallbackOriginID:       m.ProxyFallbackOriginID,
+		Concurrency:                 m.Concurrency,
+		Priority:                    m.Priority,
+		RateMultiplier:              &rateMultiplier,
+		LoadFactor:                  m.LoadFactor,
+		Status:                      m.Status,
+		ErrorMessage:                derefString(m.ErrorMessage),
+		LastUsedAt:                  m.LastUsedAt,
+		ExpiresAt:                   m.ExpiresAt,
+		AutoPauseOnExpired:          m.AutoPauseOnExpired,
+		CreatedAt:                   m.CreatedAt,
+		UpdatedAt:                   m.UpdatedAt,
+		Schedulable:                 m.Schedulable,
+		HealthProbeEnabled:          m.HealthProbeEnabled,
+		HealthProbeIntervalMinutes:  m.HealthProbeIntervalMinutes,
+		HealthProbeModel:            m.HealthProbeModel,
+		HealthyProbeEnabled:         m.HealthyProbeEnabled,
+		HealthyProbeIntervalMinutes: m.HealthyProbeIntervalMinutes,
+		HealthyProbeIntervalHours:   m.HealthyProbeIntervalHours,
+		RateLimitedAt:               m.RateLimitedAt,
+		RateLimitResetAt:            m.RateLimitResetAt,
+		OverloadUntil:               m.OverloadUntil,
+		TempUnschedulableUntil:      m.TempUnschedulableUntil,
+		TempUnschedulableReason:     derefString(m.TempUnschedulableReason),
+		SessionWindowStart:          m.SessionWindowStart,
+		SessionWindowEnd:            m.SessionWindowEnd,
+		SessionWindowStatus:         derefString(m.SessionWindowStatus),
+		ParentAccountID:             m.ParentAccountID,
+		QuotaDimension:              string(m.QuotaDimension),
 	}
 }
 

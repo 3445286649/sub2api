@@ -44,11 +44,12 @@ type Account struct {
 
 	Schedulable bool
 
-	HealthProbeEnabled         bool
-	HealthProbeIntervalMinutes *int
-	HealthProbeModel           *string
-	HealthyProbeEnabled        bool
-	HealthyProbeIntervalHours  *int
+	HealthProbeEnabled          bool
+	HealthProbeIntervalMinutes  *int
+	HealthProbeModel            *string
+	HealthyProbeEnabled         bool
+	HealthyProbeIntervalMinutes *int
+	HealthyProbeIntervalHours   *int
 
 	RateLimitedAt    *time.Time
 	RateLimitResetAt *time.Time

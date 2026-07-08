@@ -445,6 +445,33 @@ func (_u *AccountUpdate) SetNillableHealthyProbeEnabled(v *bool) *AccountUpdate 
 	return _u
 }
 
+// SetHealthyProbeIntervalMinutes sets the "healthy_probe_interval_minutes" field.
+func (_u *AccountUpdate) SetHealthyProbeIntervalMinutes(v int) *AccountUpdate {
+	_u.mutation.ResetHealthyProbeIntervalMinutes()
+	_u.mutation.SetHealthyProbeIntervalMinutes(v)
+	return _u
+}
+
+// SetNillableHealthyProbeIntervalMinutes sets the "healthy_probe_interval_minutes" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableHealthyProbeIntervalMinutes(v *int) *AccountUpdate {
+	if v != nil {
+		_u.SetHealthyProbeIntervalMinutes(*v)
+	}
+	return _u
+}
+
+// AddHealthyProbeIntervalMinutes adds value to the "healthy_probe_interval_minutes" field.
+func (_u *AccountUpdate) AddHealthyProbeIntervalMinutes(v int) *AccountUpdate {
+	_u.mutation.AddHealthyProbeIntervalMinutes(v)
+	return _u
+}
+
+// ClearHealthyProbeIntervalMinutes clears the value of the "healthy_probe_interval_minutes" field.
+func (_u *AccountUpdate) ClearHealthyProbeIntervalMinutes() *AccountUpdate {
+	_u.mutation.ClearHealthyProbeIntervalMinutes()
+	return _u
+}
+
 // SetHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field.
 func (_u *AccountUpdate) SetHealthyProbeIntervalHours(v int) *AccountUpdate {
 	_u.mutation.ResetHealthyProbeIntervalHours()
@@ -884,6 +911,11 @@ func (_u *AccountUpdate) check() error {
 			return &ValidationError{Name: "health_probe_interval_minutes", err: fmt.Errorf(`ent: validator failed for field "Account.health_probe_interval_minutes": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.HealthyProbeIntervalMinutes(); ok {
+		if err := account.HealthyProbeIntervalMinutesValidator(v); err != nil {
+			return &ValidationError{Name: "healthy_probe_interval_minutes", err: fmt.Errorf(`ent: validator failed for field "Account.healthy_probe_interval_minutes": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.HealthyProbeIntervalHours(); ok {
 		if err := account.HealthyProbeIntervalHoursValidator(v); err != nil {
 			return &ValidationError{Name: "healthy_probe_interval_hours", err: fmt.Errorf(`ent: validator failed for field "Account.healthy_probe_interval_hours": %w`, err)}
@@ -1027,6 +1059,15 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.HealthyProbeEnabled(); ok {
 		_spec.SetField(account.FieldHealthyProbeEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.HealthyProbeIntervalMinutes(); ok {
+		_spec.SetField(account.FieldHealthyProbeIntervalMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedHealthyProbeIntervalMinutes(); ok {
+		_spec.AddField(account.FieldHealthyProbeIntervalMinutes, field.TypeInt, value)
+	}
+	if _u.mutation.HealthyProbeIntervalMinutesCleared() {
+		_spec.ClearField(account.FieldHealthyProbeIntervalMinutes, field.TypeInt)
 	}
 	if value, ok := _u.mutation.HealthyProbeIntervalHours(); ok {
 		_spec.SetField(account.FieldHealthyProbeIntervalHours, field.TypeInt, value)
@@ -1727,6 +1768,33 @@ func (_u *AccountUpdateOne) SetNillableHealthyProbeEnabled(v *bool) *AccountUpda
 	return _u
 }
 
+// SetHealthyProbeIntervalMinutes sets the "healthy_probe_interval_minutes" field.
+func (_u *AccountUpdateOne) SetHealthyProbeIntervalMinutes(v int) *AccountUpdateOne {
+	_u.mutation.ResetHealthyProbeIntervalMinutes()
+	_u.mutation.SetHealthyProbeIntervalMinutes(v)
+	return _u
+}
+
+// SetNillableHealthyProbeIntervalMinutes sets the "healthy_probe_interval_minutes" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableHealthyProbeIntervalMinutes(v *int) *AccountUpdateOne {
+	if v != nil {
+		_u.SetHealthyProbeIntervalMinutes(*v)
+	}
+	return _u
+}
+
+// AddHealthyProbeIntervalMinutes adds value to the "healthy_probe_interval_minutes" field.
+func (_u *AccountUpdateOne) AddHealthyProbeIntervalMinutes(v int) *AccountUpdateOne {
+	_u.mutation.AddHealthyProbeIntervalMinutes(v)
+	return _u
+}
+
+// ClearHealthyProbeIntervalMinutes clears the value of the "healthy_probe_interval_minutes" field.
+func (_u *AccountUpdateOne) ClearHealthyProbeIntervalMinutes() *AccountUpdateOne {
+	_u.mutation.ClearHealthyProbeIntervalMinutes()
+	return _u
+}
+
 // SetHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field.
 func (_u *AccountUpdateOne) SetHealthyProbeIntervalHours(v int) *AccountUpdateOne {
 	_u.mutation.ResetHealthyProbeIntervalHours()
@@ -2179,6 +2247,11 @@ func (_u *AccountUpdateOne) check() error {
 			return &ValidationError{Name: "health_probe_interval_minutes", err: fmt.Errorf(`ent: validator failed for field "Account.health_probe_interval_minutes": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.HealthyProbeIntervalMinutes(); ok {
+		if err := account.HealthyProbeIntervalMinutesValidator(v); err != nil {
+			return &ValidationError{Name: "healthy_probe_interval_minutes", err: fmt.Errorf(`ent: validator failed for field "Account.healthy_probe_interval_minutes": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.HealthyProbeIntervalHours(); ok {
 		if err := account.HealthyProbeIntervalHoursValidator(v); err != nil {
 			return &ValidationError{Name: "healthy_probe_interval_hours", err: fmt.Errorf(`ent: validator failed for field "Account.healthy_probe_interval_hours": %w`, err)}
@@ -2339,6 +2412,15 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if value, ok := _u.mutation.HealthyProbeEnabled(); ok {
 		_spec.SetField(account.FieldHealthyProbeEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.HealthyProbeIntervalMinutes(); ok {
+		_spec.SetField(account.FieldHealthyProbeIntervalMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedHealthyProbeIntervalMinutes(); ok {
+		_spec.AddField(account.FieldHealthyProbeIntervalMinutes, field.TypeInt, value)
+	}
+	if _u.mutation.HealthyProbeIntervalMinutesCleared() {
+		_spec.ClearField(account.FieldHealthyProbeIntervalMinutes, field.TypeInt)
 	}
 	if value, ok := _u.mutation.HealthyProbeIntervalHours(); ok {
 		_spec.SetField(account.FieldHealthyProbeIntervalHours, field.TypeInt, value)

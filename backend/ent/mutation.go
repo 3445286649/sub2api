@@ -2278,67 +2278,69 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 // AccountMutation represents an operation that mutates the Account nodes in the graph.
 type AccountMutation struct {
 	config
-	op                               Op
-	typ                              string
-	id                               *int64
-	created_at                       *time.Time
-	updated_at                       *time.Time
-	deleted_at                       *time.Time
-	name                             *string
-	notes                            *string
-	platform                         *string
-	_type                            *string
-	credentials                      *map[string]interface{}
-	extra                            *map[string]interface{}
-	proxy_fallback_origin_id         *int64
-	addproxy_fallback_origin_id      *int64
-	concurrency                      *int
-	addconcurrency                   *int
-	load_factor                      *int
-	addload_factor                   *int
-	priority                         *int
-	addpriority                      *int
-	rate_multiplier                  *float64
-	addrate_multiplier               *float64
-	status                           *string
-	error_message                    *string
-	last_used_at                     *time.Time
-	expires_at                       *time.Time
-	auto_pause_on_expired            *bool
-	schedulable                      *bool
-	health_probe_enabled             *bool
-	health_probe_interval_minutes    *int
-	addhealth_probe_interval_minutes *int
-	health_probe_model               *string
-	healthy_probe_enabled            *bool
-	healthy_probe_interval_hours     *int
-	addhealthy_probe_interval_hours  *int
-	rate_limited_at                  *time.Time
-	rate_limit_reset_at              *time.Time
-	overload_until                   *time.Time
-	temp_unschedulable_until         *time.Time
-	temp_unschedulable_reason        *string
-	session_window_start             *time.Time
-	session_window_end               *time.Time
-	session_window_status            *string
-	quota_dimension                  *account.QuotaDimension
-	clearedFields                    map[string]struct{}
-	groups                           map[int64]struct{}
-	removedgroups                    map[int64]struct{}
-	clearedgroups                    bool
-	proxy                            *int64
-	clearedproxy                     bool
-	parent                           *int64
-	clearedparent                    bool
-	children                         map[int64]struct{}
-	removedchildren                  map[int64]struct{}
-	clearedchildren                  bool
-	usage_logs                       map[int64]struct{}
-	removedusage_logs                map[int64]struct{}
-	clearedusage_logs                bool
-	done                             bool
-	oldValue                         func(context.Context) (*Account, error)
-	predicates                       []predicate.Account
+	op                                Op
+	typ                               string
+	id                                *int64
+	created_at                        *time.Time
+	updated_at                        *time.Time
+	deleted_at                        *time.Time
+	name                              *string
+	notes                             *string
+	platform                          *string
+	_type                             *string
+	credentials                       *map[string]interface{}
+	extra                             *map[string]interface{}
+	proxy_fallback_origin_id          *int64
+	addproxy_fallback_origin_id       *int64
+	concurrency                       *int
+	addconcurrency                    *int
+	load_factor                       *int
+	addload_factor                    *int
+	priority                          *int
+	addpriority                       *int
+	rate_multiplier                   *float64
+	addrate_multiplier                *float64
+	status                            *string
+	error_message                     *string
+	last_used_at                      *time.Time
+	expires_at                        *time.Time
+	auto_pause_on_expired             *bool
+	schedulable                       *bool
+	health_probe_enabled              *bool
+	health_probe_interval_minutes     *int
+	addhealth_probe_interval_minutes  *int
+	health_probe_model                *string
+	healthy_probe_enabled             *bool
+	healthy_probe_interval_minutes    *int
+	addhealthy_probe_interval_minutes *int
+	healthy_probe_interval_hours      *int
+	addhealthy_probe_interval_hours   *int
+	rate_limited_at                   *time.Time
+	rate_limit_reset_at               *time.Time
+	overload_until                    *time.Time
+	temp_unschedulable_until          *time.Time
+	temp_unschedulable_reason         *string
+	session_window_start              *time.Time
+	session_window_end                *time.Time
+	session_window_status             *string
+	quota_dimension                   *account.QuotaDimension
+	clearedFields                     map[string]struct{}
+	groups                            map[int64]struct{}
+	removedgroups                     map[int64]struct{}
+	clearedgroups                     bool
+	proxy                             *int64
+	clearedproxy                      bool
+	parent                            *int64
+	clearedparent                     bool
+	children                          map[int64]struct{}
+	removedchildren                   map[int64]struct{}
+	clearedchildren                   bool
+	usage_logs                        map[int64]struct{}
+	removedusage_logs                 map[int64]struct{}
+	clearedusage_logs                 bool
+	done                              bool
+	oldValue                          func(context.Context) (*Account, error)
+	predicates                        []predicate.Account
 }
 
 var _ ent.Mutation = (*AccountMutation)(nil)
@@ -3592,6 +3594,76 @@ func (m *AccountMutation) ResetHealthyProbeEnabled() {
 	m.healthy_probe_enabled = nil
 }
 
+// SetHealthyProbeIntervalMinutes sets the "healthy_probe_interval_minutes" field.
+func (m *AccountMutation) SetHealthyProbeIntervalMinutes(i int) {
+	m.healthy_probe_interval_minutes = &i
+	m.addhealthy_probe_interval_minutes = nil
+}
+
+// HealthyProbeIntervalMinutes returns the value of the "healthy_probe_interval_minutes" field in the mutation.
+func (m *AccountMutation) HealthyProbeIntervalMinutes() (r int, exists bool) {
+	v := m.healthy_probe_interval_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHealthyProbeIntervalMinutes returns the old "healthy_probe_interval_minutes" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldHealthyProbeIntervalMinutes(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHealthyProbeIntervalMinutes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHealthyProbeIntervalMinutes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHealthyProbeIntervalMinutes: %w", err)
+	}
+	return oldValue.HealthyProbeIntervalMinutes, nil
+}
+
+// AddHealthyProbeIntervalMinutes adds i to the "healthy_probe_interval_minutes" field.
+func (m *AccountMutation) AddHealthyProbeIntervalMinutes(i int) {
+	if m.addhealthy_probe_interval_minutes != nil {
+		*m.addhealthy_probe_interval_minutes += i
+	} else {
+		m.addhealthy_probe_interval_minutes = &i
+	}
+}
+
+// AddedHealthyProbeIntervalMinutes returns the value that was added to the "healthy_probe_interval_minutes" field in this mutation.
+func (m *AccountMutation) AddedHealthyProbeIntervalMinutes() (r int, exists bool) {
+	v := m.addhealthy_probe_interval_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearHealthyProbeIntervalMinutes clears the value of the "healthy_probe_interval_minutes" field.
+func (m *AccountMutation) ClearHealthyProbeIntervalMinutes() {
+	m.healthy_probe_interval_minutes = nil
+	m.addhealthy_probe_interval_minutes = nil
+	m.clearedFields[account.FieldHealthyProbeIntervalMinutes] = struct{}{}
+}
+
+// HealthyProbeIntervalMinutesCleared returns if the "healthy_probe_interval_minutes" field was cleared in this mutation.
+func (m *AccountMutation) HealthyProbeIntervalMinutesCleared() bool {
+	_, ok := m.clearedFields[account.FieldHealthyProbeIntervalMinutes]
+	return ok
+}
+
+// ResetHealthyProbeIntervalMinutes resets all changes to the "healthy_probe_interval_minutes" field.
+func (m *AccountMutation) ResetHealthyProbeIntervalMinutes() {
+	m.healthy_probe_interval_minutes = nil
+	m.addhealthy_probe_interval_minutes = nil
+	delete(m.clearedFields, account.FieldHealthyProbeIntervalMinutes)
+}
+
 // SetHealthyProbeIntervalHours sets the "healthy_probe_interval_hours" field.
 func (m *AccountMutation) SetHealthyProbeIntervalHours(i int) {
 	m.healthy_probe_interval_hours = &i
@@ -4402,7 +4474,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 36)
+	fields := make([]string, 0, 37)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -4477,6 +4549,9 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.healthy_probe_enabled != nil {
 		fields = append(fields, account.FieldHealthyProbeEnabled)
+	}
+	if m.healthy_probe_interval_minutes != nil {
+		fields = append(fields, account.FieldHealthyProbeIntervalMinutes)
 	}
 	if m.healthy_probe_interval_hours != nil {
 		fields = append(fields, account.FieldHealthyProbeIntervalHours)
@@ -4569,6 +4644,8 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.HealthProbeModel()
 	case account.FieldHealthyProbeEnabled:
 		return m.HealthyProbeEnabled()
+	case account.FieldHealthyProbeIntervalMinutes:
+		return m.HealthyProbeIntervalMinutes()
 	case account.FieldHealthyProbeIntervalHours:
 		return m.HealthyProbeIntervalHours()
 	case account.FieldRateLimitedAt:
@@ -4650,6 +4727,8 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldHealthProbeModel(ctx)
 	case account.FieldHealthyProbeEnabled:
 		return m.OldHealthyProbeEnabled(ctx)
+	case account.FieldHealthyProbeIntervalMinutes:
+		return m.OldHealthyProbeIntervalMinutes(ctx)
 	case account.FieldHealthyProbeIntervalHours:
 		return m.OldHealthyProbeIntervalHours(ctx)
 	case account.FieldRateLimitedAt:
@@ -4856,6 +4935,13 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetHealthyProbeEnabled(v)
 		return nil
+	case account.FieldHealthyProbeIntervalMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHealthyProbeIntervalMinutes(v)
+		return nil
 	case account.FieldHealthyProbeIntervalHours:
 		v, ok := value.(int)
 		if !ok {
@@ -4959,6 +5045,9 @@ func (m *AccountMutation) AddedFields() []string {
 	if m.addhealth_probe_interval_minutes != nil {
 		fields = append(fields, account.FieldHealthProbeIntervalMinutes)
 	}
+	if m.addhealthy_probe_interval_minutes != nil {
+		fields = append(fields, account.FieldHealthyProbeIntervalMinutes)
+	}
 	if m.addhealthy_probe_interval_hours != nil {
 		fields = append(fields, account.FieldHealthyProbeIntervalHours)
 	}
@@ -4982,6 +5071,8 @@ func (m *AccountMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedRateMultiplier()
 	case account.FieldHealthProbeIntervalMinutes:
 		return m.AddedHealthProbeIntervalMinutes()
+	case account.FieldHealthyProbeIntervalMinutes:
+		return m.AddedHealthyProbeIntervalMinutes()
 	case account.FieldHealthyProbeIntervalHours:
 		return m.AddedHealthyProbeIntervalHours()
 	}
@@ -5035,6 +5126,13 @@ func (m *AccountMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddHealthProbeIntervalMinutes(v)
 		return nil
+	case account.FieldHealthyProbeIntervalMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddHealthyProbeIntervalMinutes(v)
+		return nil
 	case account.FieldHealthyProbeIntervalHours:
 		v, ok := value.(int)
 		if !ok {
@@ -5079,6 +5177,9 @@ func (m *AccountMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(account.FieldHealthProbeModel) {
 		fields = append(fields, account.FieldHealthProbeModel)
+	}
+	if m.FieldCleared(account.FieldHealthyProbeIntervalMinutes) {
+		fields = append(fields, account.FieldHealthyProbeIntervalMinutes)
 	}
 	if m.FieldCleared(account.FieldHealthyProbeIntervalHours) {
 		fields = append(fields, account.FieldHealthyProbeIntervalHours)
@@ -5153,6 +5254,9 @@ func (m *AccountMutation) ClearField(name string) error {
 		return nil
 	case account.FieldHealthProbeModel:
 		m.ClearHealthProbeModel()
+		return nil
+	case account.FieldHealthyProbeIntervalMinutes:
+		m.ClearHealthyProbeIntervalMinutes()
 		return nil
 	case account.FieldHealthyProbeIntervalHours:
 		m.ClearHealthyProbeIntervalHours()
@@ -5266,6 +5370,9 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldHealthyProbeEnabled:
 		m.ResetHealthyProbeEnabled()
+		return nil
+	case account.FieldHealthyProbeIntervalMinutes:
+		m.ResetHealthyProbeIntervalMinutes()
 		return nil
 	case account.FieldHealthyProbeIntervalHours:
 		m.ResetHealthyProbeIntervalHours()
