@@ -26,6 +26,7 @@ export default defineConfig({
         items: [
           { text: 'CCSwitch 接入', link: '/ccswitch' },
           { text: 'Codex 接入', link: '/codex' },
+          { text: 'Codex 生图 Skill', link: '/codex-imagegen2' },
           { text: 'Claude Code 接入', link: '/claude-code' },
           { text: 'VS Code 插件接入', link: '/vscode' }
         ]

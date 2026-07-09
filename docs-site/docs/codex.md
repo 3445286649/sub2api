@@ -148,6 +148,12 @@ https://subapi.loucer.cn
 - 有记录：说明请求打到了 subapi。
 - 没记录：说明 Codex 没走 subapi，优先检查 Base URL、Provider、Key 和当前是否仍在官方账号登录模式。
 
+## 9. Codex 生图 Skill
+
+如果你想在 Codex 里直接生成图片，可以继续看 [Codex 生图 Skill 接入](/codex-imagegen2)。
+
+这个功能使用 IMAGEGEN2_API_KEY 和 IMAGEGEN2_BASE_URL 走 subapi 中转站，和普通聊天接入分开配置，适合生成海报、产品图、参考图改图。
+
 ## 常见现象
 
 | 现象 | 优先检查 |

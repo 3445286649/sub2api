@@ -18,6 +18,7 @@
 - [API Key 创建与安全](/api-key)
 - [CCSwitch 接入](/ccswitch)
 - [Codex 接入](/codex)
+- [Codex 生图 Skill 接入](/codex-imagegen2)
 - [Claude Code 接入](/claude-code)
 - [VS Code 插件接入](/vscode)
 - [常见报错排查](/troubleshooting)
@@ -31,5 +32,7 @@
 - CCSwitch GitHub：`https://github.com/farion1231/cc-switch/releases`
 
 ## 最后更新时间
+
+2026-07-09：新增 Codex 生图 Skill 接入教程，并补充 subapi 中转站配置和 2K 生图示例。
 
 2026-07-08：整理为 VitePress 静态帮助中心结构，适合部署到独立文档域名。
