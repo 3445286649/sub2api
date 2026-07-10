@@ -496,7 +496,7 @@ func TestAccountHealthService_TemporaryFailuresUseProgressivePenaltyAndThirdFail
 	require.Equal(t, *repo.states[1].NextProbeAt, accountRepo.lastTempUntil)
 }
 
-func TestAccountHealthService_RateLimitAndModelConfigFailuresAreGentle(t *testing.T) {
+func TestAccountHealthService_RateLimitPenalizesButModelConfigFailuresDoNotAffectHealth(t *testing.T) {
 	ctx := context.Background()
 	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
 		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
@@ -508,14 +508,14 @@ func TestAccountHealthService_RateLimitAndModelConfigFailuresAreGentle(t *testin
 	require.NoError(t, svc.RecordFailure(ctx, 1, "rate_limited", "returned 429"))
 	require.Equal(t, 70, repo.states[1].Score)
 	require.Equal(t, AccountHealthStatusDegraded, repo.states[1].Status)
+	tempSetCallsAfterRateLimit := accountRepo.tempSetCalls
 
 	for i := 0; i < 10; i++ {
 		require.NoError(t, svc.RecordFailure(ctx, 2, "model_not_found", "model does not exist"))
 	}
-	require.Equal(t, 30, repo.states[2].Score)
-	require.Equal(t, AccountHealthStatusDegraded, repo.states[2].Status)
-	require.Greater(t, accountRepo.tempSetCalls, 0, "repeated model config errors should be soft-unscheduled")
-	require.Equal(t, int64(2), accountRepo.lastTempAccountID)
+	require.NoError(t, svc.RecordProbeFailure(ctx, 2, "probe_failed", "model mapping does not support requested model"))
+	require.Nil(t, repo.states[2], "model configuration errors must not create or mutate account health state")
+	require.Equal(t, tempSetCallsAfterRateLimit, accountRepo.tempSetCalls)
 }
 
 func TestAccountHealthService_DegradedRealRequestSuccessesRaiseFloorToSixty(t *testing.T) {

@@ -261,6 +261,18 @@ func TestOpenAIGatewayServiceRecordAccountHealthForwardErrorRecordsOnlyUpstreamF
 
 	svc.RecordAccountHealthForwardError(ctx, 701, errors.New("upstream response failed: Concurrency limit exceeded for account, please retry later"))
 	require.Len(t, healthRepo.events, 1)
+
+	svc.RecordAccountHealthForwardError(ctx, 701, errors.New("upstream error: 400 Unsupported parameter: max_output_tokens"))
+	svc.RecordAccountHealthForwardError(ctx, 701, errors.New("upstream error: model_not_found"))
+	svc.RecordAccountHealthFailure(ctx, 701, &UpstreamFailoverError{StatusCode: 400, ResponseBody: []byte(`{"error":{"message":"Input must be a list"}}`)})
+	svc.RecordAccountHealthFailure(ctx, 701, &UpstreamFailoverError{StatusCode: 404, ResponseBody: []byte(`{"error":{"code":"model_not_found"}}`)})
+	require.Len(t, healthRepo.events, 1)
+
+	canceledCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	svc.RecordAccountHealthForwardError(canceledCtx, 701, errors.New("upstream response failed: timeout"))
+	svc.RecordAccountHealthFailure(canceledCtx, 701, &UpstreamFailoverError{StatusCode: 503})
+	require.Len(t, healthRepo.events, 1)
 }
 
 func expectedOpenAICost(t *testing.T, svc *OpenAIGatewayService, model string, usage OpenAIUsage, multiplier float64) *CostBreakdown {

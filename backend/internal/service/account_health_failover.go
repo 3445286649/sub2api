@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"strings"
 )
@@ -26,17 +28,26 @@ func shouldRecordAccountHealthForwardError(err error) bool {
 	if err == nil {
 		return false
 	}
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
 	msg := strings.ToLower(strings.TrimSpace(err.Error()))
 	if msg == "" {
 		return false
 	}
+	if accountHealthMessageIsNonAccountFault(msg) || accountHealthForwardErrorIsHTTP400(msg) {
+		return false
+	}
 	skipMarkers := []string{
-		"concurrency limit exceeded for account",
-		"concurrency limit exceeded for user",
 		"invalid request",
 		"prompt too long",
 		"context canceled",
 		"context cancelled",
+		"request canceled",
+		"request cancelled",
+		"client disconnected",
+		"concurrency limit exceeded",
+		"too many pending requests",
 	}
 	for _, marker := range skipMarkers {
 		if strings.Contains(msg, marker) {
@@ -56,12 +67,6 @@ func shouldRecordAccountHealthForwardError(err error) bool {
 		"insufficient balance",
 		"insufficient quota",
 		"余额不足",
-		"model_not_found",
-		"model not found",
-		"model does not exist",
-		"model unavailable",
-		"unknown model",
-		"unsupported model",
 		"timeout",
 		"deadline exceeded",
 	}
@@ -72,6 +77,66 @@ func shouldRecordAccountHealthForwardError(err error) bool {
 	}
 	if accountHealthForwardErrorIsNetwork(msg) {
 		return true
+	}
+	return false
+}
+
+func shouldRecordAccountHealthFailure(err *UpstreamFailoverError) bool {
+	if err == nil || err.StatusCode == http.StatusBadRequest {
+		return false
+	}
+	return !accountHealthMessageIsNonAccountFault(string(err.ResponseBody))
+}
+
+func accountHealthContextCanceled(ctx context.Context) bool {
+	return ctx != nil && errors.Is(ctx.Err(), context.Canceled)
+}
+
+func accountHealthMessageIsNonAccountFault(message string) bool {
+	msg := strings.ToLower(strings.TrimSpace(message))
+	if msg == "" {
+		return false
+	}
+	markers := []string{
+		"unsupported parameter",
+		"input must be a list",
+		"invalid request",
+		"invalid_request",
+		"model_not_found",
+		"model not found",
+		"model does not exist",
+		"model unavailable",
+		"unknown model",
+		"unsupported model",
+		"model is not supported",
+		"model mapping",
+		"mapping does not support",
+	}
+	for _, marker := range markers {
+		if strings.Contains(msg, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func accountHealthForwardErrorIsHTTP400(msg string) bool {
+	markers := []string{
+		"upstream error: 400",
+		"upstream returned 400",
+		"upstream returned error 400",
+		"returned status 400",
+		"status code 400",
+		"status=400",
+		"status_code=400",
+		`"status":400`,
+		`"status_code":400`,
+		"http 400",
+	}
+	for _, marker := range markers {
+		if strings.Contains(msg, marker) {
+			return true
+		}
 	}
 	return false
 }

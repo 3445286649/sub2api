@@ -9,14 +9,14 @@ func (s *GatewayService) SetAccountHealthService(healthSvc *AccountHealthService
 }
 
 func (s *GatewayService) RecordAccountHealthFailure(ctx context.Context, accountID int64, failoverErr *UpstreamFailoverError) {
-	if s == nil || s.accountHealthService == nil || failoverErr == nil || accountID <= 0 {
+	if s == nil || s.accountHealthService == nil || accountID <= 0 || accountHealthContextCanceled(ctx) || !shouldRecordAccountHealthFailure(failoverErr) {
 		return
 	}
 	_ = s.accountHealthService.RecordFailure(ctx, accountID, accountHealthFailureCategory(failoverErr.StatusCode), string(failoverErr.ResponseBody))
 }
 
 func (s *GatewayService) RecordAccountHealthForwardError(ctx context.Context, accountID int64, err error) {
-	if s == nil || s.accountHealthService == nil || accountID <= 0 || !shouldRecordAccountHealthForwardError(err) {
+	if s == nil || s.accountHealthService == nil || accountID <= 0 || accountHealthContextCanceled(ctx) || !shouldRecordAccountHealthForwardError(err) {
 		return
 	}
 	_ = s.accountHealthService.RecordFailure(ctx, accountID, accountHealthForwardErrorCategory(err), err.Error())
@@ -69,14 +69,14 @@ func (s *OpenAIGatewayService) SetAccountHealthService(healthSvc *AccountHealthS
 }
 
 func (s *OpenAIGatewayService) RecordAccountHealthFailure(ctx context.Context, accountID int64, failoverErr *UpstreamFailoverError) {
-	if s == nil || s.accountHealthService == nil || failoverErr == nil || accountID <= 0 {
+	if s == nil || s.accountHealthService == nil || accountID <= 0 || accountHealthContextCanceled(ctx) || !shouldRecordAccountHealthFailure(failoverErr) {
 		return
 	}
 	_ = s.accountHealthService.RecordFailure(ctx, accountID, accountHealthFailureCategory(failoverErr.StatusCode), string(failoverErr.ResponseBody))
 }
 
 func (s *OpenAIGatewayService) RecordAccountHealthForwardError(ctx context.Context, accountID int64, err error) {
-	if s == nil || s.accountHealthService == nil || accountID <= 0 || !shouldRecordAccountHealthForwardError(err) {
+	if s == nil || s.accountHealthService == nil || accountID <= 0 || accountHealthContextCanceled(ctx) || !shouldRecordAccountHealthForwardError(err) {
 		return
 	}
 	_ = s.accountHealthService.RecordFailure(ctx, accountID, accountHealthForwardErrorCategory(err), err.Error())

@@ -370,6 +370,9 @@ func (s *AccountHealthService) recordFailure(ctx context.Context, accountID int6
 	if s == nil || s.repo == nil {
 		return nil
 	}
+	if accountHealthIsModelConfigFailure(category, message) {
+		return nil
+	}
 	now := s.now()
 	category = truncateAccountHealthString(strings.TrimSpace(category), 40)
 	message = truncateAccountHealthString(redactAccountHealthMessage(message), 1000)
@@ -553,7 +556,10 @@ func accountHealthIsModelConfigFailure(category, message string) bool {
 		strings.Contains(normalized, "model does not exist") ||
 		strings.Contains(normalized, "model unavailable") ||
 		strings.Contains(normalized, "unknown model") ||
-		strings.Contains(normalized, "unsupported model")
+		strings.Contains(normalized, "unsupported model") ||
+		strings.Contains(normalized, "model is not supported") ||
+		strings.Contains(normalized, "model mapping") ||
+		strings.Contains(normalized, "mapping does not support")
 }
 
 func (s *AccountHealthService) Reset(ctx context.Context, accountID int64) error {
