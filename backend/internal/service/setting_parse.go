@@ -886,7 +886,7 @@ func applyLocalFeatureSettingDefaults(result *SystemSettings, settings map[strin
 
 	result.UsageHelpEnabled = settings[SettingKeyUsageHelpEnabled] == "true"
 	result.ModelRadarEnabled = settings[SettingKeyModelRadarEnabled] == "true"
-	result.AcquisitionEnabled = !isFalseSettingValue(settings[SettingKeyAcquisitionEnabled])
+	result.AcquisitionEnabled = settings[SettingKeyAcquisitionEnabled] == "true"
 	result.AcquisitionLeaderboardEnabled = !isFalseSettingValue(settings[SettingKeyAcquisitionLeaderboardEnabled])
 	result.AcquisitionLotteryEnabled = !isFalseSettingValue(settings[SettingKeyAcquisitionLotteryEnabled])
 

@@ -368,7 +368,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SupportTicketsEnabled:    !isFalseSettingValue(settings[SettingKeySupportTicketsEnabled]),
 
 		AffiliateEnabled:              settings[SettingKeyAffiliateEnabled] == "true",
-		AcquisitionEnabled:            !isFalseSettingValue(settings[SettingKeyAcquisitionEnabled]),
+		AcquisitionEnabled:            settings[SettingKeyAcquisitionEnabled] == "true",
 		AcquisitionLeaderboardEnabled: !isFalseSettingValue(settings[SettingKeyAcquisitionLeaderboardEnabled]),
 		AcquisitionLotteryEnabled:     !isFalseSettingValue(settings[SettingKeyAcquisitionLotteryEnabled]),
 
