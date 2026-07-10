@@ -136,6 +136,31 @@ func TestSettingService_GetPublicSettings_ExposesModelRadarEnabled(t *testing.T)
 	require.True(t, settings.ModelRadarEnabled)
 }
 
+func TestSettingService_GetPublicSettings_ExposesLocalNavigationSettings(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyRechargeStorefrontEnabled:   "true",
+			SettingKeyRechargeStorefrontText:      "快速充值",
+			SettingKeyRechargeStorefrontURL:       "https://shop.example.com/",
+			SettingKeyRechargeStorefrontBackupURL: "https://backup.example.com/",
+			SettingKeySupportGroupEnabled:         "true",
+			SettingKeyPixmoStudioEnabled:          "true",
+			SettingKeyAcquisitionEnabled:          "true",
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.True(t, settings.RechargeStorefrontEnabled)
+	require.Equal(t, "快速充值", settings.RechargeStorefrontButtonText)
+	require.Equal(t, "https://shop.example.com/", settings.RechargeStorefrontURL)
+	require.Equal(t, "https://backup.example.com/", settings.RechargeStorefrontBackupURL)
+	require.True(t, settings.SupportGroupEnabled)
+	require.True(t, settings.PixmoStudioEnabled)
+	require.True(t, settings.AcquisitionEnabled)
+}
+
 func TestSettingService_GetPublicSettings_SupportTicketsDefaultEnabled(t *testing.T) {
 	svc := NewSettingService(&settingPublicRepoStub{values: map[string]string{}}, &config.Config{})
 

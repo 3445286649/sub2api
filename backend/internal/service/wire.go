@@ -45,6 +45,16 @@ func ProvideOAuthRefreshAPI(accountRepo AccountRepository, tokenCache GeminiToke
 	return NewOAuthRefreshAPI(accountRepo, tokenCache)
 }
 
+func ProvideBatchImageModelPricingResolver(resolver *ModelPricingResolver) *BatchImageModelPricingResolver {
+	return &BatchImageModelPricingResolver{Resolver: resolver}
+}
+
+func ProvideBatchImageCleanupService(repo BatchImageRepository, accountRepo AccountRepository, cfg *config.Config) *BatchImageCleanupService {
+	svc := NewBatchImageCleanupService(repo, accountRepo, cfg)
+	svc.Start()
+	return svc
+}
+
 // ProvideOpenAIOAuthService creates OpenAIOAuthService with privacy/account enrichment support.
 func ProvideOpenAIOAuthService(
 	proxyRepo ProxyRepository,
@@ -545,8 +555,7 @@ func ProvideAPIKeyService(
 	return svc
 }
 
-// ProvideGatewayService wires optional cross-service dependencies that are not
-// constructor arguments to keep the main constructor stable.
+// ProvideGatewayService wires GatewayService with account health recording/filtering.
 func ProvideGatewayService(
 	accountRepo AccountRepository,
 	groupRepo GroupRepository,
@@ -568,50 +577,21 @@ func ProvideGatewayService(
 	claudeTokenProvider *ClaudeTokenProvider,
 	sessionLimitCache SessionLimitCache,
 	rpmCache RPMCache,
-	digestStore *DigestSessionStore,
+	digestSessionStore *DigestSessionStore,
 	settingService *SettingService,
-	tlsFPProfileService *TLSFingerprintProfileService,
+	tlsFingerprintProfileService *TLSFingerprintProfileService,
 	channelService *ChannelService,
 	resolver *ModelPricingResolver,
 	balanceNotifyService *BalanceNotifyService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
 	accountHealthService *AccountHealthService,
 ) *GatewayService {
-	svc := NewGatewayService(
-		accountRepo,
-		groupRepo,
-		usageLogRepo,
-		usageBillingRepo,
-		userRepo,
-		userSubRepo,
-		userGroupRateRepo,
-		cache,
-		cfg,
-		schedulerSnapshot,
-		concurrencyService,
-		billingService,
-		rateLimitService,
-		billingCacheService,
-		identityService,
-		httpUpstream,
-		deferredService,
-		claudeTokenProvider,
-		sessionLimitCache,
-		rpmCache,
-		digestStore,
-		settingService,
-		tlsFPProfileService,
-		channelService,
-		resolver,
-		balanceNotifyService,
-		userPlatformQuotaRepo,
-	)
+	svc := NewGatewayService(accountRepo, groupRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, identityService, httpUpstream, deferredService, claudeTokenProvider, sessionLimitCache, rpmCache, digestSessionStore, settingService, tlsFingerprintProfileService, channelService, resolver, balanceNotifyService, userPlatformQuotaRepo)
 	svc.SetAccountHealthService(accountHealthService)
 	return svc
 }
 
-// ProvideOpenAIGatewayService wires account-health scoring into real OpenAI
-// request paths without making the constructor cycle-prone.
+// ProvideOpenAIGatewayService wires OpenAIGatewayService with account health recording/filtering.
 func ProvideOpenAIGatewayService(
 	accountRepo AccountRepository,
 	usageLogRepo UsageLogRepository,
@@ -637,31 +617,19 @@ func ProvideOpenAIGatewayService(
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
 	accountHealthService *AccountHealthService,
 ) *OpenAIGatewayService {
-	svc := NewOpenAIGatewayService(
-		accountRepo,
-		usageLogRepo,
-		usageBillingRepo,
-		userRepo,
-		userSubRepo,
-		userGroupRateRepo,
-		cache,
-		cfg,
-		schedulerSnapshot,
-		concurrencyService,
-		billingService,
-		rateLimitService,
-		billingCacheService,
-		httpUpstream,
-		deferredService,
-		openAITokenProvider,
-		grokTokenProvider,
-		resolver,
-		channelService,
-		balanceNotifyService,
-		settingService,
-		userPlatformQuotaRepo,
-	)
+	svc := NewOpenAIGatewayService(accountRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, httpUpstream, deferredService, openAITokenProvider, grokTokenProvider, resolver, channelService, balanceNotifyService, settingService, userPlatformQuotaRepo)
 	svc.SetAccountHealthService(accountHealthService)
+	return svc
+}
+
+func ProvideAccountUpstreamBalanceService(repo AccountUpstreamBalanceRepository, accountRepo AccountRepository) *AccountUpstreamBalanceService {
+	return NewAccountUpstreamBalanceService(repo, accountRepo)
+}
+
+func ProvideAcquisitionService(repo AcquisitionRepository, settingService *SettingService, auth APIKeyAuthCacheInvalidator, billing *BillingCacheService) *AcquisitionService {
+	svc := NewAcquisitionService(repo, settingService)
+	svc.SetCacheInvalidators(auth, billing)
+	svc.Start()
 	return svc
 }
 
@@ -674,8 +642,6 @@ var ProviderSet = wire.NewSet(
 	ProvideAPIKeyAuthCacheInvalidator,
 	NewGroupService,
 	NewAccountService,
-	NewAccountHealthService,
-	NewAccountUpstreamBalanceService,
 	NewProxyService,
 	NewRedeemService,
 	NewPromoService,
@@ -686,9 +652,21 @@ var ProviderSet = wire.NewSet(
 	ProvideBillingCacheService,
 	NewAnnouncementService,
 	NewSupportService,
+	NewAccountHealthService,
+	ProvideAccountUpstreamBalanceService,
+	ProvideAccountHealthRunner,
+	ProvideAccountHealthEventCleanupRunner,
+	ProvideAccountUpstreamBalanceRunner,
+	ProvideAcquisitionService,
+	ProvideModelRadarService,
 	NewAdminService,
 	ProvideGatewayService,
 	ProvideOpenAIGatewayService,
+	ProvideBatchImageModelPricingResolver,
+	NewBatchImagePublicService,
+	NewBatchImageDownloadService,
+	ProvideBatchImageCleanupService,
+	ProvideBatchImageWorkerRuntime,
 	wire.Bind(new(AccountRuntimeBlocker), new(*OpenAIGatewayService)),
 	NewOAuthService,
 	ProvideOpenAIOAuthService,
@@ -755,17 +733,11 @@ var ProviderSet = wire.NewSet(
 	ProvideIdempotencyCleanupService,
 	ProvideScheduledTestService,
 	ProvideScheduledTestRunnerService,
-	ProvideAccountHealthRunner,
-	ProvideAccountHealthEventCleanupRunner,
-	ProvideAccountUpstreamBalanceRunner,
 	NewGroupCapacityService,
 	NewChannelService,
 	NewModelPricingResolver,
 	NewContentModerationService,
 	NewAffiliateService,
-	ProvideAcquisitionService,
-	ProvideModelRadarService,
-	ProvideModelRadarRunner,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
 	ProvidePaymentOrderExpiryService,
@@ -789,14 +761,6 @@ func ProvidePaymentConfigService(entClient *dbent.Client, settingRepo SettingRep
 	return NewPaymentConfigService(entClient, settingRepo, []byte(key))
 }
 
-// ProvideAcquisitionService creates and starts the acquisition campaign service.
-func ProvideAcquisitionService(repo AcquisitionRepository, settingService *SettingService, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCacheService *BillingCacheService) *AcquisitionService {
-	svc := NewAcquisitionService(repo, settingService)
-	svc.SetCacheInvalidators(authCacheInvalidator, billingCacheService)
-	svc.Start()
-	return svc
-}
-
 // ProvideBalanceNotifyService creates BalanceNotifyService
 func ProvideBalanceNotifyService(emailService *EmailService, settingRepo SettingRepository, accountRepo AccountRepository, notificationEmailService *NotificationEmailService) *BalanceNotifyService {
 	svc := NewBalanceNotifyService(emailService, settingRepo, accountRepo)
@@ -805,9 +769,8 @@ func ProvideBalanceNotifyService(emailService *EmailService, settingRepo Setting
 }
 
 // ProvidePaymentService creates PaymentService and attaches notification email delivery.
-func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, acquisitionService *AcquisitionService, notificationEmailService *NotificationEmailService) *PaymentService {
+func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService) *PaymentService {
 	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService)
-	svc.SetAcquisitionService(acquisitionService)
 	svc.SetNotificationEmailService(notificationEmailService)
 	return svc
 }
@@ -825,11 +788,8 @@ func ProvidePaymentOrderExpiryService(paymentSvc *PaymentService, lockCache Lead
 func ProvideChannelMonitorService(
 	repo ChannelMonitorRepository,
 	encryptor SecretEncryptor,
-	settingService *SettingService,
 ) *ChannelMonitorService {
-	svc := NewChannelMonitorService(repo, encryptor)
-	svc.SetSettingReader(settingService)
-	return svc
+	return NewChannelMonitorService(repo, encryptor)
 }
 
 // ProvideChannelMonitorRunner 创建并启动渠道监控调度器。

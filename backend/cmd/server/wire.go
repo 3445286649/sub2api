@@ -85,6 +85,8 @@ func provideCleanup(
 	subscriptionExpiry *service.SubscriptionExpiryService,
 	usageCleanup *service.UsageCleanupService,
 	idempotencyCleanup *service.IdempotencyCleanupService,
+	batchImageCleanup *service.BatchImageCleanupService,
+	batchImageWorker *service.BatchImageWorkerRuntime,
 	pricing *service.PricingService,
 	emailQueue *service.EmailQueueService,
 	billingCache *service.BillingCacheService,
@@ -99,6 +101,7 @@ func provideCleanup(
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	accountHealthRunner *service.AccountHealthRunner,
 	accountHealthEventCleanup *service.AccountHealthEventCleanupRunner,
+	accountUpstreamBalanceRunner *service.AccountUpstreamBalanceRunner,
 	backupSvc *service.BackupService,
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
 	channelMonitorRunner *service.ChannelMonitorRunner,
@@ -167,6 +170,18 @@ func provideCleanup(
 			{"IdempotencyCleanupService", func() error {
 				if idempotencyCleanup != nil {
 					idempotencyCleanup.Stop()
+				}
+				return nil
+			}},
+			{"BatchImageCleanupService", func() error {
+				if batchImageCleanup != nil {
+					batchImageCleanup.Stop()
+				}
+				return nil
+			}},
+			{"BatchImageWorkerRuntime", func() error {
+				if batchImageWorker != nil {
+					batchImageWorker.Stop()
 				}
 				return nil
 			}},
@@ -253,6 +268,12 @@ func provideCleanup(
 			{"AccountHealthEventCleanupRunner", func() error {
 				if accountHealthEventCleanup != nil {
 					accountHealthEventCleanup.Stop()
+				}
+				return nil
+			}},
+			{"AccountUpstreamBalanceRunner", func() error {
+				if accountUpstreamBalanceRunner != nil {
+					accountUpstreamBalanceRunner.Stop()
 				}
 				return nil
 			}},

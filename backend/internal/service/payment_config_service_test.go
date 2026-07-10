@@ -473,3 +473,58 @@ func TestUpdatePaymentConfig_PersistsBalanceRechargeBonusDisplay(t *testing.T) {
 func paymentConfigStrPtr(value string) *string {
 	return &value
 }
+
+func TestUpdatePaymentConfig_RejectsExcessiveBalanceRechargeBonusPercent(t *testing.T) {
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{}}
+	svc := &PaymentConfigService{settingRepo: repo}
+	enabled := true
+	threshold := 100.0
+	percent := 10000.0
+
+	err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{
+		BalanceRechargeBonusEnabled:   &enabled,
+		BalanceRechargeBonusThreshold: &threshold,
+		BalanceRechargeBonusPercent:   &percent,
+	})
+
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "balance recharge bonus percent") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestUpdatePaymentConfig_AllowsZeroBonusValuesWhenDisabled(t *testing.T) {
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{}}
+	svc := &PaymentConfigService{settingRepo: repo}
+	enabled := false
+	zero := 0.0
+
+	err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{
+		BalanceRechargeBonusEnabled:   &enabled,
+		BalanceRechargeBonusThreshold: &zero,
+		BalanceRechargeBonusPercent:   &zero,
+	})
+
+	if err != nil {
+		t.Fatalf("UpdatePaymentConfig returned error: %v", err)
+	}
+}
+
+func TestUpdatePaymentConfig_RejectsZeroBonusValuesWhenEnabled(t *testing.T) {
+	repo := &paymentConfigSettingRepoStub{values: map[string]string{}}
+	svc := &PaymentConfigService{settingRepo: repo}
+	enabled := true
+	zero := 0.0
+
+	err := svc.UpdatePaymentConfig(context.Background(), UpdatePaymentConfigRequest{
+		BalanceRechargeBonusEnabled:   &enabled,
+		BalanceRechargeBonusThreshold: &zero,
+		BalanceRechargeBonusPercent:   &zero,
+	})
+
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}

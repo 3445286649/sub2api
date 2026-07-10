@@ -369,6 +369,22 @@
           <template #cell-next_probe_at="{ row }">
             <span class="text-sm text-gray-500 dark:text-dark-400">{{ row.health?.next_probe_at ? formatDateTime(row.health.next_probe_at) : '-' }}</span>
           </template>
+          <template #cell-scheduler_score="{ row }">
+            <div class="min-w-[132px] text-xs text-gray-600 dark:text-gray-300">
+              <template v-if="schedulerScoreEntries(row).length">
+                <div
+                  v-for="entry in schedulerScoreEntries(row)"
+                  :key="entry.key"
+                  class="flex items-center justify-between gap-2 whitespace-nowrap"
+                  :title="`${entry.label}: ${entry.value}`"
+                >
+                  <span class="max-w-[92px] truncate text-gray-500 dark:text-dark-400">{{ entry.label }}</span>
+                  <span class="font-mono tabular-nums text-gray-700 dark:text-gray-200">{{ entry.value }}</span>
+                </div>
+              </template>
+              <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+            </div>
+          </template>
           <template #cell-priority="{ value }">
             <span class="text-sm text-gray-700 dark:text-gray-300">{{ value }}</span>
           </template>
@@ -924,8 +940,11 @@ const exportingData = ref(false)
 const showAccountToolsDropdown = ref(false)
 const accountToolsDropdownRef = ref<HTMLElement | null>(null)
 const hiddenColumns = reactive<Set<string>>(new Set())
-const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'priority']
+const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'priority', 'scheduler_score']
 const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
+// One-time migration: hide scheduler score for existing admins too, because showing it opt-ins to heavy backend scoring.
+const HIDDEN_COLUMNS_VERSION_KEY = 'account-hidden-columns-version'
+const HIDDEN_COLUMNS_CURRENT_VERSION = 'scheduler-score-hidden-by-default'
 
 // Sorting settings
 const ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort'
@@ -1051,10 +1070,17 @@ const loadSavedColumns = () => {
       parsed.forEach(key => {
         hiddenColumns.add(key)
       })
+      // Older saved column layouts may have scheduler_score visible; migrate them to the new safe default once.
+      if (localStorage.getItem(HIDDEN_COLUMNS_VERSION_KEY) !== HIDDEN_COLUMNS_CURRENT_VERSION) {
+        hiddenColumns.add('scheduler_score')
+        localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify([...hiddenColumns]))
+        localStorage.setItem(HIDDEN_COLUMNS_VERSION_KEY, HIDDEN_COLUMNS_CURRENT_VERSION)
+      }
     } else {
       DEFAULT_HIDDEN_COLUMNS.forEach(key => {
         hiddenColumns.add(key)
       })
+      localStorage.setItem(HIDDEN_COLUMNS_VERSION_KEY, HIDDEN_COLUMNS_CURRENT_VERSION)
     }
   } catch (e) {
     console.error('Failed to load saved columns:', e)
@@ -1067,6 +1093,7 @@ const loadSavedColumns = () => {
 const saveColumnsToStorage = () => {
   try {
     localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify([...hiddenColumns]))
+    localStorage.setItem(HIDDEN_COLUMNS_VERSION_KEY, HIDDEN_COLUMNS_CURRENT_VERSION)
   } catch (e) {
     console.error('Failed to save columns:', e)
   }
@@ -1139,9 +1166,22 @@ const toggleColumn = (key: string) => {
       console.error('Failed to load account today stats after showing column:', error)
     })
   }
+  if (key === 'scheduler_score') {
+    // The server only returns scheduler scores when this column is visible, so reload the current page immediately.
+    syncAccountListDerivedParams()
+    load().catch((error) => {
+      console.error('Failed to reload accounts after toggling scheduler score column:', error)
+    })
+  }
 }
 
 const isColumnVisible = (key: string) => !hiddenColumns.has(key)
+const shouldIncludeSchedulerScore = () => isColumnVisible('scheduler_score')
+const syncAccountListDerivedParams = () => {
+  // Keep every load path, including auto-refresh and sorting, aligned with the current column visibility.
+  const requestParams = params as any
+  requestParams.include_scheduler_score = shouldIncludeSchedulerScore() ? '1' : '0'
+}
 
 const {
   items: accounts,
@@ -1162,6 +1202,7 @@ const {
     privacy_mode: '',
     group: '',
     search: '',
+    include_scheduler_score: shouldIncludeSchedulerScore() ? '1' : '0',
     sort_by: sortState.sort_by,
     sort_order: sortState.sort_order
   }
@@ -1206,6 +1247,7 @@ const isFirstLoad = ref(true)
 
 const load = async () => {
   const requestParams = params as any
+  syncAccountListDerivedParams()
   hasPendingListSync.value = false
   resetAutoRefreshCache()
   pendingTodayStatsRefresh.value = false
@@ -1221,6 +1263,7 @@ const load = async () => {
 }
 
 const reload = async () => {
+  syncAccountListDerivedParams()
   hasPendingListSync.value = false
   resetAutoRefreshCache()
   pendingTodayStatsRefresh.value = false
@@ -1229,6 +1272,7 @@ const reload = async () => {
 }
 
 const debouncedReload = () => {
+  syncAccountListDerivedParams()
   hasPendingListSync.value = false
   resetAutoRefreshCache()
   pendingTodayStatsRefresh.value = true
@@ -1236,6 +1280,7 @@ const debouncedReload = () => {
 }
 
 const handlePageChange = (page: number) => {
+  syncAccountListDerivedParams()
   hasPendingListSync.value = false
   resetAutoRefreshCache()
   pendingTodayStatsRefresh.value = true
@@ -1243,6 +1288,7 @@ const handlePageChange = (page: number) => {
 }
 
 const handlePageSizeChange = (size: number) => {
+  syncAccountListDerivedParams()
   hasPendingListSync.value = false
   resetAutoRefreshCache()
   pendingTodayStatsRefresh.value = true
@@ -1255,6 +1301,7 @@ const handleSort = (key: string, order: AccountSortOrder) => {
   const requestParams = params as any
   requestParams.sort_by = key
   requestParams.sort_order = order
+  syncAccountListDerivedParams()
   pagination.page = 1
   hasPendingListSync.value = false
   resetAutoRefreshCache()
@@ -1374,6 +1421,7 @@ const mergeAccountsIncrementally = (nextRows: Account[]) => {
 
 const refreshAccountsIncrementally = async () => {
   if (autoRefreshFetching.value) return
+  syncAccountListDerivedParams()
   autoRefreshFetching.value = true
   try {
     const result = await adminAPI.accounts.listWithEtag(
@@ -1929,6 +1977,30 @@ function formatLatencyMs(value?: number | null): string {
   return `${Math.round(Number(value))} ms`
 }
 
+function formatSchedulerScoreValue(value?: number | null): string {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '-'
+  return Number(value).toFixed(6).replace(/\.?0+$/, '')
+}
+
+type SchedulerScoreEntry = { key: string; label: string; value: string }
+
+function schedulerScoreEntries(row: Account): SchedulerScoreEntry[] {
+  const groupScores = Array.isArray(row.scheduler_scores) ? row.scheduler_scores : []
+  if (groupScores.length > 0) {
+    return groupScores
+      .map((score, index) => ({
+        key: `${score.group_id ?? 'group'}-${index}`,
+        label: score.group_name || `#${score.group_id ?? '-'}`,
+        value: formatSchedulerScoreValue(score.base_score),
+      }))
+      .filter((entry) => entry.value !== '-')
+  }
+
+  const baseScore = row.scheduler_score?.base_score
+  const value = formatSchedulerScoreValue(baseScore)
+  return value === '-' ? [] : [{ key: 'ungrouped', label: t('admin.accounts.schedulerScore.ungrouped'), value }]
+}
+
 // All available columns
 const allColumns = computed(() => {
   const c = [
@@ -1953,6 +2025,7 @@ const allColumns = computed(() => {
     { key: 'rate_multiplier', label: t('admin.accounts.columns.billingRateMultiplier'), sortable: true },
     { key: 'latency_ewma_ms', label: t('admin.accounts.columns.avgLatency'), sortable: false },
     { key: 'next_probe_at', label: t('admin.accounts.columns.nextProbe'), sortable: false },
+    { key: 'scheduler_score', label: t('admin.accounts.columns.schedulerScore'), sortable: false },
     { key: 'last_used_at', label: t('admin.accounts.columns.lastUsed'), sortable: true },
     { key: 'created_at', label: t('admin.accounts.columns.createdAt'), sortable: true },
     { key: 'expires_at', label: t('admin.accounts.columns.expiresAt'), sortable: true },

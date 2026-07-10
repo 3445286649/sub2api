@@ -14,34 +14,38 @@ import (
 )
 
 const (
-	SettingPaymentEnabled              = "payment_enabled"
-	SettingMinRechargeAmount           = "MIN_RECHARGE_AMOUNT"
-	SettingMaxRechargeAmount           = "MAX_RECHARGE_AMOUNT"
-	SettingDailyRechargeLimit          = "DAILY_RECHARGE_LIMIT"
-	SettingOrderTimeoutMinutes         = "ORDER_TIMEOUT_MINUTES"
-	SettingMaxPendingOrders            = "MAX_PENDING_ORDERS"
-	SettingEnabledPaymentTypes         = "ENABLED_PAYMENT_TYPES"
-	SettingLoadBalanceStrategy         = "LOAD_BALANCE_STRATEGY"
-	SettingBalancePayDisabled          = "BALANCE_PAYMENT_DISABLED"
-	SettingBalanceRechargeMult         = "BALANCE_RECHARGE_MULTIPLIER"
-	SettingBalanceRechargeBonusDisplay = "BALANCE_RECHARGE_BONUS_DISPLAY_ENABLED"
-	SettingBalanceRechargeBonusEnabled = "BALANCE_RECHARGE_BONUS_ENABLED"
+	maxBalanceRechargeBonusPercent = 100.0
+)
+
+const (
+	SettingPaymentEnabled                = "payment_enabled"
+	SettingMinRechargeAmount             = "MIN_RECHARGE_AMOUNT"
+	SettingMaxRechargeAmount             = "MAX_RECHARGE_AMOUNT"
+	SettingDailyRechargeLimit            = "DAILY_RECHARGE_LIMIT"
+	SettingOrderTimeoutMinutes           = "ORDER_TIMEOUT_MINUTES"
+	SettingMaxPendingOrders              = "MAX_PENDING_ORDERS"
+	SettingEnabledPaymentTypes           = "ENABLED_PAYMENT_TYPES"
+	SettingLoadBalanceStrategy           = "LOAD_BALANCE_STRATEGY"
+	SettingBalancePayDisabled            = "BALANCE_PAYMENT_DISABLED"
+	SettingBalanceRechargeMult           = "BALANCE_RECHARGE_MULTIPLIER"
+	SettingBalanceRechargeBonusDisplay   = "BALANCE_RECHARGE_BONUS_DISPLAY_ENABLED"
+	SettingBalanceRechargeBonusEnabled   = "BALANCE_RECHARGE_BONUS_ENABLED"
 	SettingBalanceRechargeBonusThreshold = "BALANCE_RECHARGE_BONUS_THRESHOLD"
-	SettingBalanceRechargeBonusPercent = "BALANCE_RECHARGE_BONUS_PERCENT"
+	SettingBalanceRechargeBonusPercent   = "BALANCE_RECHARGE_BONUS_PERCENT"
 	// SettingSubscriptionUSDToCNYRate is the optional subscription CNY conversion rate (1 USD = X CNY).
 	// 0 or empty keeps the legacy behavior: subscription payments charge the plan price directly.
 	SettingSubscriptionUSDToCNYRate = "SUBSCRIPTION_USD_TO_CNY_RATE"
-	SettingRechargeFeeRate             = "RECHARGE_FEE_RATE"
-	SettingProductNamePrefix           = "PRODUCT_NAME_PREFIX"
-	SettingProductNameSuffix           = "PRODUCT_NAME_SUFFIX"
-	SettingHelpImageURL                = "PAYMENT_HELP_IMAGE_URL"
-	SettingHelpText                    = "PAYMENT_HELP_TEXT"
-	SettingCancelRateLimitOn           = "CANCEL_RATE_LIMIT_ENABLED"
-	SettingCancelRateLimitMax          = "CANCEL_RATE_LIMIT_MAX"
-	SettingCancelWindowSize            = "CANCEL_RATE_LIMIT_WINDOW"
-	SettingCancelWindowUnit            = "CANCEL_RATE_LIMIT_UNIT"
-	SettingCancelWindowMode            = "CANCEL_RATE_LIMIT_WINDOW_MODE"
-	SettingAlipayForceQRCode           = "ALIPAY_FORCE_QRCODE"
+	SettingRechargeFeeRate          = "RECHARGE_FEE_RATE"
+	SettingProductNamePrefix        = "PRODUCT_NAME_PREFIX"
+	SettingProductNameSuffix        = "PRODUCT_NAME_SUFFIX"
+	SettingHelpImageURL             = "PAYMENT_HELP_IMAGE_URL"
+	SettingHelpText                 = "PAYMENT_HELP_TEXT"
+	SettingCancelRateLimitOn        = "CANCEL_RATE_LIMIT_ENABLED"
+	SettingCancelRateLimitMax       = "CANCEL_RATE_LIMIT_MAX"
+	SettingCancelWindowSize         = "CANCEL_RATE_LIMIT_WINDOW"
+	SettingCancelWindowUnit         = "CANCEL_RATE_LIMIT_UNIT"
+	SettingCancelWindowMode         = "CANCEL_RATE_LIMIT_WINDOW_MODE"
+	SettingAlipayForceQRCode        = "ALIPAY_FORCE_QRCODE"
 )
 
 // Default values for payment configuration settings.
@@ -339,17 +343,21 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 			return infraerrors.BadRequest("INVALID_BALANCE_RECHARGE_MULTIPLIER", "balance recharge multiplier must be greater than 0")
 		}
 	}
+	bonusRuleEnabled := boolPtrEnabled(req.BalanceRechargeBonusEnabled)
+	bonusRuleExplicitlyDisabled := req.BalanceRechargeBonusEnabled != nil && !*req.BalanceRechargeBonusEnabled
 	if req.BalanceRechargeBonusThreshold != nil {
-		if math.IsNaN(*req.BalanceRechargeBonusThreshold) || math.IsInf(*req.BalanceRechargeBonusThreshold, 0) || *req.BalanceRechargeBonusThreshold <= 0 {
+		value := *req.BalanceRechargeBonusThreshold
+		if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || (value == 0 && !bonusRuleExplicitlyDisabled) {
 			return infraerrors.BadRequest("INVALID_BALANCE_RECHARGE_BONUS_THRESHOLD", "balance recharge bonus threshold must be greater than 0")
 		}
 	}
 	if req.BalanceRechargeBonusPercent != nil {
-		if math.IsNaN(*req.BalanceRechargeBonusPercent) || math.IsInf(*req.BalanceRechargeBonusPercent, 0) || *req.BalanceRechargeBonusPercent <= 0 {
-			return infraerrors.BadRequest("INVALID_BALANCE_RECHARGE_BONUS_PERCENT", "balance recharge bonus percent must be greater than 0")
+		value := *req.BalanceRechargeBonusPercent
+		if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > maxBalanceRechargeBonusPercent || (value == 0 && !bonusRuleExplicitlyDisabled) {
+			return infraerrors.BadRequest("INVALID_BALANCE_RECHARGE_BONUS_PERCENT", "balance recharge bonus percent must be between 0 and 100")
 		}
 	}
-	if boolPtrEnabled(req.BalanceRechargeBonusEnabled) {
+	if bonusRuleEnabled {
 		if req.BalanceRechargeBonusThreshold == nil || req.BalanceRechargeBonusPercent == nil {
 			return infraerrors.BadRequest("INVALID_BALANCE_RECHARGE_BONUS_RULE", "balance recharge bonus threshold and percent are required when bonus rule is enabled")
 		}

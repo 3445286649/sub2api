@@ -613,6 +613,45 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_enabled");
   });
 
+  it("submits local navigation settings and refreshes the public settings cache", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      recharge_storefront_enabled: false,
+      support_group_enabled: true,
+      support_group_link_url: "https://chat.example.com/group",
+      pixmo_studio_enabled: false,
+      usage_help_enabled: false,
+      model_radar_enabled: false,
+      support_tickets_enabled: false,
+      acquisition_enabled: true,
+      acquisition_leaderboard_enabled: false,
+      acquisition_lottery_enabled: true,
+      doc_url: "https://docs.loucer.cn/",
+    });
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recharge_storefront_enabled: false,
+        support_group_enabled: true,
+        support_group_link_url: "https://chat.example.com/group",
+        pixmo_studio_enabled: false,
+        usage_help_enabled: false,
+        model_radar_enabled: false,
+        support_tickets_enabled: false,
+        acquisition_enabled: true,
+        acquisition_leaderboard_enabled: false,
+        acquisition_lottery_enabled: true,
+        doc_url: "https://docs.loucer.cn/",
+      }),
+    );
+    expect(fetchPublicSettings).toHaveBeenCalledWith(true);
+  });
+
   it("keeps balance recharge multiplier editable and submits the bonus display switch separately", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,

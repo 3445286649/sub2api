@@ -613,7 +613,34 @@ deploy/bluegreen-deploy.sh \
 ```
 
 The script never prints `.env` contents and keeps the old container as a
-rollback point.
+rollback point. Before starting a candidate it rejects long-running database
+transactions, requires at least 5 GiB free in the backup filesystem, creates a
+custom-format `database.dump`, verifies the archive with `pg_restore -l`, and
+records the dump in the same timestamped backup directory as the nginx and
+container state. The free-space threshold can be raised with
+`MIN_BACKUP_FREE_BYTES`.
+
+Prepare a preloaded local image without starting a candidate or changing nginx:
+
+```bash
+deploy/bluegreen-deploy.sh \
+  --image sub2api:tokyo-v0.1.149-<build-id> \
+  --local-image \
+  --expected-migration 172_video_per_second_billing_metadata.sql \
+  --prepare-only
+```
+
+The normal deployment waits up to 660 seconds for startup migrations, removes
+a failed candidate automatically, and refuses to switch nginx until the
+expected migration is present. Batch image generation must remain disabled for
+all groups during the initial rollout unless `--allow-batch-image-enabled` is
+passed explicitly.
+
+Validate the deployment safety branches locally:
+
+```bash
+bash deploy/bluegreen-deploy_test.sh
+```
 
 ### Profile Fields
 

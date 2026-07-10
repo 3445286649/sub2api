@@ -84,25 +84,7 @@ func ProvideAdminHandlers(
 	}
 }
 
-// ProvideSystemHandler creates admin.SystemHandler with UpdateService
-func ProvideSystemHandler(updateService *service.UpdateService, lockService *service.SystemOperationLockService) *admin.SystemHandler {
-	return admin.NewSystemHandler(updateService, lockService)
-}
-
-// ProvideSettingHandler creates SettingHandler with version from BuildInfo
-func ProvideSettingHandler(settingService *service.SettingService, buildInfo BuildInfo, notificationEmailService *service.NotificationEmailService) *SettingHandler {
-	h := NewSettingHandler(settingService, buildInfo.Version)
-	h.SetNotificationEmailService(notificationEmailService)
-	return h
-}
-
-// ProvideAdminSettingHandler creates admin.SettingHandler with notification template APIs.
-func ProvideAdminSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, userAttributeService *service.UserAttributeService, notificationEmailService *service.NotificationEmailService) *admin.SettingHandler {
-	h := admin.NewSettingHandler(settingService, emailService, turnstileService, opsService, paymentConfigService, paymentService, userAttributeService)
-	h.SetNotificationEmailService(notificationEmailService)
-	return h
-}
-
+// ProvideAdminAccountHandler creates admin.AccountHandler with local health and upstream balance extensions wired.
 func ProvideAdminAccountHandler(
 	adminService service.AdminService,
 	oauthService *service.OAuthService,
@@ -120,23 +102,27 @@ func ProvideAdminAccountHandler(
 	accountHealthService *service.AccountHealthService,
 	accountUpstreamBalanceService *service.AccountUpstreamBalanceService,
 ) *admin.AccountHandler {
-	h := admin.NewAccountHandler(
-		adminService,
-		oauthService,
-		openaiOAuthService,
-		geminiOAuthService,
-		antigravityOAuthService,
-		rateLimitService,
-		accountUsageService,
-		accountTestService,
-		concurrencyService,
-		crsSyncService,
-		sessionLimitCache,
-		rpmCache,
-		tokenCacheInvalidator,
-		accountHealthService,
-	)
+	h := admin.NewAccountHandler(adminService, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, rateLimitService, accountUsageService, accountTestService, concurrencyService, crsSyncService, sessionLimitCache, rpmCache, tokenCacheInvalidator, accountHealthService)
 	h.SetAccountUpstreamBalanceService(accountUpstreamBalanceService)
+	return h
+}
+
+// ProvideSystemHandler creates admin.SystemHandler with UpdateService
+func ProvideSystemHandler(updateService *service.UpdateService, lockService *service.SystemOperationLockService) *admin.SystemHandler {
+	return admin.NewSystemHandler(updateService, lockService)
+}
+
+// ProvideSettingHandler creates SettingHandler with version from BuildInfo
+func ProvideSettingHandler(settingService *service.SettingService, buildInfo BuildInfo, notificationEmailService *service.NotificationEmailService) *SettingHandler {
+	h := NewSettingHandler(settingService, buildInfo.Version)
+	h.SetNotificationEmailService(notificationEmailService)
+	return h
+}
+
+// ProvideAdminSettingHandler creates admin.SettingHandler with notification template APIs.
+func ProvideAdminSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, userAttributeService *service.UserAttributeService, notificationEmailService *service.NotificationEmailService) *admin.SettingHandler {
+	h := admin.NewSettingHandler(settingService, emailService, turnstileService, opsService, paymentConfigService, paymentService, userAttributeService)
+	h.SetNotificationEmailService(notificationEmailService)
 	return h
 }
 
@@ -161,6 +147,7 @@ func ProvideHandlers(
 	availableChannelHandler *AvailableChannelHandler,
 	acquisitionHandler *AcquisitionHandler,
 	modelRadarHandler *ModelRadarHandler,
+	batchImageHandler *BatchImageHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -184,6 +171,7 @@ func ProvideHandlers(
 		AvailableChannel: availableChannelHandler,
 		Acquisition:      acquisitionHandler,
 		ModelRadar:       modelRadarHandler,
+		BatchImage:       batchImageHandler,
 	}
 }
 
@@ -208,6 +196,7 @@ var ProviderSet = wire.NewSet(
 	NewAvailableChannelHandler,
 	NewAcquisitionHandler,
 	NewModelRadarHandler,
+	NewBatchImageHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

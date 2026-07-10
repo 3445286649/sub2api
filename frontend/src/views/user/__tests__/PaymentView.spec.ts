@@ -582,7 +582,7 @@ function mountPaymentView() {
           setup(props, { emit }) {
             const preview = () => {
               if (typeof props.creditAmountFor === 'function') {
-                return Number(props.creditAmountFor(100)).toFixed(2)
+                return Number(props.creditAmountFor(Number(props.modelValue || 0))).toFixed(2)
               }
               return Number(props.creditMultiplier || 1).toFixed(2)
             }
@@ -657,7 +657,7 @@ describe('PaymentView recharge bonus campaign', () => {
     expect(wrapper.find('.amount-input-credit-preview-stub').exists()).toBe(false)
   })
 
-  it('uses threshold bonus rule instead of recharge multiplier when enabled', async () => {
+  it('does not apply threshold bonus rule below threshold', async () => {
     getCheckoutInfo.mockResolvedValue(checkoutInfoFixture({
       balance_recharge_multiplier: 1.5,
       balance_recharge_bonus_display_enabled: true,
@@ -674,6 +674,26 @@ describe('PaymentView recharge bonus campaign', () => {
     expect(wrapper.text()).toContain('payment.rechargeBonusBanner')
     expect(wrapper.text()).toContain('payment.rechargeBonusPreview')
     expect(wrapper.text()).toContain('$80.00')
+    expect(wrapper.text()).toContain('credit:80.00')
+  })
+
+  it('uses threshold bonus rule instead of recharge multiplier when threshold is reached', async () => {
+    getCheckoutInfo.mockResolvedValue(checkoutInfoFixture({
+      balance_recharge_multiplier: 1.5,
+      balance_recharge_bonus_display_enabled: true,
+      balance_recharge_bonus_enabled: true,
+      balance_recharge_bonus_threshold: 100,
+      balance_recharge_bonus_percent: 20,
+    }))
+
+    const wrapper = mountPaymentView()
+    await flushPromises()
+    await wrapper.get('.amount-input-stub').setValue('100')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('payment.rechargeBonusBanner')
+    expect(wrapper.text()).toContain('payment.rechargeBonusPreview')
+    expect(wrapper.text()).toContain('$120.00')
     expect(wrapper.text()).toContain('credit:120.00')
   })
 })

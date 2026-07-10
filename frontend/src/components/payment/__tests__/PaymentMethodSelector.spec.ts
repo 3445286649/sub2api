@@ -34,4 +34,16 @@ describe('PaymentMethodSelector', () => {
     expect(button.classes()).toContain('border-primary-500')
     expect(button.classes()).not.toContain('border-[#02A9F1]')
   })
+
+  it('falls back to method type instead of raw i18n key when custom display name is blank', () => {
+    const wrapper = mount(PaymentMethodSelector, {
+      props: {
+        selected: 'custom_pay',
+        methods: [{ type: 'custom_pay', display_name: '   ', fee_rate: 0, available: true }],
+      },
+    })
+
+    expect(wrapper.text()).toContain('custom_pay')
+    expect(wrapper.text()).not.toContain('payment.methods.custom_pay')
+  })
 })

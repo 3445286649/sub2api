@@ -64,6 +64,7 @@ type Handlers struct {
 	AvailableChannel *AvailableChannelHandler
 	Acquisition      *AcquisitionHandler
 	ModelRadar       *ModelRadarHandler
+	BatchImage       *BatchImageHandler
 }
 
 // BuildInfo contains build-time information
