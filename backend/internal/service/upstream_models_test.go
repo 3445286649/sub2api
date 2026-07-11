@@ -177,6 +177,34 @@ func TestBuildUpstreamModelsRequestsForAPIKeyAccounts(t *testing.T) {
 	require.Equal(t, "https://openai.example.com/v1/models", openAIReq.URL.String())
 	require.Equal(t, "Bearer openai-key", openAIReq.Header.Get("Authorization"))
 
+	grokOpenAIReq, err := svc.buildUpstreamModelsRequest(ctx, &Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":                "grok-openai-key",
+			"base_url":               "https://grok-openai.example.com/v1",
+			"grok_upstream_protocol": "openai_chat_completions",
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://grok-openai.example.com/v1/models", grokOpenAIReq.URL.String())
+	require.Equal(t, "Bearer grok-openai-key", grokOpenAIReq.Header.Get("Authorization"))
+
+	grokAnthropicReq, err := svc.buildUpstreamModelsRequest(ctx, &Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":                "grok-anthropic-key",
+			"base_url":               "https://grok-anthropic.example.com",
+			"grok_upstream_protocol": "anthropic_messages",
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://grok-anthropic.example.com/v1/models", grokAnthropicReq.URL.String())
+	require.Equal(t, "grok-anthropic-key", grokAnthropicReq.Header.Get("x-api-key"))
+	require.Equal(t, "2023-06-01", grokAnthropicReq.Header.Get("anthropic-version"))
+	require.NotEmpty(t, grokAnthropicReq.Header.Get("anthropic-beta"))
+
 	geminiReq, err := svc.buildGeminiUpstreamModelsRequest(ctx, &Account{
 		Platform: PlatformGemini,
 		Type:     AccountTypeAPIKey,

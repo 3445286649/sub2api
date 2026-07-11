@@ -11,6 +11,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
+	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -208,7 +209,7 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 
 func (s *OpenAIGatewayService) rawChatCompletionsURL(account *Account) (string, error) {
 	if account.Platform == PlatformGrok {
-		targetURL, err := xai.BuildChatCompletionsURL(account.GetGrokBaseURL())
+		targetURL, err := s.grokAPIKeyChatCompletionsTargetURL(account)
 		if err != nil {
 			return "", fmt.Errorf("invalid grok base_url: %w", err)
 		}
@@ -216,6 +217,36 @@ func (s *OpenAIGatewayService) rawChatCompletionsURL(account *Account) (string, 
 	}
 
 	return s.openAIChatCompletionsTargetURL(account)
+}
+
+// grokAPIKeyChatCompletionsTargetURL resolves third-party Grok APIKey accounts
+// that explicitly use the OpenAI-compatible protocol. Unlike xAI OAuth traffic,
+// these accounts are allowed to target vendor HTTPS domains, but still pass
+// through the shared upstream URL validator so localhost/private hosts and
+// non-HTTP(S) schemes are rejected by production policy.
+func (s *OpenAIGatewayService) grokAPIKeyChatCompletionsTargetURL(account *Account) (string, error) {
+	if account == nil {
+		return "", fmt.Errorf("account is required")
+	}
+	if account.Platform != PlatformGrok || account.Type != AccountTypeAPIKey {
+		return xai.BuildChatCompletionsURL(account.GetGrokBaseURL())
+	}
+	baseURL := account.GetGrokBaseURL()
+	if baseURL == "" {
+		baseURL = xai.DefaultBaseURL
+	}
+	validatedURL, err := validateGrokThirdPartyAPIKeyBaseURL(baseURL)
+	if err != nil {
+		return "", err
+	}
+	return buildOpenAIChatCompletionsURL(validatedURL), nil
+}
+
+func validateGrokThirdPartyAPIKeyBaseURL(raw string) (string, error) {
+	return urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{
+		RequireAllowlist: false,
+		AllowPrivate:     false,
+	})
 }
 
 // streamRawChatCompletions 透传上游 CC SSE 流到客户端，并提取 usage（包括

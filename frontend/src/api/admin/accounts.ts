@@ -555,11 +555,36 @@ export async function syncUpstreamModels(id: number): Promise<SyncUpstreamModels
   return data
 }
 
+
+export interface GrokProtocolProbeResult {
+  protocol: 'openai_chat_completions' | 'anthropic_messages' | 'openai_responses'
+  label: string
+  endpoint: string
+  supported: boolean
+  status: 'supported' | 'unsupported' | 'unknown'
+  status_code?: number
+  message?: string
+}
+
+export interface GrokProtocolProbeResponse {
+  results: GrokProtocolProbeResult[]
+  recommended_protocol?: 'openai_chat_completions' | 'anthropic_messages' | ''
+}
+
+export async function probeGrokProtocols(
+  id: number,
+  payload?: { model_id?: string; prompt?: string }
+): Promise<GrokProtocolProbeResponse> {
+  const { data } = await apiClient.post<GrokProtocolProbeResponse>(`/admin/accounts/${id}/grok/probe-protocols`, payload || {})
+  return data
+}
+
 export interface SyncUpstreamPreviewParams {
   platform: string
   type: string
   base_url?: string
   api_key: string
+  grok_upstream_protocol?: 'openai_chat_completions' | 'anthropic_messages'
 }
 
 /**
@@ -903,6 +928,7 @@ export const accountsAPI = {
   getAvailableModels,
   syncUpstreamModels,
   syncUpstreamModelsPreview,
+  probeGrokProtocols,
   generateAuthUrl,
   exchangeCode,
   refreshOpenAIToken,

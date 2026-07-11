@@ -351,6 +351,7 @@ export default {
         codeAssist: 'Code Assist',
         antigravityOauth: 'Antigravity OAuth',
         grokOauth: 'Grok OAuth',
+        grokThirdParty: '第三方渠道（URL + Key）',
         antigravityApikey: '通过 Base URL + API Key 连接',
         upstream: '对接上游',
         upstreamDesc: '通过 Base URL + API Key 连接上游',
@@ -704,8 +705,28 @@ export default {
         modelRestrictionDisabledByPassthrough: '已开启自动透传：模型白名单/映射不会生效。',
       },
       grok: {
-        baseUrlHint: 'Grok OAuth 账号会转发到官方 xAI API Base URL。',
-        apiKeyHint: 'Grok 订阅支持使用 OAuth refresh token；API Key 账号不在本次范围内。'
+        baseUrlHint: 'Grok OAuth 默认使用官方 xAI API；第三方渠道可填写渠道商 Base URL。',
+        apiKeyHint: '第三方 Grok 渠道请填写渠道商提供的 API Key；OAuth 账号继续使用 refresh token。',
+        upstreamProtocol: {
+          label: '上游协议',
+          openai: 'OpenAI-compatible（/v1/chat/completions）',
+          anthropic: 'Anthropic-compatible（/v1/messages）',
+          hint: '平台仍归类为 Grok；这里决定请求上游时使用哪种接口协议。',
+          probe: '自动探测',
+          probeModelPlaceholder: '探测模型，例如 grok-4.5-high',
+          probing: '探测中...',
+          applyRecommended: '应用推荐',
+          statusSupported: '支持',
+          statusUnsupported: '不支持',
+          statusUnknown: '未知',
+          recommended: '推荐使用：{protocol}。点击“应用推荐”后仍需保存账号。',
+          noRecommended: '暂未得到可自动应用的推荐；请根据上方结果手动选择。',
+          probeSuccess: 'Grok 协议探测完成，已生成推荐',
+          probeNoRecommendation: 'Grok 协议探测完成，但没有可自动应用的推荐',
+          probeFailed: 'Grok 协议探测失败',
+          probeError: 'Grok 协议探测失败：{message}',
+          appliedRecommended: '已应用推荐协议，请保存账号使其生效'
+        }
       },
       anthropic: {
         apiKeyPassthrough: '自动透传（仅替换认证）',

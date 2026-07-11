@@ -79,6 +79,73 @@ func TestBuildOpenAIResponsesURL_ProbeURL(t *testing.T) {
 	}
 }
 
+func TestGrokAPIKeyChatCompletionsTargetURLAllowsPublicThirdPartyHTTPS(t *testing.T) {
+	t.Parallel()
+
+	svc := &OpenAIGatewayService{}
+	account := &Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"base_url":               "https://zz1cc.cc.cd/",
+			"grok_upstream_protocol": "openai_chat_completions",
+		},
+	}
+
+	got, err := svc.grokAPIKeyChatCompletionsTargetURL(account)
+	require.NoError(t, err)
+	require.Equal(t, "https://zz1cc.cc.cd/v1/chat/completions", got)
+}
+
+func TestGrokAPIKeyChatCompletionsTargetURLRejectsUnsafeBaseURL(t *testing.T) {
+	t.Parallel()
+
+	svc := &OpenAIGatewayService{}
+	for _, baseURL := range []string{
+		"http://vendor.example/v1",
+		"https://localhost/v1",
+		"https://127.0.0.1/v1",
+		"https://10.0.0.1/v1",
+		"file:///tmp/upstream",
+	} {
+		t.Run(baseURL, func(t *testing.T) {
+			t.Parallel()
+			account := &Account{
+				Platform: PlatformGrok,
+				Type:     AccountTypeAPIKey,
+				Credentials: map[string]any{
+					"base_url":               baseURL,
+					"grok_upstream_protocol": "openai_chat_completions",
+				},
+			}
+
+			_, err := svc.grokAPIKeyChatCompletionsTargetURL(account)
+			require.Error(t, err)
+		})
+	}
+}
+
+func TestResolveCCFallbackTargetUsesGrokThirdPartyAPIKeyBaseURL(t *testing.T) {
+	t.Parallel()
+
+	svc := &OpenAIGatewayService{}
+	account := &Account{
+		ID:       806,
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":                "grok-key",
+			"base_url":               "https://zz1cc.cc.cd/",
+			"grok_upstream_protocol": "openai_chat_completions",
+		},
+	}
+
+	apiKey, targetURL, err := svc.resolveCCFallbackTarget(account)
+	require.NoError(t, err)
+	require.Equal(t, "grok-key", apiKey)
+	require.Equal(t, "https://zz1cc.cc.cd/v1/chat/completions", targetURL)
+}
+
 func TestForwardAsRawChatCompletions_ForcesStreamUsageUpstreamAndPassesUsageDownstream(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

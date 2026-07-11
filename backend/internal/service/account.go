@@ -1698,11 +1698,41 @@ func (a *Account) IsOpenAIOAuthPassthroughEnabled() bool {
 	return a != nil && a.IsOpenAIOAuth() && a.IsOpenAIPassthroughEnabled()
 }
 
+const (
+	GrokUpstreamProtocolOpenAIChatCompletions = "openai_chat_completions"
+	GrokUpstreamProtocolAnthropicMessages     = "anthropic_messages"
+)
+
+// GetGrokUpstreamProtocol returns the upstream wire protocol for third-party Grok API key accounts.
+func (a *Account) GetGrokUpstreamProtocol() string {
+	if a == nil || a.Platform != PlatformGrok || a.Type != AccountTypeAPIKey || a.Credentials == nil {
+		return GrokUpstreamProtocolOpenAIChatCompletions
+	}
+	protocol, _ := a.Credentials["grok_upstream_protocol"].(string)
+	switch strings.TrimSpace(protocol) {
+	case GrokUpstreamProtocolAnthropicMessages:
+		return GrokUpstreamProtocolAnthropicMessages
+	default:
+		return GrokUpstreamProtocolOpenAIChatCompletions
+	}
+}
+
+func (a *Account) IsGrokAnthropicMessagesAPIKey() bool {
+	return a != nil && a.Platform == PlatformGrok && a.Type == AccountTypeAPIKey && a.GetGrokUpstreamProtocol() == GrokUpstreamProtocolAnthropicMessages
+}
+
 // IsAnthropicAPIKeyPassthroughEnabled 返回 Anthropic API Key 账号是否启用"自动透传（仅替换认证）"。
 // 字段：accounts.extra.anthropic_passthrough。
 // 字段缺失或类型不正确时，按 false（关闭）处理。
+// Grok 第三方渠道选择 Anthropic-compatible 时也复用该透传转发器，但平台仍归类为 Grok。
 func (a *Account) IsAnthropicAPIKeyPassthroughEnabled() bool {
-	if a == nil || a.Platform != PlatformAnthropic || a.Type != AccountTypeAPIKey || a.Extra == nil {
+	if a == nil || a.Type != AccountTypeAPIKey {
+		return false
+	}
+	if a.IsGrokAnthropicMessagesAPIKey() {
+		return true
+	}
+	if a.Platform != PlatformAnthropic || a.Extra == nil {
 		return false
 	}
 	enabled, ok := a.Extra["anthropic_passthrough"].(bool)

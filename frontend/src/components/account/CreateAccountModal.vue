@@ -352,7 +352,7 @@
         </div>
       </div>
 
-      <!-- Account Type Selection (Grok - OAuth only) -->
+      <!-- Account Type Selection (Grok) -->
       <div v-if="form.platform === 'grok'">
         <label class="input-label">{{ t('admin.accounts.accountType') }}</label>
         <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2" data-tour="account-form-type">
@@ -381,10 +381,32 @@
               <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.types.grokOauth') }}</span>
             </div>
           </button>
+          <button
+            type="button"
+            @click="accountCategory = 'apikey'"
+            :class="[
+              'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all',
+              accountCategory === 'apikey'
+                ? 'border-zinc-800 bg-zinc-50 dark:bg-zinc-900/30'
+                : 'border-gray-200 hover:border-zinc-400 dark:border-dark-600 dark:hover:border-zinc-600'
+            ]"
+          >
+            <div
+              :class="[
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                accountCategory === 'apikey'
+                  ? 'bg-zinc-900 text-white'
+                  : 'bg-gray-100 text-gray-500 dark:bg-dark-600 dark:text-gray-400'
+              ]"
+            >
+              <Icon name="key" size="sm" />
+            </div>
+            <div>
+              <span class="block text-sm font-medium text-gray-900 dark:text-white">API Key</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.types.grokThirdParty') }}</span>
+            </div>
+          </button>
         </div>
-        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          {{ t('admin.accounts.oauth.grok.oauthOnlyHint') }}
-        </p>
       </div>
 
       <!-- Account Type Selection (Gemini) -->
@@ -1118,6 +1140,17 @@
             <option value="aistudio_paid">{{ t('admin.accounts.gemini.tier.aiStudio.paid') }}</option>
           </select>
           <p class="input-hint">{{ t('admin.accounts.gemini.tier.aiStudioHint') }}</p>
+        </div>
+
+
+        <!-- Grok third-party upstream protocol -->
+        <div v-if="form.platform === 'grok'">
+          <label class="input-label">{{ t('admin.accounts.grok.upstreamProtocol.label') }}</label>
+          <select v-model="grokUpstreamProtocol" class="input">
+            <option value="openai_chat_completions">{{ t('admin.accounts.grok.upstreamProtocol.openai') }}</option>
+            <option value="anthropic_messages">{{ t('admin.accounts.grok.upstreamProtocol.anthropic') }}</option>
+          </select>
+          <p class="input-hint">{{ t('admin.accounts.grok.upstreamProtocol.hint') }}</p>
         </div>
 
         <!-- Model Restriction Section (Antigravity 已在上层条件排除) -->
@@ -3571,15 +3604,26 @@ const accountCategory = ref<'oauth-based' | 'apikey' | 'bedrock' | 'service_acco
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
 const apiKeyValue = ref('')
+const grokUpstreamProtocol = ref<'openai_chat_completions' | 'anthropic_messages'>('openai_chat_completions')
 
 const syncPreviewCredentials = computed(() => {
   if (!apiKeyValue.value) return undefined
-  return {
+  const credentials: {
+    platform: AccountPlatform
+    type: AccountType
+    base_url?: string
+    api_key: string
+    grok_upstream_protocol?: 'openai_chat_completions' | 'anthropic_messages'
+  } = {
     platform: form.platform,
     type: form.type,
     base_url: apiKeyBaseUrl.value || undefined,
     api_key: apiKeyValue.value
   }
+  if (form.platform === 'grok' && form.type === 'apikey') {
+    credentials.grok_upstream_protocol = grokUpstreamProtocol.value
+  }
+  return credentials
 })
 
 const editQuotaLimit = ref<number | null>(null)
@@ -5059,6 +5103,9 @@ const createAccountAndFinish = async (
   if (platform === 'grok') {
     if (!credentials.base_url) {
       credentials.base_url = apiKeyBaseUrl.value.trim() || 'https://api.x.ai/v1'
+    }
+    if (type === 'apikey') {
+      credentials.grok_upstream_protocol = grokUpstreamProtocol.value
     }
     const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
     if (modelMapping) {

@@ -1288,6 +1288,11 @@ type TestAccountRequest struct {
 	Mode    string `json:"mode"`
 }
 
+type ProbeGrokProtocolsRequest struct {
+	ModelID string `json:"model_id"`
+	Prompt  string `json:"prompt"`
+}
+
 type SyncFromCRSRequest struct {
 	BaseURL            string   `json:"base_url" binding:"required"`
 	Username           string   `json:"username" binding:"required"`
@@ -1326,6 +1331,40 @@ func (h *AccountHandler) Test(c *gin.Context) {
 			_ = c.Error(err)
 		}
 	}
+}
+
+// ProbeGrokProtocols detects which upstream protocol a saved Grok API key account supports.
+// POST /api/v1/admin/accounts/:id/grok/probe-protocols
+func (h *AccountHandler) ProbeGrokProtocols(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+
+	var req ProbeGrokProtocolsRequest
+	_ = c.ShouldBindJSON(&req)
+
+	account, err := h.adminService.GetAccount(c.Request.Context(), accountID)
+	if err != nil {
+		response.NotFound(c, "Account not found")
+		return
+	}
+	if account.Platform != service.PlatformGrok || account.Type != service.AccountTypeAPIKey {
+		response.BadRequest(c, "Only Grok API key accounts support protocol probe")
+		return
+	}
+	if h.accountTestService == nil {
+		response.InternalError(c, "Account test service is not configured")
+		return
+	}
+
+	result, err := h.accountTestService.ProbeGrokProtocols(c.Request.Context(), account, req.ModelID, req.Prompt)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.Success(c, result)
 }
 
 // RecoverState handles unified recovery of recoverable account runtime state.
@@ -2792,10 +2831,11 @@ func (h *AccountHandler) SyncUpstreamModels(c *gin.Context) {
 // POST /api/v1/admin/accounts/models/sync-upstream-preview
 func (h *AccountHandler) SyncUpstreamModelsPreview(c *gin.Context) {
 	var req struct {
-		Platform string `json:"platform" binding:"required"`
-		Type     string `json:"type" binding:"required"`
-		BaseURL  string `json:"base_url"`
-		APIKey   string `json:"api_key" binding:"required"`
+		Platform             string `json:"platform" binding:"required"`
+		Type                 string `json:"type" binding:"required"`
+		BaseURL              string `json:"base_url"`
+		APIKey               string `json:"api_key" binding:"required"`
+		GrokUpstreamProtocol string `json:"grok_upstream_protocol"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
@@ -2806,8 +2846,9 @@ func (h *AccountHandler) SyncUpstreamModelsPreview(c *gin.Context) {
 		Platform: req.Platform,
 		Type:     req.Type,
 		Credentials: map[string]any{
-			"api_key":  req.APIKey,
-			"base_url": req.BaseURL,
+			"api_key":                req.APIKey,
+			"base_url":               req.BaseURL,
+			"grok_upstream_protocol": req.GrokUpstreamProtocol,
 		},
 	}
 

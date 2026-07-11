@@ -193,7 +193,7 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	}
 
 	if account.Platform == PlatformGrok {
-		return s.testGrokAccountConnection(c, account, modelID)
+		return s.testGrokAccountConnection(c, account, modelID, prompt)
 	}
 
 	if account.Platform == PlatformAntigravity {
@@ -655,8 +655,31 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 }
 
 // testGrokAccountConnection tests a Grok OAuth account through xAI's Responses API.
-func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *Account, modelID string) error {
+func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *Account, modelID string, prompt string) error {
 	ctx := c.Request.Context()
+
+	if account.Type == AccountTypeAPIKey {
+		testModelID := strings.TrimSpace(modelID)
+		if testModelID == "" {
+			testModelID = "grok-4.5"
+		}
+		if account.IsGrokAnthropicMessagesAPIKey() {
+			return s.testClaudeAccountConnection(c, account, testModelID)
+		}
+		baseURL := account.GetGrokBaseURL()
+		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
+		if err != nil {
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid Grok base URL: %s", err.Error()))
+		}
+		apiKey := strings.TrimSpace(account.GetCredential("api_key"))
+		if apiKey == "" {
+			return s.sendErrorAndEnd(c, "No Grok API key available")
+		}
+		if mapped := strings.TrimSpace(account.GetMappedModel(testModelID)); mapped != "" {
+			testModelID = mapped
+		}
+		return s.testOpenAIChatCompletionsConnection(c, account, testModelID, prompt, normalizedBaseURL, apiKey)
+	}
 
 	if account.Type != AccountTypeOAuth {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Unsupported Grok account type: %s", account.Type))

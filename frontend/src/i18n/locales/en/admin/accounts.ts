@@ -113,6 +113,7 @@ export default {
         codeAssist: 'Code Assist',
         antigravityOauth: 'Antigravity OAuth',
         grokOauth: 'Grok OAuth',
+        grokThirdParty: 'Third-party channel (URL + Key)',
         antigravityApikey: 'Connect via Base URL + API Key',
         upstream: 'Upstream',
         upstreamDesc: 'Connect via Base URL + API Key'
@@ -606,8 +607,14 @@ export default {
         modelRestrictionDisabledByPassthrough: 'Automatic passthrough is enabled: model whitelist/mapping will not take effect.',
       },
       grok: {
-        baseUrlHint: 'Grok OAuth accounts forward to the official xAI API base URL.',
-        apiKeyHint: 'Grok subscription support uses OAuth refresh tokens; API keys are out of scope for this account type.'
+        baseUrlHint: 'Grok OAuth uses the official xAI API by default; third-party channels can use their own Base URL.',
+        apiKeyHint: 'For third-party Grok channels, enter the API key provided by the upstream vendor; OAuth accounts still use refresh tokens.',
+        upstreamProtocol: {
+          label: 'Upstream protocol',
+          openai: 'OpenAI-compatible (/v1/chat/completions)',
+          anthropic: 'Anthropic-compatible (/v1/messages)',
+          hint: 'The account is still grouped as Grok; this controls which API protocol is used upstream.'
+        }
       },
       anthropic: {
         apiKeyPassthrough: 'Auto passthrough (auth only)',

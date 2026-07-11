@@ -1659,6 +1659,88 @@
         </div>
       </div>
 
+
+      <div
+        v-if="account?.platform === 'grok' && account?.type === 'apikey'"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.grok.upstreamProtocol.label') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.grok.upstreamProtocol.hint') }}
+            </p>
+          </div>
+          <div class="flex flex-col items-end gap-2">
+            <select v-model="grokUpstreamProtocol" class="input w-64 text-sm">
+              <option value="openai_chat_completions">{{ t('admin.accounts.grok.upstreamProtocol.openai') }}</option>
+              <option value="anthropic_messages">{{ t('admin.accounts.grok.upstreamProtocol.anthropic') }}</option>
+            </select>
+            <select
+              v-if="grokProtocolProbeModelOptions.length"
+              v-model="grokProtocolProbeModel"
+              class="input w-64 text-sm"
+            >
+              <option
+                v-for="model in grokProtocolProbeModelOptions"
+                :key="model"
+                :value="model"
+              >
+                {{ model }}
+              </option>
+            </select>
+            <input
+              v-else
+              v-model="grokProtocolProbeModel"
+              type="text"
+              class="input w-64 text-sm"
+              :placeholder="t('admin.accounts.grok.upstreamProtocol.probeModelPlaceholder')"
+            />
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="btn-secondary btn-sm"
+                :disabled="grokProtocolProbeLoading"
+                @click="probeGrokProtocols"
+              >
+                {{ grokProtocolProbeLoading ? t('admin.accounts.grok.upstreamProtocol.probing') : t('admin.accounts.grok.upstreamProtocol.probe') }}
+              </button>
+              <button
+                v-if="grokProtocolProbeRecommended"
+                type="button"
+                class="btn-secondary btn-sm"
+                @click="applyGrokProtocolProbeRecommendation"
+              >
+                {{ t('admin.accounts.grok.upstreamProtocol.applyRecommended') }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div v-if="grokProtocolProbeResults.length" class="mt-3 space-y-2 rounded-lg bg-gray-50 p-3 text-xs dark:bg-dark-700/50">
+          <div
+            v-for="result in grokProtocolProbeResults"
+            :key="result.protocol"
+            class="flex items-start justify-between gap-3"
+          >
+            <div>
+              <div class="font-medium text-gray-800 dark:text-gray-100">{{ result.label }}</div>
+              <div class="text-gray-500 dark:text-gray-400">{{ result.endpoint }}</div>
+              <div v-if="result.message" class="mt-1 text-gray-500 dark:text-gray-400">{{ result.message }}</div>
+            </div>
+            <span :class="grokProtocolProbeStatusClass(result.status)">
+              {{ grokProtocolProbeStatusLabel(result.status) }}
+              <template v-if="result.status_code"> · {{ result.status_code }}</template>
+            </span>
+          </div>
+          <p v-if="grokProtocolProbeRecommended" class="text-xs text-blue-600 dark:text-blue-300">
+            {{ t('admin.accounts.grok.upstreamProtocol.recommended', { protocol: grokProtocolProbeRecommendedLabel }) }}
+          </p>
+          <p v-else class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.grok.upstreamProtocol.noRecommended') }}
+          </p>
+        </div>
+      </div>
+
       <!-- Anthropic API Key: Web Search Emulation (hidden when global disabled) -->
       <div
         v-if="account?.platform === 'anthropic' && account?.type === 'apikey' && webSearchGlobalEnabled"
@@ -2769,6 +2851,57 @@ const codexImageToolMode = ref<CodexImageToolMode>('inherit')
 type AnthropicAPIKeyAuthScheme = 'x_api_key' | 'authorization_bearer'
 const anthropicPassthroughEnabled = ref(false)
 const anthropicAPIKeyAuthScheme = ref<AnthropicAPIKeyAuthScheme>('x_api_key')
+type GrokUpstreamProtocol = 'openai_chat_completions' | 'anthropic_messages'
+const grokUpstreamProtocol = ref<GrokUpstreamProtocol>('openai_chat_completions')
+type GrokProbeStatus = 'supported' | 'unsupported' | 'unknown'
+type GrokProtocolProbeResult = {
+  protocol: 'openai_chat_completions' | 'anthropic_messages' | 'openai_responses'
+  label: string
+  endpoint: string
+  supported: boolean
+  status: GrokProbeStatus
+  status_code?: number
+  message?: string
+}
+const grokProtocolProbeModel = ref('')
+const grokProtocolProbeLoading = ref(false)
+const grokProtocolProbeResults = ref<GrokProtocolProbeResult[]>([])
+const grokProtocolProbeRecommended = ref<GrokUpstreamProtocol | ''>('')
+const grokProtocolProbeModelOptions = computed(() => {
+  const seen = new Set<string>()
+  const options: string[] = []
+  const pushModel = (model: string) => {
+    const normalized = model.trim()
+    if (!normalized || seen.has(normalized)) return
+    seen.add(normalized)
+    options.push(normalized)
+  }
+  for (const mapping of modelMappings.value) {
+    pushModel(mapping.to || mapping.from)
+  }
+  for (const model of allowedModels.value) {
+    pushModel(model)
+  }
+  return options
+})
+const firstConfiguredProbeModel = computed(() => grokProtocolProbeModelOptions.value[0] || '')
+
+watch(grokProtocolProbeModelOptions, (options) => {
+  if (options.length === 0) return
+  if (!grokProtocolProbeModel.value.trim() || !options.includes(grokProtocolProbeModel.value.trim())) {
+    grokProtocolProbeModel.value = options[0]
+  }
+})
+
+const grokProtocolProbeRecommendedLabel = computed(() => {
+  if (grokProtocolProbeRecommended.value === 'anthropic_messages') {
+    return t('admin.accounts.grok.upstreamProtocol.anthropic')
+  }
+  if (grokProtocolProbeRecommended.value === 'openai_chat_completions') {
+    return t('admin.accounts.grok.upstreamProtocol.openai')
+  }
+  return ''
+})
 const webSearchEmulationMode = ref('default')
 const webSearchGlobalEnabled = ref(false)
 const {
@@ -3240,6 +3373,16 @@ const syncFormFromAccount = (newAccount: Account | null) => {
       openAICompactModelMappings.value = Object.entries(compactMappings).map(([from, to]) => ({ from, to }))
     }
   }
+  if (newAccount.platform === 'grok' && newAccount.type === 'apikey') {
+    const credentials = newAccount.credentials as Record<string, unknown> | undefined
+    grokUpstreamProtocol.value = credentials?.grok_upstream_protocol === 'anthropic_messages'
+      ? 'anthropic_messages'
+      : 'openai_chat_completions'
+    grokProtocolProbeModel.value = firstConfiguredProbeModel.value
+    grokProtocolProbeResults.value = []
+    grokProtocolProbeRecommended.value = ''
+  }
+
   if (newAccount.platform === 'anthropic' && newAccount.type === 'apikey') {
     anthropicPassthroughEnabled.value = extra?.anthropic_passthrough === true
     anthropicAPIKeyAuthScheme.value = extra?.anthropic_apikey_auth_scheme === 'authorization_bearer'
@@ -3530,6 +3673,49 @@ const syncAntigravityUpstreamModels = async () => {
   } finally {
     isSyncingAntigravityUpstream.value = false
   }
+}
+
+
+const grokProtocolProbeStatusLabel = (status: GrokProbeStatus) => {
+  if (status === 'supported') return t('admin.accounts.grok.upstreamProtocol.statusSupported')
+  if (status === 'unsupported') return t('admin.accounts.grok.upstreamProtocol.statusUnsupported')
+  return t('admin.accounts.grok.upstreamProtocol.statusUnknown')
+}
+
+const grokProtocolProbeStatusClass = (status: GrokProbeStatus) => {
+  if (status === 'supported') return 'shrink-0 rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300'
+  if (status === 'unsupported') return 'shrink-0 rounded-full bg-red-100 px-2 py-0.5 font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300'
+  return 'shrink-0 rounded-full bg-yellow-100 px-2 py-0.5 font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+}
+
+const probeGrokProtocols = async () => {
+  if (!props.account?.id || grokProtocolProbeLoading.value) return
+  grokProtocolProbeLoading.value = true
+  try {
+    const model = grokProtocolProbeModel.value.trim() || firstConfiguredProbeModel.value
+    const result = await adminAPI.accounts.probeGrokProtocols(props.account.id, { model_id: model })
+    if (!grokProtocolProbeModel.value.trim() && model) {
+      grokProtocolProbeModel.value = model
+    }
+    grokProtocolProbeResults.value = result.results || []
+    grokProtocolProbeRecommended.value = result.recommended_protocol || ''
+    if (grokProtocolProbeRecommended.value) {
+      appStore.showSuccess(t('admin.accounts.grok.upstreamProtocol.probeSuccess'))
+    } else {
+      appStore.showInfo(t('admin.accounts.grok.upstreamProtocol.probeNoRecommendation'))
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : t('admin.accounts.grok.upstreamProtocol.probeFailed')
+    appStore.showError(t('admin.accounts.grok.upstreamProtocol.probeError', { message }))
+  } finally {
+    grokProtocolProbeLoading.value = false
+  }
+}
+
+const applyGrokProtocolProbeRecommendation = () => {
+  if (!grokProtocolProbeRecommended.value) return
+  grokUpstreamProtocol.value = grokProtocolProbeRecommended.value
+  appStore.showSuccess(t('admin.accounts.grok.upstreamProtocol.appliedRecommended'))
 }
 
 // Error code toggle helper
@@ -3951,6 +4137,10 @@ const handleSubmit = async () => {
       } else if (!hasExistingApiKey) {
         appStore.showError(t('admin.accounts.apiKeyIsRequired'))
         return
+      }
+
+      if (props.account.platform === 'grok') {
+        newCredentials.grok_upstream_protocol = grokUpstreamProtocol.value
       }
 
       // Add model mapping if configured（OpenAI 开启自动透传时保留现有映射，不再编辑）
