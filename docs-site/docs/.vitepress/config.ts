@@ -16,25 +16,29 @@ export default defineConfig({
       {
         text: '开始使用',
         items: [
-          { text: '新用户 3 分钟速通', link: '/quick-start' },
-          { text: 'API Key 创建与安全', link: '/api-key' },
-          { text: '计费、余额与使用记录', link: '/billing' }
+          { text: '🚀 新用户 3 分钟速通', link: '/quick-start' },
+          { text: '🔑 API Key 创建与安全', link: '/api-key' },
+          { text: '🧭 模型与分组怎么选', link: '/models-and-groups' },
+          { text: '💳 计费、余额与使用记录', link: '/billing' }
         ]
       },
       {
         text: '客户端接入',
         items: [
-          { text: 'CCSwitch 接入', link: '/ccswitch' },
-          { text: 'Codex 接入', link: '/codex' },
-          { text: 'Codex 生图 Skill', link: '/codex-imagegen2' },
-          { text: 'Claude Code 接入', link: '/claude-code' },
-          { text: 'VS Code 插件接入', link: '/vscode' }
+          { text: '🔄 CCSwitch 接入', link: '/ccswitch' },
+          { text: '💻 Codex 接入', link: '/codex' },
+          { text: '🎨 Codex 生图 Skill', link: '/codex-imagegen2' },
+          { text: '🧠 Claude Code 接入', link: '/claude-code' },
+          { text: '🧩 VS Code 插件接入', link: '/vscode' },
+          { text: '💎 Gemini CLI 接入', link: '/gemini-cli' },
+          { text: '🧰 OpenCode 接入', link: '/opencode' }
         ]
       },
       {
         text: '排查',
         items: [
-          { text: '常见报错排查', link: '/troubleshooting' }
+          { text: '🛠️ 常见报错排查', link: '/troubleshooting' },
+          { text: '🗺️ 站内功能与入口说明', link: '/site-features' }
         ]
       }
     ],
