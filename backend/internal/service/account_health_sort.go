@@ -32,7 +32,9 @@ func sortAccountWithLoadByHealthCostAndLoad(items []accountWithLoad, health map[
 		a, b := items[i], items[j]
 		aScore, aLatency := accountHealthSortValueForScheduling(health, a.account.ID, cfg)
 		bScore, bLatency := accountHealthSortValueForScheduling(health, b.account.ID, cfg)
-		if at, bt := accountScheduleTier(aScore, aLatency, cfg), accountScheduleTier(bScore, bLatency, cfg); at != bt {
+		aHighLatency := AccountHealthConsecutiveHighLatency(health, a.account.ID)
+		bHighLatency := AccountHealthConsecutiveHighLatency(health, b.account.ID)
+		if at, bt := accountScheduleTierWithHighLatency(aScore, aHighLatency, cfg), accountScheduleTierWithHighLatency(bScore, bHighLatency, cfg); at != bt {
 			return at < bt
 		}
 		aWeighted := accountWithLoadScheduleWeightedScore(a, health, cfg, costMedian)
@@ -72,7 +74,9 @@ func sortAccountPointersByHealthCostAndLRU(items []*Account, health map[int64]*A
 		a, b := items[i], items[j]
 		aScore, aLatency := accountHealthSortValueForScheduling(health, a.ID, cfg)
 		bScore, bLatency := accountHealthSortValueForScheduling(health, b.ID, cfg)
-		if at, bt := accountScheduleTier(aScore, aLatency, cfg), accountScheduleTier(bScore, bLatency, cfg); at != bt {
+		aHighLatency := AccountHealthConsecutiveHighLatency(health, a.ID)
+		bHighLatency := AccountHealthConsecutiveHighLatency(health, b.ID)
+		if at, bt := accountScheduleTierWithHighLatency(aScore, aHighLatency, cfg), accountScheduleTierWithHighLatency(bScore, bHighLatency, cfg); at != bt {
 			return at < bt
 		}
 		aWeighted := accountPointerScheduleWeightedScore(a, health, cfg, costMedian)
@@ -137,9 +141,17 @@ func accountHealthTierThresholds(cfg config.GatewaySchedulingConfig) (healthyMin
 }
 
 func accountScheduleTier(score int, latency int, cfg config.GatewaySchedulingConfig) int {
-	tier := accountBaseHealthTier(score, cfg)
+	highLatencyCount := 0
 	_, downgradeMS, _ := accountScheduleLatencyGuards(cfg)
-	if latency != math.MaxInt && latency >= downgradeMS && tier < 2 {
+	if latency != math.MaxInt && latency >= downgradeMS {
+		highLatencyCount = 2
+	}
+	return accountScheduleTierWithHighLatency(score, highLatencyCount, cfg)
+}
+
+func accountScheduleTierWithHighLatency(score int, consecutiveHighLatency int, cfg config.GatewaySchedulingConfig) int {
+	tier := accountBaseHealthTier(score, cfg)
+	if consecutiveHighLatency >= 2 && tier < 2 {
 		tier++
 	}
 	return tier

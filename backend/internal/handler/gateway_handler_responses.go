@@ -268,7 +268,13 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		}
 
 		// 6. Record usage
-		h.gatewayService.RecordAccountHealthSuccess(requestCtx, account.ID, time.Since(requestStart).Milliseconds())
+		forwardDurationMs := time.Since(requestStart).Milliseconds()
+		var firstTokenMs *int
+		if result != nil {
+			firstTokenMs = result.FirstTokenMs
+		}
+		h.gatewayService.RecordAccountHealthSuccessWithLatency(requestCtx, account.ID,
+			service.BuildAccountHealthLatencySample(forwardDurationMs, firstTokenMs, 0))
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		requestPayloadHash := service.HashUsageRequestPayload(body)

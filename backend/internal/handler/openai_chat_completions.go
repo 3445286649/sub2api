@@ -308,7 +308,12 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, nil)
 		}
 
-		h.gatewayService.RecordAccountHealthSuccess(c.Request.Context(), account.ID, forwardDurationMs)
+		var firstTokenMs *int
+		if result != nil {
+			firstTokenMs = result.FirstTokenMs
+		}
+		h.gatewayService.RecordAccountHealthSuccessWithLatency(c.Request.Context(), account.ID,
+			service.BuildAccountHealthLatencySample(forwardDurationMs, firstTokenMs, upstreamLatencyMs))
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		inboundEndpoint := GetInboundEndpoint(c)

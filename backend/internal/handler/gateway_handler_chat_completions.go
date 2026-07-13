@@ -282,7 +282,13 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 		}
 
 		// 6. Record usage
-		h.gatewayService.RecordAccountHealthSuccess(c.Request.Context(), account.ID, time.Since(requestStart).Milliseconds())
+		forwardDurationMs := time.Since(requestStart).Milliseconds()
+		var firstTokenMs *int
+		if result != nil {
+			firstTokenMs = result.FirstTokenMs
+		}
+		h.gatewayService.RecordAccountHealthSuccessWithLatency(c.Request.Context(), account.ID,
+			service.BuildAccountHealthLatencySample(forwardDurationMs, firstTokenMs, 0))
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		requestPayloadHash := service.HashUsageRequestPayload(body)

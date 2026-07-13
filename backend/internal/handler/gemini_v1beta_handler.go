@@ -508,7 +508,8 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			return
 		}
 
-		h.gatewayService.RecordAccountHealthSuccess(requestCtx, account.ID, time.Since(healthForwardStart).Milliseconds())
+		h.gatewayService.RecordAccountHealthSuccessWithLatency(requestCtx, account.ID,
+			service.BuildAccountHealthLatencySample(time.Since(healthForwardStart).Milliseconds(), result.FirstTokenMs, 0))
 
 		// 捕获请求信息（用于异步记录，避免在 goroutine 中访问 gin.Context）
 		userAgent := c.GetHeader("User-Agent")

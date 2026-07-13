@@ -46,27 +46,44 @@ const (
 	accountHealthDefaultProbePageSize     = 100
 	accountHealthOverviewAccountLimit     = 10000
 	accountHealthProbeFailureDedupeWindow = 10 * time.Second
+	accountHealthSchedulerLatencyCapMS    = 30_000
+	accountHealthHighLatencyThresholdMS   = 30_000
 )
+
+const (
+	AccountHealthLatencySourceTTFT            = "ttft"
+	AccountHealthLatencySourceResponseHeaders = "response_headers"
+	AccountHealthLatencySourceProbe           = "probe"
+)
+
+type AccountHealthLatencySample struct {
+	ObservedDurationMs int64
+	SchedulerLatencyMs int64
+	Source             string
+}
 
 var accountHealthBackoffSteps = []time.Duration{time.Minute, 2 * time.Minute, 5 * time.Minute, 10 * time.Minute, 30 * time.Minute}
 
 type AccountHealthState struct {
-	AccountID            int64      `json:"account_id"`
-	Score                int        `json:"score"`
-	ConsecutiveSuccesses int        `json:"consecutive_successes"`
-	ConsecutiveFailures  int        `json:"consecutive_failures"`
-	Status               string     `json:"status"`
-	LastSuccessAt        *time.Time `json:"last_success_at,omitempty"`
-	LastFailureAt        *time.Time `json:"last_failure_at,omitempty"`
-	LastCheckedAt        *time.Time `json:"last_checked_at,omitempty"`
-	LastErrorCategory    string     `json:"last_error_category,omitempty"`
-	LastErrorMessage     string     `json:"last_error_message,omitempty"`
-	LatencyEWMAMs        *int       `json:"latency_ewma_ms,omitempty"`
-	BackoffLevel         int        `json:"backoff_level"`
-	NextProbeAt          *time.Time `json:"next_probe_at,omitempty"`
-	IsolatedAt           *time.Time `json:"isolated_at,omitempty"`
-	CreatedAt            time.Time  `json:"created_at"`
-	UpdatedAt            time.Time  `json:"updated_at"`
+	AccountID              int64      `json:"account_id"`
+	Score                  int        `json:"score"`
+	ConsecutiveSuccesses   int        `json:"consecutive_successes"`
+	ConsecutiveFailures    int        `json:"consecutive_failures"`
+	Status                 string     `json:"status"`
+	LastSuccessAt          *time.Time `json:"last_success_at,omitempty"`
+	LastFailureAt          *time.Time `json:"last_failure_at,omitempty"`
+	LastCheckedAt          *time.Time `json:"last_checked_at,omitempty"`
+	LastErrorCategory      string     `json:"last_error_category,omitempty"`
+	LastErrorMessage       string     `json:"last_error_message,omitempty"`
+	LatencyEWMAMs          *int       `json:"latency_ewma_ms,omitempty"`
+	SchedulerLatencyEWMAMs *int       `json:"scheduler_latency_ewma_ms,omitempty"`
+	SchedulerLatencySource string     `json:"scheduler_latency_source,omitempty"`
+	ConsecutiveHighLatency int        `json:"consecutive_high_latency"`
+	BackoffLevel           int        `json:"backoff_level"`
+	NextProbeAt            *time.Time `json:"next_probe_at,omitempty"`
+	IsolatedAt             *time.Time `json:"isolated_at,omitempty"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
 type AccountHealthSummary struct {
@@ -243,18 +260,30 @@ func (s *AccountHealthService) ListByAccountIDs(ctx context.Context, ids []int64
 }
 
 func (s *AccountHealthService) RecordSuccess(ctx context.Context, accountID int64, latencyMs int64) error {
-	return s.recordSuccess(ctx, accountID, latencyMs, false, AccountHealthEventSourceRealRequest, nil)
+	return s.recordSuccess(ctx, accountID, AccountHealthLatencySample{ObservedDurationMs: latencyMs}, false, AccountHealthEventSourceRealRequest, nil)
+}
+
+func (s *AccountHealthService) RecordSuccessWithLatency(ctx context.Context, accountID int64, sample AccountHealthLatencySample) error {
+	return s.recordSuccess(ctx, accountID, sample, false, AccountHealthEventSourceRealRequest, nil)
 }
 
 func (s *AccountHealthService) RecordProbeSuccess(ctx context.Context, accountID int64, latencyMs int64) error {
-	return s.recordSuccess(ctx, accountID, latencyMs, true, AccountHealthEventSourceBackgroundProbe, nil)
+	return s.recordSuccess(ctx, accountID, AccountHealthLatencySample{
+		ObservedDurationMs: latencyMs,
+		SchedulerLatencyMs: latencyMs,
+		Source:             AccountHealthLatencySourceProbe,
+	}, true, AccountHealthEventSourceBackgroundProbe, nil)
 }
 
 func (s *AccountHealthService) RecordManualProbeSuccess(ctx context.Context, accountID int64, latencyMs int64, actorUserID *int64) error {
-	return s.recordSuccess(ctx, accountID, latencyMs, true, AccountHealthEventSourceManualProbe, actorUserID)
+	return s.recordSuccess(ctx, accountID, AccountHealthLatencySample{
+		ObservedDurationMs: latencyMs,
+		SchedulerLatencyMs: latencyMs,
+		Source:             AccountHealthLatencySourceProbe,
+	}, true, AccountHealthEventSourceManualProbe, actorUserID)
 }
 
-func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int64, latencyMs int64, probe bool, source string, actorUserID *int64) error {
+func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int64, sample AccountHealthLatencySample, probe bool, source string, actorUserID *int64) error {
 	if s == nil || s.repo == nil {
 		return nil
 	}
@@ -279,12 +308,30 @@ func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int6
 		state.LastErrorCategory = ""
 		state.LastErrorMessage = ""
 	}
-	if latencyMs > 0 {
-		next := int(latencyMs)
+	if sample.ObservedDurationMs > 0 {
+		next := int(sample.ObservedDurationMs)
 		if state.LatencyEWMAMs != nil {
-			next = int(math.Round(float64(*state.LatencyEWMAMs)*0.7 + float64(latencyMs)*0.3))
+			next = int(math.Round(float64(*state.LatencyEWMAMs)*0.7 + float64(sample.ObservedDurationMs)*0.3))
 		}
 		state.LatencyEWMAMs = &next
+	}
+	if sample.SchedulerLatencyMs > 0 {
+		rawSchedulerLatency := sample.SchedulerLatencyMs
+		boundedSchedulerLatency := rawSchedulerLatency
+		if boundedSchedulerLatency > accountHealthSchedulerLatencyCapMS {
+			boundedSchedulerLatency = accountHealthSchedulerLatencyCapMS
+		}
+		next := int(boundedSchedulerLatency)
+		if state.SchedulerLatencyEWMAMs != nil {
+			next = int(math.Round(float64(*state.SchedulerLatencyEWMAMs)*0.7 + float64(boundedSchedulerLatency)*0.3))
+		}
+		state.SchedulerLatencyEWMAMs = &next
+		state.SchedulerLatencySource = truncateAccountHealthString(strings.TrimSpace(sample.Source), 32)
+		if rawSchedulerLatency >= accountHealthHighLatencyThresholdMS {
+			state.ConsecutiveHighLatency++
+		} else {
+			state.ConsecutiveHighLatency = 0
+		}
 	}
 	if !probe && before.Status == AccountHealthStatusDegraded && state.ConsecutiveSuccesses >= accountHealthDegradedSuccessesFloor && state.Score < accountHealthDegradedSuccessFloor {
 		state.Score = accountHealthDegradedSuccessFloor
@@ -349,7 +396,7 @@ func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int6
 		if manualAuthRecovery {
 			eventType = AccountHealthEventTypeRecovered
 		}
-		_ = s.insertHealthEvent(ctx, &before, state, source, eventType, "", "", latencyMs, actorUserID)
+		_ = s.insertHealthEvent(ctx, &before, state, source, eventType, "", "", sample.ObservedDurationMs, actorUserID)
 	}
 	return nil
 }
@@ -944,12 +991,19 @@ func defaultAccountHealthState(accountID int64, now time.Time) *AccountHealthSta
 func AccountHealthSortValue(states map[int64]*AccountHealthSummary, accountID int64) (score int, latency int) {
 	if state := states[accountID]; state != nil {
 		latency = math.MaxInt
-		if state.LatencyEWMAMs != nil {
-			latency = *state.LatencyEWMAMs
+		if state.SchedulerLatencyEWMAMs != nil {
+			latency = *state.SchedulerLatencyEWMAMs
 		}
 		return state.Score, latency
 	}
 	return defaultAccountHealthScore, math.MaxInt
+}
+
+func AccountHealthConsecutiveHighLatency(states map[int64]*AccountHealthSummary, accountID int64) int {
+	if state := states[accountID]; state != nil {
+		return state.ConsecutiveHighLatency
+	}
+	return 0
 }
 
 func accountHealthBaseURL(account *Account) string {

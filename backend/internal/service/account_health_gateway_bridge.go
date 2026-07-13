@@ -2,6 +2,20 @@ package service
 
 import "context"
 
+func BuildAccountHealthLatencySample(durationMs int64, firstTokenMs *int, responseHeaderMs int64) AccountHealthLatencySample {
+	sample := AccountHealthLatencySample{ObservedDurationMs: durationMs}
+	if firstTokenMs != nil && *firstTokenMs > 0 {
+		sample.SchedulerLatencyMs = int64(*firstTokenMs)
+		sample.Source = AccountHealthLatencySourceTTFT
+		return sample
+	}
+	if responseHeaderMs > 0 {
+		sample.SchedulerLatencyMs = responseHeaderMs
+		sample.Source = AccountHealthLatencySourceResponseHeaders
+	}
+	return sample
+}
+
 func (s *GatewayService) SetAccountHealthService(healthSvc *AccountHealthService) {
 	if s != nil {
 		s.accountHealthService = healthSvc
@@ -27,6 +41,13 @@ func (s *GatewayService) RecordAccountHealthSuccess(ctx context.Context, account
 		return
 	}
 	_ = s.accountHealthService.RecordSuccess(ctx, accountID, latencyMs)
+}
+
+func (s *GatewayService) RecordAccountHealthSuccessWithLatency(ctx context.Context, accountID int64, sample AccountHealthLatencySample) {
+	if s == nil || s.accountHealthService == nil || accountID <= 0 {
+		return
+	}
+	_ = s.accountHealthService.RecordSuccessWithLatency(ctx, accountID, sample)
 }
 
 func (s *GatewayService) loadAccountHealthSummaries(ctx context.Context, accounts []Account) map[int64]*AccountHealthSummary {
@@ -87,6 +108,13 @@ func (s *OpenAIGatewayService) RecordAccountHealthSuccess(ctx context.Context, a
 		return
 	}
 	_ = s.accountHealthService.RecordSuccess(ctx, accountID, latencyMs)
+}
+
+func (s *OpenAIGatewayService) RecordAccountHealthSuccessWithLatency(ctx context.Context, accountID int64, sample AccountHealthLatencySample) {
+	if s == nil || s.accountHealthService == nil || accountID <= 0 {
+		return
+	}
+	_ = s.accountHealthService.RecordSuccessWithLatency(ctx, accountID, sample)
 }
 
 func (s *OpenAIGatewayService) loadAccountHealthSummaries(ctx context.Context, accounts []Account) map[int64]*AccountHealthSummary {

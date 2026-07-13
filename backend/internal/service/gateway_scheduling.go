@@ -1585,9 +1585,11 @@ func shuffleAccountWithLoadRange(accounts []accountWithLoad, preferOAuth bool) {
 // 开启健康排序时，只允许同健康层且加权总分接近的账号组内打散，避免明显更优账号被随机冲掉。
 func sameAccountWithLoadGroup(a, b accountWithLoad, health map[int64]*AccountHealthSummary, cfg config.GatewaySchedulingConfig, costMedian float64) bool {
 	if cfg.HealthSortEnabled {
-		aScore, aLatency := accountHealthSortValueForScheduling(health, a.account.ID, cfg)
-		bScore, bLatency := accountHealthSortValueForScheduling(health, b.account.ID, cfg)
-		if accountScheduleTier(aScore, aLatency, cfg) != accountScheduleTier(bScore, bLatency, cfg) {
+		aScore, _ := accountHealthSortValueForScheduling(health, a.account.ID, cfg)
+		bScore, _ := accountHealthSortValueForScheduling(health, b.account.ID, cfg)
+		aHighLatency := AccountHealthConsecutiveHighLatency(health, a.account.ID)
+		bHighLatency := AccountHealthConsecutiveHighLatency(health, b.account.ID)
+		if accountScheduleTierWithHighLatency(aScore, aHighLatency, cfg) != accountScheduleTierWithHighLatency(bScore, bHighLatency, cfg) {
 			return false
 		}
 		diff := accountWithLoadScheduleWeightedScore(a, health, cfg, costMedian) - accountWithLoadScheduleWeightedScore(b, health, cfg, costMedian)

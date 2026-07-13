@@ -1708,6 +1708,36 @@ func (s *OpenAIGatewayService) selectAccountWithScheduler(
 	decision := OpenAIAccountScheduleDecision{}
 	scheduler := s.getOpenAIAccountScheduler(ctx)
 	if scheduler == nil {
+		trimmedPreviousResponseID := strings.TrimSpace(previousResponseID)
+		if trimmedPreviousResponseID != "" && platform == PlatformOpenAI {
+			selection, err := s.selectAccountByPreviousResponseIDForCapability(
+				ctx,
+				groupID,
+				trimmedPreviousResponseID,
+				requestedModel,
+				excludedIDs,
+				requiredCapability,
+				requireCompact,
+			)
+			if err != nil {
+				return nil, decision, err
+			}
+			if selection != nil && selection.Account != nil &&
+				s.isOpenAIAccountTransportCompatible(selection.Account, requiredTransport) &&
+				accountSupportsOpenAICapabilities(selection.Account, requiredCapability, requiredImageCapability) {
+				decision.Layer = openAIAccountScheduleLayerPreviousResponse
+				decision.StickyPreviousHit = true
+				decision.SelectedAccountID = selection.Account.ID
+				decision.SelectedAccountType = selection.Account.Type
+				if sessionHash != "" {
+					_ = s.BindStickySession(ctx, groupID, sessionHash, selection.Account.ID)
+				}
+				return selection, decision, nil
+			}
+			if selection != nil && selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+		}
 		decision.Layer = openAIAccountScheduleLayerLoadBalance
 		if requiredTransport == OpenAIUpstreamTransportAny || requiredTransport == OpenAIUpstreamTransportHTTPSSE {
 			effectiveExcludedIDs := cloneExcludedAccountIDs(excludedIDs)

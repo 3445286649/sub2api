@@ -648,6 +648,94 @@ func TestAccountHealthService_SkipsNoopRealRequestSuccessEventAtFullScore(t *tes
 	require.Equal(t, AccountHealthEventTypeSuccess, repo.events[0].EventType)
 }
 
+func TestAccountHealthService_RecordSuccessWithLatencySeparatesDurationFromSchedulerLatency(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 100, Status: AccountHealthStatusHealthy, CreatedAt: now, UpdatedAt: now},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordSuccessWithLatency(ctx, 1, AccountHealthLatencySample{
+		ObservedDurationMs: 60_000,
+		SchedulerLatencyMs: 5_000,
+		Source:             AccountHealthLatencySourceTTFT,
+	}))
+
+	state := repo.states[1]
+	require.NotNil(t, state.LatencyEWMAMs)
+	require.Equal(t, 60_000, *state.LatencyEWMAMs)
+	require.NotNil(t, state.SchedulerLatencyEWMAMs)
+	require.Equal(t, 5_000, *state.SchedulerLatencyEWMAMs)
+	require.Equal(t, AccountHealthLatencySourceTTFT, state.SchedulerLatencySource)
+	require.Zero(t, state.ConsecutiveHighLatency)
+}
+
+func TestBuildAccountHealthLatencySamplePrefersTTFTThenResponseHeaders(t *testing.T) {
+	ttft := 1_250
+	sample := BuildAccountHealthLatencySample(60_000, &ttft, 2_500)
+	require.Equal(t, int64(60_000), sample.ObservedDurationMs)
+	require.Equal(t, int64(1_250), sample.SchedulerLatencyMs)
+	require.Equal(t, AccountHealthLatencySourceTTFT, sample.Source)
+
+	sample = BuildAccountHealthLatencySample(60_000, nil, 2_500)
+	require.Equal(t, int64(2_500), sample.SchedulerLatencyMs)
+	require.Equal(t, AccountHealthLatencySourceResponseHeaders, sample.Source)
+
+	sample = BuildAccountHealthLatencySample(60_000, nil, 0)
+	require.Zero(t, sample.SchedulerLatencyMs)
+	require.Empty(t, sample.Source)
+}
+
+func TestAccountHealthService_RecordSuccessWithLatencyBoundsOutliersAndRequiresRepeatedHighSamples(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	initialSchedulerLatency := 5_000
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {ID: 1, Status: StatusActive, Schedulable: true, HealthProbeEnabled: true},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {
+			AccountID:              1,
+			Score:                  100,
+			Status:                 AccountHealthStatusHealthy,
+			SchedulerLatencyEWMAMs: &initialSchedulerLatency,
+			SchedulerLatencySource: AccountHealthLatencySourceTTFT,
+			ConsecutiveHighLatency: 0,
+			CreatedAt:              now,
+			UpdatedAt:              now,
+		},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordSuccessWithLatency(ctx, 1, AccountHealthLatencySample{
+		ObservedDurationMs: 90_000,
+		SchedulerLatencyMs: 90_000,
+		Source:             AccountHealthLatencySourceTTFT,
+	}))
+	require.Equal(t, 12_500, *repo.states[1].SchedulerLatencyEWMAMs)
+	require.Equal(t, 1, repo.states[1].ConsecutiveHighLatency)
+
+	require.NoError(t, svc.RecordSuccessWithLatency(ctx, 1, AccountHealthLatencySample{
+		ObservedDurationMs: 70_000,
+		SchedulerLatencyMs: 70_000,
+		Source:             AccountHealthLatencySourceTTFT,
+	}))
+	require.Equal(t, 17_750, *repo.states[1].SchedulerLatencyEWMAMs)
+	require.Equal(t, 2, repo.states[1].ConsecutiveHighLatency)
+
+	require.NoError(t, svc.RecordSuccessWithLatency(ctx, 1, AccountHealthLatencySample{
+		ObservedDurationMs: 40_000,
+		SchedulerLatencyMs: 4_000,
+		Source:             AccountHealthLatencySourceTTFT,
+	}))
+	require.Equal(t, 13_625, *repo.states[1].SchedulerLatencyEWMAMs)
+	require.Zero(t, repo.states[1].ConsecutiveHighLatency)
+}
+
 func TestAccountHealthService_RecordsRecoveryEvent(t *testing.T) {
 	ctx := context.Background()
 	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
@@ -1162,8 +1250,8 @@ func TestSortAccountPointersByHealthCostAndLRU_CostBeforeHealthThenLatency(t *te
 	latency2 := 100
 	health := map[int64]*AccountHealthSummary{
 		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 100}},
-		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 90, LatencyEWMAMs: &latency2}},
-		3: {AccountHealthState: AccountHealthState{AccountID: 3, Score: 90, LatencyEWMAMs: &latency3}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 90, SchedulerLatencyEWMAMs: &latency2}},
+		3: {AccountHealthState: AccountHealthState{AccountID: 3, Score: 90, SchedulerLatencyEWMAMs: &latency3}},
 	}
 
 	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
@@ -1218,8 +1306,8 @@ func TestSortAccountPointersByHealthCostAndLRU_WeightedScoreWithinSameTier(t *te
 		{ID: 2, RateMultiplier: &faster},
 	}
 	health := map[int64]*AccountHealthSummary{
-		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 100, LatencyEWMAMs: &slowLatency}},
-		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, LatencyEWMAMs: &fastLatency}},
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 100, SchedulerLatencyEWMAMs: &slowLatency}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, SchedulerLatencyEWMAMs: &fastLatency}},
 	}
 
 	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
@@ -1256,8 +1344,8 @@ func TestSortAccountWithLoadByHealthCostAndLoad_WeightedScoreIncludesLoad(t *tes
 	}
 	latency := 1800
 	health := map[int64]*AccountHealthSummary{
-		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 95, LatencyEWMAMs: &latency}},
-		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, LatencyEWMAMs: &latency}},
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 95, SchedulerLatencyEWMAMs: &latency}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, SchedulerLatencyEWMAMs: &latency}},
 	}
 
 	sortAccountWithLoadByHealthCostAndLoad(accounts, health, false, testHealthSortConfig())
@@ -1274,7 +1362,7 @@ func TestSortAccountPointersByHealthCostAndLRU_UnknownLatencyDoesNotWin(t *testi
 	}
 	health := map[int64]*AccountHealthSummary{
 		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 95}},
-		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, LatencyEWMAMs: &knownLatency}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, SchedulerLatencyEWMAMs: &knownLatency}},
 	}
 
 	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
@@ -1293,8 +1381,8 @@ func TestSortAccountPointersByHealthCostAndLRU_HighLatencyPenaltyWithinSameTier(
 		{ID: 2, RateMultiplier: &expensive},
 	}
 	health := map[int64]*AccountHealthSummary{
-		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 100, LatencyEWMAMs: &penalizedLatency}},
-		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 100, LatencyEWMAMs: &normalLatency}},
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 100, SchedulerLatencyEWMAMs: &penalizedLatency}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 100, SchedulerLatencyEWMAMs: &normalLatency}},
 	}
 
 	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
@@ -1313,14 +1401,16 @@ func TestSortAccountPointersByHealthCostAndLRU_ExtremeLatencyDowngradesTier(t *t
 		{ID: 2, RateMultiplier: &expensive},
 	}
 	health := map[int64]*AccountHealthSummary{
-		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 100, LatencyEWMAMs: &extremeLatency}},
-		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, LatencyEWMAMs: &normalLatency}},
+		1: {AccountHealthState: AccountHealthState{AccountID: 1, Score: 100, SchedulerLatencyEWMAMs: &extremeLatency, ConsecutiveHighLatency: 2}},
+		2: {AccountHealthState: AccountHealthState{AccountID: 2, Score: 95, SchedulerLatencyEWMAMs: &normalLatency}},
 	}
 
 	sortAccountPointersByHealthCostAndLRU(accounts, health, false, testHealthSortConfig())
 
 	require.Equal(t, []int64{2, 1}, []int64{accounts[0].ID, accounts[1].ID})
 	require.Equal(t, 1, accountScheduleTier(100, extremeLatency, testHealthSortConfig()))
+	require.Equal(t, 0, accountScheduleTierWithHighLatency(100, 1, testHealthSortConfig()))
+	require.Equal(t, 1, accountScheduleTierWithHighLatency(100, 2, testHealthSortConfig()))
 }
 
 func TestScheduleScoreNormalizersClampExtremes(t *testing.T) {

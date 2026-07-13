@@ -365,7 +365,7 @@
             </div>
           </template>
           <template #cell-latency_ewma_ms="{ row }">
-            <span class="text-sm text-gray-600 dark:text-gray-300">{{ formatLatencyMs(row.health?.latency_ewma_ms) }}</span>
+            <span class="text-sm text-gray-600 dark:text-gray-300">{{ formatLatencyMs(row.health?.scheduler_latency_ewma_ms) }}</span>
           </template>
           <template #cell-next_probe_at="{ row }">
             <span class="text-sm text-gray-500 dark:text-dark-400">{{ row.health?.next_probe_at ? formatDateTime(row.health.next_probe_at) : '-' }}</span>
@@ -603,7 +603,7 @@
                     <td class="min-w-0 overflow-hidden px-3 py-2 text-gray-600 dark:text-gray-300">
                       <span class="block truncate" :title="item.group_names?.join(', ') || '-'">{{ item.group_names?.join(', ') || '-' }}</span>
                     </td>
-                    <td class="whitespace-nowrap px-3 py-2 text-right font-mono text-gray-500 dark:text-gray-400">{{ formatLatencyMs(item.latency_ewma_ms) }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 text-right font-mono text-gray-500 dark:text-gray-400">{{ formatLatencyMs(item.scheduler_latency_ewma_ms) }}</td>
                     <td class="whitespace-nowrap px-3 py-2 text-right font-mono text-xs text-gray-500 dark:text-gray-400" :title="item.next_probe_at ? formatDateTime(item.next_probe_at) : '-'">{{ item.next_probe_at ? formatDateTime(item.next_probe_at) : '-' }}</td>
                     <td class="whitespace-nowrap px-3 py-2 text-right font-mono text-gray-700 dark:text-gray-300">{{ formatRateInput(item.rate_multiplier) }}x</td>
                   </tr>
@@ -633,7 +633,12 @@
           <div class="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
             <div>{{ t('admin.accounts.lastSuccess') }}: {{ healthDetailAccount.health?.last_success_at ? formatDateTime(healthDetailAccount.health.last_success_at) : '-' }}</div>
             <div>{{ t('admin.accounts.lastFailure') }}: {{ healthDetailAccount.health?.last_failure_at ? formatDateTime(healthDetailAccount.health.last_failure_at) : '-' }}</div>
-            <div>{{ t('admin.accounts.avgLatency') }}: {{ healthDetailAccount.health?.latency_ewma_ms ?? '-' }} ms</div>
+            <div>
+              {{ t('admin.accounts.avgLatency') }}: {{ healthDetailAccount.health?.scheduler_latency_ewma_ms ?? '-' }} ms
+              <span v-if="healthDetailAccount.health?.scheduler_latency_source" class="text-gray-400">
+                ({{ healthDetailAccount.health.scheduler_latency_source }})
+              </span>
+            </div>
           </div>
         </div>
         <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
@@ -1363,7 +1368,7 @@ const shouldReplaceAutoRefreshRow = (current: Account, next: Account) => {
     current.rate_multiplier !== next.rate_multiplier ||
     current.health?.score !== next.health?.score ||
     current.health?.status !== next.health?.status ||
-    current.health?.latency_ewma_ms !== next.health?.latency_ewma_ms ||
+    current.health?.scheduler_latency_ewma_ms !== next.health?.scheduler_latency_ewma_ms ||
     current.health?.next_probe_at !== next.health?.next_probe_at ||
     current.health_probe_enabled !== next.health_probe_enabled ||
     current.health_probe_interval_minutes !== next.health_probe_interval_minutes ||

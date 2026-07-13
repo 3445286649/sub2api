@@ -63,11 +63,13 @@ func (r *accountHealthRepository) Upsert(ctx context.Context, state *service.Acc
 		INSERT INTO account_health_states (
 			account_id, score, consecutive_successes, consecutive_failures, status,
 			last_success_at, last_failure_at, last_checked_at, last_error_category, last_error_message,
-			latency_ewma_ms, backoff_level, next_probe_at, isolated_at, created_at, updated_at
+			latency_ewma_ms, scheduler_latency_ewma_ms, scheduler_latency_source, consecutive_high_latency,
+			backoff_level, next_probe_at, isolated_at, created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8, $9, $10,
-			$11, $12, $13, $14, $15, $16
+			$11, $12, $13, $14,
+			$15, $16, $17, $18, $19
 		)
 		ON CONFLICT (account_id) DO UPDATE SET
 			score = EXCLUDED.score,
@@ -80,13 +82,17 @@ func (r *accountHealthRepository) Upsert(ctx context.Context, state *service.Acc
 			last_error_category = EXCLUDED.last_error_category,
 			last_error_message = EXCLUDED.last_error_message,
 			latency_ewma_ms = EXCLUDED.latency_ewma_ms,
+			scheduler_latency_ewma_ms = EXCLUDED.scheduler_latency_ewma_ms,
+			scheduler_latency_source = EXCLUDED.scheduler_latency_source,
+			consecutive_high_latency = EXCLUDED.consecutive_high_latency,
 			backoff_level = EXCLUDED.backoff_level,
 			next_probe_at = EXCLUDED.next_probe_at,
 			isolated_at = EXCLUDED.isolated_at,
 			updated_at = EXCLUDED.updated_at
 	`, state.AccountID, state.Score, state.ConsecutiveSuccesses, state.ConsecutiveFailures, state.Status,
 		accountHealthNullTime(state.LastSuccessAt), accountHealthNullTime(state.LastFailureAt), accountHealthNullTime(state.LastCheckedAt), accountHealthNullString(state.LastErrorCategory), accountHealthNullString(state.LastErrorMessage),
-		accountHealthNullInt(state.LatencyEWMAMs), state.BackoffLevel, accountHealthNullTime(state.NextProbeAt), accountHealthNullTime(state.IsolatedAt), state.CreatedAt, state.UpdatedAt)
+		accountHealthNullInt(state.LatencyEWMAMs), accountHealthNullInt(state.SchedulerLatencyEWMAMs), accountHealthNullString(state.SchedulerLatencySource), state.ConsecutiveHighLatency,
+		state.BackoffLevel, accountHealthNullTime(state.NextProbeAt), accountHealthNullTime(state.IsolatedAt), state.CreatedAt, state.UpdatedAt)
 	return err
 }
 
@@ -297,6 +303,9 @@ const accountHealthSelectSQL = `
 		account_health_states.last_error_category,
 		account_health_states.last_error_message,
 		account_health_states.latency_ewma_ms,
+		account_health_states.scheduler_latency_ewma_ms,
+		account_health_states.scheduler_latency_source,
+		account_health_states.consecutive_high_latency,
 		account_health_states.backoff_level,
 		account_health_states.next_probe_at,
 		account_health_states.isolated_at,
@@ -317,12 +326,13 @@ type accountHealthScanner interface {
 func scanAccountHealthState(scanner accountHealthScanner) (*service.AccountHealthState, error) {
 	var state service.AccountHealthState
 	var lastSuccess, lastFailure, lastChecked, nextProbe, isolated sql.NullTime
-	var lastCategory, lastMessage sql.NullString
-	var latency sql.NullInt64
+	var lastCategory, lastMessage, schedulerLatencySource sql.NullString
+	var latency, schedulerLatency sql.NullInt64
 	if err := scanner.Scan(
 		&state.AccountID, &state.Score, &state.ConsecutiveSuccesses, &state.ConsecutiveFailures, &state.Status,
 		&lastSuccess, &lastFailure, &lastChecked, &lastCategory, &lastMessage,
-		&latency, &state.BackoffLevel, &nextProbe, &isolated, &state.CreatedAt, &state.UpdatedAt,
+		&latency, &schedulerLatency, &schedulerLatencySource, &state.ConsecutiveHighLatency,
+		&state.BackoffLevel, &nextProbe, &isolated, &state.CreatedAt, &state.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -335,6 +345,11 @@ func scanAccountHealthState(scanner accountHealthScanner) (*service.AccountHealt
 		v := int(latency.Int64)
 		state.LatencyEWMAMs = &v
 	}
+	if schedulerLatency.Valid {
+		v := int(schedulerLatency.Int64)
+		state.SchedulerLatencyEWMAMs = &v
+	}
+	state.SchedulerLatencySource = schedulerLatencySource.String
 	state.NextProbeAt = ptrNullTime(nextProbe)
 	state.IsolatedAt = ptrNullTime(isolated)
 	return &state, nil

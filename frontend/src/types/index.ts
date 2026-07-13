@@ -1092,6 +1092,9 @@ export interface AccountHealthSummary {
   last_error_category?: string
   last_error_message?: string
   latency_ewma_ms?: number | null
+  scheduler_latency_ewma_ms?: number | null
+  scheduler_latency_source?: string | null
+  consecutive_high_latency?: number
   backoff_level: number
   next_probe_at?: string | null
   isolated_at?: string | null

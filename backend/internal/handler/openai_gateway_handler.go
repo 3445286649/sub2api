@@ -537,7 +537,12 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		}
 
 		// 捕获请求信息（用于异步记录，避免在 goroutine 中访问 gin.Context）
-		h.gatewayService.RecordAccountHealthSuccess(c.Request.Context(), account.ID, forwardDurationMs)
+		var firstTokenMs *int
+		if result != nil {
+			firstTokenMs = result.FirstTokenMs
+		}
+		h.gatewayService.RecordAccountHealthSuccessWithLatency(c.Request.Context(), account.ID,
+			service.BuildAccountHealthLatencySample(forwardDurationMs, firstTokenMs, upstreamLatencyMs))
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		requestPayloadHash := service.HashUsageRequestPayload(body)
@@ -1032,7 +1037,12 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, nil)
 		}
 
-		h.gatewayService.RecordAccountHealthSuccess(c.Request.Context(), account.ID, forwardDurationMs)
+		var firstTokenMs *int
+		if result != nil {
+			firstTokenMs = result.FirstTokenMs
+		}
+		h.gatewayService.RecordAccountHealthSuccessWithLatency(c.Request.Context(), account.ID,
+			service.BuildAccountHealthLatencySample(forwardDurationMs, firstTokenMs, upstreamLatencyMs))
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
 		requestPayloadHash := service.HashUsageRequestPayload(body)
@@ -1684,7 +1694,8 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					h.gatewayService.UpdateCodexUsageSnapshotFromHeaders(ctx, account.ID, result.ResponseHeaders)
 				}
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, result.FirstTokenMs)
-				h.gatewayService.RecordAccountHealthSuccess(ctx, account.ID, result.Duration.Milliseconds())
+				h.gatewayService.RecordAccountHealthSuccessWithLatency(ctx, account.ID,
+					service.BuildAccountHealthLatencySample(result.Duration.Milliseconds(), result.FirstTokenMs, 0))
 				inboundEndpoint := GetInboundEndpoint(c)
 				upstreamEndpoint := resolveOpenAIUpstreamEndpoint(c, account, result)
 				quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
