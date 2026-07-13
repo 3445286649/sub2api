@@ -256,11 +256,12 @@ func TestSettingHandler_UpdateSettings_PersistsPaymentVisibleMethodsAndAdvancedS
 	require.Equal(t, true, data["openai_advanced_scheduler_subscription_priority_enabled"])
 }
 
-func TestSettingHandler_UpdateSettings_PersistsBalanceRechargeBonusDisplay(t *testing.T) {
+func TestSettingHandler_UpdateThenGetSettings_PreservesBalanceRechargeBonusSettings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	repo := &settingHandlerRepoStub{
 		values: map[string]string{
-			service.SettingKeyPromoCodeEnabled: "true",
+			service.SettingKeyRegistrationEnabled: "true",
+			service.SettingKeyPromoCodeEnabled:    "true",
 		},
 	}
 	svc := service.NewSettingService(repo, &config.Config{Default: config.DefaultConfig{UserConcurrency: 5}})
@@ -269,6 +270,9 @@ func TestSettingHandler_UpdateSettings_PersistsBalanceRechargeBonusDisplay(t *te
 
 	rawBody, err := json.Marshal(map[string]any{
 		"payment_balance_recharge_bonus_display_enabled": true,
+		"payment_balance_recharge_bonus_enabled":         true,
+		"payment_balance_recharge_bonus_threshold":       100,
+		"payment_balance_recharge_bonus_percent":         5,
 	})
 	require.NoError(t, err)
 
@@ -281,12 +285,32 @@ func TestSettingHandler_UpdateSettings_PersistsBalanceRechargeBonusDisplay(t *te
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "true", repo.values[service.SettingBalanceRechargeBonusDisplay])
+	require.Equal(t, "true", repo.values[service.SettingBalanceRechargeBonusEnabled])
+	require.Equal(t, "100", repo.values[service.SettingBalanceRechargeBonusThreshold])
+	require.Equal(t, "5", repo.values[service.SettingBalanceRechargeBonusPercent])
 
 	var resp response.Response
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, true, data["payment_balance_recharge_bonus_display_enabled"])
+	require.Equal(t, true, data["payment_balance_recharge_bonus_enabled"])
+	require.Equal(t, float64(100), data["payment_balance_recharge_bonus_threshold"])
+	require.Equal(t, float64(5), data["payment_balance_recharge_bonus_percent"])
+
+	rec = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/settings", nil)
+	handler.GetSettings(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	data, ok = resp.Data.(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, true, data["payment_balance_recharge_bonus_display_enabled"])
+	require.Equal(t, true, data["payment_balance_recharge_bonus_enabled"])
+	require.Equal(t, float64(100), data["payment_balance_recharge_bonus_threshold"])
+	require.Equal(t, float64(5), data["payment_balance_recharge_bonus_percent"])
 }
 
 func TestSettingHandler_UpdateSettings_PreservesLegacyBlankPaymentVisibleMethodSource(t *testing.T) {
