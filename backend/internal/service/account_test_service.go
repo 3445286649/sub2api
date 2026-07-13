@@ -243,14 +243,28 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		}
 
 		baseURL := account.GetBaseURL()
+		if account.IsGrokAnthropicMessagesAPIKey() {
+			baseURL = account.GetGrokBaseURL()
+		}
 		if baseURL == "" {
 			baseURL = "https://api.anthropic.com"
 		}
-		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
+		var normalizedBaseURL string
+		var err error
+		if account.IsGrokAnthropicMessagesAPIKey() {
+			normalizedBaseURL, err = validateGrokThirdPartyAPIKeyBaseURL(baseURL)
+		} else {
+			normalizedBaseURL, err = s.validateUpstreamBaseURL(baseURL)
+		}
 		if err != nil {
 			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
 		}
-		apiURL = strings.TrimSuffix(normalizedBaseURL, "/") + "/v1/messages?beta=true"
+		if account.IsGrokAnthropicMessagesAPIKey() {
+			apiURL = buildGrokAnthropicMessagesURL(normalizedBaseURL)
+			ctx = withGrokThirdPartyPublicNetworkValidation(ctx, account)
+		} else {
+			apiURL = strings.TrimSuffix(normalizedBaseURL, "/") + "/v1/messages?beta=true"
+		}
 	} else {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Unsupported account type: %s", account.Type))
 	}
@@ -654,7 +668,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	return s.processOpenAIStream(c, resp.Body)
 }
 
-// testGrokAccountConnection tests a Grok OAuth account through xAI's Responses API.
+// testGrokAccountConnection tests Grok accounts through their configured upstream protocol.
 func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *Account, modelID string, prompt string) error {
 	ctx := c.Request.Context()
 
@@ -663,29 +677,23 @@ func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *
 		if testModelID == "" {
 			testModelID = "grok-4.5"
 		}
-		if account.IsGrokAnthropicMessagesAPIKey() {
+		switch account.GetGrokUpstreamProtocol() {
+		case GrokUpstreamProtocolAnthropicMessages:
 			return s.testClaudeAccountConnection(c, account, testModelID)
+		case GrokUpstreamProtocolOpenAIChatCompletions:
+			baseURL, err := validateGrokThirdPartyAPIKeyBaseURL(account.GetGrokBaseURL())
+			if err != nil {
+				return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid Grok base URL: %s", err.Error()))
+			}
+			apiKey := strings.TrimSpace(account.GetCredential("api_key"))
+			if apiKey == "" {
+				return s.sendErrorAndEnd(c, "No Grok API key available")
+			}
+			if mapped := strings.TrimSpace(account.GetMappedModel(testModelID)); mapped != "" {
+				testModelID = mapped
+			}
+			return s.testOpenAIChatCompletionsConnection(c, account, testModelID, prompt, baseURL, apiKey)
 		}
-		baseURL := account.GetGrokBaseURL()
-		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
-		if err != nil {
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid Grok base URL: %s", err.Error()))
-		}
-		apiKey := strings.TrimSpace(account.GetCredential("api_key"))
-		if apiKey == "" {
-			return s.sendErrorAndEnd(c, "No Grok API key available")
-		}
-		if mapped := strings.TrimSpace(account.GetMappedModel(testModelID)); mapped != "" {
-			testModelID = mapped
-		}
-		return s.testOpenAIChatCompletionsConnection(c, account, testModelID, prompt, normalizedBaseURL, apiKey)
-	}
-
-	if account.Type != AccountTypeOAuth {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Unsupported Grok account type: %s", account.Type))
-	}
-	if s.grokTokenProvider == nil {
-		return s.sendErrorAndEnd(c, "Grok token provider not configured")
 	}
 	if s.httpUpstream == nil {
 		return s.sendErrorAndEnd(c, "HTTP upstream not configured")
@@ -699,14 +707,40 @@ func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *
 		testModelID = mapped
 	}
 
-	authToken, err := s.grokTokenProvider.GetAccessToken(ctx, account)
-	if err != nil {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to get Grok access token: %s", err.Error()))
+	var authToken string
+	switch account.Type {
+	case AccountTypeOAuth:
+		if s.grokTokenProvider == nil {
+			return s.sendErrorAndEnd(c, "Grok token provider not configured")
+		}
+		var err error
+		authToken, err = s.grokTokenProvider.GetAccessToken(ctx, account)
+		if err != nil {
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to get Grok access token: %s", err.Error()))
+		}
+	case AccountTypeAPIKey:
+		authToken = strings.TrimSpace(account.GetCredential("api_key"))
+		if authToken == "" {
+			return s.sendErrorAndEnd(c, "Grok API key is missing")
+		}
+	default:
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Unsupported Grok account type: %s", account.Type))
 	}
 
-	apiURL, err := xai.BuildResponsesURL(account.GetGrokBaseURL())
-	if err != nil {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid Grok base URL: %s", err.Error()))
+	var apiURL string
+	var err error
+	if account.Type == AccountTypeAPIKey {
+		baseURL, validateErr := validateGrokThirdPartyAPIKeyBaseURL(account.GetGrokBaseURL())
+		if validateErr != nil {
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid Grok base URL: %s", validateErr.Error()))
+		}
+		apiURL = buildOpenAIResponsesURL(baseURL)
+		ctx = withGrokThirdPartyPublicNetworkValidation(ctx, account)
+	} else {
+		apiURL, err = xai.BuildResponsesURL(account.GetGrokBaseURL())
+		if err != nil {
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid Grok base URL: %s", err.Error()))
+		}
 	}
 
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
@@ -733,7 +767,7 @@ func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
 	req.Header.Set("Authorization", "Bearer "+authToken)
-	req.Header.Set("User-Agent", "sub2api-grok/1.0")
+	applyGrokCLIHeaders(req.Header)
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
@@ -746,10 +780,19 @@ func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if snapshot := xai.ParseQuotaHeaders(resp.Header, resp.StatusCode); snapshot != nil && s.accountRepo != nil {
+	now := time.Now()
+	snapshot := parseGrokQuotaSnapshot(resp.Header, resp.StatusCode, now)
+	if snapshot != nil && s.accountRepo != nil {
+		resetAt, limited := grokRateLimitResetAt(snapshot, now)
+		if limited {
+			normalizeGrokExhaustedWindowResets(snapshot, resetAt, now)
+		}
 		_ = s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{
 			grokQuotaSnapshotExtraKey: snapshot,
 		})
+		if limited {
+			persistGrokRateLimit(ctx, s.accountRepo, account, resetAt)
+		}
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -771,6 +814,7 @@ func (s *AccountTestService) testOpenAIChatCompletionsConnection(
 	authToken string,
 ) error {
 	ctx := c.Request.Context()
+	ctx = withGrokThirdPartyPublicNetworkValidation(ctx, account)
 	apiURL := buildOpenAIChatCompletionsURL(normalizedBaseURL)
 
 	c.Writer.Header().Set("Content-Type", "text/event-stream")

@@ -28,12 +28,26 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 	targetURL := claudeAPIURL
 	if account.Type == AccountTypeAPIKey {
 		baseURL := account.GetBaseURL()
+		if account.IsGrokAnthropicMessagesAPIKey() {
+			baseURL = account.GetGrokBaseURL()
+		}
 		if baseURL != "" {
-			validatedURL, err := s.validateUpstreamBaseURL(baseURL)
+			var validatedURL string
+			var err error
+			if account.IsGrokAnthropicMessagesAPIKey() {
+				validatedURL, err = validateGrokThirdPartyAPIKeyBaseURL(baseURL)
+			} else {
+				validatedURL, err = s.validateUpstreamBaseURL(baseURL)
+			}
 			if err != nil {
 				return nil, nil, err
 			}
-			targetURL = validatedURL + "/v1/messages?beta=true"
+			if account.IsGrokAnthropicMessagesAPIKey() {
+				targetURL = buildGrokAnthropicMessagesURL(validatedURL)
+				ctx = withGrokThirdPartyPublicNetworkValidation(ctx, account)
+			} else {
+				targetURL = validatedURL + "/v1/messages?beta=true"
+			}
 		}
 	} else if account.IsCustomBaseURLEnabled() {
 		customURL := account.GetCustomBaseURL()

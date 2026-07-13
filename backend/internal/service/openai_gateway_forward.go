@@ -50,8 +50,13 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 
 	if account.Platform == PlatformGrok {
 		_ = promptCacheKey
-		if account.Type == AccountTypeAPIKey && account.GetGrokUpstreamProtocol() == GrokUpstreamProtocolOpenAIChatCompletions {
-			return s.forwardResponsesViaRawChatCompletions(ctx, c, account, body)
+		if account.Type == AccountTypeAPIKey {
+			switch account.GetGrokUpstreamProtocol() {
+			case GrokUpstreamProtocolOpenAIChatCompletions:
+				return s.forwardResponsesViaRawChatCompletions(ctx, c, account, body)
+			case GrokUpstreamProtocolAnthropicMessages:
+				return s.forwardGrokResponsesViaAnthropicMessages(ctx, c, account, body)
+			}
 		}
 		return s.forwardGrokResponses(ctx, c, account, body, originalModel, reqStream, startTime)
 	}

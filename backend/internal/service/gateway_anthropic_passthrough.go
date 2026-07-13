@@ -25,6 +25,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func (s *GatewayService) resolveTLSProfile(account *Account) *tlsfingerprint.Profile {
+	if s == nil || s.tlsFPProfileService == nil {
+		return nil
+	}
+	return s.tlsFPProfileService.ResolveTLSProfile(account)
+}
+
 type anthropicPassthroughForwardInput struct {
 	Body          []byte
 	Parsed        *ParsedRequest
@@ -306,12 +313,26 @@ func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(
 ) (*http.Request, []byte, error) {
 	targetURL := claudeAPIURL
 	baseURL := account.GetBaseURL()
+	if account.IsGrokAnthropicMessagesAPIKey() {
+		baseURL = account.GetGrokBaseURL()
+	}
 	if baseURL != "" {
-		validatedURL, err := s.validateUpstreamBaseURL(baseURL)
+		var validatedURL string
+		var err error
+		if account.IsGrokAnthropicMessagesAPIKey() {
+			validatedURL, err = validateGrokThirdPartyAPIKeyBaseURL(baseURL)
+		} else {
+			validatedURL, err = s.validateUpstreamBaseURL(baseURL)
+		}
 		if err != nil {
 			return nil, nil, err
 		}
-		targetURL = validatedURL + "/v1/messages?beta=true"
+		if account.IsGrokAnthropicMessagesAPIKey() {
+			targetURL = buildGrokAnthropicMessagesURL(validatedURL)
+			ctx = withGrokThirdPartyPublicNetworkValidation(ctx, account)
+		} else {
+			targetURL = validatedURL + "/v1/messages?beta=true"
+		}
 	}
 
 	// 能力维度 body sanitize：透传路径上 anthropic-beta header 原样透传客户端值，

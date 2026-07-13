@@ -541,6 +541,46 @@ func TestOpenAIGatewayServiceRecordUsage_IncludesEndpointMetadata(t *testing.T) 
 	require.Equal(t, "/v1/responses", *usageRepo.lastLog.UpstreamEndpoint)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_GrokAnthropicPersistsCacheBucketsAndEndpoints(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, nil)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_grok_anthropic_usage",
+			Usage: OpenAIUsage{
+				InputTokens:              20,
+				OutputTokens:             7,
+				CacheCreationInputTokens: 3,
+				CacheReadInputTokens:     5,
+			},
+			Model:            "grok-4.5",
+			UpstreamEndpoint: grokAnthropicMessagesEndpoint,
+			Duration:         time.Second,
+		},
+		APIKey: &APIKey{ID: 1003, Group: &Group{RateMultiplier: 1}},
+		User:   &User{ID: 2003},
+		Account: &Account{
+			ID:       3003,
+			Platform: PlatformGrok,
+			Type:     AccountTypeAPIKey,
+		},
+		InboundEndpoint:  "/v1/responses",
+		UpstreamEndpoint: grokAnthropicMessagesEndpoint,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, 12, usageRepo.lastLog.InputTokens)
+	require.Equal(t, 7, usageRepo.lastLog.OutputTokens)
+	require.Equal(t, 3, usageRepo.lastLog.CacheCreationTokens)
+	require.Equal(t, 5, usageRepo.lastLog.CacheReadTokens)
+	require.Equal(t, "/v1/responses", *usageRepo.lastLog.InboundEndpoint)
+	require.Equal(t, grokAnthropicMessagesEndpoint, *usageRepo.lastLog.UpstreamEndpoint)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_FallsBackToGroupDefaultRateOnResolverError(t *testing.T) {
 	groupID := int64(12)
 	groupRate := 1.6

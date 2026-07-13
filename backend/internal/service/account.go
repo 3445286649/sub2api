@@ -6,6 +6,7 @@ import (
 	"errors"
 	"hash/fnv"
 	"log/slog"
+	"net/url"
 	"reflect"
 	"sort"
 	"strconv"
@@ -1262,10 +1263,37 @@ func (a *Account) GetGrokBaseURL() string {
 		return ""
 	}
 	baseURL := a.GetCredential("base_url")
+	if a.IsGrokOAuth() {
+		if strings.TrimSpace(baseURL) == "" || isOfficialGrokAPIBaseURL(baseURL) {
+			return xai.DefaultCLIBaseURL
+		}
+	}
 	if baseURL != "" {
 		return baseURL
 	}
 	return xai.DefaultBaseURL
+}
+
+func isOfficialGrokAPIBaseURL(raw string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed == nil || parsed.Opaque != "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return false
+	}
+	defaultURL, err := url.Parse(xai.DefaultBaseURL)
+	if err != nil {
+		return false
+	}
+	if !strings.EqualFold(parsed.Scheme, defaultURL.Scheme) || !strings.EqualFold(parsed.Hostname(), defaultURL.Hostname()) {
+		return false
+	}
+	if port := parsed.Port(); port != "" {
+		portNumber, err := strconv.Atoi(port)
+		if err != nil || portNumber != 443 {
+			return false
+		}
+	}
+	path := strings.TrimRight(parsed.Path, "/")
+	return path == "" || path == strings.TrimRight(defaultURL.Path, "/")
 }
 
 func (a *Account) GetGrokAccessToken() string {
@@ -1699,6 +1727,7 @@ func (a *Account) IsOpenAIOAuthPassthroughEnabled() bool {
 }
 
 const (
+	GrokUpstreamProtocolOpenAIResponses       = "openai_responses"
 	GrokUpstreamProtocolOpenAIChatCompletions = "openai_chat_completions"
 	GrokUpstreamProtocolAnthropicMessages     = "anthropic_messages"
 )
@@ -1706,14 +1735,18 @@ const (
 // GetGrokUpstreamProtocol returns the upstream wire protocol for third-party Grok API key accounts.
 func (a *Account) GetGrokUpstreamProtocol() string {
 	if a == nil || a.Platform != PlatformGrok || a.Type != AccountTypeAPIKey || a.Credentials == nil {
-		return GrokUpstreamProtocolOpenAIChatCompletions
+		return GrokUpstreamProtocolOpenAIResponses
 	}
 	protocol, _ := a.Credentials["grok_upstream_protocol"].(string)
 	switch strings.TrimSpace(protocol) {
+	case GrokUpstreamProtocolOpenAIResponses:
+		return GrokUpstreamProtocolOpenAIResponses
+	case GrokUpstreamProtocolOpenAIChatCompletions:
+		return GrokUpstreamProtocolOpenAIChatCompletions
 	case GrokUpstreamProtocolAnthropicMessages:
 		return GrokUpstreamProtocolAnthropicMessages
 	default:
-		return GrokUpstreamProtocolOpenAIChatCompletions
+		return GrokUpstreamProtocolOpenAIResponses
 	}
 }
 

@@ -568,7 +568,7 @@ export interface GrokProtocolProbeResult {
 
 export interface GrokProtocolProbeResponse {
   results: GrokProtocolProbeResult[]
-  recommended_protocol?: 'openai_chat_completions' | 'anthropic_messages' | ''
+  recommended_protocol?: 'openai_responses' | 'openai_chat_completions' | 'anthropic_messages' | ''
 }
 
 export async function probeGrokProtocols(
@@ -584,7 +584,7 @@ export interface SyncUpstreamPreviewParams {
   type: string
   base_url?: string
   api_key: string
-  grok_upstream_protocol?: 'openai_chat_completions' | 'anthropic_messages'
+  grok_upstream_protocol?: 'openai_responses' | 'openai_chat_completions' | 'anthropic_messages'
 }
 
 /**

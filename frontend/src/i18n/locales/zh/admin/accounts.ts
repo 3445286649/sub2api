@@ -709,6 +709,7 @@ export default {
         apiKeyHint: '第三方 Grok 渠道请填写渠道商提供的 API Key；OAuth 账号继续使用 refresh token。',
         upstreamProtocol: {
           label: '上游协议',
+          responses: 'OpenAI Responses（/v1/responses，默认）',
           openai: 'OpenAI-compatible（/v1/chat/completions）',
           anthropic: 'Anthropic-compatible（/v1/messages）',
           hint: '平台仍归类为 Grok；这里决定请求上游时使用哪种接口协议。',

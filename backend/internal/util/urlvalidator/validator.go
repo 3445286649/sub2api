@@ -17,6 +17,24 @@ type ValidationOptions struct {
 	AllowPrivate     bool
 }
 
+type requirePublicIPValidationKey struct{}
+
+// WithPublicIPValidation marks an outbound request as requiring resolved-IP
+// validation even when the global URL allowlist is disabled.
+func WithPublicIPValidation(ctx context.Context) context.Context {
+	return context.WithValue(ctx, requirePublicIPValidationKey{}, true)
+}
+
+// RequiresPublicIPValidation reports whether an outbound request must reject
+// loopback, private, link-local, and unspecified resolved addresses.
+func RequiresPublicIPValidation(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	required, _ := ctx.Value(requirePublicIPValidationKey{}).(bool)
+	return required
+}
+
 // ValidateHTTPURL validates an outbound HTTP/HTTPS URL.
 //
 // It provides a single validation entry point that supports:

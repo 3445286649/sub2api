@@ -194,7 +194,7 @@ func (s *AccountTestService) buildAnthropicUpstreamModelsRequest(ctx context.Con
 		)
 	}
 
-	normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
+	normalizedBaseURL, err := validateGrokThirdPartyAPIKeyBaseURL(baseURL)
 	if err != nil {
 		return nil, newUpstreamModelSyncConfigError("Invalid Anthropic base URL", err)
 	}
@@ -278,6 +278,7 @@ func (s *AccountTestService) buildGrokOpenAICompatibleUpstreamModelsRequest(ctx 
 		return nil, newUpstreamModelSyncConfigError("Invalid Grok base URL", err)
 	}
 
+	ctx = withGrokThirdPartyPublicNetworkValidation(ctx, account)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, buildOpenAIModelsURL(normalizedBaseURL), nil)
 	if err != nil {
 		return nil, newUpstreamModelSyncConfigError("Invalid Grok model list URL", err)

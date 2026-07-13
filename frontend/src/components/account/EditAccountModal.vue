@@ -41,10 +41,12 @@
                   ? 'https://generativelanguage.googleapis.com'
                   : account.platform === 'antigravity'
                     ? 'https://cloudcode-pa.googleapis.com'
-                    : 'https://api.anthropic.com'
+                    : account.platform === 'grok'
+                      ? 'https://api.x.ai/v1'
+                      : 'https://api.anthropic.com'
             "
           />
-          <p class="input-hint">{{ baseUrlHint }}</p>
+          <p v-if="baseUrlHint" class="input-hint">{{ baseUrlHint }}</p>
         </div>
         <div>
           <label class="input-label">{{ t('admin.accounts.apiKey') }}</label>
@@ -63,7 +65,9 @@
                   ? 'AIza...'
                   : account.platform === 'antigravity'
                     ? 'sk-...'
-                    : 'sk-ant-...'
+                    : account.platform === 'grok'
+                      ? 'xai-...'
+                      : 'sk-ant-...'
             "
           />
           <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
@@ -1673,6 +1677,7 @@
           </div>
           <div class="flex flex-col items-end gap-2">
             <select v-model="grokUpstreamProtocol" class="input w-64 text-sm">
+              <option value="openai_responses">{{ t('admin.accounts.grok.upstreamProtocol.responses') }}</option>
               <option value="openai_chat_completions">{{ t('admin.accounts.grok.upstreamProtocol.openai') }}</option>
               <option value="anthropic_messages">{{ t('admin.accounts.grok.upstreamProtocol.anthropic') }}</option>
             </select>
@@ -2676,6 +2681,7 @@ const baseUrlHint = computed(() => {
   if (!props.account) return t('admin.accounts.baseUrlHint')
   if (props.account.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
   if (props.account.platform === 'gemini') return t('admin.accounts.gemini.baseUrlHint')
+  if (props.account.platform === 'grok') return ''
   return t('admin.accounts.baseUrlHint')
 })
 
@@ -2851,8 +2857,8 @@ const codexImageToolMode = ref<CodexImageToolMode>('inherit')
 type AnthropicAPIKeyAuthScheme = 'x_api_key' | 'authorization_bearer'
 const anthropicPassthroughEnabled = ref(false)
 const anthropicAPIKeyAuthScheme = ref<AnthropicAPIKeyAuthScheme>('x_api_key')
-type GrokUpstreamProtocol = 'openai_chat_completions' | 'anthropic_messages'
-const grokUpstreamProtocol = ref<GrokUpstreamProtocol>('openai_chat_completions')
+type GrokUpstreamProtocol = 'openai_responses' | 'openai_chat_completions' | 'anthropic_messages'
+const grokUpstreamProtocol = ref<GrokUpstreamProtocol>('openai_responses')
 type GrokProbeStatus = 'supported' | 'unsupported' | 'unknown'
 type GrokProtocolProbeResult = {
   protocol: 'openai_chat_completions' | 'anthropic_messages' | 'openai_responses'
@@ -2894,6 +2900,9 @@ watch(grokProtocolProbeModelOptions, (options) => {
 })
 
 const grokProtocolProbeRecommendedLabel = computed(() => {
+  if (grokProtocolProbeRecommended.value === 'openai_responses') {
+    return t('admin.accounts.grok.upstreamProtocol.responses')
+  }
   if (grokProtocolProbeRecommended.value === 'anthropic_messages') {
     return t('admin.accounts.grok.upstreamProtocol.anthropic')
   }
@@ -3176,6 +3185,7 @@ const tempUnschedPresets = computed(() => [
 const defaultBaseUrl = computed(() => {
   if (props.account?.platform === 'openai') return 'https://api.openai.com'
   if (props.account?.platform === 'gemini') return 'https://generativelanguage.googleapis.com'
+  if (props.account?.platform === 'grok') return 'https://api.x.ai/v1'
   return 'https://api.anthropic.com'
 })
 
@@ -3375,9 +3385,10 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   }
   if (newAccount.platform === 'grok' && newAccount.type === 'apikey') {
     const credentials = newAccount.credentials as Record<string, unknown> | undefined
-    grokUpstreamProtocol.value = credentials?.grok_upstream_protocol === 'anthropic_messages'
-      ? 'anthropic_messages'
-      : 'openai_chat_completions'
+    const storedProtocol = credentials?.grok_upstream_protocol
+    grokUpstreamProtocol.value = storedProtocol === 'anthropic_messages' || storedProtocol === 'openai_chat_completions'
+      ? storedProtocol
+      : 'openai_responses'
     grokProtocolProbeModel.value = firstConfiguredProbeModel.value
     grokProtocolProbeResults.value = []
     grokProtocolProbeRecommended.value = ''
@@ -3478,7 +3489,9 @@ const syncFormFromAccount = (newAccount: Account | null) => {
         ? 'https://api.openai.com'
         : newAccount.platform === 'gemini'
           ? 'https://generativelanguage.googleapis.com'
-          : 'https://api.anthropic.com'
+          : newAccount.platform === 'grok'
+            ? 'https://api.x.ai/v1'
+            : 'https://api.anthropic.com'
     editBaseUrl.value = (credentials.base_url as string) || platformDefaultUrl
 
     // Load model mappings and detect mode
@@ -3554,7 +3567,9 @@ const syncFormFromAccount = (newAccount: Account | null) => {
         ? 'https://api.openai.com'
         : newAccount.platform === 'gemini'
           ? 'https://generativelanguage.googleapis.com'
-          : 'https://api.anthropic.com'
+          : newAccount.platform === 'grok'
+            ? 'https://api.x.ai/v1'
+            : 'https://api.anthropic.com'
     editBaseUrl.value = platformDefaultUrl
 
     // Load model mappings for OpenAI/Grok OAuth accounts

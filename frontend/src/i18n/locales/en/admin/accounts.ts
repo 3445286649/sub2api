@@ -611,9 +611,24 @@ export default {
         apiKeyHint: 'For third-party Grok channels, enter the API key provided by the upstream vendor; OAuth accounts still use refresh tokens.',
         upstreamProtocol: {
           label: 'Upstream protocol',
+          responses: 'OpenAI Responses (/v1/responses, default)',
           openai: 'OpenAI-compatible (/v1/chat/completions)',
           anthropic: 'Anthropic-compatible (/v1/messages)',
-          hint: 'The account is still grouped as Grok; this controls which API protocol is used upstream.'
+          hint: 'The account is still grouped as Grok; this controls which API protocol is used upstream.',
+          probe: 'Auto-detect',
+          probeModelPlaceholder: 'Probe model, for example grok-4.5-high',
+          probing: 'Detecting...',
+          applyRecommended: 'Apply recommendation',
+          statusSupported: 'Supported',
+          statusUnsupported: 'Unsupported',
+          statusUnknown: 'Unknown',
+          recommended: 'Recommended: {protocol}. Save the account after applying the recommendation.',
+          noRecommended: 'No recommendation can be applied automatically. Select a protocol based on the results above.',
+          probeSuccess: 'Grok protocol detection completed and produced a recommendation',
+          probeNoRecommendation: 'Grok protocol detection completed without an applicable recommendation',
+          probeFailed: 'Grok protocol detection failed',
+          probeError: 'Grok protocol detection failed: {message}',
+          appliedRecommended: 'Recommended protocol applied. Save the account to make it effective.'
         }
       },
       anthropic: {

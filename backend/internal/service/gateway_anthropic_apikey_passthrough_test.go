@@ -770,7 +770,27 @@ func TestGatewayService_GrokAnthropicMessagesAPIKeyPassthrough_BuildRequest(t *t
 	require.Equal(t, "grok-key", getHeaderRaw(req.Header, "x-api-key"))
 }
 
-func TestGrokUpstreamProtocolDefaultsToOpenAICompatible(t *testing.T) {
+func TestGatewayService_GrokAnthropicMessagesAPIKeyPassthrough_DefaultsToGrokBaseURL(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	account := &Account{
+		Platform: PlatformGrok,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":                "grok-key",
+			"grok_upstream_protocol": GrokUpstreamProtocolAnthropicMessages,
+		},
+	}
+	svc := &GatewayService{}
+	req, _, err := svc.buildUpstreamRequestAnthropicAPIKeyPassthrough(context.Background(), c, account, []byte(`{"model":"grok-4.5","messages":[]}`), "grok-key")
+	require.NoError(t, err)
+	require.Equal(t, "https://api.x.ai/v1/messages?beta=true", req.URL.String())
+}
+
+func TestGrokUpstreamProtocolDefaultsToOpenAIResponses(t *testing.T) {
 	account := &Account{
 		Platform: PlatformGrok,
 		Type:     AccountTypeAPIKey,
@@ -780,7 +800,7 @@ func TestGrokUpstreamProtocolDefaultsToOpenAICompatible(t *testing.T) {
 		},
 	}
 
-	require.Equal(t, GrokUpstreamProtocolOpenAIChatCompletions, account.GetGrokUpstreamProtocol())
+	require.Equal(t, GrokUpstreamProtocolOpenAIResponses, account.GetGrokUpstreamProtocol())
 	require.False(t, account.IsGrokAnthropicMessagesAPIKey())
 	require.False(t, account.IsAnthropicAPIKeyPassthroughEnabled())
 }

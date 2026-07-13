@@ -106,6 +106,9 @@ func TestGrokAPIKeyChatCompletionsTargetURLRejectsUnsafeBaseURL(t *testing.T) {
 		"https://localhost/v1",
 		"https://127.0.0.1/v1",
 		"https://10.0.0.1/v1",
+		"https://user:pass@vendor.example/v1",
+		"https://vendor.example/v1?target=internal",
+		"https://vendor.example/v1#fragment",
 		"file:///tmp/upstream",
 	} {
 		t.Run(baseURL, func(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
+	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 )
 
 const (
@@ -54,7 +55,7 @@ func (s *AccountTestService) ProbeGrokProtocols(ctx context.Context, account *Ac
 		return nil, errors.New("upstream HTTP client is not configured")
 	}
 
-	baseURL, err := s.validateUpstreamBaseURL(account.GetGrokBaseURL())
+	baseURL, err := validateGrokThirdPartyAPIKeyBaseURL(account.GetGrokBaseURL())
 	if err != nil {
 		return nil, fmt.Errorf("invalid Grok base URL: %w", err)
 	}
@@ -165,7 +166,7 @@ func (s *AccountTestService) ProbeGrokProtocols(ctx context.Context, account *Ac
 			results = append(results, result)
 			continue
 		}
-		result.Status, result.Supported, result.Message = classifyGrokProtocolProbeResponse(resp.StatusCode, body)
+		result.Status, result.Supported, result.Message = classifyGrokProtocolProbeResponse(probe.protocol, resp.StatusCode, body)
 		results = append(results, result)
 	}
 
@@ -196,6 +197,7 @@ func resolveGrokProtocolProbeModel(account *Account, requested string) string {
 }
 
 func newJSONProbeRequest(ctx context.Context, url string, payload map[string]any) (*http.Request, error) {
+	ctx = urlvalidator.WithPublicIPValidation(ctx)
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
@@ -224,9 +226,12 @@ func readLimitedProbeBody(body io.Reader) ([]byte, error) {
 	return b, nil
 }
 
-func classifyGrokProtocolProbeResponse(statusCode int, body []byte) (status string, supported bool, message string) {
+func classifyGrokProtocolProbeResponse(protocol string, statusCode int, body []byte) (status string, supported bool, message string) {
 	msg := sanitizeGrokProbeMessage(body)
 	if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
+		if !isValidGrokProtocolProbeBody(protocol, body) {
+			return GrokProbeStatusUnknown, false, "HTTP success response did not match the expected protocol structure"
+		}
 		return GrokProbeStatusSupported, true, "protocol responded successfully"
 	}
 	if isGrokProtocolProbeUnsupported(statusCode, msg) {
@@ -239,6 +244,47 @@ func classifyGrokProtocolProbeResponse(statusCode int, body []byte) (status stri
 		msg = fmt.Sprintf("upstream returned HTTP %d", statusCode)
 	}
 	return GrokProbeStatusUnknown, false, msg
+}
+
+func isValidGrokProtocolProbeBody(protocol string, body []byte) bool {
+	if isValidGrokProtocolProbeJSON(protocol, body) {
+		return true
+	}
+	for _, line := range strings.Split(string(body), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		payload := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if payload != "" && payload != "[DONE]" && isValidGrokProtocolProbeJSON(protocol, []byte(payload)) {
+			return true
+		}
+	}
+	return false
+}
+
+func isValidGrokProtocolProbeJSON(protocol string, body []byte) bool {
+	var value map[string]any
+	if err := json.Unmarshal(body, &value); err != nil {
+		return false
+	}
+	switch protocol {
+	case GrokProbeProtocolOpenAIChatCompletions:
+		_, hasChoices := value["choices"].([]any)
+		object, _ := value["object"].(string)
+		return hasChoices || strings.HasPrefix(object, "chat.completion")
+	case GrokProbeProtocolAnthropicMessages:
+		_, hasContent := value["content"].([]any)
+		typeName, _ := value["type"].(string)
+		return hasContent || typeName == "message" || strings.HasPrefix(typeName, "content_block_") || strings.HasPrefix(typeName, "message_")
+	case GrokProbeProtocolOpenAIResponses:
+		_, hasOutput := value["output"].([]any)
+		object, _ := value["object"].(string)
+		typeName, _ := value["type"].(string)
+		return hasOutput || object == "response" || strings.HasPrefix(typeName, "response.")
+	default:
+		return false
+	}
 }
 
 func isGrokProtocolProbeUnsupported(statusCode int, message string) bool {
@@ -310,6 +356,11 @@ func extractJSONErrorMessage(value map[string]any) string {
 }
 
 func recommendedGrokProtocol(results []GrokProtocolProbeResult) string {
+	for _, result := range results {
+		if result.Protocol == GrokProbeProtocolOpenAIResponses && result.Supported {
+			return GrokUpstreamProtocolOpenAIResponses
+		}
+	}
 	for _, result := range results {
 		if result.Protocol == GrokProbeProtocolOpenAIChatCompletions && result.Supported {
 			return GrokUpstreamProtocolOpenAIChatCompletions
