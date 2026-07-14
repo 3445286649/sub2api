@@ -101,9 +101,11 @@ func ProvideAdminAccountHandler(
 	tokenCacheInvalidator service.TokenCacheInvalidator,
 	accountHealthService *service.AccountHealthService,
 	accountUpstreamBalanceService *service.AccountUpstreamBalanceService,
+	grokQuotaService *service.GrokQuotaService,
 ) *admin.AccountHandler {
 	h := admin.NewAccountHandler(adminService, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, rateLimitService, accountUsageService, accountTestService, concurrencyService, crsSyncService, sessionLimitCache, rpmCache, tokenCacheInvalidator, accountHealthService)
 	h.SetAccountUpstreamBalanceService(accountUpstreamBalanceService)
+	h.SetGrokImportProber(grokQuotaService)
 	return h
 }
 

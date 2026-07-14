@@ -81,6 +81,7 @@ type openAICaptureHandler struct {
 	callCount                 int
 	emptyResponseUntil        int
 	errorBody                 string
+	rawResponse               string
 	responsesLeadingReasoning bool
 }
 
@@ -107,6 +108,10 @@ func (h *openAICaptureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 	w.WriteHeader(status)
 
+	if h.rawResponse != "" {
+		_, _ = w.Write([]byte(h.rawResponse))
+		return
+	}
 	if status < 200 || status >= 300 {
 		if h.errorBody != "" {
 			_, _ = w.Write([]byte(h.errorBody))
@@ -244,6 +249,124 @@ func TestRunCheckForModel_OpenAI_DefaultChatRequest(t *testing.T) {
 	}
 	if h.lastHeaders.Get("Authorization") != "Bearer sk-openai" {
 		t.Errorf("expected bearer auth header, got %q", h.lastHeaders.Get("Authorization"))
+	}
+}
+
+func TestGrokMonitorConfiguration(t *testing.T) {
+	if err := validateProvider(MonitorProviderGrok); err != nil {
+		t.Fatalf("grok provider should be supported: %v", err)
+	}
+	if got := normalizeMonitorPrimaryModel(MonitorProviderGrok, ""); got != MonitorDefaultGrokModel {
+		t.Fatalf("expected default Grok model %q, got %q", MonitorDefaultGrokModel, got)
+	}
+	if err := validateAPIMode(MonitorProviderGrok, MonitorAPIModeChatCompletions); err != nil {
+		t.Fatalf("grok chat_completions mode should be valid: %v", err)
+	}
+	if err := validateAPIMode(MonitorProviderGrok, MonitorAPIModeResponses); err != nil {
+		t.Fatalf("grok responses mode should be valid: %v", err)
+	}
+	if err := validateReplaceRequestBody(MonitorProviderGrok, MonitorAPIModeChatCompletions, map[string]any{}); err == nil {
+		t.Fatal("grok replace-mode body should require messages")
+	}
+}
+
+func TestRunCheckForModel_Grok_DefaultChatRequest(t *testing.T) {
+	h := &openAICaptureHandler{}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderGrok, endpoint, "xai-key", MonitorDefaultGrokModel, nil)
+
+	if res.Status != MonitorStatusOperational {
+		t.Fatalf("Grok request should pass challenge, got status=%s message=%q", res.Status, res.Message)
+	}
+	if res.LatencyMs == nil {
+		t.Fatal("Grok request should record latency")
+	}
+	if h.lastPath != providerGrokPath {
+		t.Fatalf("expected Grok chat completions path %q, got %q", providerGrokPath, h.lastPath)
+	}
+	if h.lastBody["model"] != MonitorDefaultGrokModel {
+		t.Errorf("Grok body should contain model=%s, got %v", MonitorDefaultGrokModel, h.lastBody["model"])
+	}
+	if _, ok := h.lastBody["messages"]; !ok {
+		t.Error("Grok body should contain messages")
+	}
+	if h.lastBody["stream"] != false {
+		t.Errorf("Grok body should set stream=false, got %v", h.lastBody["stream"])
+	}
+	if h.lastHeaders.Get("Authorization") != "Bearer xai-key" {
+		t.Errorf("expected Grok bearer auth header, got %q", h.lastHeaders.Get("Authorization"))
+	}
+}
+
+func TestRunCheckForModel_Grok_DefaultResponsesRequest(t *testing.T) {
+	h := &openAICaptureHandler{}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderGrok, endpoint, "xai-key", MonitorDefaultGrokModel, &CheckOptions{
+		APIMode: MonitorAPIModeResponses,
+	})
+
+	if res.Status != MonitorStatusOperational {
+		t.Fatalf("Grok responses request should pass challenge, got status=%s message=%q", res.Status, res.Message)
+	}
+	if h.lastPath != providerOpenAIResponsesPath {
+		t.Fatalf("expected Grok responses path %q, got %q", providerOpenAIResponsesPath, h.lastPath)
+	}
+	if h.lastBody["model"] != MonitorDefaultGrokModel {
+		t.Errorf("Grok responses body should contain model=%s, got %v", MonitorDefaultGrokModel, h.lastBody["model"])
+	}
+	if _, ok := h.lastBody["input"]; !ok {
+		t.Error("Grok responses body should contain input")
+	}
+	if _, ok := h.lastBody["instructions"]; !ok {
+		t.Error("Grok responses body should contain instructions")
+	}
+	if _, ok := h.lastBody["messages"]; ok {
+		t.Error("Grok responses body must not contain chat messages")
+	}
+	if h.lastBody["stream"] != false {
+		t.Errorf("Grok responses body should set stream=false, got %v", h.lastBody["stream"])
+	}
+	if h.lastHeaders.Get("Authorization") != "Bearer xai-key" {
+		t.Errorf("expected Grok bearer auth header, got %q", h.lastHeaders.Get("Authorization"))
+	}
+}
+
+func TestRunCheckForModel_Grok_UpstreamFailure(t *testing.T) {
+	h := &openAICaptureHandler{status: http.StatusTooManyRequests}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderGrok, endpoint, "xai-key", MonitorDefaultGrokModel, nil)
+
+	if res.Status != MonitorStatusError {
+		t.Fatalf("Grok 429 should be recorded as error, got status=%s message=%q", res.Status, res.Message)
+	}
+	if !strings.Contains(res.Message, "upstream HTTP 429") {
+		t.Fatalf("Grok failure should preserve upstream status, got %q", res.Message)
+	}
+	if res.LatencyMs == nil {
+		t.Fatal("Grok failure should still record latency")
+	}
+}
+
+func TestRunCheckForModel_Grok_RedactsXAIKeyFromUpstreamBody(t *testing.T) {
+	h := &openAICaptureHandler{
+		status:      http.StatusUnauthorized,
+		rawResponse: `{"error":{"message":"invalid API key xai-secret"}}`,
+	}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderGrok, endpoint, "request-key", MonitorDefaultGrokModel, nil)
+
+	if res.Status != MonitorStatusError {
+		t.Fatalf("Grok upstream failure should be recorded as error, got %s", res.Status)
+	}
+	if strings.Contains(res.Message, "xai-secret") {
+		t.Fatalf("Grok error message leaked xAI key: %q", res.Message)
+	}
+	if !strings.Contains(res.Message, "xai-***REDACTED***") {
+		t.Fatalf("Grok error message should contain redaction marker, got %q", res.Message)
 	}
 }
 

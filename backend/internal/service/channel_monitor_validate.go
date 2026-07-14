@@ -19,14 +19,14 @@ func validateProvider(p string) error {
 }
 
 // validateAPIMode 校验 provider 与 api_mode 的组合。
-// responses 只对 OpenAI 有意义；其它 provider 使用 chat_completions 作为默认占位。
+// responses 适用于 OpenAI 及其兼容的 Grok 渠道；其它 provider 使用 chat_completions。
 func validateAPIMode(provider, apiMode string) error {
 	apiMode = defaultAPIMode(apiMode)
 	switch apiMode {
 	case MonitorAPIModeChatCompletions:
 		return nil
 	case MonitorAPIModeResponses:
-		if provider == "" || provider == MonitorProviderOpenAI {
+		if provider == "" || provider == MonitorProviderOpenAI || provider == MonitorProviderGrok {
 			return nil
 		}
 		return ErrChannelMonitorInvalidAPIMode
@@ -122,6 +122,16 @@ func normalizeModels(in []string) []string {
 		out = append(out, m)
 	}
 	return out
+}
+
+// normalizeMonitorPrimaryModel applies the Grok health-check default while
+// preserving the existing required-model behavior for every other provider.
+func normalizeMonitorPrimaryModel(provider, model string) string {
+	model = strings.TrimSpace(model)
+	if model == "" && provider == MonitorProviderGrok {
+		return MonitorDefaultGrokModel
+	}
+	return model
 }
 
 // defaultAPIMode 空串归一为 chat_completions，保证历史数据与旧客户端兼容。
