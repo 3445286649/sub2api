@@ -16,6 +16,7 @@
 
 - [🚀 新用户 3 分钟速通](/quick-start)
 - [🔑 API Key 创建与安全](/api-key)
+- [💳 Sub2API 余额悬浮窗使用教程](/balance-float)
 - [🔄 CCSwitch 接入](/ccswitch)
 - [💻 Codex 接入](/codex)
 - [🎨 Codex 生图 Skill 接入](/codex-imagegen2)
@@ -53,6 +54,8 @@
 </div>
 
 ## 最后更新时间
+
+2026-07-14：新增 Sub2API 余额悬浮窗 v0.1.0 使用教程和 Windows、macOS 下载入口。
 
 2026-07-12：新增售后群一群、二群二维码。
 

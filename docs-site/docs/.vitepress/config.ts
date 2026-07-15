@@ -10,6 +10,7 @@ export default defineConfig({
     nav: [
       { text: '一页速通', link: '/quick-start' },
       { text: 'API Key', link: '/api-key' },
+      { text: '余额悬浮窗', link: '/balance-float' },
       { text: '排障', link: '/troubleshooting' }
     ],
     sidebar: [
@@ -18,6 +19,7 @@ export default defineConfig({
         items: [
           { text: '🚀 新用户 3 分钟速通', link: '/quick-start' },
           { text: '🔑 API Key 创建与安全', link: '/api-key' },
+          { text: '💳 余额悬浮窗使用教程', link: '/balance-float' },
           { text: '🧭 模型与分组怎么选', link: '/models-and-groups' },
           { text: '💳 计费、余额与使用记录', link: '/billing' }
         ]
