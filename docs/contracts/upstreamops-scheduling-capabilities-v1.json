@@ -1,0 +1,19 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "contract_version": "2026-07-15",
+    "external_holds": true,
+    "external_hold_owner": "upstreamops",
+    "default_lease_seconds": 900,
+    "minimum_lease_seconds": 60,
+    "maximum_lease_seconds": 3600,
+    "maximum_cumulative_lease_seconds": 14400,
+    "capacity_guard": true,
+    "optimistic_concurrency": true,
+    "idempotency": true,
+    "lease_expiry": true,
+    "probe_while_held": true,
+    "scheduler_outbox": true
+  }
+}

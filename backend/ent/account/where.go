@@ -200,6 +200,11 @@ func TempUnschedulableUntil(v time.Time) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldTempUnschedulableUntil, v))
 }
 
+// ExternalSchedulingHoldUntil applies equality check predicate on the "external_scheduling_hold_until" field. It's identical to ExternalSchedulingHoldUntilEQ.
+func ExternalSchedulingHoldUntil(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldExternalSchedulingHoldUntil, v))
+}
+
 // TempUnschedulableReason applies equality check predicate on the "temp_unschedulable_reason" field. It's identical to TempUnschedulableReasonEQ.
 func TempUnschedulableReason(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldTempUnschedulableReason, v))
@@ -1578,6 +1583,56 @@ func TempUnschedulableUntilIsNil() predicate.Account {
 // TempUnschedulableUntilNotNil applies the NotNil predicate on the "temp_unschedulable_until" field.
 func TempUnschedulableUntilNotNil() predicate.Account {
 	return predicate.Account(sql.FieldNotNull(FieldTempUnschedulableUntil))
+}
+
+// ExternalSchedulingHoldUntilEQ applies the EQ predicate on the "external_scheduling_hold_until" field.
+func ExternalSchedulingHoldUntilEQ(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldExternalSchedulingHoldUntil, v))
+}
+
+// ExternalSchedulingHoldUntilNEQ applies the NEQ predicate on the "external_scheduling_hold_until" field.
+func ExternalSchedulingHoldUntilNEQ(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldExternalSchedulingHoldUntil, v))
+}
+
+// ExternalSchedulingHoldUntilIn applies the In predicate on the "external_scheduling_hold_until" field.
+func ExternalSchedulingHoldUntilIn(vs ...time.Time) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldExternalSchedulingHoldUntil, vs...))
+}
+
+// ExternalSchedulingHoldUntilNotIn applies the NotIn predicate on the "external_scheduling_hold_until" field.
+func ExternalSchedulingHoldUntilNotIn(vs ...time.Time) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldExternalSchedulingHoldUntil, vs...))
+}
+
+// ExternalSchedulingHoldUntilGT applies the GT predicate on the "external_scheduling_hold_until" field.
+func ExternalSchedulingHoldUntilGT(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldExternalSchedulingHoldUntil, v))
+}
+
+// ExternalSchedulingHoldUntilGTE applies the GTE predicate on the "external_scheduling_hold_until" field.
+func ExternalSchedulingHoldUntilGTE(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldExternalSchedulingHoldUntil, v))
+}
+
+// ExternalSchedulingHoldUntilLT applies the LT predicate on the "external_scheduling_hold_until" field.
+func ExternalSchedulingHoldUntilLT(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldExternalSchedulingHoldUntil, v))
+}
+
+// ExternalSchedulingHoldUntilLTE applies the LTE predicate on the "external_scheduling_hold_until" field.
+func ExternalSchedulingHoldUntilLTE(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldExternalSchedulingHoldUntil, v))
+}
+
+// ExternalSchedulingHoldUntilIsNil applies the IsNil predicate on the "external_scheduling_hold_until" field.
+func ExternalSchedulingHoldUntilIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldExternalSchedulingHoldUntil))
+}
+
+// ExternalSchedulingHoldUntilNotNil applies the NotNil predicate on the "external_scheduling_hold_until" field.
+func ExternalSchedulingHoldUntilNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldExternalSchedulingHoldUntil))
 }
 
 // TempUnschedulableReasonEQ applies the EQ predicate on the "temp_unschedulable_reason" field.

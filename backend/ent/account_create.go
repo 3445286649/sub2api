@@ -419,6 +419,20 @@ func (_c *AccountCreate) SetNillableTempUnschedulableUntil(v *time.Time) *Accoun
 	return _c
 }
 
+// SetExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field.
+func (_c *AccountCreate) SetExternalSchedulingHoldUntil(v time.Time) *AccountCreate {
+	_c.mutation.SetExternalSchedulingHoldUntil(v)
+	return _c
+}
+
+// SetNillableExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableExternalSchedulingHoldUntil(v *time.Time) *AccountCreate {
+	if v != nil {
+		_c.SetExternalSchedulingHoldUntil(*v)
+	}
+	return _c
+}
+
 // SetTempUnschedulableReason sets the "temp_unschedulable_reason" field.
 func (_c *AccountCreate) SetTempUnschedulableReason(v string) *AccountCreate {
 	_c.mutation.SetTempUnschedulableReason(v)
@@ -917,6 +931,10 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TempUnschedulableUntil(); ok {
 		_spec.SetField(account.FieldTempUnschedulableUntil, field.TypeTime, value)
 		_node.TempUnschedulableUntil = &value
+	}
+	if value, ok := _c.mutation.ExternalSchedulingHoldUntil(); ok {
+		_spec.SetField(account.FieldExternalSchedulingHoldUntil, field.TypeTime, value)
+		_node.ExternalSchedulingHoldUntil = &value
 	}
 	if value, ok := _c.mutation.TempUnschedulableReason(); ok {
 		_spec.SetField(account.FieldTempUnschedulableReason, field.TypeString, value)
@@ -1577,6 +1595,24 @@ func (u *AccountUpsert) UpdateTempUnschedulableUntil() *AccountUpsert {
 // ClearTempUnschedulableUntil clears the value of the "temp_unschedulable_until" field.
 func (u *AccountUpsert) ClearTempUnschedulableUntil() *AccountUpsert {
 	u.SetNull(account.FieldTempUnschedulableUntil)
+	return u
+}
+
+// SetExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field.
+func (u *AccountUpsert) SetExternalSchedulingHoldUntil(v time.Time) *AccountUpsert {
+	u.Set(account.FieldExternalSchedulingHoldUntil, v)
+	return u
+}
+
+// UpdateExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateExternalSchedulingHoldUntil() *AccountUpsert {
+	u.SetExcluded(account.FieldExternalSchedulingHoldUntil)
+	return u
+}
+
+// ClearExternalSchedulingHoldUntil clears the value of the "external_scheduling_hold_until" field.
+func (u *AccountUpsert) ClearExternalSchedulingHoldUntil() *AccountUpsert {
+	u.SetNull(account.FieldExternalSchedulingHoldUntil)
 	return u
 }
 
@@ -2312,6 +2348,27 @@ func (u *AccountUpsertOne) UpdateTempUnschedulableUntil() *AccountUpsertOne {
 func (u *AccountUpsertOne) ClearTempUnschedulableUntil() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearTempUnschedulableUntil()
+	})
+}
+
+// SetExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field.
+func (u *AccountUpsertOne) SetExternalSchedulingHoldUntil(v time.Time) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetExternalSchedulingHoldUntil(v)
+	})
+}
+
+// UpdateExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateExternalSchedulingHoldUntil() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateExternalSchedulingHoldUntil()
+	})
+}
+
+// ClearExternalSchedulingHoldUntil clears the value of the "external_scheduling_hold_until" field.
+func (u *AccountUpsertOne) ClearExternalSchedulingHoldUntil() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearExternalSchedulingHoldUntil()
 	})
 }
 
@@ -3230,6 +3287,27 @@ func (u *AccountUpsertBulk) UpdateTempUnschedulableUntil() *AccountUpsertBulk {
 func (u *AccountUpsertBulk) ClearTempUnschedulableUntil() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearTempUnschedulableUntil()
+	})
+}
+
+// SetExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field.
+func (u *AccountUpsertBulk) SetExternalSchedulingHoldUntil(v time.Time) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetExternalSchedulingHoldUntil(v)
+	})
+}
+
+// UpdateExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateExternalSchedulingHoldUntil() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateExternalSchedulingHoldUntil()
+	})
+}
+
+// ClearExternalSchedulingHoldUntil clears the value of the "external_scheduling_hold_until" field.
+func (u *AccountUpsertBulk) ClearExternalSchedulingHoldUntil() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearExternalSchedulingHoldUntil()
 	})
 }
 

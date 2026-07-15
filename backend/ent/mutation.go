@@ -2325,6 +2325,7 @@ type AccountMutation struct {
 	rate_limit_reset_at               *time.Time
 	overload_until                    *time.Time
 	temp_unschedulable_until          *time.Time
+	external_scheduling_hold_until    *time.Time
 	temp_unschedulable_reason         *string
 	session_window_start              *time.Time
 	session_window_end                *time.Time
@@ -3936,6 +3937,55 @@ func (m *AccountMutation) ResetTempUnschedulableUntil() {
 	delete(m.clearedFields, account.FieldTempUnschedulableUntil)
 }
 
+// SetExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field.
+func (m *AccountMutation) SetExternalSchedulingHoldUntil(t time.Time) {
+	m.external_scheduling_hold_until = &t
+}
+
+// ExternalSchedulingHoldUntil returns the value of the "external_scheduling_hold_until" field in the mutation.
+func (m *AccountMutation) ExternalSchedulingHoldUntil() (r time.Time, exists bool) {
+	v := m.external_scheduling_hold_until
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalSchedulingHoldUntil returns the old "external_scheduling_hold_until" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldExternalSchedulingHoldUntil(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalSchedulingHoldUntil is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalSchedulingHoldUntil requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalSchedulingHoldUntil: %w", err)
+	}
+	return oldValue.ExternalSchedulingHoldUntil, nil
+}
+
+// ClearExternalSchedulingHoldUntil clears the value of the "external_scheduling_hold_until" field.
+func (m *AccountMutation) ClearExternalSchedulingHoldUntil() {
+	m.external_scheduling_hold_until = nil
+	m.clearedFields[account.FieldExternalSchedulingHoldUntil] = struct{}{}
+}
+
+// ExternalSchedulingHoldUntilCleared returns if the "external_scheduling_hold_until" field was cleared in this mutation.
+func (m *AccountMutation) ExternalSchedulingHoldUntilCleared() bool {
+	_, ok := m.clearedFields[account.FieldExternalSchedulingHoldUntil]
+	return ok
+}
+
+// ResetExternalSchedulingHoldUntil resets all changes to the "external_scheduling_hold_until" field.
+func (m *AccountMutation) ResetExternalSchedulingHoldUntil() {
+	m.external_scheduling_hold_until = nil
+	delete(m.clearedFields, account.FieldExternalSchedulingHoldUntil)
+}
+
 // SetTempUnschedulableReason sets the "temp_unschedulable_reason" field.
 func (m *AccountMutation) SetTempUnschedulableReason(s string) {
 	m.temp_unschedulable_reason = &s
@@ -4480,7 +4530,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 37)
+	fields := make([]string, 0, 38)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -4574,6 +4624,9 @@ func (m *AccountMutation) Fields() []string {
 	if m.temp_unschedulable_until != nil {
 		fields = append(fields, account.FieldTempUnschedulableUntil)
 	}
+	if m.external_scheduling_hold_until != nil {
+		fields = append(fields, account.FieldExternalSchedulingHoldUntil)
+	}
 	if m.temp_unschedulable_reason != nil {
 		fields = append(fields, account.FieldTempUnschedulableReason)
 	}
@@ -4662,6 +4715,8 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.OverloadUntil()
 	case account.FieldTempUnschedulableUntil:
 		return m.TempUnschedulableUntil()
+	case account.FieldExternalSchedulingHoldUntil:
+		return m.ExternalSchedulingHoldUntil()
 	case account.FieldTempUnschedulableReason:
 		return m.TempUnschedulableReason()
 	case account.FieldSessionWindowStart:
@@ -4745,6 +4800,8 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldOverloadUntil(ctx)
 	case account.FieldTempUnschedulableUntil:
 		return m.OldTempUnschedulableUntil(ctx)
+	case account.FieldExternalSchedulingHoldUntil:
+		return m.OldExternalSchedulingHoldUntil(ctx)
 	case account.FieldTempUnschedulableReason:
 		return m.OldTempUnschedulableReason(ctx)
 	case account.FieldSessionWindowStart:
@@ -4983,6 +5040,13 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetTempUnschedulableUntil(v)
 		return nil
+	case account.FieldExternalSchedulingHoldUntil:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalSchedulingHoldUntil(v)
+		return nil
 	case account.FieldTempUnschedulableReason:
 		v, ok := value.(string)
 		if !ok {
@@ -5202,6 +5266,9 @@ func (m *AccountMutation) ClearedFields() []string {
 	if m.FieldCleared(account.FieldTempUnschedulableUntil) {
 		fields = append(fields, account.FieldTempUnschedulableUntil)
 	}
+	if m.FieldCleared(account.FieldExternalSchedulingHoldUntil) {
+		fields = append(fields, account.FieldExternalSchedulingHoldUntil)
+	}
 	if m.FieldCleared(account.FieldTempUnschedulableReason) {
 		fields = append(fields, account.FieldTempUnschedulableReason)
 	}
@@ -5278,6 +5345,9 @@ func (m *AccountMutation) ClearField(name string) error {
 		return nil
 	case account.FieldTempUnschedulableUntil:
 		m.ClearTempUnschedulableUntil()
+		return nil
+	case account.FieldExternalSchedulingHoldUntil:
+		m.ClearExternalSchedulingHoldUntil()
 		return nil
 	case account.FieldTempUnschedulableReason:
 		m.ClearTempUnschedulableReason()
@@ -5394,6 +5464,9 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldTempUnschedulableUntil:
 		m.ResetTempUnschedulableUntil()
+		return nil
+	case account.FieldExternalSchedulingHoldUntil:
+		m.ResetExternalSchedulingHoldUntil()
 		return nil
 	case account.FieldTempUnschedulableReason:
 		m.ResetTempUnschedulableReason()

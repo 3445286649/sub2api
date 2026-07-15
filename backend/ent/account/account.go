@@ -78,6 +78,8 @@ const (
 	FieldOverloadUntil = "overload_until"
 	// FieldTempUnschedulableUntil holds the string denoting the temp_unschedulable_until field in the database.
 	FieldTempUnschedulableUntil = "temp_unschedulable_until"
+	// FieldExternalSchedulingHoldUntil holds the string denoting the external_scheduling_hold_until field in the database.
+	FieldExternalSchedulingHoldUntil = "external_scheduling_hold_until"
 	// FieldTempUnschedulableReason holds the string denoting the temp_unschedulable_reason field in the database.
 	FieldTempUnschedulableReason = "temp_unschedulable_reason"
 	// FieldSessionWindowStart holds the string denoting the session_window_start field in the database.
@@ -174,6 +176,7 @@ var Columns = []string{
 	FieldRateLimitResetAt,
 	FieldOverloadUntil,
 	FieldTempUnschedulableUntil,
+	FieldExternalSchedulingHoldUntil,
 	FieldTempUnschedulableReason,
 	FieldSessionWindowStart,
 	FieldSessionWindowEnd,
@@ -427,6 +430,11 @@ func ByOverloadUntil(opts ...sql.OrderTermOption) OrderOption {
 // ByTempUnschedulableUntil orders the results by the temp_unschedulable_until field.
 func ByTempUnschedulableUntil(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTempUnschedulableUntil, opts...).ToFunc()
+}
+
+// ByExternalSchedulingHoldUntil orders the results by the external_scheduling_hold_until field.
+func ByExternalSchedulingHoldUntil(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExternalSchedulingHoldUntil, opts...).ToFunc()
 }
 
 // ByTempUnschedulableReason orders the results by the temp_unschedulable_reason field.

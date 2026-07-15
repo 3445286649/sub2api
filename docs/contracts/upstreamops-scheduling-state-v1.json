@@ -1,0 +1,31 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "account_id": 749,
+    "account_updated_at": "2026-07-15T16:10:00Z",
+    "manual_schedulable": true,
+    "internal_blocked": false,
+    "internal_reason_codes": [],
+    "external_hold": {
+      "owner": "upstreamops",
+      "decision_id": "ops-749-20260715-001",
+      "reason_code": "sustained_ttft",
+      "status": "active",
+      "lease_until": "2026-07-15T16:30:00Z",
+      "active": true
+    },
+    "effective_schedulable": false,
+    "effective_reason_codes": [
+      "external_hold"
+    ],
+    "health": {
+      "score": 72,
+      "status": "degraded",
+      "consecutive_successes": 0,
+      "last_checked_at": "2026-07-15T16:09:00Z",
+      "next_probe_at": "2026-07-15T16:11:00Z",
+      "probe_enabled": true
+    }
+  }
+}

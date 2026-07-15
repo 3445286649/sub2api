@@ -55,8 +55,9 @@ type Account struct {
 	RateLimitResetAt *time.Time
 	OverloadUntil    *time.Time
 
-	TempUnschedulableUntil  *time.Time
-	TempUnschedulableReason string
+	TempUnschedulableUntil      *time.Time
+	TempUnschedulableReason     string
+	ExternalSchedulingHoldUntil *time.Time
 
 	SessionWindowStart  *time.Time
 	SessionWindowEnd    *time.Time
@@ -168,10 +169,17 @@ func (a *Account) IsSchedulable() bool {
 	if a.TempUnschedulableUntil != nil && now.Before(*a.TempUnschedulableUntil) {
 		return false
 	}
+	if a.HasActiveExternalSchedulingHold(now) {
+		return false
+	}
 	if a.IsAPIKeyOrBedrock() && a.IsQuotaExceeded() {
 		return false
 	}
 	return true
+}
+
+func (a *Account) HasActiveExternalSchedulingHold(now time.Time) bool {
+	return a != nil && a.ExternalSchedulingHoldUntil != nil && now.Before(*a.ExternalSchedulingHoldUntil)
 }
 
 // IsCredentialUsableForShadow 报告本账号(作为某 spark 影子的母账号)的凭据/传输是否可被影子透传使用。
@@ -195,6 +203,9 @@ func (a *Account) IsCredentialUsableForShadow() bool {
 		return false
 	}
 	if a.TempUnschedulableUntil != nil && now.Before(*a.TempUnschedulableUntil) {
+		return false
+	}
+	if a.HasActiveExternalSchedulingHold(now) {
 		return false
 	}
 	return true

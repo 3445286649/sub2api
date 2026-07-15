@@ -579,6 +579,26 @@ func (_u *AccountUpdate) ClearTempUnschedulableUntil() *AccountUpdate {
 	return _u
 }
 
+// SetExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field.
+func (_u *AccountUpdate) SetExternalSchedulingHoldUntil(v time.Time) *AccountUpdate {
+	_u.mutation.SetExternalSchedulingHoldUntil(v)
+	return _u
+}
+
+// SetNillableExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableExternalSchedulingHoldUntil(v *time.Time) *AccountUpdate {
+	if v != nil {
+		_u.SetExternalSchedulingHoldUntil(*v)
+	}
+	return _u
+}
+
+// ClearExternalSchedulingHoldUntil clears the value of the "external_scheduling_hold_until" field.
+func (_u *AccountUpdate) ClearExternalSchedulingHoldUntil() *AccountUpdate {
+	_u.mutation.ClearExternalSchedulingHoldUntil()
+	return _u
+}
+
 // SetTempUnschedulableReason sets the "temp_unschedulable_reason" field.
 func (_u *AccountUpdate) SetTempUnschedulableReason(v string) *AccountUpdate {
 	_u.mutation.SetTempUnschedulableReason(v)
@@ -1101,6 +1121,12 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.TempUnschedulableUntilCleared() {
 		_spec.ClearField(account.FieldTempUnschedulableUntil, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ExternalSchedulingHoldUntil(); ok {
+		_spec.SetField(account.FieldExternalSchedulingHoldUntil, field.TypeTime, value)
+	}
+	if _u.mutation.ExternalSchedulingHoldUntilCleared() {
+		_spec.ClearField(account.FieldExternalSchedulingHoldUntil, field.TypeTime)
 	}
 	if value, ok := _u.mutation.TempUnschedulableReason(); ok {
 		_spec.SetField(account.FieldTempUnschedulableReason, field.TypeString, value)
@@ -1902,6 +1928,26 @@ func (_u *AccountUpdateOne) ClearTempUnschedulableUntil() *AccountUpdateOne {
 	return _u
 }
 
+// SetExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field.
+func (_u *AccountUpdateOne) SetExternalSchedulingHoldUntil(v time.Time) *AccountUpdateOne {
+	_u.mutation.SetExternalSchedulingHoldUntil(v)
+	return _u
+}
+
+// SetNillableExternalSchedulingHoldUntil sets the "external_scheduling_hold_until" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableExternalSchedulingHoldUntil(v *time.Time) *AccountUpdateOne {
+	if v != nil {
+		_u.SetExternalSchedulingHoldUntil(*v)
+	}
+	return _u
+}
+
+// ClearExternalSchedulingHoldUntil clears the value of the "external_scheduling_hold_until" field.
+func (_u *AccountUpdateOne) ClearExternalSchedulingHoldUntil() *AccountUpdateOne {
+	_u.mutation.ClearExternalSchedulingHoldUntil()
+	return _u
+}
+
 // SetTempUnschedulableReason sets the "temp_unschedulable_reason" field.
 func (_u *AccountUpdateOne) SetTempUnschedulableReason(v string) *AccountUpdateOne {
 	_u.mutation.SetTempUnschedulableReason(v)
@@ -2454,6 +2500,12 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if _u.mutation.TempUnschedulableUntilCleared() {
 		_spec.ClearField(account.FieldTempUnschedulableUntil, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ExternalSchedulingHoldUntil(); ok {
+		_spec.SetField(account.FieldExternalSchedulingHoldUntil, field.TypeTime, value)
+	}
+	if _u.mutation.ExternalSchedulingHoldUntilCleared() {
+		_spec.ClearField(account.FieldExternalSchedulingHoldUntil, field.TypeTime)
 	}
 	if value, ok := _u.mutation.TempUnschedulableReason(); ok {
 		_spec.SetField(account.FieldTempUnschedulableReason, field.TypeString, value)

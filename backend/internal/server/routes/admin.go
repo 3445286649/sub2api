@@ -326,6 +326,7 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 }
 
 func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	admin.GET("/scheduling/capabilities", h.Admin.AccountSchedulingHold.Capabilities)
 	accounts := admin.Group("/accounts")
 	{
 		accounts.GET("", h.Admin.Account.List)
@@ -378,6 +379,9 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.POST("/:id/reset-quota", h.Admin.Account.ResetQuota)
 		accounts.GET("/:id/temp-unschedulable", h.Admin.Account.GetTempUnschedulable)
 		accounts.DELETE("/:id/temp-unschedulable", h.Admin.Account.ClearTempUnschedulable)
+		accounts.GET("/:id/scheduling-state", h.Admin.AccountSchedulingHold.GetState)
+		accounts.PUT("/:id/scheduling-holds/upstreamops", h.Admin.AccountSchedulingHold.Put)
+		accounts.DELETE("/:id/scheduling-holds/upstreamops", h.Admin.AccountSchedulingHold.Release)
 		accounts.POST("/:id/schedulable", h.Admin.Account.SetSchedulable)
 		accounts.PATCH("/:id/rate-multiplier", h.Admin.Account.UpdateRateMultiplier)
 		accounts.GET("/:id/health", h.Admin.Account.GetHealth)

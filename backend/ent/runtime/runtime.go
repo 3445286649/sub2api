@@ -274,7 +274,7 @@ func init() {
 	// account.HealthyProbeIntervalHoursValidator is a validator for the "healthy_probe_interval_hours" field. It is called by the builders before save.
 	account.HealthyProbeIntervalHoursValidator = accountDescHealthyProbeIntervalHours.Validators[0].(func(int) error)
 	// accountDescSessionWindowStatus is the schema descriptor for session_window_status field.
-	accountDescSessionWindowStatus := accountFields[31].Descriptor()
+	accountDescSessionWindowStatus := accountFields[32].Descriptor()
 	// account.SessionWindowStatusValidator is a validator for the "session_window_status" field. It is called by the builders before save.
 	account.SessionWindowStatusValidator = accountDescSessionWindowStatus.Validators[0].(func(string) error)
 	accountgroupFields := schema.AccountGroup{}.Fields()

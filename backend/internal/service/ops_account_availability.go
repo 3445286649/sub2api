@@ -57,6 +57,7 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 
 		isRateLimited := acc.RateLimitResetAt != nil && now.Before(*acc.RateLimitResetAt)
 		isOverloaded := acc.OverloadUntil != nil && now.Before(*acc.OverloadUntil)
+		isExternallyHeld := acc.HasActiveExternalSchedulingHold(now)
 		hasError := acc.Status == StatusError
 
 		// Normalize exclusive status flags so the UI doesn't show conflicting badges.
@@ -65,7 +66,7 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 			isOverloaded = false
 		}
 
-		isAvailable := acc.Status == StatusActive && acc.Schedulable && !isRateLimited && !isOverloaded && !isTempUnsched
+		isAvailable := acc.Status == StatusActive && acc.Schedulable && !isRateLimited && !isOverloaded && !isTempUnsched && !isExternallyHeld
 
 		if acc.Platform != "" {
 			if _, ok := platform[acc.Platform]; !ok {
@@ -125,10 +126,11 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 			GroupName:   displayGroupName,
 			Status:      acc.Status,
 
-			IsAvailable:   isAvailable,
-			IsRateLimited: isRateLimited,
-			IsOverloaded:  isOverloaded,
-			HasError:      hasError,
+			IsAvailable:      isAvailable,
+			IsRateLimited:    isRateLimited,
+			IsOverloaded:     isOverloaded,
+			IsExternallyHeld: isExternallyHeld,
+			HasError:         hasError,
 
 			ErrorMessage: acc.ErrorMessage,
 		}
@@ -149,6 +151,9 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 		}
 		if isTempUnsched && acc.TempUnschedulableUntil != nil {
 			item.TempUnschedulableUntil = acc.TempUnschedulableUntil
+		}
+		if isExternallyHeld {
+			item.ExternalSchedulingHoldUntil = acc.ExternalSchedulingHoldUntil
 		}
 
 		account[acc.ID] = item

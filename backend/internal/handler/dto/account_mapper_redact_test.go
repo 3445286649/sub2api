@@ -3,6 +3,7 @@ package dto
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -64,4 +65,11 @@ func TestAccountFromServiceShallow_NilCredentialsOmitsStatus(t *testing.T) {
 	require.NotNil(t, got)
 	require.Nil(t, got.Credentials)
 	require.Nil(t, got.CredentialsStatus)
+}
+
+func TestAccountFromServiceShallow_ExposesExternalSchedulingHoldProjection(t *testing.T) {
+	leaseUntil := time.Date(2026, 7, 15, 16, 30, 0, 0, time.UTC)
+	got := AccountFromServiceShallow(&service.Account{ExternalSchedulingHoldUntil: &leaseUntil})
+	require.NotNil(t, got)
+	require.Equal(t, &leaseUntil, got.ExternalSchedulingHoldUntil)
 }

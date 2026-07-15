@@ -203,6 +203,13 @@ func (Account) Fields() []ent.Field {
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 
+		// external_scheduling_hold_until is the hot-path projection of an
+		// owner-scoped scheduling hold. The hold table remains authoritative.
+		field.Time("external_scheduling_hold_until").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+
 		// temp_unschedulable_reason: 临时不可调度原因，便于排障审计
 		field.String("temp_unschedulable_reason").
 			Optional().

@@ -198,6 +198,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	accountUpstreamBalanceRepository := repository.NewAccountUpstreamBalanceRepository(db)
 	accountUpstreamBalanceService := service.ProvideAccountUpstreamBalanceService(accountUpstreamBalanceRepository, accountRepository)
 	accountHandler := handler.ProvideAdminAccountHandler(adminService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, rateLimitService, accountUsageService, accountTestService, concurrencyService, crsSyncService, sessionLimitCache, rpmCache, compositeTokenCacheInvalidator, accountHealthService, accountUpstreamBalanceService, grokQuotaService)
+	accountSchedulingHoldRepository := repository.NewAccountSchedulingHoldRepository(db, accountRepository, schedulerCache)
+	accountSchedulingHoldService := service.NewAccountSchedulingHoldService(accountSchedulingHoldRepository)
+	accountSchedulingHoldHandler := admin.NewAccountSchedulingHoldHandler(accountSchedulingHoldService)
 	adminAnnouncementHandler := admin.NewAnnouncementHandler(announcementService)
 	adminSupportHandler := admin.NewSupportHandler(supportService, settingService)
 	dataManagementService := service.NewDataManagementService()
@@ -265,7 +268,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	modelRadarService := service.ProvideModelRadarService(modelRadarRepository, settingRepository, settingService, secretEncryptor, apiKeyService)
 	modelRadarHandler := admin.NewModelRadarHandler(modelRadarService)
 	complianceHandler := admin.NewComplianceHandler(settingService)
-	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, adminSupportHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, paymentHandler, affiliateHandler, acquisitionHandler, modelRadarHandler, complianceHandler)
+	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, accountSchedulingHoldHandler, adminAnnouncementHandler, adminSupportHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, paymentHandler, affiliateHandler, acquisitionHandler, modelRadarHandler, complianceHandler)
 	usageRecordWorkerPool := service.NewUsageRecordWorkerPool(configConfig)
 	userMsgQueueCache := repository.NewUserMsgQueueCache(redisClient)
 	userMessageQueueService := service.ProvideUserMessageQueueService(userMsgQueueCache, rpmCache, configConfig)
@@ -305,12 +308,13 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	batchImageWorkerRuntime := service.ProvideBatchImageWorkerRuntime(batchImageRepository, accountRepository, batchImageQueue, usageBillingRepository, usageLogRepository, batchImageModelPricingResolver, apiKeyAuthCacheInvalidator, configConfig)
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig)
 	accountHealthRunner := service.ProvideAccountHealthRunner(accountHealthService, accountTestService)
+	accountSchedulingHoldExpiryRunner := service.ProvideAccountSchedulingHoldExpiryRunner(accountSchedulingHoldService)
 	accountHealthEventCleanupRunner := service.ProvideAccountHealthEventCleanupRunner(accountHealthService)
 	accountUpstreamBalanceRunner := service.ProvideAccountUpstreamBalanceRunner(accountUpstreamBalanceService)
 	paymentOrderExpiryService := service.ProvidePaymentOrderExpiryService(paymentService, leaderLockCache, db)
 	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService)
 	userPlatformQuotaUsageFlusher := service.ProvideUserPlatformQuotaUsageFlusher(configConfig, billingCache, serviceUserPlatformQuotaRepository, timingWheelService)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, accountHealthRunner, accountHealthEventCleanupRunner, accountUpstreamBalanceRunner, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, acquisitionService)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, accountHealthRunner, accountSchedulingHoldExpiryRunner, accountHealthEventCleanupRunner, accountUpstreamBalanceRunner, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, acquisitionService)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -367,6 +371,7 @@ func provideCleanup(
 	openAIGateway *service.OpenAIGatewayService,
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	accountHealthRunner *service.AccountHealthRunner,
+	accountSchedulingHoldExpiry *service.AccountSchedulingHoldExpiryRunner,
 	accountHealthEventCleanup *service.AccountHealthEventCleanupRunner,
 	accountUpstreamBalanceRunner *service.AccountUpstreamBalanceRunner,
 	backupSvc *service.BackupService,
@@ -528,6 +533,12 @@ func provideCleanup(
 			{"AccountHealthRunner", func() error {
 				if accountHealthRunner != nil {
 					accountHealthRunner.Stop()
+				}
+				return nil
+			}},
+			{"AccountSchedulingHoldExpiryRunner", func() error {
+				if accountSchedulingHoldExpiry != nil {
+					accountSchedulingHoldExpiry.Stop()
 				}
 				return nil
 			}},

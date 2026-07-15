@@ -713,6 +713,8 @@ var ProviderSet = wire.NewSet(
 	NewAnnouncementService,
 	NewSupportService,
 	NewAccountHealthService,
+	NewAccountSchedulingHoldService,
+	ProvideAccountSchedulingHoldExpiryRunner,
 	ProvideAccountUpstreamBalanceService,
 	ProvideAccountHealthRunner,
 	ProvideAccountHealthEventCleanupRunner,

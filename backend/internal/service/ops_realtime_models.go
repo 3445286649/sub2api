@@ -78,15 +78,17 @@ type AccountAvailability struct {
 
 	Status string `json:"status"`
 
-	IsAvailable   bool `json:"is_available"`
-	IsRateLimited bool `json:"is_rate_limited"`
-	IsOverloaded  bool `json:"is_overloaded"`
-	HasError      bool `json:"has_error"`
+	IsAvailable      bool `json:"is_available"`
+	IsRateLimited    bool `json:"is_rate_limited"`
+	IsOverloaded     bool `json:"is_overloaded"`
+	IsExternallyHeld bool `json:"is_externally_held"`
+	HasError         bool `json:"has_error"`
 
-	RateLimitResetAt       *time.Time `json:"rate_limit_reset_at"`
-	RateLimitRemainingSec  *int64     `json:"rate_limit_remaining_sec"`
-	OverloadUntil          *time.Time `json:"overload_until"`
-	OverloadRemainingSec   *int64     `json:"overload_remaining_sec"`
-	ErrorMessage           string     `json:"error_message"`
-	TempUnschedulableUntil *time.Time `json:"temp_unschedulable_until,omitempty"`
+	RateLimitResetAt            *time.Time `json:"rate_limit_reset_at"`
+	RateLimitRemainingSec       *int64     `json:"rate_limit_remaining_sec"`
+	OverloadUntil               *time.Time `json:"overload_until"`
+	OverloadRemainingSec        *int64     `json:"overload_remaining_sec"`
+	ErrorMessage                string     `json:"error_message"`
+	TempUnschedulableUntil      *time.Time `json:"temp_unschedulable_until,omitempty"`
+	ExternalSchedulingHoldUntil *time.Time `json:"external_scheduling_hold_until,omitempty"`
 }

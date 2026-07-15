@@ -697,6 +697,11 @@ func (s *AccountHealthService) syncHealthyProbeSchedule(ctx context.Context, acc
 	if err != nil || account == nil {
 		return err
 	}
+	if account.HasActiveExternalSchedulingHold(now) {
+		next := now.Add(time.Minute)
+		state.NextProbeAt = &next
+		return nil
+	}
 	if shouldProbeHealthyAccount(account) {
 		next := now.Add(healthyProbeInterval(account))
 		state.NextProbeAt = &next
@@ -1072,6 +1077,12 @@ func (s *AccountHealthService) nextProbeDelay(ctx context.Context, accountID int
 }
 
 func (s *AccountHealthService) nextProbeDelayForState(ctx context.Context, accountID int64, state *AccountHealthState) time.Duration {
+	if s != nil && s.accountRepo != nil {
+		account, err := s.accountRepo.GetByID(ctx, accountID)
+		if err == nil && account != nil && account.HasActiveExternalSchedulingHold(s.now()) {
+			return time.Minute
+		}
+	}
 	if state == nil {
 		return s.nextProbeDelay(ctx, accountID, 0)
 	}
@@ -1268,7 +1279,13 @@ func healthyProbeDueAt(state *AccountHealthState, account *Account) time.Time {
 }
 
 func shouldProbeUnhealthyAccount(account *Account) bool {
-	if account == nil || !account.HealthProbeEnabled {
+	if account == nil {
+		return false
+	}
+	if account.HasActiveExternalSchedulingHold(time.Now()) {
+		return account.IsActive() && account.Schedulable
+	}
+	if !account.HealthProbeEnabled {
 		return false
 	}
 	if account.IsSchedulable() {
@@ -1278,7 +1295,13 @@ func shouldProbeUnhealthyAccount(account *Account) bool {
 }
 
 func shouldProbeHealthyAccount(account *Account) bool {
-	if account == nil || !account.HealthProbeEnabled || !account.HealthyProbeEnabled {
+	if account == nil {
+		return false
+	}
+	if account.HasActiveExternalSchedulingHold(time.Now()) {
+		return account.IsActive() && account.Schedulable
+	}
+	if !account.HealthProbeEnabled || !account.HealthyProbeEnabled {
 		return false
 	}
 	return account.Schedulable && account.IsSchedulable()

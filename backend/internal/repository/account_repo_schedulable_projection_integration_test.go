@@ -64,6 +64,12 @@ func TestListSchedulableAccountLoadsMatchesListSchedulable(t *testing.T) {
 	tempCleared := create("projection-temp-cleared")
 	_, err = client.Account.UpdateOneID(tempCleared.ID).SetTempUnschedulableUntil(past).Save(ctx)
 	require.NoError(t, err)
+	externallyHeld := create("projection-external-hold")
+	_, err = client.Account.UpdateOneID(externallyHeld.ID).SetExternalSchedulingHoldUntil(future).Save(ctx)
+	require.NoError(t, err)
+	externalHoldExpired := create("projection-external-hold-expired")
+	_, err = client.Account.UpdateOneID(externalHoldExpired.ID).SetExternalSchedulingHoldUntil(past).Save(ctx)
+	require.NoError(t, err)
 
 	accounts, err := repo.ListSchedulable(ctx)
 	require.NoError(t, err)
@@ -98,10 +104,10 @@ func TestListSchedulableAccountLoadsMatchesListSchedulable(t *testing.T) {
 	require.Equal(t, 9, byID[positiveLoad.ID])
 	require.Equal(t, 4, byID[concurrencyFallback.ID])
 	require.Equal(t, 1, byID[zeroFallback.ID])
-	for _, included := range []*service.Account{expiredAllowed, overloadCleared, rateLimitCleared, tempCleared} {
+	for _, included := range []*service.Account{expiredAllowed, overloadCleared, rateLimitCleared, tempCleared, externalHoldExpired} {
 		require.Contains(t, byID, included.ID)
 	}
-	for _, excluded := range []*service.Account{disabled, unschedulable, expired, overloaded, rateLimited, tempBlocked} {
+	for _, excluded := range []*service.Account{disabled, unschedulable, expired, overloaded, rateLimited, tempBlocked, externallyHeld} {
 		require.NotContains(t, byID, excluded.ID)
 	}
 }

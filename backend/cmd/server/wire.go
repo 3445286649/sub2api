@@ -100,6 +100,7 @@ func provideCleanup(
 	openAIGateway *service.OpenAIGatewayService,
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	accountHealthRunner *service.AccountHealthRunner,
+	accountSchedulingHoldExpiry *service.AccountSchedulingHoldExpiryRunner,
 	accountHealthEventCleanup *service.AccountHealthEventCleanupRunner,
 	accountUpstreamBalanceRunner *service.AccountUpstreamBalanceRunner,
 	backupSvc *service.BackupService,
@@ -262,6 +263,12 @@ func provideCleanup(
 			{"AccountHealthRunner", func() error {
 				if accountHealthRunner != nil {
 					accountHealthRunner.Stop()
+				}
+				return nil
+			}},
+			{"AccountSchedulingHoldExpiryRunner", func() error {
+				if accountSchedulingHoldExpiry != nil {
+					accountSchedulingHoldExpiry.Stop()
 				}
 				return nil
 			}},

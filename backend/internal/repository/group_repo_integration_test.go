@@ -715,7 +715,7 @@ func (s *GroupRepoSuite) TestListWithFilters_ActiveAccountCount_LessThanTotal() 
 }
 
 // TestListWithFilters_RateLimitedAccountCount 验证临时受限账号不会计入可用账号数。
-// rate_limit / overload / temp_unschedulable 都会让账号退出当前调度池，
+// rate_limit / overload / temp_unschedulable / external hold 都会让账号退出当前调度池，
 // 因此 ActiveAccountCount 必须与真实调度查询口径一致。
 func (s *GroupRepoSuite) TestListWithFilters_RateLimitedAccountCount() {
 	g := &service.Group{
@@ -758,6 +758,12 @@ func (s *GroupRepoSuite) TestListWithFilters_RateLimitedAccountCount() {
 		[]any{"acc-expired", service.PlatformAnthropic, service.AccountTypeOAuth},
 		&expiredID))
 
+	var externallyHeldID int64
+	s.Require().NoError(scanSingleRow(s.ctx, s.tx,
+		"INSERT INTO accounts (name, platform, type, external_scheduling_hold_until) VALUES ($1, $2, $3, NOW() + INTERVAL '1 hour') RETURNING id",
+		[]any{"acc-externally-held", service.PlatformAnthropic, service.AccountTypeOAuth},
+		&externallyHeldID))
+
 	_, err := s.tx.ExecContext(s.ctx,
 		"INSERT INTO account_groups (account_id, group_id, priority, created_at) VALUES ($1, $2, $3, NOW())",
 		normalID, g.ID, 1)
@@ -778,6 +784,10 @@ func (s *GroupRepoSuite) TestListWithFilters_RateLimitedAccountCount() {
 		"INSERT INTO account_groups (account_id, group_id, priority, created_at) VALUES ($1, $2, $3, NOW())",
 		expiredID, g.ID, 5)
 	s.Require().NoError(err)
+	_, err = s.tx.ExecContext(s.ctx,
+		"INSERT INTO account_groups (account_id, group_id, priority, created_at) VALUES ($1, $2, $3, NOW())",
+		externallyHeldID, g.ID, 6)
+	s.Require().NoError(err)
 
 	isExclusive := false
 	groups, _, err := s.repo.ListWithFilters(s.ctx,
@@ -793,9 +803,9 @@ func (s *GroupRepoSuite) TestListWithFilters_RateLimitedAccountCount() {
 		}
 	}
 	s.Require().NotNil(found, "created group must appear in ListWithFilters result")
-	s.Assert().Equal(int64(5), found.AccountCount, "AccountCount must include all linked accounts")
+	s.Assert().Equal(int64(6), found.AccountCount, "AccountCount must include all linked accounts")
 	s.Assert().Equal(int64(1), found.ActiveAccountCount, "ActiveAccountCount must include only currently schedulable accounts")
-	s.Assert().Equal(int64(3), found.RateLimitedAccountCount, "RateLimitedAccountCount must include temporarily limited accounts")
+	s.Assert().Equal(int64(4), found.RateLimitedAccountCount, "RateLimitedAccountCount must include temporarily limited accounts")
 
 	total, active, err := s.repo.GetAccountCount(s.ctx, g.ID)
 	s.Require().NoError(err)

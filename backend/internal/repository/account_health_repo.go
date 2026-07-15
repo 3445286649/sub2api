@@ -104,11 +104,21 @@ func (r *accountHealthRepository) Delete(ctx context.Context, accountID int64) e
 func (r *accountHealthRepository) ListDueForProbe(ctx context.Context, now time.Time, limit int) ([]*service.AccountHealthState, error) {
 	rows, err := r.sql.QueryContext(ctx, accountHealthSelectSQL+`
 		JOIN accounts a ON a.id = account_health_states.account_id
-		WHERE account_health_states.status IN ('isolated', 'recovering', 'degraded')
+		WHERE (
+			account_health_states.status IN ('isolated', 'recovering', 'degraded')
+			OR (
+				a.status = 'active'
+				AND a.schedulable IS TRUE
+				AND a.external_scheduling_hold_until > $1
+			)
+		)
 		  AND account_health_states.next_probe_at IS NOT NULL
 		  AND account_health_states.next_probe_at <= $1
 		  AND a.deleted_at IS NULL
-		  AND a.health_probe_enabled IS TRUE
+		  AND (
+			a.health_probe_enabled IS TRUE
+			OR a.external_scheduling_hold_until > $1
+		  )
 		ORDER BY account_health_states.next_probe_at ASC
 		LIMIT $2`, now, limit)
 	if err != nil {
@@ -140,8 +150,15 @@ func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID i
 		FROM accounts a
 		WHERE a.id = $1
 		  AND a.deleted_at IS NULL
-		  AND a.health_probe_enabled IS TRUE
 		  AND (
+			(
+			  a.status = 'active'
+			  AND a.schedulable IS TRUE
+			  AND a.external_scheduling_hold_until > $2
+			)
+			OR (
+			  a.health_probe_enabled IS TRUE
+			  AND (
 			(
 			  a.status = 'active'
 			  AND a.schedulable IS TRUE
@@ -156,6 +173,8 @@ func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID i
 			    AND s.next_probe_at IS NOT NULL
 			    AND s.next_probe_at <= $2
 			)
+			  )
+			)
 		  )
 		ON CONFLICT (account_id) DO UPDATE SET
 			next_probe_at = EXCLUDED.next_probe_at,
@@ -168,8 +187,15 @@ func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID i
 			FROM accounts a
 			WHERE a.id = account_health_states.account_id
 			  AND a.deleted_at IS NULL
-			  AND a.health_probe_enabled IS TRUE
 			  AND (
+				(
+				  a.status = 'active'
+				  AND a.schedulable IS TRUE
+				  AND a.external_scheduling_hold_until > $2
+				)
+				OR (
+				  a.health_probe_enabled IS TRUE
+				  AND (
 				(
 				  account_health_states.status IN ('isolated', 'recovering', 'degraded')
 				  AND account_health_states.next_probe_at IS NOT NULL
@@ -201,6 +227,8 @@ func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID i
 					  ELSE 360
 					END * INTERVAL '1 minute'
 				  ) <= $2
+				)
+				  )
 				)
 			  )
 		)
