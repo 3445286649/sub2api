@@ -2672,6 +2672,11 @@ func (h *AccountHandler) SetSchedulable(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	if h.accountHealthService != nil {
+		if err := h.accountHealthService.RecordSettingsChanged(c.Request.Context(), account.ID, adminActorUserID(c)); err != nil {
+			slog.Warn("reschedule_account_health_probe_failed", "account_id", account.ID, "err", err)
+		}
+	}
 
 	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
 }

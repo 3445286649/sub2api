@@ -42,8 +42,8 @@ func (r *accountSchedulingHoldRepository) GetSchedulingState(ctx context.Context
 	if err := r.readHold(ctx, accountID, service.AccountSchedulingHoldOwner, now, state); err != nil {
 		return nil, err
 	}
-	probeEnabled := account.HealthProbeEnabled || (state.ExternalHold != nil && state.ExternalHold.Active)
-	if err := r.readHealth(ctx, accountID, state, probeEnabled); err != nil {
+	holdActive := state.ExternalHold != nil && state.ExternalHold.Active
+	if err := r.readHealth(ctx, accountID, state, account, holdActive); err != nil {
 		return nil, err
 	}
 	finalizeAccountSchedulingState(state)
@@ -516,7 +516,7 @@ func (r *accountSchedulingHoldRepository) readHold(ctx context.Context, accountI
 	return nil
 }
 
-func (r *accountSchedulingHoldRepository) readHealth(ctx context.Context, accountID int64, state *service.AccountSchedulingState, probeEnabled bool) error {
+func (r *accountSchedulingHoldRepository) readHealth(ctx context.Context, accountID int64, state *service.AccountSchedulingState, account *service.Account, holdActive bool) error {
 	var health service.AccountSchedulingHealthEvidence
 	var lastChecked, nextProbe sql.NullTime
 	err := r.db.QueryRowContext(ctx, `
@@ -538,9 +538,28 @@ func (r *accountSchedulingHoldRepository) readHealth(ctx context.Context, accoun
 		value := nextProbe.Time
 		health.NextProbeAt = &value
 	}
-	health.ProbeEnabled = probeEnabled
+	health.ProbeEnabled = schedulingStateProbeEnabled(account, health.Status, holdActive)
+	if !health.ProbeEnabled {
+		health.NextProbeAt = nil
+	}
 	state.Health = &health
 	return nil
+}
+
+func schedulingStateProbeEnabled(account *service.Account, healthStatus string, holdActive bool) bool {
+	if account == nil || !account.IsActive() || !account.Schedulable {
+		return false
+	}
+	if holdActive {
+		return true
+	}
+	if !account.HealthProbeEnabled {
+		return false
+	}
+	if healthStatus == service.AccountHealthStatusHealthy {
+		return account.HealthyProbeEnabled && account.IsSchedulable()
+	}
+	return account.IsSchedulable() || account.TempUnschedulableUntil != nil
 }
 
 func buildAccountSchedulingState(account *service.Account, now time.Time) *service.AccountSchedulingState {

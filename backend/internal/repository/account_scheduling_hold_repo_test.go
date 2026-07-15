@@ -29,6 +29,23 @@ func TestFinalizeAccountSchedulingStateCombinesIndependentBlocks(t *testing.T) {
 	require.Equal(t, []string{"manual_unschedulable", "temp_unschedulable", "external_hold"}, state.EffectiveReasonCodes)
 }
 
+func TestSchedulingStateProbeEnabledRequiresRunnablePlan(t *testing.T) {
+	account := &service.Account{
+		Status:              service.StatusActive,
+		Schedulable:         true,
+		HealthProbeEnabled:  true,
+		HealthyProbeEnabled: true,
+	}
+
+	require.True(t, schedulingStateProbeEnabled(account, service.AccountHealthStatusHealthy, false))
+	account.Schedulable = false
+	require.False(t, schedulingStateProbeEnabled(account, service.AccountHealthStatusHealthy, false))
+	account.Schedulable = true
+	account.HealthyProbeEnabled = false
+	require.False(t, schedulingStateProbeEnabled(account, service.AccountHealthStatusHealthy, false))
+	require.True(t, schedulingStateProbeEnabled(account, service.AccountHealthStatusDegraded, false))
+}
+
 func TestSchedulingHoldExpiryDecisionIDIsStableAndBounded(t *testing.T) {
 	lease := time.Date(2026, 7, 15, 16, 30, 0, 0, time.UTC)
 	first := schedulingHoldExpiryDecisionID(749, "ops-749-20260715-001", lease)

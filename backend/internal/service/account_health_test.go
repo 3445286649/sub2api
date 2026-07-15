@@ -1022,6 +1022,28 @@ func TestAccountHealthService_SettingsChangedReschedulesExistingProbe(t *testing
 	require.Equal(t, now.Add(time.Minute), *repo.states[1].NextProbeAt)
 }
 
+func TestAccountHealthService_ManualDisableClearsHealthyProbeSchedule(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	oldNext := now.Add(-time.Hour)
+	ctx := context.Background()
+	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
+		1: {
+			ID:                  1,
+			Status:              StatusActive,
+			Schedulable:         false,
+			HealthProbeEnabled:  true,
+			HealthyProbeEnabled: true,
+		},
+	}}
+	repo := &memoryAccountHealthRepo{states: map[int64]*AccountHealthState{
+		1: {AccountID: 1, Score: 100, Status: AccountHealthStatusHealthy, NextProbeAt: &oldNext, CreatedAt: now, UpdatedAt: now},
+	}}
+	svc := &AccountHealthService{repo: repo, accountRepo: accountRepo, now: func() time.Time { return now }}
+
+	require.NoError(t, svc.RecordSettingsChanged(ctx, 1, nil))
+	require.Nil(t, repo.states[1].NextProbeAt)
+}
+
 func TestAccountHealthService_HealthyProbeWithoutStateIsDueImmediately(t *testing.T) {
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	ctx := context.Background()
