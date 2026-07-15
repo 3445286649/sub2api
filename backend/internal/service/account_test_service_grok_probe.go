@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
-	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 )
 
 const (
@@ -55,7 +54,7 @@ func (s *AccountTestService) ProbeGrokProtocols(ctx context.Context, account *Ac
 		return nil, errors.New("upstream HTTP client is not configured")
 	}
 
-	baseURL, err := validateGrokThirdPartyAPIKeyBaseURL(account.GetGrokBaseURL())
+	baseURL, err := validateGrokThirdPartyAPIKeyBaseURL(account.GetGrokBaseURL(), s.cfg)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Grok base URL: %w", err)
 	}
@@ -197,7 +196,6 @@ func resolveGrokProtocolProbeModel(account *Account, requested string) string {
 }
 
 func newJSONProbeRequest(ctx context.Context, url string, payload map[string]any) (*http.Request, error) {
-	ctx = urlvalidator.WithPublicIPValidation(ctx)
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err

@@ -6,14 +6,19 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 )
 
-func validateGrokThirdPartyAPIKeyBaseURL(raw string) (string, error) {
-	normalized, err := urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{
-		RequireAllowlist: false,
-		AllowPrivate:     false,
-	})
+func validateGrokThirdPartyAPIKeyBaseURL(raw string, cfg *config.Config) (string, error) {
+	allowInsecureHTTP := cfg != nil && cfg.Security.URLAllowlist.AllowInsecureHTTP
+	options := urlvalidator.ValidationOptions{}
+	if cfg != nil && cfg.Security.URLAllowlist.Enabled {
+		options.AllowedHosts = cfg.Security.URLAllowlist.UpstreamHosts
+		options.RequireAllowlist = true
+		options.AllowPrivate = cfg.Security.URLAllowlist.AllowPrivateHosts
+	}
+	normalized, err := urlvalidator.ValidateHTTPURL(raw, allowInsecureHTTP, options)
 	if err != nil {
 		return "", err
 	}
@@ -31,9 +36,7 @@ func validateGrokThirdPartyAPIKeyBaseURL(raw string) (string, error) {
 }
 
 func withGrokThirdPartyPublicNetworkValidation(ctx context.Context, account *Account) context.Context {
-	if account != nil && account.Platform == PlatformGrok && account.Type == AccountTypeAPIKey {
-		return urlvalidator.WithPublicIPValidation(ctx)
-	}
+	// Resolved-IP validation follows the global URL allowlist policy in HTTPUpstream.
 	return ctx
 }
 

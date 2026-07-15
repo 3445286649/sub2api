@@ -35,7 +35,7 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 			var validatedURL string
 			var err error
 			if account.IsGrokAnthropicMessagesAPIKey() {
-				validatedURL, err = validateGrokThirdPartyAPIKeyBaseURL(baseURL)
+				validatedURL, err = validateGrokThirdPartyAPIKeyBaseURL(baseURL, s.cfg)
 			} else {
 				validatedURL, err = s.validateUpstreamBaseURL(baseURL)
 			}

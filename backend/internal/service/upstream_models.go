@@ -194,7 +194,7 @@ func (s *AccountTestService) buildAnthropicUpstreamModelsRequest(ctx context.Con
 		)
 	}
 
-	normalizedBaseURL, err := validateGrokThirdPartyAPIKeyBaseURL(baseURL)
+	normalizedBaseURL, err := validateGrokThirdPartyAPIKeyBaseURL(baseURL, s.cfg)
 	if err != nil {
 		return nil, newUpstreamModelSyncConfigError("Invalid Anthropic base URL", err)
 	}

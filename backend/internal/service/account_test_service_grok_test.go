@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
@@ -40,8 +41,9 @@ func TestAccountTestService_TestAccountConnection_GrokUsesXAIResponses(t *testin
 		Schedulable: true,
 		Concurrency: 1,
 		Credentials: map[string]any{
-			"access_token": "grok-access-token",
-			"expires_at":   time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+			"access_token":  "grok-access-token",
+			"refresh_token": "grok-refresh-token",
+			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 			"model_mapping": map[string]any{
 				"grok": "grok-4.3",
 			},
@@ -139,6 +141,9 @@ func TestAccountTestService_ProbeGrokProtocolsDetectsSupportedAndUnknownProtocol
 	require.Equal(t, "https://grok-gateway.example.com/v1/responses", upstream.requests[2].URL.String())
 	require.Equal(t, "Bearer grok-api-key", upstream.requests[2].Header.Get("Authorization"))
 	require.Equal(t, float64(1), gjson.GetBytes(upstream.bodies[2], "max_output_tokens").Float())
+	for _, req := range upstream.requests {
+		require.False(t, urlvalidator.RequiresPublicIPValidation(req.Context()))
+	}
 }
 
 func TestAccountTestService_ProbeGrokProtocolsRejectsNonGrokAPIKey(t *testing.T) {
@@ -301,8 +306,9 @@ func TestAccountTestService_TestAccountConnection_GrokDefaultsEmptyModelTo45(t *
 		Schedulable: true,
 		Concurrency: 1,
 		Credentials: map[string]any{
-			"access_token": "grok-access-token",
-			"expires_at":   time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+			"access_token":  "grok-access-token",
+			"refresh_token": "grok-refresh-token",
+			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
 	repo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
@@ -342,8 +348,9 @@ func TestAccountTestService_Grok429PersistsRateLimitReset(t *testing.T) {
 		Schedulable: true,
 		Concurrency: 1,
 		Credentials: map[string]any{
-			"access_token": "grok-access-token",
-			"expires_at":   time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+			"access_token":  "grok-access-token",
+			"refresh_token": "grok-refresh-token",
+			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
 	baseRepo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}
@@ -375,8 +382,9 @@ func TestAccountTestService_Grok429WithoutQuotaHeadersUsesFallback(t *testing.T)
 		ID: 15, Name: "grok-oauth-limited-no-headers", Platform: PlatformGrok,
 		Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, Concurrency: 1,
 		Credentials: map[string]any{
-			"access_token": "grok-access-token",
-			"expires_at":   time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+			"access_token":  "grok-access-token",
+			"refresh_token": "grok-refresh-token",
+			"expires_at":    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		},
 	}
 	baseRepo := &mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}

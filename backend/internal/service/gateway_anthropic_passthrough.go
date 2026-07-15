@@ -320,7 +320,7 @@ func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(
 		var validatedURL string
 		var err error
 		if account.IsGrokAnthropicMessagesAPIKey() {
-			validatedURL, err = validateGrokThirdPartyAPIKeyBaseURL(baseURL)
+			validatedURL, err = validateGrokThirdPartyAPIKeyBaseURL(baseURL, s.cfg)
 		} else {
 			validatedURL, err = s.validateUpstreamBaseURL(baseURL)
 		}

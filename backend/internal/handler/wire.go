@@ -91,6 +91,7 @@ func ProvideAdminAccountHandler(
 	openaiOAuthService *service.OpenAIOAuthService,
 	geminiOAuthService *service.GeminiOAuthService,
 	antigravityOAuthService *service.AntigravityOAuthService,
+	grokOAuthService *service.GrokOAuthService,
 	rateLimitService *service.RateLimitService,
 	accountUsageService *service.AccountUsageService,
 	accountTestService *service.AccountTestService,
@@ -103,7 +104,7 @@ func ProvideAdminAccountHandler(
 	accountUpstreamBalanceService *service.AccountUpstreamBalanceService,
 	grokQuotaService *service.GrokQuotaService,
 ) *admin.AccountHandler {
-	h := admin.NewAccountHandler(adminService, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, rateLimitService, accountUsageService, accountTestService, concurrencyService, crsSyncService, sessionLimitCache, rpmCache, tokenCacheInvalidator, accountHealthService)
+	h := admin.NewAccountHandler(adminService, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, rateLimitService, accountUsageService, accountTestService, concurrencyService, crsSyncService, sessionLimitCache, rpmCache, tokenCacheInvalidator, accountHealthService)
 	h.SetAccountUpstreamBalanceService(accountUpstreamBalanceService)
 	h.SetGrokImportProber(grokQuotaService)
 	return h
