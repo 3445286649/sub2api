@@ -272,7 +272,7 @@ export default {
         "field_usdtRateModeHint": "Auto is recommended: the server fetches the USDT/CNY rate when creating an order and locks the exact USDT amount. Existing orders do not change when the rate moves later.",
         "field_usdtCnyPerUsdtHint": "Manual rate and the fallback value for auto mode. This means how many CNY 1 USDT is worth, e.g. 7.2; do not use 1 unless you intentionally test 1 CNY = 1 USDT.",
         "field_usdtRateApiUrlHint": "Leave empty to use Binance P2P USDT/CNY sell price by default. Fill this only for a custom price endpoint; it must return JSON.",
-        "field_usdtRateJSONPathHint": "Dot path for custom price endpoint JSON. Default tether.cny matches {\"tether\":{\"cny\":7.2}}; the default Binance P2P source does not use this.",
+        "field_usdtRateJSONPathHint": "Dot path for custom price endpoint JSON. The default tether.cny matches a tether.cny=7.2 field value; the default Binance P2P source does not use this.",
         "field_usdtRateCacheSecondsHint": "Auto-rate cache lifetime inside this service process. Default is 300 seconds; use 0 to request the endpoint for every order.",
         "field_usdtRateFallbackToManualHint": "Recommended. If the auto-rate endpoint fails, use the manual rate above to keep order creation available. Disable this to fail order creation instead.",
         "field_usdtConfirmationsHint": "Auto-credit only after this many block confirmations. Recommended 15-30; default is 20.",

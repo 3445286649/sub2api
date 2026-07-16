@@ -52,6 +52,10 @@ func TestSupportService_StatusTransitionsAndUnread(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTicket returned error: %v", err)
 	}
+	past := time.Now().Add(-time.Second)
+	if err := repo.UpdateReadAt(context.Background(), ticket.ID, SupportMessageSenderUser, past); err != nil {
+		t.Fatalf("seed user read time: %v", err)
+	}
 
 	if _, err := svc.AddAdminMessage(context.Background(), 1, ticket.ID, "已收到"); err != nil {
 		t.Fatalf("AddAdminMessage returned error: %v", err)
@@ -70,6 +74,9 @@ func TestSupportService_StatusTransitionsAndUnread(t *testing.T) {
 	got, _ = svc.GetForUser(context.Background(), 10, ticket.ID)
 	if got.UserUnread() {
 		t.Fatalf("user unread should be cleared after mark read")
+	}
+	if err := repo.UpdateReadAt(context.Background(), ticket.ID, SupportMessageSenderAdmin, past); err != nil {
+		t.Fatalf("seed admin read time: %v", err)
 	}
 
 	if _, err := svc.AddUserMessage(context.Background(), 10, ticket.ID, "补充日志"); err != nil {
@@ -320,6 +327,10 @@ func cloneTicket(ticket *SupportTicket) *SupportTicket {
 }
 
 type supportUserRepo struct{}
+
+func (r *supportUserRepo) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
+	return 0, nil
+}
 
 func (r *supportUserRepo) GetByID(_ context.Context, id int64) (*User, error) {
 	if id == 1 {

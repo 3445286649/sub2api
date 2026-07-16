@@ -47,6 +47,11 @@
             "
           />
           <p v-if="baseUrlHint" class="input-hint">{{ baseUrlHint }}</p>
+          <GrokBaseUrlPresets
+            v-if="account.platform === 'grok'"
+            class="mt-2"
+            @select="editBaseUrl = $event"
+          />
         </div>
         <div>
           <label class="input-label">{{ t('admin.accounts.apiKey') }}</label>
@@ -452,7 +457,7 @@
             />
           </button>
         </div>
-        <div v-if="grokOAuthCustomBaseUrlEnabled">
+        <div v-if="grokOAuthCustomBaseUrlEnabled" class="space-y-2">
           <input
             v-model="grokOAuthBaseUrl"
             type="text"
@@ -460,6 +465,7 @@
             data-testid="grok-custom-base-url-input"
             :placeholder="t('admin.accounts.grokCustomBaseUrl.placeholder')"
           />
+          <GrokBaseUrlPresets @select="grokOAuthBaseUrl = $event" />
         </div>
       </div>
 
@@ -1455,7 +1461,7 @@
         </div>
       </div>
 
-      <!-- OpenAI Codex 图片工具统一策略（自动注入 + 客户端显式携带） -->
+      <!-- OpenAI Codex hosted image_generation bridge policy -->
       <div
         v-if="account?.platform === 'openai' && (account?.type === 'oauth' || account?.type === 'setup-token' || account?.type === 'apikey')"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
@@ -2667,6 +2673,7 @@ import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
+import GrokBaseUrlPresets from '@/components/account/GrokBaseUrlPresets.vue'
 import HeaderOverrideEditor from '@/components/account/HeaderOverrideEditor.vue'
 import {
   applyAntigravityProjectID,
@@ -3540,7 +3547,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     )
   }
 
-  // Load Grok OAuth custom upstream URL state（存储的官方地址视同未定制）
+  // Load Grok OAuth upstream URL state; only the generated CLI gateway is treated as default.
   grokOAuthCustomBaseUrlEnabled.value = false
   grokOAuthBaseUrl.value = ''
   if (newAccount.platform === 'grok' && newAccount.type === 'oauth' && newAccount.credentials) {
@@ -4444,7 +4451,7 @@ const handleSubmit = async () => {
     }
 
     // Grok OAuth: 自定义上游地址 + 请求头覆写。base_url 仅改写转发端点，
-    // OAuth 授权与令牌刷新链路不读取该值；关闭开关即恢复默认官方网关。
+    // OAuth 授权与令牌刷新链路不读取该值；关闭开关即恢复默认 CLI 网关。
     if (props.account.platform === 'grok' && props.account.type === 'oauth') {
       const currentCredentials =
         (updatePayload.credentials as Record<string, unknown>) ||

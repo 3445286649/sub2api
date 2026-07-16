@@ -282,7 +282,7 @@ export default {
         "field_usdtRateModeHint": "推荐使用自动模式：创建订单时实时获取 USDT/CNY 汇率并锁定应付 USDT 数量；已创建订单不会随汇率继续变化。",
         "field_usdtCnyPerUsdtHint": "手动汇率，也是自动汇率失败时的兜底值。含义是 1 USDT ≈ 多少 CNY，例如 7.2；不要填 1，除非你明确要按 1 CNY = 1 USDT 测试。",
         "field_usdtRateApiUrlHint": "留空时默认使用 Binance P2P USDT/CNY 卖出价。仅在需要自定义价格接口时填写；接口必须返回 JSON。",
-        "field_usdtRateJSONPathHint": "自定义价格接口的 JSON 点号路径。默认 tether.cny，对应 {\"tether\":{\"cny\":7.2}}；默认 Binance P2P 源不使用此项。",
+        "field_usdtRateJSONPathHint": "自定义价格接口的 JSON 点号路径。默认 tether.cny，对应字段值 tether.cny=7.2；默认 Binance P2P 源不使用此项。",
         "field_usdtRateCacheSecondsHint": "同一服务进程内的自动汇率缓存时间。默认 300 秒；填 0 表示每次下单都请求接口。",
         "field_usdtRateFallbackToManualHint": "建议开启。自动汇率接口失败时使用上面的手动汇率继续创建订单；关闭后接口失败会阻止下单。",
         "field_usdtConfirmationsHint": "链上确认数达到该值后才会自动入账。建议 15-30，默认 20。",
