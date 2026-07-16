@@ -23,7 +23,7 @@
             v-if="showBonusPreview"
             class="mt-1 block text-xs font-normal text-emerald-600 dark:text-emerald-300"
           >
-            {{ t('payment.quickAmountCredit', { amount: formatCreditAmount(creditedAmountFor(amt)) }) }}
+            {{ t('payment.quickAmountCredit', { amount: formatCreditedAmount(creditedAmountFor(amt)) }) }}
           </span>
         </button>
       </div>
@@ -106,7 +106,7 @@ function creditedAmountFor(amt: number) {
  return Math.round((amt * props.creditMultiplier) * 100) / 100
 }
 
-function formatCreditAmount(value: number) {
+function formatCreditedAmount(value: number) {
   return props.formatCreditAmount?.(value) ?? value.toFixed(2)
 }
 

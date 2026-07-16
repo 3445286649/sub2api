@@ -67,6 +67,11 @@
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div><label class="input-label">{{ t('payment.admin.sortOrder') }}</label><input v-model.number="planForm.sort_order" type="number" min="0" class="input" /></div>
+        <div>
+          <label class="input-label">{{ t('payment.admin.currency') }}</label>
+          <input v-model="planForm.currency" type="text" maxlength="3" class="input uppercase" :placeholder="t('payment.admin.currencyPlaceholder')" />
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.currencyHint') }}</p>
+        </div>
       </div>
       <div>
         <label class="input-label">{{ t('payment.admin.features') }}</label>
@@ -138,9 +143,10 @@ const planForm = reactive({
   description: '',
   price: 0,
   original_price: 0,
+  currency: '',
   validity_days: 30,
   validity_unit: 'days',
-  quota_reset_scope: 'daily' as 'daily',
+  quota_reset_scope: 'daily' as const,
   quota_reset_value: 100,
   sort_order: 0,
   for_sale: true,
@@ -215,6 +221,7 @@ watch(() => props.show, (visible) => {
       description: props.plan.description,
       price: props.plan.price,
       original_price: props.plan.original_price || 0,
+      currency: props.plan.currency || '',
       validity_days: props.plan.validity_days,
       validity_unit: props.plan.validity_unit || 'days',
       quota_reset_scope: props.plan.quota_reset_scope || 'daily',
@@ -224,7 +231,7 @@ watch(() => props.show, (visible) => {
     })
     planFeaturesText.value = (props.plan.features || []).join('\n')
   } else {
-    Object.assign(planForm, { plan_type: 'subscription', name: '', group_id: null, description: '', price: 0, original_price: 0, validity_days: 30, validity_unit: 'days', quota_reset_scope: 'daily', quota_reset_value: 100, sort_order: 0, for_sale: true })
+    Object.assign(planForm, { plan_type: 'subscription', name: '', group_id: null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', quota_reset_scope: 'daily', quota_reset_value: 100, sort_order: 0, for_sale: true })
     planFeaturesText.value = ''
   }
 })
@@ -239,6 +246,7 @@ function buildPlanPayload() {
     description: planForm.description,
     price: planForm.price,
     original_price: planForm.original_price || 0,
+    currency: planForm.currency.trim().toUpperCase(),
     validity_days: planForm.validity_days,
     validity_unit: planForm.validity_unit,
     sort_order: planForm.sort_order,

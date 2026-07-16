@@ -6,6 +6,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	adminhandler "github.com/Wei-Shaw/sub2api/internal/handler/admin"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,7 +22,7 @@ func TestRegisterAccountRoutes_HealthEnhancementRoutes(t *testing.T) {
 		},
 	}
 
-	registerAccountRoutes(admin, handlers)
+	registerAccountRoutes(admin, handlers, middleware.StepUpAuthMiddleware(func(c *gin.Context) { c.Next() }))
 
 	wantRoutes := map[string]bool{
 		http.MethodPatch + " /api/v1/admin/accounts/:id/rate-multiplier":       false,

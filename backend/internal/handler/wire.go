@@ -45,7 +45,10 @@ func ProvideAdminHandlers(
 	acquisitionHandler *admin.AcquisitionHandler,
 	modelRadarHandler *admin.ModelRadarHandler,
 	complianceHandler *admin.ComplianceHandler,
+	auditLogHandler *admin.AuditLogHandler,
+	upstreamBillingProbe *service.UpstreamBillingProbeService,
 ) *AdminHandlers {
+	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
 		User:                   userHandler,
@@ -83,6 +86,7 @@ func ProvideAdminHandlers(
 		Acquisition:            acquisitionHandler,
 		ModelRadar:             modelRadarHandler,
 		Compliance:             complianceHandler,
+		AuditLog:               auditLogHandler,
 	}
 }
 
@@ -152,6 +156,7 @@ func ProvideHandlers(
 	availableChannelHandler *AvailableChannelHandler,
 	acquisitionHandler *AcquisitionHandler,
 	modelRadarHandler *ModelRadarHandler,
+	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
@@ -176,6 +181,7 @@ func ProvideHandlers(
 		AvailableChannel: availableChannelHandler,
 		Acquisition:      acquisitionHandler,
 		ModelRadar:       modelRadarHandler,
+		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
 	}
 }
@@ -201,6 +207,7 @@ var ProviderSet = wire.NewSet(
 	NewAvailableChannelHandler,
 	NewAcquisitionHandler,
 	NewModelRadarHandler,
+	NewAsyncImageHandler,
 	NewBatchImageHandler,
 
 	// Admin handlers
@@ -240,6 +247,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewAcquisitionHandler,
 	admin.NewModelRadarHandler,
 	admin.NewComplianceHandler,
+	admin.NewAuditLogHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

@@ -42,6 +42,7 @@ type AdminHandlers struct {
 	Acquisition            *admin.AcquisitionHandler
 	ModelRadar             *admin.ModelRadarHandler
 	Compliance             *admin.ComplianceHandler
+	AuditLog               *admin.AuditLogHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -65,6 +66,7 @@ type Handlers struct {
 	AvailableChannel *AvailableChannelHandler
 	Acquisition      *AcquisitionHandler
 	ModelRadar       *ModelRadarHandler
+	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
 }
 
