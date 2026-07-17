@@ -200,6 +200,9 @@ export default {
     supportGroup: 'Support Group',
     supportGroupDescription: 'Scan the QR code to join the support group',
     supportGroupQrAlt: 'Support group QR code',
+    securityAudit: 'Security Audit',
+    contentModeration: 'Content Moderation',
+    promptAudit: 'Prompt Audit',
     auditLogs: 'Audit Logs',
   },
 

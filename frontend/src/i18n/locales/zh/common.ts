@@ -200,6 +200,9 @@ export default {
     supportGroup: '售后群',
     supportGroupDescription: '扫码加入售后群获取支持',
     supportGroupQrAlt: '售后群二维码',
+    securityAudit: '安全审计',
+    contentModeration: '内容审核',
+    promptAudit: '提示词审计',
     auditLogs: '操作日志',
   },
 
