@@ -387,6 +387,7 @@ export const useAppStore = defineStore('app', () => {
         acquisition_enabled: false,
         acquisition_leaderboard_enabled: true,
         acquisition_lottery_enabled: true,
+        usage_rebate_enabled: false,
         allow_user_view_error_requests: false,
       })
     }

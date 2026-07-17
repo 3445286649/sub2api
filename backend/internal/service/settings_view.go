@@ -180,6 +180,7 @@ type SystemSettings struct {
 	AcquisitionEnabled            bool
 	AcquisitionLeaderboardEnabled bool
 	AcquisitionLotteryEnabled     bool
+	UsageRebateEnabled            bool
 	AdminRechargeRebateEnabled    bool
 	DefaultUserRPMLimit           int
 	DefaultSubscriptions          []DefaultSubscriptionSetting
@@ -384,6 +385,7 @@ type PublicSettings struct {
 	AcquisitionEnabled            bool `json:"acquisition_enabled"`
 	AcquisitionLeaderboardEnabled bool `json:"acquisition_leaderboard_enabled"`
 	AcquisitionLotteryEnabled     bool `json:"acquisition_lottery_enabled"`
+	UsageRebateEnabled            bool `json:"usage_rebate_enabled"`
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`

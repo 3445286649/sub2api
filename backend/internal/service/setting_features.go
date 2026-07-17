@@ -980,6 +980,17 @@ func (s *SettingService) IsAcquisitionEnabled(ctx context.Context) bool {
 	return !isFalseSettingValue(value)
 }
 
+func (s *SettingService) IsUsageRebateEnabled(ctx context.Context) bool {
+	if s == nil || s.settingRepo == nil {
+		return UsageRebateEnabledDefault
+	}
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyUsageRebateEnabled)
+	if err != nil {
+		return UsageRebateEnabledDefault
+	}
+	return value == "true"
+}
+
 func (s *SettingService) IsAcquisitionLeaderboardEnabled(ctx context.Context) bool {
 	if s == nil || s.settingRepo == nil {
 		return true

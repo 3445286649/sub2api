@@ -89,6 +89,11 @@ func RegisterUserRoutes(
 			acquisition.GET("/current", h.Acquisition.GetCurrent)
 		}
 
+		if h.UsageRebate != nil {
+			usageRebate := authenticated.Group("/usage-rebate")
+			usageRebate.GET("", h.UsageRebate.GetOverview)
+		}
+
 		modelRadar := authenticated.Group("/model-radar")
 		{
 			modelRadar.GET("/current", h.ModelRadar.Current)

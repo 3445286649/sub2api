@@ -689,6 +689,7 @@ export interface SystemSettings {
   acquisition_enabled: boolean;
   acquisition_leaderboard_enabled: boolean;
   acquisition_lottery_enabled: boolean;
+  usage_rebate_enabled: boolean;
 
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;
@@ -984,6 +985,7 @@ export interface UpdateSettingsRequest {
   acquisition_enabled?: boolean;
   acquisition_leaderboard_enabled?: boolean;
   acquisition_lottery_enabled?: boolean;
+  usage_rebate_enabled?: boolean;
 
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;

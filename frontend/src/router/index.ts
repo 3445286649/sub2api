@@ -231,6 +231,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/usage-rebate',
+    name: 'UsageRebate',
+    component: () => import('@/views/user/UsageRebateView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Usage Rebate',
+      titleKey: 'usageRebate.title',
+      descriptionKey: 'usageRebate.description'
+    }
+  },
+  {
     path: '/redeem',
     name: 'Redeem',
     component: () => import('@/views/user/RedeemView.vue'),

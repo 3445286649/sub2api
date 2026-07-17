@@ -119,6 +119,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		AcquisitionEnabled:            settings.AcquisitionEnabled,
 		AcquisitionLeaderboardEnabled: settings.AcquisitionLeaderboardEnabled,
 		AcquisitionLotteryEnabled:     settings.AcquisitionLotteryEnabled,
+		UsageRebateEnabled:            settings.UsageRebateEnabled,
 
 		RiskControlEnabled: settings.RiskControlEnabled,
 

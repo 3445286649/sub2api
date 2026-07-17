@@ -240,6 +240,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAcquisitionEnabled,
 		SettingKeyAcquisitionLeaderboardEnabled,
 		SettingKeyAcquisitionLotteryEnabled,
+		SettingKeyUsageRebateEnabled,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
 	}
@@ -371,6 +372,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		AcquisitionEnabled:            settings[SettingKeyAcquisitionEnabled] == "true",
 		AcquisitionLeaderboardEnabled: !isFalseSettingValue(settings[SettingKeyAcquisitionLeaderboardEnabled]),
 		AcquisitionLotteryEnabled:     !isFalseSettingValue(settings[SettingKeyAcquisitionLotteryEnabled]),
+		UsageRebateEnabled:            settings[SettingKeyUsageRebateEnabled] == "true",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
@@ -552,6 +554,7 @@ type PublicSettingsInjectionPayload struct {
 	AcquisitionEnabled                   bool `json:"acquisition_enabled"`
 	AcquisitionLeaderboardEnabled        bool `json:"acquisition_leaderboard_enabled"`
 	AcquisitionLotteryEnabled            bool `json:"acquisition_lottery_enabled"`
+	UsageRebateEnabled                   bool `json:"usage_rebate_enabled"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
 }
@@ -636,6 +639,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		AcquisitionEnabled:                   settings.AcquisitionEnabled,
 		AcquisitionLeaderboardEnabled:        settings.AcquisitionLeaderboardEnabled,
 		AcquisitionLotteryEnabled:            settings.AcquisitionLotteryEnabled,
+		UsageRebateEnabled:                   settings.UsageRebateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
 	}, nil

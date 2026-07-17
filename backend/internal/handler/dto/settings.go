@@ -318,6 +318,7 @@ type SystemSettings struct {
 	AcquisitionEnabled            bool `json:"acquisition_enabled"`
 	AcquisitionLeaderboardEnabled bool `json:"acquisition_leaderboard_enabled"`
 	AcquisitionLotteryEnabled     bool `json:"acquisition_lottery_enabled"`
+	UsageRebateEnabled            bool `json:"usage_rebate_enabled"`
 
 	// OpenAI fast/flex policy
 	OpenAIFastPolicySettings *OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`
@@ -413,6 +414,7 @@ type PublicSettings struct {
 	AcquisitionEnabled            bool `json:"acquisition_enabled"`
 	AcquisitionLeaderboardEnabled bool `json:"acquisition_leaderboard_enabled"`
 	AcquisitionLotteryEnabled     bool `json:"acquisition_lottery_enabled"`
+	UsageRebateEnabled            bool `json:"usage_rebate_enabled"`
 
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 

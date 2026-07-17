@@ -102,6 +102,17 @@
           <span>{{ rechargeStorefrontButtonText }}</span>
         </button>
 
+        <!-- Usage Rebate -->
+        <button
+          v-if="showUsageRebate"
+          type="button"
+          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
+          @click="openUsageRebate"
+        >
+          <Icon name="gift" size="sm" />
+          <span>{{ t('nav.usageRebate') }}</span>
+        </button>
+
         <!-- Usage Help -->
         <button
           v-if="showUsageHelp"
@@ -212,6 +223,11 @@
                   <Icon name="creditCard" size="sm" />
                   {{ rechargeStorefrontButtonText }}
                 </button>
+
+                <router-link v-if="showUsageRebate" to="/usage-rebate" @click="closeDropdown" class="dropdown-item">
+                  <Icon name="gift" size="sm" />
+                  {{ t('nav.usageRebate') }}
+                </router-link>
 
                 <button v-if="showUsageHelp" type="button" @click="openUsageHelpFromMenu" class="dropdown-item w-full">
                   <Icon name="questionCircle" size="sm" />
@@ -483,6 +499,9 @@ const showPixmoStudio = computed(() => {
 const showUsageHelp = computed(() => {
   return !!user.value && publicSettings.value?.usage_help_enabled === true
 })
+const showUsageRebate = computed(() => {
+  return !!user.value && publicSettings.value?.usage_rebate_enabled === true
+})
 const showModelRadar = computed(() => {
   return !!user.value && publicSettings.value?.model_radar_enabled === true
 })
@@ -590,6 +609,10 @@ function closeRechargeStorefront() {
 
 function openUsageHelp() {
   usageHelpOpen.value = true
+}
+
+function openUsageRebate() {
+  void router.push('/usage-rebate')
 }
 
 function openUsageHelpFromMenu() {

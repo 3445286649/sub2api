@@ -129,6 +129,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Acquisition',
   }),
+  usageRebate: defineFlag({
+    key: 'usage_rebate_enabled',
+    mode: 'opt-in',
+    label: 'Usage Rebate',
+  }),
 } as const
 
 export type RegisteredFeatureFlag = keyof typeof FeatureFlags

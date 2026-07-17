@@ -34,6 +34,7 @@ const (
 	AffiliateRebateDurationDaysMax      = 3650  // ~10 年
 	AffiliateRebatePerInviteeCapDefault = 0.0   // 0 = 无上限
 	AcquisitionEnabledDefault           = false // 拉新活动总开关默认关闭
+	UsageRebateEnabledDefault           = false // 使用返利总开关默认关闭
 	AdminRechargeRebateEnabledDefault   = false // 管理员充值默认不产生返利
 )
 
@@ -156,6 +157,7 @@ const (
 	SettingKeyAcquisitionEnabled               = "acquisition_enabled"                 // 拉新活动总开关
 	SettingKeyAcquisitionLeaderboardEnabled    = "acquisition_leaderboard_enabled"     // 拉新活动排行榜开关
 	SettingKeyAcquisitionLotteryEnabled        = "acquisition_lottery_enabled"         // 拉新活动抽奖开关
+	SettingKeyUsageRebateEnabled               = "usage_rebate_enabled"                // 使用返利总开关
 	SettingKeyAffiliateAdminRechargeEnabled    = "affiliate_admin_recharge_enabled"    // 管理员充值是否产生返利
 	SettingKeyRiskControlEnabled               = "risk_control_enabled"                // 是否启用风控中心入口与审计链路
 	SettingKeyContentModerationConfig          = "content_moderation_config"           // 内容审计配置（JSON）

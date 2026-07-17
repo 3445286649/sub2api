@@ -330,7 +330,8 @@ type UpdateSettingsRequest struct {
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
 
 	// Affiliate (邀请返利) feature switch
-	AffiliateEnabled *bool `json:"affiliate_enabled"`
+	AffiliateEnabled   *bool `json:"affiliate_enabled"`
+	UsageRebateEnabled *bool `json:"usage_rebate_enabled"`
 
 	// 风控中心功能开关
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
@@ -1586,6 +1587,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AffiliateEnabled
 		}(),
+		UsageRebateEnabled: resolveUsageRebateEnabled(req.UsageRebateEnabled, previousSettings.UsageRebateEnabled),
 		RiskControlEnabled: func() bool {
 			if req.RiskControlEnabled != nil {
 				return *req.RiskControlEnabled
@@ -1991,6 +1993,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AcquisitionEnabled:            updatedSettings.AcquisitionEnabled,
 		AcquisitionLeaderboardEnabled: updatedSettings.AcquisitionLeaderboardEnabled,
 		AcquisitionLotteryEnabled:     updatedSettings.AcquisitionLotteryEnabled,
+		UsageRebateEnabled:            updatedSettings.UsageRebateEnabled,
 
 		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
 		CyberSessionBlockEnabled:    updatedSettings.CyberSessionBlockEnabled,
@@ -2010,6 +2013,13 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		payload.DefaultPlatformQuotas = platformQuotas
 	}
 	response.Success(c, systemSettingsResponseData(payload, updatedAuthSourceDefaults))
+}
+
+func resolveUsageRebateEnabled(requested *bool, current bool) bool {
+	if requested == nil {
+		return current
+	}
+	return *requested
 }
 
 // hasPaymentFields returns true if any payment-related field was explicitly provided.

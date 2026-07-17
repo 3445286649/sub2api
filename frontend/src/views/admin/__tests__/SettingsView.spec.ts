@@ -675,6 +675,7 @@ describe("admin SettingsView payment visible method controls", () => {
       acquisition_enabled: true,
       acquisition_leaderboard_enabled: false,
       acquisition_lottery_enabled: true,
+      usage_rebate_enabled: true,
       doc_url: "https://docs.loucer.cn/",
     });
     const wrapper = mountView();
@@ -695,6 +696,7 @@ describe("admin SettingsView payment visible method controls", () => {
         acquisition_enabled: true,
         acquisition_leaderboard_enabled: false,
         acquisition_lottery_enabled: true,
+        usage_rebate_enabled: true,
         doc_url: "https://docs.loucer.cn/",
       }),
     );

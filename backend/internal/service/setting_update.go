@@ -282,6 +282,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyAcquisitionEnabled] = strconv.FormatBool(settings.AcquisitionEnabled)
 	updates[SettingKeyAcquisitionLeaderboardEnabled] = strconv.FormatBool(settings.AcquisitionLeaderboardEnabled)
 	updates[SettingKeyAcquisitionLotteryEnabled] = strconv.FormatBool(settings.AcquisitionLotteryEnabled)
+	updates[SettingKeyUsageRebateEnabled] = strconv.FormatBool(settings.UsageRebateEnabled)
 	updates[SettingKeyDocURL] = strings.TrimSpace(settings.DocURL)
 	updates[SettingKeyHomeContent] = settings.HomeContent
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)

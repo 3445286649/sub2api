@@ -69,6 +69,46 @@ export default {
       "settled": "已结算"
     }
   },
+  "usageRebate": {
+    "title": "使用返利",
+    "description": "今日消费排行与个人返利记录",
+    "enabled": "今日进行中",
+    "disabled": "当前未开启",
+    "settlement": "次日结算",
+    "participants": "今日上榜",
+    "leaderboard": "今日消费排行",
+    "balanceOnly": "仅钱包余额消费",
+    "rank": "名次",
+    "user": "用户",
+    "requests": "请求数",
+    "tokens": "Token",
+    "spend": "本人消费",
+    "rate": "返利比例",
+    "estimated": "预计返利",
+    "reward": "返利金额",
+    "status": "状态",
+    "date": "日期",
+    "myRewards": "我的返利记录",
+    "trend": {
+      "title": "近 30 日返利趋势",
+      "period": "{start} 至 {end}",
+      "spend": "每日余额消费",
+      "reward": "每日返利金额",
+      "noData": "暂无可展示的消费或返利趋势",
+      "loadFailed": "返利趋势暂时不可用，请稍后再试",
+      "notRanked": "当日未产生返利记录"
+    },
+    "empty": "今天还没有符合条件的消费记录",
+    "disabledEmpty": "使用返利当前未开启",
+    "noRewards": "暂无返利记录",
+    "loadFailed": "加载使用返利失败",
+    "statuses": {
+      "pending": "待入账",
+      "credited": "已入账",
+      "failed": "待重试",
+      "unknown": "人工核对"
+    }
+  },
   "redeem": {
     "subscriptionQuotaReset": "订阅额度已刷新",
     "quotaResetScopes": {
@@ -204,6 +244,12 @@ export default {
           "leaderboardHint": "关闭后不展示排行榜入口，也不生成排行榜奖励。",
           "lotteryEnabled": "启用抽奖模块",
           "lotteryHint": "关闭后不展示抽奖券信息，也不生成抽奖奖励。"
+        },
+        "usageRebate": {
+          "title": "使用返利",
+          "description": "按北京时间自然日统计钱包消费前 20 名，并在次日 00:15 自动入账。比例由服务端固定。",
+          "enabled": "启用使用返利",
+          "enabledHint": "关闭后不创建新的结算期；已创建的结算期仍会正常完成。"
         }
       },
       "site": {

@@ -321,6 +321,7 @@ export interface PublicSettings {
   acquisition_enabled: boolean
   acquisition_leaderboard_enabled: boolean
   acquisition_lottery_enabled: boolean
+  usage_rebate_enabled: boolean
   allow_user_view_error_requests?: boolean
 }
 

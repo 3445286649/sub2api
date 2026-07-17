@@ -69,6 +69,46 @@ export default {
       "settled": "Settled"
     }
   },
+  "usageRebate": {
+    "title": "Usage Rebate",
+    "description": "Today's spending ranking and your rebate history",
+    "enabled": "Active today",
+    "disabled": "Currently disabled",
+    "settlement": "Next-day settlement",
+    "participants": "Ranked today",
+    "leaderboard": "Today's spending ranking",
+    "balanceOnly": "Balance spending only",
+    "rank": "Rank",
+    "user": "User",
+    "requests": "Requests",
+    "tokens": "Tokens",
+    "spend": "Own spend",
+    "rate": "Rebate rate",
+    "estimated": "Estimated rebate",
+    "reward": "Rebate",
+    "status": "Status",
+    "date": "Date",
+    "myRewards": "My rebate history",
+    "trend": {
+      "title": "Recent 30-day rebate trend",
+      "period": "{start} to {end}",
+      "spend": "Daily balance spend",
+      "reward": "Daily rebate",
+      "noData": "No spending or rebate trend is available",
+      "loadFailed": "The rebate trend is temporarily unavailable. Please try again later.",
+      "notRanked": "No rebate record for this day"
+    },
+    "empty": "No eligible spending today",
+    "disabledEmpty": "Usage rebates are currently disabled",
+    "noRewards": "No rebate records",
+    "loadFailed": "Failed to load usage rebates",
+    "statuses": {
+      "pending": "Pending",
+      "credited": "Credited",
+      "failed": "Retry pending",
+      "unknown": "Manual review"
+    }
+  },
   "redeem": {
     "subscriptionQuotaReset": "Subscription quota reset",
     "quotaResetScopes": {
@@ -194,6 +234,12 @@ export default {
           "leaderboardHint": "When off, leaderboard UI is hidden and leaderboard rewards are not generated.",
           "lotteryEnabled": "Enable Lottery Module",
           "lotteryHint": "When off, lottery ticket UI is hidden and lottery rewards are not generated."
+        },
+        "usageRebate": {
+          "title": "Usage Rebate",
+          "description": "Ranks the top 20 balance spenders by Asia/Shanghai calendar day and credits rebates at 00:15 the next day. Rates are fixed by the server.",
+          "enabled": "Enable Usage Rebate",
+          "enabledHint": "Turning this off stops new periods; existing periods still settle normally."
         }
       },
       "site": {

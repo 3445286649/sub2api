@@ -116,12 +116,24 @@ func RegisterAdminRoutes(
 
 		// 拉新活动
 		registerAcquisitionRoutes(admin, h)
+		registerUsageRebateRoutes(admin, h)
 
 		// 模型雷达
 		registerModelRadarRoutes(admin, h)
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerUsageRebateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	if h.Admin == nil || h.Admin.UsageRebate == nil {
+		return
+	}
+	rebate := admin.Group("/usage-rebate")
+	{
+		rebate.GET("/periods", h.Admin.UsageRebate.ListPeriods)
+		rebate.GET("/periods/:id/rewards", h.Admin.UsageRebate.ListPeriodRewards)
 	}
 }
 

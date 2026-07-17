@@ -718,6 +718,13 @@ func ProvideAcquisitionService(repo AcquisitionRepository, settingService *Setti
 	return svc
 }
 
+func ProvideUsageRebateService(repo UsageRebateRepository, settingService *SettingService, auth APIKeyAuthCacheInvalidator, billing *BillingCacheService) *UsageRebateService {
+	svc := NewUsageRebateService(repo, settingService)
+	svc.SetCacheInvalidators(auth, billing)
+	svc.Start()
+	return svc
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
@@ -745,6 +752,7 @@ var ProviderSet = wire.NewSet(
 	ProvideAccountHealthEventCleanupRunner,
 	ProvideAccountUpstreamBalanceRunner,
 	ProvideAcquisitionService,
+	ProvideUsageRebateService,
 	ProvideModelRadarService,
 	NewAdminService,
 	ProvideGatewayService,

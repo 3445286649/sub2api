@@ -6436,6 +6436,30 @@
           </div>
         </div>
 
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.features.usageRebate.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.features.usageRebate.description') }}
+            </p>
+          </div>
+          <div class="p-6">
+            <div class="flex items-center justify-between gap-6">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.usageRebate.enabled') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.usageRebate.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.usage_rebate_enabled" />
+            </div>
+          </div>
+        </div>
+
         <!-- Affiliate (邀请返利) feature card -->
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -9159,6 +9183,7 @@ const form = reactive<SettingsForm>({
   acquisition_enabled: false,
   acquisition_leaderboard_enabled: true,
   acquisition_lottery_enabled: true,
+  usage_rebate_enabled: false,
   // Allow user view error requests
   allow_user_view_error_requests: false,
 });
@@ -10627,6 +10652,7 @@ async function saveSettings() {
       acquisition_enabled: form.acquisition_enabled,
       acquisition_leaderboard_enabled: form.acquisition_leaderboard_enabled,
       acquisition_lottery_enabled: form.acquisition_lottery_enabled,
+      usage_rebate_enabled: form.usage_rebate_enabled,
       allow_user_view_error_requests: form.allow_user_view_error_requests,
     };
 

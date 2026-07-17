@@ -40,6 +40,7 @@ type AdminHandlers struct {
 	Payment                *admin.PaymentHandler
 	Affiliate              *admin.AffiliateHandler
 	Acquisition            *admin.AcquisitionHandler
+	UsageRebate            *admin.UsageRebateHandler
 	ModelRadar             *admin.ModelRadarHandler
 	Compliance             *admin.ComplianceHandler
 	AuditLog               *admin.AuditLogHandler
@@ -65,6 +66,7 @@ type Handlers struct {
 	PaymentWebhook   *PaymentWebhookHandler
 	AvailableChannel *AvailableChannelHandler
 	Acquisition      *AcquisitionHandler
+	UsageRebate      *UsageRebateHandler
 	ModelRadar       *ModelRadarHandler
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
