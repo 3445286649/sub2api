@@ -251,6 +251,91 @@ func (r *usageRebateRepository) GetLeaderboard(ctx context.Context, start, end t
 	return queryUsageRebateCandidates(ctx, r.db, start, end, viewerUserID, limit)
 }
 
+func (r *usageRebateRepository) GetUserPosition(ctx context.Context, start, end time.Time, userID int64) (service.UsageRebatePosition, error) {
+	var position service.UsageRebatePosition
+	var rank sql.NullInt64
+	var previousSpend, top20Spend sql.NullString
+	err := r.db.QueryRowContext(ctx, `
+WITH totals AS (
+    SELECT ul.user_id,
+           COUNT(*)::bigint AS requests,
+           COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0)::bigint AS tokens,
+           COALESCE(SUM(ul.actual_cost), 0)::numeric(20,8) AS spend_amount
+    FROM usage_logs ul
+    JOIN users u ON u.id=ul.user_id
+    WHERE ul.created_at >= $1 AND ul.created_at < $2
+      AND ul.billing_type=0 AND ul.actual_cost > 0
+    GROUP BY ul.user_id
+), ranked AS (
+    SELECT totals.*,
+           ROW_NUMBER() OVER (
+               ORDER BY spend_amount DESC, tokens DESC, user_id ASC
+           )::integer AS rank
+    FROM totals
+), annotated AS (
+    SELECT ranked.*,
+           LAG(spend_amount) OVER (ORDER BY rank) AS previous_spend
+    FROM ranked
+), summary AS (
+    SELECT COUNT(*)::integer AS participant_count,
+           MAX(spend_amount) FILTER (WHERE rank=20) AS top_20_spend
+    FROM ranked
+)
+SELECT target.rank, summary.participant_count,
+       COALESCE(target.requests, 0), COALESCE(target.tokens, 0), COALESCE(target.spend_amount, 0),
+       target.previous_spend::text, summary.top_20_spend::text
+FROM summary
+LEFT JOIN annotated target ON target.user_id=$3`, start, end, userID).Scan(
+		&rank, &position.ParticipantCount, &position.Requests, &position.Tokens, &position.SpendAmount,
+		&previousSpend, &top20Spend,
+	)
+	if err != nil {
+		return service.UsageRebatePosition{}, err
+	}
+	if !rank.Valid {
+		return position, nil
+	}
+
+	value := int(rank.Int64)
+	position.Rank = &value
+	position.Eligible = value >= 1 && value <= usageRebateTopLimit()
+	if position.Eligible {
+		position.RebatePercent = service.UsageRebateRates()[value-1].Percent
+		position.EstimatedReward, _ = service.CalculateUsageRebate(position.SpendAmount, value)
+	}
+	if value > 1 {
+		previousRank := value - 1
+		position.PreviousRank = &previousRank
+		if previousSpend.Valid {
+			gap, parseErr := decimal.NewFromString(previousSpend.String)
+			if parseErr != nil {
+				return service.UsageRebatePosition{}, parseErr
+			}
+			gap = gap.Sub(position.SpendAmount)
+			if gap.IsNegative() {
+				gap = decimal.Zero
+			}
+			position.GapToPrevious = &gap
+		}
+	}
+	if value > usageRebateTopLimit() && top20Spend.Valid {
+		gap, parseErr := decimal.NewFromString(top20Spend.String)
+		if parseErr != nil {
+			return service.UsageRebatePosition{}, parseErr
+		}
+		gap = gap.Sub(position.SpendAmount)
+		if gap.IsNegative() {
+			gap = decimal.Zero
+		}
+		position.GapToTop20 = &gap
+	}
+	return position, nil
+}
+
+func usageRebateTopLimit() int {
+	return len(service.UsageRebateRates())
+}
+
 func (r *usageRebateRepository) ListUserRewards(ctx context.Context, userID int64, limit int) ([]service.UsageRebateReward, error) {
 	rows, err := r.db.QueryContext(ctx, usageRebateRewardSelect+`
 WHERE rr.user_id=$1

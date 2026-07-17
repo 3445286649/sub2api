@@ -97,6 +97,20 @@ type UsageRebateCandidate struct {
 	EstimatedReward decimal.Decimal `json:"estimated_reward"`
 }
 
+type UsageRebatePosition struct {
+	Rank             *int
+	ParticipantCount int
+	Requests         int64
+	Tokens           int64
+	SpendAmount      decimal.Decimal
+	RebatePercent    decimal.Decimal
+	EstimatedReward  decimal.Decimal
+	Eligible         bool
+	PreviousRank     *int
+	GapToPrevious    *decimal.Decimal
+	GapToTop20       *decimal.Decimal
+}
+
 type UsageRebateRepository interface {
 	EnsureOpenPeriod(ctx context.Context, seed UsageRebatePeriodSeed) error
 	ClaimDuePeriod(ctx context.Context, now, lockUntil time.Time) (*UsageRebatePeriod, error)
@@ -108,6 +122,7 @@ type UsageRebateRepository interface {
 	FinalizePeriod(ctx context.Context, periodID int64) error
 	MarkPeriodFailed(ctx context.Context, periodID int64, reason string) error
 	GetLeaderboard(ctx context.Context, start, end time.Time, viewerUserID int64, limit int) ([]UsageRebateCandidate, error)
+	GetUserPosition(ctx context.Context, start, end time.Time, userID int64) (UsageRebatePosition, error)
 	ListUserRewards(ctx context.Context, userID int64, limit int) ([]UsageRebateReward, error)
 	ListRecentPeriods(ctx context.Context, limit int) ([]UsageRebatePeriod, error)
 	ListPeriodRewards(ctx context.Context, periodID int64, limit int) ([]UsageRebateReward, error)
@@ -273,6 +288,11 @@ func (s *UsageRebateService) invalidateUserBalance(ctx context.Context, userID i
 func (s *UsageRebateService) GetLeaderboard(ctx context.Context, now time.Time, viewerUserID int64) ([]UsageRebateCandidate, error) {
 	start, end := usageRebateDayWindow(now)
 	return s.repo.GetLeaderboard(ctx, start, end, viewerUserID, usageRebateLimit)
+}
+
+func (s *UsageRebateService) GetUserPosition(ctx context.Context, now time.Time, userID int64) (UsageRebatePosition, error) {
+	start, end := usageRebateDayWindow(now)
+	return s.repo.GetUserPosition(ctx, start, end, userID)
 }
 
 func (s *UsageRebateService) ListMyRewards(ctx context.Context, userID int64, limit int) ([]UsageRebateReward, error) {

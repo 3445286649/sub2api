@@ -32,27 +32,19 @@ func (h *UsageRebateHandler) GetOverview(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	enabled := h.service.IsEnabled(ctx)
-	leaderboard := []service.UsageRebateCandidate{}
+	position := service.UsageRebatePosition{}
 	if enabled {
-		items, err := h.service.GetLeaderboard(ctx, time.Now(), subject.UserID)
+		item, err := h.service.GetUserPosition(ctx, time.Now(), subject.UserID)
 		if err != nil {
-			response.Error(c, http.StatusInternalServerError, "Failed to load usage rebate leaderboard")
+			response.Error(c, http.StatusInternalServerError, "Failed to load usage rebate position")
 			return
 		}
-		leaderboard = items
+		position = item
 	}
 	rewards, err := h.service.ListMyRewards(ctx, subject.UserID, 30)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "Failed to load usage rebate rewards")
 		return
-	}
-	publicLeaderboard := make([]usageRebatePublicCandidate, 0, len(leaderboard))
-	for _, item := range leaderboard {
-		publicLeaderboard = append(publicLeaderboard, usageRebatePublicCandidate{
-			Username: item.Username, Rank: item.Rank, Requests: item.Requests, Tokens: item.Tokens,
-			SpendAmount: item.SpendAmount, RebatePercent: item.RebatePercent,
-			EstimatedReward: item.EstimatedReward, IsMe: item.UserID == subject.UserID,
-		})
 	}
 	publicRewards := make([]usageRebatePublicReward, 0, len(rewards))
 	for _, item := range rewards {
@@ -69,20 +61,30 @@ func (h *UsageRebateHandler) GetOverview(c *gin.Context) {
 		"timezone":        "Asia/Shanghai",
 		"settlement_time": "00:15",
 		"rates":           service.UsageRebateRates(),
-		"leaderboard":     publicLeaderboard,
-		"my_rewards":      publicRewards,
+		"leaderboard":     []any{},
+		"my_position": usageRebatePublicPosition{
+			Rank: position.Rank, ParticipantCount: position.ParticipantCount,
+			Requests: position.Requests, Tokens: position.Tokens, SpendAmount: position.SpendAmount,
+			RebatePercent: position.RebatePercent, EstimatedReward: position.EstimatedReward,
+			Eligible: position.Eligible, PreviousRank: position.PreviousRank,
+			GapToPrevious: position.GapToPrevious, GapToTop20: position.GapToTop20,
+		},
+		"my_rewards": publicRewards,
 	})
 }
 
-type usageRebatePublicCandidate struct {
-	Username        string          `json:"username"`
-	Rank            int             `json:"rank"`
-	Requests        int64           `json:"requests"`
-	Tokens          int64           `json:"tokens"`
-	SpendAmount     decimal.Decimal `json:"spend_amount"`
-	RebatePercent   decimal.Decimal `json:"rebate_percent"`
-	EstimatedReward decimal.Decimal `json:"estimated_reward"`
-	IsMe            bool            `json:"is_me"`
+type usageRebatePublicPosition struct {
+	Rank             *int             `json:"rank"`
+	ParticipantCount int              `json:"participant_count"`
+	Requests         int64            `json:"requests"`
+	Tokens           int64            `json:"tokens"`
+	SpendAmount      decimal.Decimal  `json:"spend_amount"`
+	RebatePercent    decimal.Decimal  `json:"rebate_percent"`
+	EstimatedReward  decimal.Decimal  `json:"estimated_reward"`
+	Eligible         bool             `json:"eligible"`
+	PreviousRank     *int             `json:"previous_rank"`
+	GapToPrevious    *decimal.Decimal `json:"gap_to_previous"`
+	GapToTop20       *decimal.Decimal `json:"gap_to_top20"`
 }
 
 type usageRebatePublicReward struct {

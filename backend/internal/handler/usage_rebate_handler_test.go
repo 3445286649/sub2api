@@ -16,7 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type usageRebateHandlerRepoStub struct{}
+type usageRebateHandlerRepoStub struct {
+	positionUserID *int64
+}
 
 func (usageRebateHandlerRepoStub) EnsureOpenPeriod(context.Context, service.UsageRebatePeriodSeed) error {
 	return nil
@@ -50,6 +52,20 @@ func (usageRebateHandlerRepoStub) GetLeaderboard(context.Context, time.Time, tim
 		EstimatedReward: decimal.RequireFromString("3.6"),
 	}}, nil
 }
+func (s usageRebateHandlerRepoStub) GetUserPosition(_ context.Context, _, _ time.Time, userID int64) (service.UsageRebatePosition, error) {
+	if s.positionUserID != nil {
+		*s.positionUserID = userID
+	}
+	rank := 21
+	previousRank := 20
+	gapToPrevious := decimal.NewFromInt(5)
+	gapToTop20 := decimal.NewFromInt(2)
+	return service.UsageRebatePosition{
+		Rank: &rank, ParticipantCount: 25, Requests: 7, Tokens: 1200,
+		SpendAmount: decimal.NewFromInt(80), Eligible: false, PreviousRank: &previousRank,
+		GapToPrevious: &gapToPrevious, GapToTop20: &gapToTop20,
+	}, nil
+}
 func (usageRebateHandlerRepoStub) ListUserRewards(context.Context, int64, int) ([]service.UsageRebateReward, error) {
 	return []service.UsageRebateReward{{
 		ID: 9, PeriodID: 3, UserID: 7, BusinessDate: "2026-07-17", Rank: 1,
@@ -72,7 +88,8 @@ func (usageRebateEnabledStub) IsUsageRebateEnabled(context.Context) bool { retur
 
 func TestUsageRebateUserRouteIsReadOnlyAndRedactsInternalFields(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	svc := service.NewUsageRebateService(usageRebateHandlerRepoStub{}, usageRebateEnabledStub{})
+	var positionUserID int64
+	svc := service.NewUsageRebateService(usageRebateHandlerRepoStub{positionUserID: &positionUserID}, usageRebateEnabledStub{})
 	handler := NewUsageRebateHandler(svc)
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
@@ -85,6 +102,7 @@ func TestUsageRebateUserRouteIsReadOnlyAndRedactsInternalFields(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
 	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Equal(t, int64(7), positionUserID)
 
 	var body map[string]any
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
@@ -94,7 +112,13 @@ func TestUsageRebateUserRouteIsReadOnlyAndRedactsInternalFields(t *testing.T) {
 	require.NotContains(t, encoded, "balance_before")
 	require.NotContains(t, encoded, "balance_after")
 	require.NotContains(t, encoded, "error_message")
-	require.Contains(t, encoded, `"is_me":true`)
+	require.NotContains(t, encoded, "viewer")
+	require.NotContains(t, encoded, "username")
+	require.Contains(t, encoded, `"leaderboard":[]`)
+	require.Contains(t, encoded, `"rank":21`)
+	require.Contains(t, encoded, `"participant_count":25`)
+	require.Contains(t, encoded, `"gap_to_previous":"5"`)
+	require.Contains(t, encoded, `"gap_to_top20":"2"`)
 
 	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
 		mutation := httptest.NewRequest(method, "/api/v1/usage-rebate", strings.NewReader(`{"rank":1,"reward_amount":999}`))

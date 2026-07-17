@@ -5,15 +5,18 @@ export interface UsageRebateRate {
   percent: string | number
 }
 
-export interface UsageRebateCandidate {
-  username: string
-  rank: number
+export interface UsageRebatePosition {
+  rank: number | null
+  participant_count: number
   requests: number
   tokens: number
   spend_amount: string | number
   rebate_percent: string | number
   estimated_reward: string | number
-  is_me: boolean
+  eligible: boolean
+  previous_rank: number | null
+  gap_to_previous: string | number | null
+  gap_to_top20: string | number | null
 }
 
 export interface UsageRebateReward {
@@ -32,8 +35,22 @@ export interface UsageRebateOverview {
   timezone: string
   settlement_time: string
   rates: UsageRebateRate[]
-  leaderboard: UsageRebateCandidate[]
+  my_position: UsageRebatePosition
   my_rewards: UsageRebateReward[]
+}
+
+const emptyPosition: UsageRebatePosition = {
+  rank: null,
+  participant_count: 0,
+  requests: 0,
+  tokens: 0,
+  spend_amount: 0,
+  rebate_percent: 0,
+  estimated_reward: 0,
+  eligible: false,
+  previous_rank: null,
+  gap_to_previous: null,
+  gap_to_top20: null,
 }
 
 export async function getUsageRebateOverview(): Promise<UsageRebateOverview> {
@@ -41,7 +58,7 @@ export async function getUsageRebateOverview(): Promise<UsageRebateOverview> {
   return {
     ...data,
     rates: Array.isArray(data.rates) ? data.rates : [],
-    leaderboard: Array.isArray(data.leaderboard) ? data.leaderboard : [],
+    my_position: data.my_position ?? { ...emptyPosition },
     my_rewards: Array.isArray(data.my_rewards) ? data.my_rewards : [],
   }
 }

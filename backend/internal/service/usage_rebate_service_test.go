@@ -82,6 +82,10 @@ func (r *usageRebateRepositoryStub) GetLeaderboard(context.Context, time.Time, t
 	return nil, nil
 }
 
+func (r *usageRebateRepositoryStub) GetUserPosition(context.Context, time.Time, time.Time, int64) (UsageRebatePosition, error) {
+	return UsageRebatePosition{}, nil
+}
+
 func (r *usageRebateRepositoryStub) ListUserRewards(context.Context, int64, int) ([]UsageRebateReward, error) {
 	return nil, nil
 }

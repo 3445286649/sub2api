@@ -31,7 +31,7 @@
               </div>
               <div>
                 <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('usageRebate.participants') }}</p>
-                <p class="mt-1 text-base font-semibold tabular-nums text-gray-900 dark:text-white">{{ overview.leaderboard.length }}/20</p>
+                <p class="mt-1 text-base font-semibold tabular-nums text-gray-900 dark:text-white">{{ formatInteger(overview.my_position.participant_count) }}</p>
               </div>
             </div>
           </div>
@@ -39,50 +39,61 @@
 
         <section>
           <div class="mb-3 flex items-center justify-between gap-4">
-            <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('usageRebate.leaderboard') }}</h2>
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('usageRebate.progress') }}</h2>
             <span class="text-xs text-gray-500 dark:text-dark-400">{{ t('usageRebate.balanceOnly') }}</span>
           </div>
           <div class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-900">
-            <div class="overflow-x-auto">
-              <table class="w-full min-w-[760px] text-left text-sm">
-                <thead class="bg-gray-50 text-xs text-gray-500 dark:bg-dark-800 dark:text-dark-400">
-                  <tr>
-                    <th class="w-20 px-4 py-3 font-medium">{{ t('usageRebate.rank') }}</th>
-                    <th class="px-4 py-3 font-medium">{{ t('usageRebate.user') }}</th>
-                    <th class="px-4 py-3 text-right font-medium">{{ t('usageRebate.requests') }}</th>
-                    <th class="px-4 py-3 text-right font-medium">{{ t('usageRebate.tokens') }}</th>
-                    <th class="px-4 py-3 text-right font-medium">{{ t('usageRebate.spend') }}</th>
-                    <th class="px-4 py-3 text-right font-medium">{{ t('usageRebate.rate') }}</th>
-                    <th class="px-4 py-3 text-right font-medium">{{ t('usageRebate.estimated') }}</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-dark-800">
-                  <tr v-if="overview.leaderboard.length === 0">
-                    <td colspan="7" class="px-4 py-12 text-center text-gray-500 dark:text-dark-400">
-                      {{ overview.enabled ? t('usageRebate.empty') : t('usageRebate.disabledEmpty') }}
-                    </td>
-                  </tr>
-                  <tr
-                    v-for="row in overview.leaderboard"
-                    :key="row.rank"
-                    :class="row.is_me ? 'bg-primary-50/60 dark:bg-primary-900/10' : ''"
-                    class="transition-colors hover:bg-gray-50 dark:hover:bg-dark-800/60"
-                  >
-                    <td class="px-4 py-3">
-                      <span
-                        :class="rankClass(row.rank)"
-                        class="inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-semibold tabular-nums"
-                      >{{ row.rank }}</span>
-                    </td>
-                    <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ row.username }}</td>
-                    <td class="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-300">{{ formatInteger(row.requests) }}</td>
-                    <td class="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-300">{{ formatCompact(row.tokens) }}</td>
-                    <td class="px-4 py-3 text-right font-medium tabular-nums text-gray-900 dark:text-white">{{ formatUSD(row.spend_amount) }}</td>
-                    <td class="px-4 py-3 text-right font-medium tabular-nums text-primary-600 dark:text-primary-400">{{ formatPercent(row.rebate_percent) }}</td>
-                    <td class="px-4 py-3 text-right font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{{ formatUSD(row.estimated_reward) }}</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div class="grid grid-cols-2 lg:grid-cols-4">
+              <div class="border-b border-r border-gray-100 p-4 dark:border-dark-800 lg:border-b-0">
+                <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('usageRebate.todaySpend') }}</p>
+                <p class="mt-2 text-xl font-semibold tabular-nums text-gray-900 dark:text-white">
+                  {{ formatUSD(overview.my_position.spend_amount) }}
+                </p>
+              </div>
+              <div data-testid="usage-rebate-rank" class="border-b border-gray-100 p-4 dark:border-dark-800 lg:border-b-0 lg:border-r">
+                <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('usageRebate.currentRank') }}</p>
+                <p class="mt-2 text-xl font-semibold tabular-nums text-gray-900 dark:text-white">
+                  <template v-if="overview.my_position.rank !== null">
+                    {{ t('usageRebate.rankValue', { rank: overview.my_position.rank, total: formatInteger(overview.my_position.participant_count) }) }}
+                  </template>
+                  <template v-else>--</template>
+                </p>
+              </div>
+              <div data-testid="usage-rebate-gap-previous" class="border-r border-gray-100 p-4 dark:border-dark-800">
+                <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('usageRebate.rankProgress') }}</p>
+                <p class="mt-2 text-xl font-semibold tabular-nums text-gray-900 dark:text-white">
+                  <template v-if="overview.my_position.rank === 1">{{ t('usageRebate.currentLeader') }}</template>
+                  <template v-else-if="overview.my_position.gap_to_previous !== null">
+                    {{ formatUSD(overview.my_position.gap_to_previous) }}
+                  </template>
+                  <template v-else>--</template>
+                </p>
+                <p v-if="overview.my_position.rank && overview.my_position.rank > 1" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                  {{ t('usageRebate.gapToPrevious') }}
+                </p>
+              </div>
+              <div data-testid="usage-rebate-estimated" class="p-4">
+                <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('usageRebate.estimated') }}</p>
+                <p class="mt-2 text-xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  {{ formatUSD(overview.my_position.estimated_reward) }}
+                </p>
+                <p v-if="overview.my_position.eligible" class="mt-1 text-xs font-medium text-primary-600 dark:text-primary-400">
+                  {{ formatPercent(overview.my_position.rebate_percent) }}
+                </p>
+              </div>
+            </div>
+            <div class="border-t border-gray-100 bg-gray-50 px-4 py-3 text-sm dark:border-dark-800 dark:bg-dark-800/60">
+              <p v-if="!overview.enabled" class="text-gray-500 dark:text-dark-400">{{ t('usageRebate.disabledEmpty') }}</p>
+              <p v-else-if="overview.my_position.rank === null" class="text-gray-500 dark:text-dark-400">{{ t('usageRebate.empty') }}</p>
+              <div v-else-if="overview.my_position.rank > 20" class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <span data-testid="usage-rebate-gap-top20" class="font-medium text-gray-800 dark:text-gray-200">
+                  {{ t('usageRebate.gapToTop20', { amount: formatUSD(overview.my_position.gap_to_top20 ?? 0) }) }}
+                </span>
+                <span class="text-gray-500 dark:text-dark-400">{{ t('usageRebate.top20Hint') }}</span>
+              </div>
+              <p v-else class="text-gray-600 dark:text-gray-300">
+                {{ overview.my_position.rank === 1 ? t('usageRebate.leadingHint') : t('usageRebate.eligibleHint') }}
+              </p>
             </div>
           </div>
         </section>
@@ -173,17 +184,6 @@ function formatPercent(value: string | number): string {
 
 function formatInteger(value: number): string {
   return Math.max(0, Number(value) || 0).toLocaleString()
-}
-
-function formatCompact(value: number): string {
-  return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(Math.max(0, Number(value) || 0))
-}
-
-function rankClass(rank: number): string {
-  if (rank === 1) return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-  if (rank === 2) return 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
-  if (rank === 3) return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
-  return 'bg-gray-100 text-gray-600 dark:bg-dark-800 dark:text-gray-300'
 }
 
 function statusClass(status: UsageRebateReward['status']): string {

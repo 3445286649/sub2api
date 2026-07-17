@@ -124,6 +124,9 @@ func (r *simulatedUsageRebateRepo) GetLeaderboard(_ context.Context, _, _ time.T
 	}
 	return items, nil
 }
+func (r *simulatedUsageRebateRepo) GetUserPosition(context.Context, time.Time, time.Time, int64) (UsageRebatePosition, error) {
+	return UsageRebatePosition{}, nil
+}
 func (r *simulatedUsageRebateRepo) ListUserRewards(_ context.Context, userID int64, _ int) ([]UsageRebateReward, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
