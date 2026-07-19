@@ -253,11 +253,11 @@ func pingEndpointOrigin(ctx context.Context, endpoint string) *int {
 	return &ms
 }
 
-// providerAdapter 描述某个 provider 在 challenge 检测中需要的 4 件事：
+// providerAdapter 描述某个 provider 在 challenge 检测中需要的几件事：
 //   - 拼出请求路径（含 model 占位）
 //   - 序列化请求体
 //   - 构造鉴权头
-//   - 从响应 JSON 中按 path 提取文本（gjson path）
+//   - 从响应 JSON 中提取文本（默认按 gjson path；需要时可自定义）
 //
 // 加新 provider 只需要在 providerAdapters 里增加一个条目，无需触碰 callProvider / validateProvider。
 type providerAdapter struct {
@@ -265,6 +265,7 @@ type providerAdapter struct {
 	buildBody    func(model, prompt string) ([]byte, error)
 	buildHeaders func(apiKey string) map[string]string
 	textPath     string // gjson 提取响应文本的 path
+	extractText  func([]byte) string
 }
 
 type providerCallOutcome struct {
@@ -300,7 +301,8 @@ var providerAdapters = map[string]providerAdapter{
 				"anthropic-version": monitorAnthropicAPIVersion,
 			}
 		},
-		textPath: "content.0.text",
+		textPath:    "content.0.text",
+		extractText: extractAnthropicMessagesText,
 	},
 	MonitorProviderGemini: {
 		// Gemini 把 model 名写在 URL path 上：/v1beta/models/{model}:generateContent
@@ -566,7 +568,7 @@ func extractAnthropicMessagesText(respBytes []byte) string {
 	if len(texts) > 0 {
 		return strings.Join(texts, "")
 	}
-	return gjson.GetBytes(respBytes, providerAdapters[MonitorProviderAnthropic].textPath).String()
+	return gjson.GetBytes(respBytes, "content.0.text").String()
 }
 
 // mergeHeaders 把用户自定义 headers 合并到 adapter 默认 headers 上。
