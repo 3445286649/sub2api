@@ -44,12 +44,8 @@ func NewUserHandler(
 	billingCache service.BillingCache,
 	totpService *service.TotpService,
 	userService *service.UserService,
-	settingServices ...*service.SettingService,
+	settingService *service.SettingService,
 ) *UserHandler {
-	var settingService *service.SettingService
-	if len(settingServices) > 0 {
-		settingService = settingServices[0]
-	}
 	return &UserHandler{
 		adminService:          adminService,
 		concurrencyService:    concurrencyService,

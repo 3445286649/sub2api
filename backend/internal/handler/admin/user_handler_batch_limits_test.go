@@ -79,7 +79,7 @@ func setupBatchLimitsRouterWithStepUp(
 	if len(authSetup) > 0 && authSetup[0] != nil {
 		router.Use(authSetup[0])
 	}
-	handler := NewUserHandler(serviceStub, nil, nil, nil, totpService, userService)
+	handler := NewUserHandler(serviceStub, nil, nil, nil, totpService, userService, nil)
 	router.POST("/api/v1/admin/users/batch-limits", handler.BatchUpdateLimits)
 	return router
 }

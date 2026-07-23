@@ -114,6 +114,14 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	alipayMobilePrecreateDeepLink := false
+	if cfg.AlipayMobilePrecreateDeepLink {
+		alipayMobilePrecreateDeepLink, err = h.configService.UsesOfficialAlipayVisibleMethod(ctx)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
 
 	// Fetch plans with group info
 	plans, _ := h.configService.ListPlansForSale(ctx)
@@ -149,11 +157,13 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		BalanceRechargeBonusEnabled:        cfg.BalanceRechargeBonusEnabled,
 		BalanceRechargeBonusThreshold:      cfg.BalanceRechargeBonusThreshold,
 		BalanceRechargeBonusPercent:        cfg.BalanceRechargeBonusPercent,
+		SubscriptionUSDToCNYRate:           cfg.SubscriptionUSDToCNYRate,
 		RechargeFeeRate:                    cfg.RechargeFeeRate,
 		HelpText:                           cfg.HelpText,
 		HelpImageURL:                       cfg.HelpImageURL,
 		StripePublishableKey:               cfg.StripePublishableKey,
 		AlipayForceQRCode:                  cfg.AlipayForceQRCode,
+		AlipayMobilePrecreateDeepLink:      alipayMobilePrecreateDeepLink,
 	})
 }
 
@@ -168,11 +178,13 @@ type checkoutInfoResponse struct {
 	BalanceRechargeBonusEnabled        bool                            `json:"balance_recharge_bonus_enabled"`
 	BalanceRechargeBonusThreshold      float64                         `json:"balance_recharge_bonus_threshold"`
 	BalanceRechargeBonusPercent        float64                         `json:"balance_recharge_bonus_percent"`
+	SubscriptionUSDToCNYRate           float64                         `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate                    float64                         `json:"recharge_fee_rate"`
 	HelpText                           string                          `json:"help_text"`
 	HelpImageURL                       string                          `json:"help_image_url"`
 	StripePublishableKey               string                          `json:"stripe_publishable_key"`
 	AlipayForceQRCode                  bool                            `json:"alipay_force_qrcode"`
+	AlipayMobilePrecreateDeepLink      bool                            `json:"alipay_mobile_precreate_deep_link"`
 }
 
 type checkoutPlan struct {
