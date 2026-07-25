@@ -340,6 +340,9 @@ func (r *supportUserRepo) GetByID(_ context.Context, id int64) (*User, error) {
 }
 
 func (r *supportUserRepo) Create(context.Context, *User) error { return nil }
+func (r *supportUserRepo) CreateWithEmailAliasGuard(ctx context.Context, user *User) error {
+	return r.Create(ctx, user)
+}
 func (r *supportUserRepo) GetByIDIncludeDeleted(context.Context, int64) (*User, error) {
 	return nil, ErrUserNotFound
 }
@@ -377,6 +380,9 @@ func (r *supportUserRepo) BatchAddConcurrency(context.Context, []int64, int) (in
 	return 0, nil
 }
 func (r *supportUserRepo) ExistsByEmail(context.Context, string) (bool, error) { return false, nil }
+func (r *supportUserRepo) ExistsByEmailAlias(context.Context, string) (bool, error) {
+	return false, nil
+}
 func (r *supportUserRepo) RemoveGroupFromAllowedGroups(context.Context, int64) (int64, error) {
 	return 0, nil
 }
