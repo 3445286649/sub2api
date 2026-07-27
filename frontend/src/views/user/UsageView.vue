@@ -450,6 +450,7 @@ import {
   textOutputTokens,
 } from '@/utils/imageUsage'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
+import { calculateUsageTokenSpeed } from '@/utils/usageTokenSpeed'
 import type {
   ApiKey,
   EndpointStat,
@@ -880,26 +881,31 @@ const exportToCSV = async () => {
       'Original Cost',
       'First Token (ms)',
       'Duration (ms)',
+      'Token Speed (Token/s)',
     ]
-    const rows = allLogs.map((log) => [
-      log.created_at,
-      log.api_key?.name || '',
-      log.model,
-      formatReasoningEffort(log.reasoning_effort),
-      log.inbound_endpoint || '',
-      log.ip_address || '',
-      getRequestTypeExportText(log),
-      getBillingModeLabel(getDisplayBillingMode(log), t),
-      log.input_tokens,
-      log.output_tokens,
-      log.cache_read_tokens,
-      log.cache_creation_tokens,
-      log.rate_multiplier,
-      log.actual_cost.toFixed(8),
-      log.total_cost.toFixed(8),
-      log.first_token_ms ?? '',
-      log.duration_ms ?? '',
-    ].map(escapeCSVValue))
+    const rows = allLogs.map((log) => {
+      const tokenSpeed = calculateUsageTokenSpeed(log)
+      return [
+        log.created_at,
+        log.api_key?.name || '',
+        log.model,
+        formatReasoningEffort(log.reasoning_effort),
+        log.inbound_endpoint || '',
+        log.ip_address || '',
+        getRequestTypeExportText(log),
+        getBillingModeLabel(getDisplayBillingMode(log), t),
+        log.input_tokens,
+        log.output_tokens,
+        log.cache_read_tokens,
+        log.cache_creation_tokens,
+        log.rate_multiplier,
+        log.actual_cost.toFixed(8),
+        log.total_cost.toFixed(8),
+        log.first_token_ms ?? '',
+        log.duration_ms ?? '',
+        tokenSpeed == null ? '' : Number(tokenSpeed.toFixed(2)),
+      ].map(escapeCSVValue)
+    })
     const csvContent = [
       headers.map(escapeCSVValue).join(','),
       ...rows.map((row) => row.join(',')),
