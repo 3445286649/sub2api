@@ -350,7 +350,7 @@ func (r *supportUserRepo) GetByEmail(context.Context, string) (*User, error) {
 	return nil, ErrUserNotFound
 }
 func (r *supportUserRepo) GetFirstAdmin(context.Context) (*User, error)              { return nil, ErrUserNotFound }
-func (r *supportUserRepo) Update(context.Context, *User) error                       { return nil }
+func (r *supportUserRepo) Update(context.Context, *User, UserUpdateFields) error     { return nil }
 func (r *supportUserRepo) Delete(context.Context, int64) error                       { return nil }
 func (r *supportUserRepo) GetUserAvatar(context.Context, int64) (*UserAvatar, error) { return nil, nil }
 func (r *supportUserRepo) UpsertUserAvatar(context.Context, int64, UpsertUserAvatarInput) (*UserAvatar, error) {
@@ -372,7 +372,13 @@ func (r *supportUserRepo) GetLatestUsedAtByUserID(context.Context, int64) (*time
 func (r *supportUserRepo) UpdateUserLastActiveAt(context.Context, int64, time.Time) error { return nil }
 func (r *supportUserRepo) UpdateBalance(context.Context, int64, float64) error            { return nil }
 func (r *supportUserRepo) DeductBalance(context.Context, int64, float64) error            { return nil }
-func (r *supportUserRepo) UpdateConcurrency(context.Context, int64, int) error            { return nil }
+func (r *supportUserRepo) AdjustBalance(context.Context, int64, float64) (BalanceChange, error) {
+	return BalanceChange{}, nil
+}
+func (r *supportUserRepo) SetBalance(context.Context, int64, float64) (BalanceChange, error) {
+	return BalanceChange{}, nil
+}
+func (r *supportUserRepo) UpdateConcurrency(context.Context, int64, int) error { return nil }
 func (r *supportUserRepo) BatchSetConcurrency(context.Context, []int64, int) (int, error) {
 	return 0, nil
 }
