@@ -53,6 +53,33 @@
       </p>
     </div>
 
+    <div v-if="isResponsesMode">
+      <label class="input-label">{{ t('admin.channelMonitor.advanced.responseMode') }}</label>
+      <div class="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          data-testid="monitor-response-stream-off"
+          class="rounded-lg border-2 px-3 py-2 text-sm font-medium transition-colors"
+          :class="responseStreamButtonClass(false)"
+          @click="updateResponseStream(false)"
+        >
+          {{ t('admin.channelMonitor.advanced.responseModeJSON') }}
+        </button>
+        <button
+          type="button"
+          data-testid="monitor-response-stream-on"
+          class="rounded-lg border-2 px-3 py-2 text-sm font-medium transition-colors"
+          :class="responseStreamButtonClass(true)"
+          @click="updateResponseStream(true)"
+        >
+          {{ t('admin.channelMonitor.advanced.responseModeSSE') }}
+        </button>
+      </div>
+      <p class="mt-1 text-xs text-gray-400">
+        {{ t('admin.channelMonitor.advanced.responseModeHint') }}
+      </p>
+    </div>
+
     <!-- Body mode radio -->
     <div>
       <label class="input-label">{{ t('admin.channelMonitor.advanced.bodyMode') }}</label>
@@ -208,6 +235,12 @@ function removeRow(index: number) {
 // ---- Body mode + JSON ----
 const bodyText = ref(serializeBody(props.bodyOverride))
 const bodyError = ref('')
+const isResponsesMode = computed(
+  () =>
+    (props.provider === PROVIDER_OPENAI || props.provider === PROVIDER_GROK) &&
+    props.apiMode === API_MODE_RESPONSES,
+)
+const responseStreamEnabled = computed(() => props.bodyOverride?.stream === true)
 
 watch(
   () => props.bodyOverride,
@@ -275,6 +308,23 @@ function updateBodyMode(mode: BodyOverrideMode) {
   }
 }
 
+function updateResponseStream(enabled: boolean) {
+  const nextBody = { ...(props.bodyOverride || {}), stream: enabled }
+  bodyText.value = serializeBody(nextBody)
+  bodyError.value = ''
+  if (props.bodyOverrideMode === 'off') {
+    emit('update:bodyOverrideMode', 'merge')
+  }
+  emit('update:bodyOverride', nextBody)
+}
+
+function responseStreamButtonClass(enabled: boolean): string {
+  if (responseStreamEnabled.value === enabled) {
+    return 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300 dark:border-primary-400'
+  }
+  return 'border-gray-200 bg-white text-gray-600 hover:border-primary-300 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-400'
+}
+
 const bodyModeOptions = computed<{ value: BodyOverrideMode; label: string }[]>(() => [
   { value: 'off', label: t('admin.channelMonitor.advanced.bodyModeOff') },
   { value: 'merge', label: t('admin.channelMonitor.advanced.bodyModeMerge') },
@@ -303,7 +353,7 @@ const bodyModeHint = computed(() => {
 const bodyPlaceholder = computed(() => {
   if (props.provider === PROVIDER_OPENAI && props.apiMode === API_MODE_RESPONSES) {
     if (props.bodyOverrideMode === 'merge') {
-      return '{\n  "max_output_tokens": 20\n}'
+      return '{\n  "max_output_tokens": 20,\n  "stream": true\n}'
     }
     return '{\n  "model": "gpt-4o-mini",\n  "instructions": "You are a health check endpoint. Reply briefly.",\n  "input": "Reply with exactly: ok",\n  "max_output_tokens": 20,\n  "stream": false\n}'
   }

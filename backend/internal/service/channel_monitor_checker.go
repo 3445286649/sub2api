@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/servertiming"
 	"github.com/tidwall/gjson"
 )
@@ -23,6 +25,8 @@ var monitorHTTPClient = newSSRFSafeHTTPClient(monitorRequestTimeout)
 
 // monitorPingHTTPClient 用于 endpoint origin 的 HEAD ping，超时更短。
 var monitorPingHTTPClient = newSSRFSafeHTTPClient(monitorPingTimeout)
+
+var errMonitorResponseTooLarge = errors.New("monitor response exceeds size limit")
 
 // newSSRFSafeHTTPClient 返回一个使用 safeDialContext 的 http.Client。
 // 仅供监控模块对外发起请求使用——所有目标都应是公网 endpoint。
@@ -433,7 +437,17 @@ func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt
 	if err != nil {
 		return providerCallOutcome{err: err, requestPath: adapter.buildPath(model), failureCategory: MonitorFailureConfigError, localFailure: true}
 	}
+	streamResponse := false
+	if (provider == MonitorProviderOpenAI || provider == MonitorProviderGrok) && apiMode == MonitorAPIModeResponses {
+		streamResponse, err = responseStreamEnabled(body)
+		if err != nil {
+			return providerCallOutcome{err: err, requestPath: adapter.buildPath(model), failureCategory: MonitorFailureConfigError, localFailure: true}
+		}
+	}
 	headers := mergeHeaders(adapter.buildHeaders(apiKey), opts)
+	if streamResponse && !hasHeaderName(headers, "Accept") {
+		headers["Accept"] = "application/json, text/event-stream"
+	}
 	if signer != nil {
 		signer.SignHeaderMap(headers, excludedAccountIDs, time.Now())
 	}
@@ -442,9 +456,17 @@ func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt
 	respBytes, status, respHeaders, err := postRawJSON(ctx, full, body, headers)
 	selectedID := selectedMonitorAccountID(respHeaders)
 	if err != nil {
-		return providerCallOutcome{statusCode: status, err: err, requestPath: path, selectedAccountID: selectedID}
+		category := ""
+		if errors.Is(err, errMonitorResponseTooLarge) {
+			category = MonitorFailureProtocolError
+		}
+		return providerCallOutcome{statusCode: status, err: err, requestPath: path, selectedAccountID: selectedID, failureCategory: category}
 	}
 	if (provider == MonitorProviderOpenAI || provider == MonitorProviderGrok) && apiMode == MonitorAPIModeResponses {
+		if isSSEResponse(respHeaders, respBytes) {
+			text, category, parseErr := extractOpenAIResponsesSSEText(respBytes)
+			return providerCallOutcome{extractedText: text, rawBody: string(respBytes), statusCode: status, err: parseErr, requestPath: path, selectedAccountID: selectedID, failureCategory: category}
+		}
 		return providerCallOutcome{extractedText: extractOpenAIResponsesText(respBytes), rawBody: string(respBytes), statusCode: status, requestPath: path, selectedAccountID: selectedID}
 	}
 	if provider == MonitorProviderAnthropic {
@@ -545,6 +567,149 @@ func extractOpenAIResponsesText(respBytes []byte) string {
 		return strings.Join(texts, "")
 	}
 	return gjson.GetBytes(respBytes, providerOpenAIResponsesAdapter.textPath).String()
+}
+
+func responseStreamEnabled(body []byte) (bool, error) {
+	var request map[string]json.RawMessage
+	if err := json.Unmarshal(body, &request); err != nil {
+		return false, fmt.Errorf("parse responses request body: %w", err)
+	}
+	raw, ok := request["stream"]
+	if !ok {
+		return false, nil
+	}
+	var enabled bool
+	if err := json.Unmarshal(raw, &enabled); err != nil {
+		return false, fmt.Errorf("responses body stream must be a boolean")
+	}
+	return enabled, nil
+}
+
+func hasHeaderName(headers map[string]string, name string) bool {
+	for key := range headers {
+		if strings.EqualFold(key, name) {
+			return true
+		}
+	}
+	return false
+}
+
+func isSSEResponse(headers http.Header, body []byte) bool {
+	if strings.Contains(strings.ToLower(headers.Get("Content-Type")), "text/event-stream") {
+		return true
+	}
+	trimmed := bytes.TrimSpace(body)
+	return bytes.HasPrefix(trimmed, []byte("data:")) || bytes.HasPrefix(trimmed, []byte("event:"))
+}
+
+func extractOpenAIResponsesSSEText(body []byte) (string, string, error) {
+	scanner := bufio.NewScanner(bytes.NewReader(body))
+	scanner.Buffer(make([]byte, 4096), monitorResponseMaxBytes)
+	accumulator := apicompat.NewBufferedResponseAccumulator()
+	var dataLines []string
+	var completedText string
+	var doneText string
+	sawTerminal := false
+
+	processEvent := func() (string, string, error) {
+		if len(dataLines) == 0 {
+			return "", "", nil
+		}
+		payload := []byte(strings.Join(dataLines, "\n"))
+		dataLines = dataLines[:0]
+		if string(payload) == "[DONE]" {
+			sawTerminal = true
+			return "", "", nil
+		}
+
+		var event apicompat.ResponsesStreamEvent
+		if err := json.Unmarshal(payload, &event); err != nil {
+			return "", MonitorFailureProtocolError, fmt.Errorf("invalid responses SSE event: %w", err)
+		}
+		if strings.TrimSpace(event.Type) == "" {
+			return "", MonitorFailureProtocolError, fmt.Errorf("invalid responses SSE event: missing type")
+		}
+		accumulator.ProcessEvent(&event)
+
+		switch event.Type {
+		case "response.output_text.done":
+			if strings.TrimSpace(event.Text) != "" {
+				doneText = event.Text
+			}
+		case "response.completed", "response.done":
+			sawTerminal = true
+			if event.Response != nil {
+				responseJSON, err := json.Marshal(event.Response)
+				if err != nil {
+					return "", MonitorFailureProtocolError, fmt.Errorf("encode completed responses event: %w", err)
+				}
+				completedText = extractOpenAIResponsesText(responseJSON)
+			}
+		case "response.failed":
+			return "", MonitorFailureUpstreamError, fmt.Errorf("responses stream failed: %s", responsesSSEErrorMessage(payload, &event))
+		case "response.incomplete":
+			return "", MonitorFailureProtocolError, fmt.Errorf("responses stream incomplete: %s", responsesSSEIncompleteReason(&event))
+		case "error":
+			return "", MonitorFailureUpstreamError, fmt.Errorf("responses stream error: %s", responsesSSEErrorMessage(payload, &event))
+		}
+		return "", "", nil
+	}
+
+	for scanner.Scan() {
+		line := strings.TrimSuffix(scanner.Text(), "\r")
+		if line == "" {
+			if _, category, err := processEvent(); err != nil {
+				return "", category, err
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "data:") {
+			dataLines = append(dataLines, strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", MonitorFailureProtocolError, fmt.Errorf("read responses SSE: %w", err)
+	}
+	if _, category, err := processEvent(); err != nil {
+		return "", category, err
+	}
+	if !sawTerminal {
+		return "", MonitorFailureProtocolError, fmt.Errorf("responses stream ended before terminal event")
+	}
+	if strings.TrimSpace(completedText) != "" {
+		return completedText, MonitorFailureNone, nil
+	}
+	if accumulator.HasContent() {
+		bufferedJSON, err := json.Marshal(map[string]any{"output": accumulator.BuildOutput()})
+		if err != nil {
+			return "", MonitorFailureProtocolError, fmt.Errorf("encode buffered responses output: %w", err)
+		}
+		if text := extractOpenAIResponsesText(bufferedJSON); strings.TrimSpace(text) != "" {
+			return text, MonitorFailureNone, nil
+		}
+	}
+	return doneText, MonitorFailureNone, nil
+}
+
+func responsesSSEErrorMessage(payload []byte, event *apicompat.ResponsesStreamEvent) string {
+	if event != nil && event.Response != nil && event.Response.Error != nil && strings.TrimSpace(event.Response.Error.Message) != "" {
+		return event.Response.Error.Message
+	}
+	for _, path := range []string{"error.message", "message", "response.error.message"} {
+		if message := strings.TrimSpace(gjson.GetBytes(payload, path).String()); message != "" {
+			return message
+		}
+	}
+	return "upstream returned an unspecified error event"
+}
+
+func responsesSSEIncompleteReason(event *apicompat.ResponsesStreamEvent) string {
+	if event != nil && event.Response != nil && event.Response.IncompleteDetails != nil {
+		if reason := strings.TrimSpace(event.Response.IncompleteDetails.Reason); reason != "" {
+			return reason
+		}
+	}
+	return "unspecified reason"
 }
 
 // extractAnthropicMessagesText 聚合 Anthropic Messages 响应里的文本块。
@@ -648,9 +813,9 @@ func buildRequestBody(adapter providerAdapter, provider, apiMode, model, prompt 
 //nolint:gochecknoglobals // 静态查表，初始化后不变。
 var bodyMergeKeyDenyList = map[string]map[string]bool{
 	MonitorProviderOpenAI + ":" + MonitorAPIModeChatCompletions: {"model": true, "messages": true, "stream": true},
-	MonitorProviderOpenAI + ":" + MonitorAPIModeResponses:       {"model": true, "instructions": true, "input": true, "stream": true},
+	MonitorProviderOpenAI + ":" + MonitorAPIModeResponses:       {"model": true, "instructions": true, "input": true},
 	MonitorProviderGrok + ":" + MonitorAPIModeChatCompletions:   {"model": true, "messages": true, "stream": true},
-	MonitorProviderGrok + ":" + MonitorAPIModeResponses:         {"model": true, "instructions": true, "input": true, "stream": true},
+	MonitorProviderGrok + ":" + MonitorAPIModeResponses:         {"model": true, "instructions": true, "input": true},
 	MonitorProviderAnthropic:                                    {"model": true, "messages": true},
 	MonitorProviderGemini:                                       {"contents": true},
 }
@@ -727,9 +892,12 @@ func postRawJSON(ctx context.Context, fullURL string, payload []byte, headers ma
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, monitorResponseMaxBytes))
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, monitorResponseMaxBytes+1))
 	if err != nil {
 		return nil, resp.StatusCode, resp.Header.Clone(), fmt.Errorf("read body: %w", err)
+	}
+	if len(respBody) > monitorResponseMaxBytes {
+		return respBody[:monitorResponseMaxBytes], resp.StatusCode, resp.Header.Clone(), fmt.Errorf("%w: limit is %d bytes", errMonitorResponseTooLarge, monitorResponseMaxBytes)
 	}
 	return respBody, resp.StatusCode, resp.Header.Clone(), nil
 }

@@ -83,6 +83,7 @@ type openAICaptureHandler struct {
 	errorBody                 string
 	rawResponse               string
 	responsesLeadingReasoning bool
+	responsesSSEMode          string
 }
 
 func (h *openAICaptureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -102,6 +103,13 @@ func (h *openAICaptureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	if status == 0 {
 		status = http.StatusOK
 	}
+	if h.responsesSSEMode != "" && status >= 200 && status < 300 && h.lastPath == providerOpenAIResponsesPath {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(status)
+		h.writeResponsesSSE(w, answerFromOpenAIRequest(parsed))
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	if h.callCount == 1 {
 		w.Header().Set(ChannelMonitorHeaderSelectedAccount, "774")
@@ -151,6 +159,39 @@ func (h *openAICaptureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"choices": []map[string]any{{"message": map[string]any{"content": answer}}},
 	})
+}
+
+func (h *openAICaptureHandler) writeResponsesSSE(w http.ResponseWriter, answer string) {
+	switch h.responsesSSEMode {
+	case "delta":
+		mid := len(answer) / 2
+		_, _ = w.Write([]byte("data: " + mustMonitorJSON(map[string]any{"type": "response.output_text.delta", "delta": answer[:mid]}) + "\n\n"))
+		_, _ = w.Write([]byte("data: " + mustMonitorJSON(map[string]any{"type": "response.output_text.delta", "delta": answer[mid:]}) + "\n\n"))
+		_, _ = w.Write([]byte("data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"output\":[]}}\n\n"))
+	case "completed":
+		_, _ = w.Write([]byte("data: " + mustMonitorJSON(map[string]any{
+			"type": "response.completed",
+			"response": map[string]any{
+				"status": "completed",
+				"output": []map[string]any{{
+					"type":    "message",
+					"content": []map[string]any{{"type": "output_text", "text": answer}},
+				}},
+			},
+		}) + "\r\n\r\n"))
+	case "failed":
+		_, _ = w.Write([]byte("data: {\"type\":\"response.failed\",\"response\":{\"status\":\"failed\",\"error\":{\"code\":\"upstream_error\",\"message\":\"account unavailable\"}}}\n\n"))
+	case "truncated":
+		_, _ = w.Write([]byte("data: " + mustMonitorJSON(map[string]any{"type": "response.output_text.delta", "delta": answer}) + "\n\n"))
+	}
+}
+
+func mustMonitorJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
 }
 
 func setupFakeOpenAI(t *testing.T, handler *openAICaptureHandler) string {
@@ -409,6 +450,140 @@ func TestRunCheckForModel_OpenAIResponses_DefaultRequest(t *testing.T) {
 	}
 	if h.lastHeaders.Get("Authorization") != "Bearer sk-openai" {
 		t.Errorf("expected bearer auth header, got %q", h.lastHeaders.Get("Authorization"))
+	}
+}
+
+func TestRunCheckForModel_OpenAIResponses_StreamMergeAggregatesSSE(t *testing.T) {
+	h := &openAICaptureHandler{responsesSSEMode: "delta"}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderOpenAI, endpoint, "sk-openai", "gpt-5.6-luna", &CheckOptions{
+		APIMode:          MonitorAPIModeResponses,
+		BodyOverrideMode: MonitorBodyOverrideModeMerge,
+		BodyOverride: map[string]any{
+			"stream":            true,
+			"max_output_tokens": float64(128),
+		},
+	})
+
+	if res.Status != MonitorStatusOperational {
+		t.Fatalf("streaming responses request should pass challenge, got status=%s category=%s message=%q", res.Status, res.FailureCategory, res.Message)
+	}
+	if h.lastBody["stream"] != true {
+		t.Fatalf("stream override should reach upstream, got %v", h.lastBody["stream"])
+	}
+	if h.lastBody["model"] != "gpt-5.6-luna" {
+		t.Fatalf("merge mode should preserve routed model, got %v", h.lastBody["model"])
+	}
+	if h.lastHeaders.Get("Accept") != "application/json, text/event-stream" {
+		t.Fatalf("streaming responses should advertise SSE support, got %q", h.lastHeaders.Get("Accept"))
+	}
+}
+
+func TestRunCheckForModel_OpenAIResponses_StreamCompletedResponseFallback(t *testing.T) {
+	h := &openAICaptureHandler{responsesSSEMode: "completed"}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderOpenAI, endpoint, "sk-openai", "gpt-5.6-luna", &CheckOptions{
+		APIMode:          MonitorAPIModeResponses,
+		BodyOverrideMode: MonitorBodyOverrideModeMerge,
+		BodyOverride:     map[string]any{"stream": true},
+	})
+
+	if res.Status != MonitorStatusOperational {
+		t.Fatalf("completed event response output should pass challenge, got status=%s message=%q", res.Status, res.Message)
+	}
+}
+
+func TestRunCheckForModel_OpenAIResponses_StreamReplaceUsesFullTemplate(t *testing.T) {
+	h := &openAICaptureHandler{responsesSSEMode: "completed"}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderOpenAI, endpoint, "sk-openai", "ignored-model", &CheckOptions{
+		APIMode:          MonitorAPIModeResponses,
+		BodyOverrideMode: MonitorBodyOverrideModeReplace,
+		BodyOverride: map[string]any{
+			"model":             "gpt-5.6-luna",
+			"instructions":      "Reply briefly.",
+			"input":             "Reply with exactly: ok",
+			"max_output_tokens": float64(128),
+			"stream":            true,
+		},
+	})
+
+	if res.Status != MonitorStatusOperational {
+		t.Fatalf("streaming replace template should accept non-empty completed output, got status=%s message=%q", res.Status, res.Message)
+	}
+	if h.lastBody["model"] != "gpt-5.6-luna" || h.lastBody["stream"] != true {
+		t.Fatalf("replace template should reach upstream unchanged, got body=%v", h.lastBody)
+	}
+}
+
+func TestRunCheckForModel_OpenAIResponses_StreamFailureIsNotOperational(t *testing.T) {
+	h := &openAICaptureHandler{responsesSSEMode: "failed"}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderOpenAI, endpoint, "sk-openai", "gpt-5.6-luna", &CheckOptions{
+		APIMode:          MonitorAPIModeResponses,
+		BodyOverrideMode: MonitorBodyOverrideModeMerge,
+		BodyOverride:     map[string]any{"stream": true},
+	})
+
+	if res.Status != MonitorStatusError || res.FailureCategory != MonitorFailureUpstreamError {
+		t.Fatalf("response.failed should be upstream_error, got status=%s category=%s message=%q", res.Status, res.FailureCategory, res.Message)
+	}
+	if !strings.Contains(res.Message, "account unavailable") {
+		t.Fatalf("response.failed message should be preserved, got %q", res.Message)
+	}
+}
+
+func TestRunCheckForModel_OpenAIResponses_TruncatedStreamIsProtocolError(t *testing.T) {
+	h := &openAICaptureHandler{responsesSSEMode: "truncated"}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderOpenAI, endpoint, "sk-openai", "gpt-5.6-luna", &CheckOptions{
+		APIMode:          MonitorAPIModeResponses,
+		BodyOverrideMode: MonitorBodyOverrideModeMerge,
+		BodyOverride:     map[string]any{"stream": true},
+	})
+
+	if res.Status != MonitorStatusError || res.FailureCategory != MonitorFailureProtocolError {
+		t.Fatalf("truncated stream should be protocol_error, got status=%s category=%s message=%q", res.Status, res.FailureCategory, res.Message)
+	}
+	if !strings.Contains(res.Message, "terminal event") {
+		t.Fatalf("truncated stream should explain missing terminal event, got %q", res.Message)
+	}
+}
+
+func TestRunCheckForModel_OpenAIResponses_StreamMustBeBoolean(t *testing.T) {
+	h := &openAICaptureHandler{}
+	endpoint := setupFakeOpenAI(t, h)
+
+	res := runCheckForModel(context.Background(), MonitorProviderOpenAI, endpoint, "sk-openai", "gpt-5.6-luna", &CheckOptions{
+		APIMode:          MonitorAPIModeResponses,
+		BodyOverrideMode: MonitorBodyOverrideModeMerge,
+		BodyOverride:     map[string]any{"stream": "true"},
+	})
+
+	if res.Status != MonitorStatusError || res.FailureCategory != MonitorFailureConfigError {
+		t.Fatalf("non-boolean stream should fail locally, got status=%s category=%s message=%q", res.Status, res.FailureCategory, res.Message)
+	}
+	if h.callCount != 0 {
+		t.Fatalf("invalid stream setting must fail before HTTP request, got calls=%d", h.callCount)
+	}
+}
+
+func TestPostRawJSON_RejectsOversizedResponse(t *testing.T) {
+	swapMonitorHTTPClient(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(strings.Repeat("x", monitorResponseMaxBytes+1)))
+	}))
+	defer srv.Close()
+
+	_, status, _, err := postRawJSON(context.Background(), srv.URL, []byte(`{}`), nil)
+	if err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("oversized response should be rejected, status=%d err=%v", status, err)
 	}
 }
 

@@ -141,11 +141,13 @@ func ProvideGatewayHandler(
 	cfg *config.Config,
 	settingService *service.SettingService,
 	coordinator *securityaudit.Coordinator,
+	channelMonitorService *service.ChannelMonitorService,
 ) *GatewayHandler {
 	h := NewGatewayHandler(gatewayService, openAIGatewayService, geminiCompatService, antigravityGatewayService,
 		userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool,
 		errorPassthroughService, contentModerationService, userMsgQueueService, cfg, settingService)
 	h.securityAuditCoordinator = coordinator
+	setChannelMonitorSigner(h, channelMonitorService)
 	return h
 }
 
@@ -161,12 +163,23 @@ func ProvideOpenAIGatewayHandler(
 	grokQuotaService *service.GrokQuotaService,
 	cfg *config.Config,
 	coordinator *securityaudit.Coordinator,
+	channelMonitorService *service.ChannelMonitorService,
 ) *OpenAIGatewayHandler {
 	h := NewOpenAIGatewayHandler(gatewayService, concurrencyService, billingCacheService, apiKeyService,
 		usageRecordWorkerPool, errorPassthroughService, contentModerationService, opsService, cfg)
 	h.securityAuditCoordinator = coordinator
 	h.grokMediaEligibilityProber = grokQuotaService
+	setChannelMonitorSigner(h, channelMonitorService)
 	return h
+}
+
+func setChannelMonitorSigner(h interface {
+	SetChannelMonitorSigner(*service.ChannelMonitorSigner)
+}, monitor *service.ChannelMonitorService) {
+	if h == nil || monitor == nil {
+		return
+	}
+	h.SetChannelMonitorSigner(monitor.Signer())
 }
 
 func ProvideBatchImageHandler(
