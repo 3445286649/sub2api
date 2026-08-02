@@ -145,6 +145,47 @@ describe('AccountTestModal', () => {
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
   })
 
+  it('OpenAI APIKEY 账号的 Gemini 图片模型会使用生图提示词并渲染预览', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'gemini-2.5-flash-image', display_name: 'Gemini 2.5 Flash Image' }
+    ])
+
+    const wrapper = mountModal({
+      id: 54,
+      name: 'OpenAI Compatible Gemini Image',
+      platform: 'openai',
+      type: 'apikey',
+      status: 'active'
+    })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const promptInput = wrapper.find('textarea.textarea-stub')
+    expect(promptInput.exists()).toBe(true)
+    expect((promptInput.element as HTMLTextAreaElement).value).toBe(
+      'Generate a cute orange cat astronaut sticker on a clean pastel background.'
+    )
+
+    const buttons = wrapper.findAll('button')
+    const startButton = buttons.find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model_id: 'gemini-2.5-flash-image',
+      prompt: 'Generate a cute orange cat astronaut sticker on a clean pastel background.',
+      mode: 'default'
+    })
+
+    const preview = wrapper.find('img[alt="test-image-1"]')
+    expect(preview.exists()).toBe(true)
+    expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
+  })
+
   it('grok 账号测试默认选择 Grok 模型', async () => {
     getAvailableModels.mockResolvedValue([
       { id: 'grok-4.3', display_name: 'Grok 4.3' },

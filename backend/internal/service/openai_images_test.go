@@ -399,6 +399,122 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsGrokImageModels(t *t
 	}
 }
 
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsGeminiImageModels(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	for _, model := range []string{
+		"gemini-2.0-flash-exp-image-generation",
+		"gemini-2.5-flash-image",
+		"gemini-2.5-flash-image-preview",
+		"gemini-3-pro-image",
+		"gemini-3-pro-image-preview",
+		"gemini-3.1-flash-image",
+		"gemini-3.1-flash-image-preview",
+	} {
+		t.Run(model, func(t *testing.T) {
+			body := []byte(fmt.Sprintf(`{"model":%q,"prompt":"draw a cat","response_format":"url"}`, model))
+			req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = req
+
+			parsed, err := (&OpenAIGatewayService{}).ParseOpenAIImagesRequest(c, body)
+			require.NoError(t, err)
+			require.Equal(t, model, parsed.Model)
+			require.Equal(t, OpenAIImagesCapabilityGeminiCompat, parsed.RequiredCapability)
+		})
+	}
+}
+
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_GeminiImageSizeHints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{
+		"model":"gemini-3.1-flash-image",
+		"prompt":"draw a poster",
+		"size":"9:16",
+		"quality":"2K",
+		"extra_fields":{
+			"google":{"image_config":{"aspect_ratio":"9:16","image_size":"4K"}},
+			"aspect_ratio":"9:16",
+			"image_size":"4K"
+		},
+		"response_format":"url"
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+
+	parsed, err := (&OpenAIGatewayService{}).ParseOpenAIImagesRequest(c, body)
+	require.NoError(t, err)
+	require.Equal(t, "4K", parsed.Resolution)
+	require.Equal(t, "4K", parsed.SizeTier)
+	require.Equal(t, "4K", parsed.billingInputSize())
+	require.Equal(t, OpenAIImagesCapabilityGeminiCompat, parsed.RequiredCapability)
+}
+
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_GeminiQualityFallback(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"gemini-3.1-flash-image","prompt":"draw a poster","size":"9:16","quality":"2K"}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+
+	parsed, err := (&OpenAIGatewayService{}).ParseOpenAIImagesRequest(c, body)
+	require.NoError(t, err)
+	require.Equal(t, "2K", parsed.SizeTier)
+	require.Equal(t, "2K", parsed.billingInputSize())
+}
+
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_RejectsGeminiTextAndImageEdits(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("text model", func(t *testing.T) {
+		body := []byte(`{"model":"gemini-3.1-flash-preview","prompt":"draw a cat"}`)
+		req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = req
+
+		parsed, err := (&OpenAIGatewayService{}).ParseOpenAIImagesRequest(c, body)
+		require.Nil(t, parsed)
+		require.ErrorContains(t, err, `images endpoint requires an image model`)
+	})
+
+	t.Run("edits endpoint", func(t *testing.T) {
+		body := []byte(`{"model":"gemini-3.1-flash-image","prompt":"edit a cat","images":[{"image_url":"https://example.com/cat.png"}]}`)
+		req := httptest.NewRequest(http.MethodPost, "/v1/images/edits", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = req
+
+		parsed, err := (&OpenAIGatewayService{}).ParseOpenAIImagesRequest(c, body)
+		require.Nil(t, parsed)
+		require.ErrorContains(t, err, `Gemini image models are only supported on /v1/images/generations`)
+	})
+}
+
+func TestRewriteOpenAIImagesModel_PreservesGeminiExtraFields(t *testing.T) {
+	body := []byte(`{
+		"model":"gemini-3.1-flash-image",
+		"prompt":"draw a poster",
+		"extra_fields":{"google":{"image_config":{"aspect_ratio":"9:16","image_size":"2K"}}}
+	}`)
+
+	rewritten, contentType, err := rewriteOpenAIImagesModel(body, "application/json", "gemini-3.1-flash-image-preview")
+	require.NoError(t, err)
+	require.Equal(t, "application/json", contentType)
+	require.Equal(t, "gemini-3.1-flash-image-preview", gjson.GetBytes(rewritten, "model").String())
+	require.Equal(t, "9:16", gjson.GetBytes(rewritten, "extra_fields.google.image_config.aspect_ratio").String())
+	require.Equal(t, "2K", gjson.GetBytes(rewritten, "extra_fields.google.image_config.image_size").String())
+}
+
 func TestOpenAIGatewayServiceParseOpenAIImagesRequest_JSONEditURLs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{
@@ -505,6 +621,16 @@ func TestAccountSupportsOpenAIImageCapability_OAuthSupportsNative(t *testing.T) 
 
 	require.True(t, account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityBasic))
 	require.True(t, account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityNative))
+	require.False(t, account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityGeminiCompat))
+}
+
+func TestAccountSupportsOpenAIImageCapability_APIKeySupportsGeminiCompat(t *testing.T) {
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+	}
+
+	require.True(t, account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityGeminiCompat))
 }
 
 func TestAccountSupportsOpenAIImageCapability_EmptyRequirementDoesNotRejectGrok(t *testing.T) {

@@ -542,21 +542,25 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	// Align test routing with gateway behavior: OpenAI accounts apply normal
 	// account model mapping, and compact mode applies compact-only mapping on top.
 	testModelID = account.GetMappedModel(testModelID)
-	if mode == AccountTestModeCompact {
-		testModelID = resolveOpenAICompactForwardModel(account, testModelID)
-		return s.testOpenAICompactConnection(c, account, testModelID)
-	}
 
 	// Route to image generation test if an image model is selected
-	if isOpenAIImageModel(testModelID) {
+	if isOpenAIImageModel(testModelID) || isGeminiImageGenerationModel(testModelID) {
 		imagePrompt := strings.TrimSpace(prompt)
 		if imagePrompt == "" {
 			imagePrompt = defaultOpenAIImageTestPrompt
 		}
-		if account.Type == "apikey" {
+		if account.Type == AccountTypeAPIKey {
 			return s.testOpenAIImageAPIKey(c, ctx, account, testModelID, imagePrompt)
 		}
+		if isGeminiImageGenerationModel(testModelID) {
+			return s.sendErrorAndEnd(c, "Gemini image models require an OpenAI-compatible API key account")
+		}
 		return s.testOpenAIImageOAuth(c, ctx, account, testModelID, imagePrompt)
+	}
+
+	if mode == AccountTestModeCompact {
+		testModelID = resolveOpenAICompactForwardModel(account, testModelID)
+		return s.testOpenAICompactConnection(c, account, testModelID)
 	}
 
 	credentialAccount := account
@@ -1804,10 +1808,11 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
 
-	// Parse {"data": [{"b64_json": "...", "revised_prompt": "..."}]}
+	// Parse OpenAI-compatible image responses containing either b64_json or url.
 	var result struct {
 		Data []struct {
 			B64JSON       string `json:"b64_json"`
+			URL           string `json:"url"`
 			RevisedPrompt string `json:"revised_prompt"`
 		} `json:"data"`
 	}
@@ -1819,6 +1824,7 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 		return s.sendErrorAndEnd(c, "No images returned from API")
 	}
 
+	imageCount := 0
 	for _, item := range result.Data {
 		if item.RevisedPrompt != "" {
 			s.sendEvent(c, TestEvent{Type: "content", Text: item.RevisedPrompt})
@@ -1829,7 +1835,17 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 				ImageURL: "data:image/png;base64," + item.B64JSON,
 				MimeType: "image/png",
 			})
+			imageCount++
+		} else if item.URL != "" {
+			s.sendEvent(c, TestEvent{
+				Type:     "image",
+				ImageURL: item.URL,
+			})
+			imageCount++
 		}
+	}
+	if imageCount == 0 {
+		return s.sendErrorAndEnd(c, "No image payload returned from API")
 	}
 
 	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})

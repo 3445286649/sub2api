@@ -45,8 +45,9 @@ const (
 type OpenAIImagesCapability string
 
 const (
-	OpenAIImagesCapabilityBasic  OpenAIImagesCapability = "images-basic"
-	OpenAIImagesCapabilityNative OpenAIImagesCapability = "images-native"
+	OpenAIImagesCapabilityBasic        OpenAIImagesCapability = "images-basic"
+	OpenAIImagesCapabilityNative       OpenAIImagesCapability = "images-native"
+	OpenAIImagesCapabilityGeminiCompat OpenAIImagesCapability = "images-gemini-compat"
 )
 
 type OpenAIImagesUpload struct {
@@ -159,6 +160,18 @@ func (r *OpenAIImagesRequest) IsEdits() bool {
 	return r != nil && r.Endpoint == openAIImagesEditsEndpoint
 }
 
+func (r *OpenAIImagesRequest) billingInputSize() string {
+	if r == nil {
+		return ""
+	}
+	for _, candidate := range []string{r.Resolution, r.Quality, r.Upscale, r.Size} {
+		if _, ok := ClassifyImageBillingTier(candidate); ok {
+			return strings.TrimSpace(candidate)
+		}
+	}
+	return strings.TrimSpace(r.Size)
+}
+
 func (r *OpenAIImagesRequest) StickySessionSeed() string {
 	if r == nil {
 		return ""
@@ -217,10 +230,10 @@ func (s *OpenAIGatewayService) ParseOpenAIImagesRequest(c *gin.Context, body []b
 	}
 
 	applyOpenAIImagesDefaults(req)
-	if err := validateOpenAIImagesModel(req.Model); err != nil {
+	if err := validateOpenAIImagesModelForEndpoint(req.Model, req.Endpoint); err != nil {
 		return nil, err
 	}
-	req.SizeTier = normalizeOpenAIImageSizeTier(req.Size, req.Upscale, req.Resolution)
+	req.SizeTier = normalizeOpenAIImageSizeTier(req.Size, req.Upscale, req.Quality, req.Resolution)
 	req.RequiredCapability = classifyOpenAIImagesCapability(req)
 	return req, nil
 }
@@ -257,6 +270,9 @@ func parseOpenAIImagesJSONRequest(body []byte, req *OpenAIImagesRequest) error {
 	req.Resolution = strings.TrimSpace(gjson.GetBytes(body, "resolution").String())
 	if req.Resolution == "" {
 		req.Resolution = strings.TrimSpace(gjson.GetBytes(body, "image_size").String())
+	}
+	if req.Resolution == "" {
+		req.Resolution = strings.TrimSpace(gjson.GetBytes(body, "extra_fields.google.image_config.image_size").String())
 	}
 	req.ResponseFormat = strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, "response_format").String()))
 	req.Quality = strings.TrimSpace(gjson.GetBytes(body, "quality").String())
@@ -469,6 +485,14 @@ func isOpenAIImageGenerationModel(model string) bool {
 	return IsGPTImageGenerationModel(model) || isGrokImageGenerationModel(model)
 }
 
+func isGeminiImageGenerationModel(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	if !strings.HasPrefix(model, "gemini-") {
+		return false
+	}
+	return strings.HasSuffix(model, "-image") || strings.Contains(model, "-image-")
+}
+
 // IsGPTImageGenerationModel identifies the GPT native image-generation model family.
 func IsGPTImageGenerationModel(model string) bool {
 	model = strings.ToLower(strings.TrimSpace(model))
@@ -484,13 +508,23 @@ func isGrokImageGenerationModel(model string) bool {
 
 func validateOpenAIImagesModel(model string) error {
 	model = strings.TrimSpace(model)
-	if isOpenAIImageGenerationModel(model) {
+	if isOpenAIImageGenerationModel(model) || isGeminiImageGenerationModel(model) {
 		return nil
 	}
 	if model == "" {
 		return fmt.Errorf("images endpoint requires an image model")
 	}
 	return fmt.Errorf("images endpoint requires an image model, got %q", model)
+}
+
+func validateOpenAIImagesModelForEndpoint(model string, endpoint string) error {
+	if err := validateOpenAIImagesModel(model); err != nil {
+		return err
+	}
+	if isGeminiImageGenerationModel(model) && endpoint != openAIImagesGenerationsEndpoint {
+		return fmt.Errorf("Gemini image models are only supported on %s", openAIImagesGenerationsEndpoint)
+	}
+	return nil
 }
 
 func normalizeOpenAIImagesEndpointPath(path string) string {
@@ -508,6 +542,9 @@ func normalizeOpenAIImagesEndpointPath(path string) string {
 func classifyOpenAIImagesCapability(req *OpenAIImagesRequest) OpenAIImagesCapability {
 	if req == nil {
 		return OpenAIImagesCapabilityNative
+	}
+	if isGeminiImageGenerationModel(req.Model) {
+		return OpenAIImagesCapabilityGeminiCompat
 	}
 	if req.ExplicitModel || req.ExplicitSize {
 		return OpenAIImagesCapabilityNative
@@ -601,11 +638,11 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	if mapped := strings.TrimSpace(channelMappedModel); mapped != "" {
 		requestModel = mapped
 	}
-	if err := validateOpenAIImagesModel(requestModel); err != nil {
+	if err := validateOpenAIImagesModelForEndpoint(requestModel, parsed.Endpoint); err != nil {
 		return nil, err
 	}
 	upstreamModel := account.GetMappedModel(requestModel)
-	if err := validateOpenAIImagesModel(upstreamModel); err != nil {
+	if err := validateOpenAIImagesModelForEndpoint(upstreamModel, parsed.Endpoint); err != nil {
 		return nil, err
 	}
 	logger.LegacyPrintf(
@@ -700,7 +737,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 					FirstTokenMs:     ttft,
 					ImageCount:       streamCount,
 					ImageSize:        parsed.SizeTier,
-					ImageInputSize:   parsed.Size,
+					ImageInputSize:   parsed.billingInputSize(),
 					ImageOutputSizes: streamSizes,
 				}, err
 			}
@@ -721,7 +758,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			FirstTokenMs:     firstTokenMs,
 			ImageCount:       imageCount,
 			ImageSize:        parsed.SizeTier,
-			ImageInputSize:   parsed.Size,
+			ImageInputSize:   parsed.billingInputSize(),
 			ImageOutputSizes: imageOutputSizes,
 		}, nil
 	} else {
@@ -744,7 +781,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			FirstTokenMs:     firstTokenMs,
 			ImageCount:       imageCount,
 			ImageSize:        parsed.SizeTier,
-			ImageInputSize:   parsed.Size,
+			ImageInputSize:   parsed.billingInputSize(),
 			ImageOutputSizes: nonStreamSizes,
 		}, nil
 	}

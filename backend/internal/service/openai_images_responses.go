@@ -1678,6 +1678,9 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	if requestModel == "" {
 		requestModel = "gpt-image-2"
 	}
+	if isGeminiImageGenerationModel(requestModel) {
+		return nil, fmt.Errorf("Gemini image models require an OpenAI-compatible API key account")
+	}
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
 		return nil, err
 	}
@@ -1789,7 +1792,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 					FirstTokenMs:     firstTokenMs,
 					ImageCount:       imageCount,
 					ImageSize:        parsed.SizeTier,
-					ImageInputSize:   parsed.Size,
+					ImageInputSize:   parsed.billingInputSize(),
 					ImageOutputSizes: imageOutputSizes,
 				}, err
 			}
@@ -1833,7 +1836,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 		FirstTokenMs:     firstTokenMs,
 		ImageCount:       imageCount,
 		ImageSize:        parsed.SizeTier,
-		ImageInputSize:   parsed.Size,
+		ImageInputSize:   parsed.billingInputSize(),
 		ImageOutputSizes: imageOutputSizes,
 	}, nil
 }

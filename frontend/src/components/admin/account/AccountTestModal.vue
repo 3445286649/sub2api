@@ -297,9 +297,11 @@ const openAITestModeOptions = computed(() => [
 const prioritizedGeminiModels = ['gemini-3.1-flash-image', 'gemini-2.5-flash-image', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-2.0-flash']
 const supportsGeminiImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
-  if (!modelID.startsWith('gemini-') || !modelID.includes('-image')) return false
+  if (!modelID.startsWith('gemini-') || (!modelID.endsWith('-image') && !modelID.includes('-image-'))) return false
 
-  return props.account?.platform === 'gemini' || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
+  return props.account?.platform === 'gemini'
+    || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
+    || (props.account?.platform === 'openai' && props.account?.type === 'apikey')
 })
 
 const supportsOpenAIImageTest = computed(() => {
