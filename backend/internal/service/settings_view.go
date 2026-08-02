@@ -162,6 +162,7 @@ type SystemSettings struct {
 	ModelRadarEnabled            bool
 	DocURL                       string
 	HomeContent                  string
+	CompactHomeEnabled           bool
 	HideCcsImportButton          bool
 	PurchaseSubscriptionEnabled  bool
 	PurchaseSubscriptionURL      string
@@ -354,6 +355,7 @@ type PublicSettings struct {
 	ModelRadarEnabled                bool
 	DocURL                           string
 	HomeContent                      string
+	CompactHomeEnabled               bool
 	HideCcsImportButton              bool
 
 	PurchaseSubscriptionEnabled bool

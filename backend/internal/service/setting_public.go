@@ -192,6 +192,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyPixmoStudioURL,
 		SettingKeyDocURL,
 		SettingKeyHomeContent,
+		SettingKeyCompactHomeEnabled,
 		SettingKeyHideCcsImportButton,
 		SettingKeyUsageHelpEnabled,
 		SettingKeyModelRadarEnabled,
@@ -340,6 +341,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		PixmoStudioURL:                   strings.TrimSpace(s.getStringOrDefault(settings, SettingKeyPixmoStudioURL, "https://pixmo.loucer.cn/")),
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
+		CompactHomeEnabled:               settings[SettingKeyCompactHomeEnabled] == "true",
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		UsageHelpEnabled:                 settings[SettingKeyUsageHelpEnabled] == "true",
 		ModelRadarEnabled:                settings[SettingKeyModelRadarEnabled] == "true",
@@ -548,6 +550,7 @@ type PublicSettingsInjectionPayload struct {
 	PixmoStudioURL                   string                   `json:"pixmo_studio_url"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
+	CompactHomeEnabled               bool                     `json:"compact_home_enabled"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
 	UsageHelpEnabled                 bool                     `json:"usage_help_enabled"`
 	ModelRadarEnabled                bool                     `json:"model_radar_enabled"`
@@ -640,6 +643,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PixmoStudioURL:                   settings.PixmoStudioURL,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
+		CompactHomeEnabled:               settings.CompactHomeEnabled,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		UsageHelpEnabled:                 settings.UsageHelpEnabled,
 		ModelRadarEnabled:                settings.ModelRadarEnabled,

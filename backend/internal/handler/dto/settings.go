@@ -157,6 +157,7 @@ type SystemSettings struct {
 	ModelRadarEnabled            bool             `json:"model_radar_enabled"`
 	DocURL                       string           `json:"doc_url"`
 	HomeContent                  string           `json:"home_content"`
+	CompactHomeEnabled           bool             `json:"compact_home_enabled"`
 	HideCcsImportButton          bool             `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled  bool             `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL      string           `json:"purchase_subscription_url"`
@@ -386,6 +387,7 @@ type PublicSettings struct {
 	ModelRadarEnabled                bool                     `json:"model_radar_enabled"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
+	CompactHomeEnabled               bool                     `json:"compact_home_enabled"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool                     `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string                   `json:"purchase_subscription_url"`
