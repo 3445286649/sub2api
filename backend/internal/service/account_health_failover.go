@@ -82,7 +82,7 @@ func shouldRecordAccountHealthForwardError(err error) bool {
 }
 
 func shouldRecordAccountHealthFailure(err *UpstreamFailoverError) bool {
-	if err == nil || err.StatusCode == http.StatusBadRequest {
+	if err == nil || err.RequestScopedTransient || err.StatusCode == http.StatusBadRequest {
 		return false
 	}
 	return !accountHealthMessageIsNonAccountFault(string(err.ResponseBody))

@@ -73,6 +73,7 @@ func TestShouldRecordAccountHealthFailureSkipsNonAccountFaults(t *testing.T) {
 		{name: "parameter 400", err: &UpstreamFailoverError{StatusCode: 400, ResponseBody: []byte(`{"error":{"message":"Unsupported parameter: max_output_tokens"}}`)}, want: false},
 		{name: "model 404", err: &UpstreamFailoverError{StatusCode: 404, ResponseBody: []byte(`{"error":{"code":"model_not_found"}}`)}, want: false},
 		{name: "unsupported model 503 body", err: &UpstreamFailoverError{StatusCode: 503, ResponseBody: []byte(`{"error":{"message":"unsupported model"}}`)}, want: false},
+		{name: "request scoped overload", err: &UpstreamFailoverError{StatusCode: 502, RequestScopedTransient: true, ResponseBody: []byte(`{"error":{"message":"server_is_overloaded"}}`)}, want: false},
 		{name: "upstream 503", err: &UpstreamFailoverError{StatusCode: 503, ResponseBody: []byte(`{"error":{"message":"service unavailable"}}`)}, want: true},
 		{name: "rate limit", err: &UpstreamFailoverError{StatusCode: 429}, want: true},
 	}
