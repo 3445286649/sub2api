@@ -438,7 +438,7 @@ import { formatReasoningEffort } from '@/utils/format'
 import { formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
 import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
-import { BILLING_MODE_IMAGE, BILLING_MODE_TOKEN, getBillingModeLabel, imageUnitPrice, isImageUsage } from '@/utils/billingMode'
+import { BILLING_MODE_TOKEN, getBillingModeLabel, getDisplayBillingMode as resolveDisplayBillingMode, imageUnitPrice, isImageUsage } from '@/utils/billingMode'
 import {
   formatImageBillingSize,
   formatImageInputSize,
@@ -831,8 +831,7 @@ const getRequestTypeExportText = (log: UsageLog): string => {
 const getDisplayBillingMode = (
   row: Pick<UsageLog, 'billing_mode' | 'image_count'> | null | undefined
 ): string | null | undefined => {
-  if ((row?.image_count ?? 0) > 0) return BILLING_MODE_IMAGE
-  return row?.billing_mode
+  return resolveDisplayBillingMode(row)
 }
 
 const escapeCSVValue = (value: unknown): string => {

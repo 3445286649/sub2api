@@ -68,6 +68,7 @@ type ChannelMonitorService struct {
 	encryptor     SecretEncryptor
 	signer        *ChannelMonitorSigner
 	settingReader channelMonitorSettingReader
+	settings      channelMonitorRuntimeReader
 	// scheduler 由 wire 通过 SetScheduler 注入；CRUD 后调用对应钩子即时同步任务。
 	// 测试或未注入场景下保持 nil，所有钩子调用变为 no-op。
 	scheduler MonitorScheduler
@@ -75,6 +76,10 @@ type ChannelMonitorService struct {
 
 type channelMonitorSettingReader interface {
 	GetAllSettings(ctx context.Context) (*SystemSettings, error)
+}
+
+type channelMonitorRuntimeReader interface {
+	GetChannelMonitorRuntime(ctx context.Context) ChannelMonitorRuntime
 }
 
 const maxChannelMonitorNameRunes = 100
@@ -102,6 +107,20 @@ func (s *ChannelMonitorService) SetSettingReader(reader channelMonitorSettingRea
 		return
 	}
 	s.settingReader = reader
+}
+
+func (s *ChannelMonitorService) SetRuntimeReader(reader channelMonitorRuntimeReader) {
+	if s == nil {
+		return
+	}
+	s.settings = reader
+}
+
+func (s *ChannelMonitorService) probeRuntime(ctx context.Context) ChannelMonitorRuntime {
+	if s == nil || s.settings == nil {
+		return ChannelMonitorRuntime{Enabled: true, Mode: ChannelMonitorModeV2}
+	}
+	return s.settings.GetChannelMonitorRuntime(ctx)
 }
 
 // ---------- CRUD ----------
