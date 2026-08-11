@@ -31,6 +31,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcampaign"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcampaignredemption"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/schema"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
@@ -1757,6 +1759,42 @@ func init() {
 	proxyDescExpiryWarnDays := proxyFields[10].Descriptor()
 	// proxy.DefaultExpiryWarnDays holds the default value on creation for the expiry_warn_days field.
 	proxy.DefaultExpiryWarnDays = proxyDescExpiryWarnDays.Default.(int)
+	redeemcampaignFields := schema.RedeemCampaign{}.Fields()
+	_ = redeemcampaignFields
+	// redeemcampaignDescName is the schema descriptor for name field.
+	redeemcampaignDescName := redeemcampaignFields[0].Descriptor()
+	// redeemcampaign.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	redeemcampaign.NameValidator = func() func(string) error {
+		validators := redeemcampaignDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// redeemcampaignDescStatus is the schema descriptor for status field.
+	redeemcampaignDescStatus := redeemcampaignFields[1].Descriptor()
+	// redeemcampaign.DefaultStatus holds the default value on creation for the status field.
+	redeemcampaign.DefaultStatus = redeemcampaignDescStatus.Default.(string)
+	// redeemcampaign.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	redeemcampaign.StatusValidator = redeemcampaignDescStatus.Validators[0].(func(string) error)
+	// redeemcampaignDescCreatedAt is the schema descriptor for created_at field.
+	redeemcampaignDescCreatedAt := redeemcampaignFields[4].Descriptor()
+	// redeemcampaign.DefaultCreatedAt holds the default value on creation for the created_at field.
+	redeemcampaign.DefaultCreatedAt = redeemcampaignDescCreatedAt.Default.(func() time.Time)
+	redeemcampaignredemptionFields := schema.RedeemCampaignRedemption{}.Fields()
+	_ = redeemcampaignredemptionFields
+	// redeemcampaignredemptionDescRedeemedAt is the schema descriptor for redeemed_at field.
+	redeemcampaignredemptionDescRedeemedAt := redeemcampaignredemptionFields[3].Descriptor()
+	// redeemcampaignredemption.DefaultRedeemedAt holds the default value on creation for the redeemed_at field.
+	redeemcampaignredemption.DefaultRedeemedAt = redeemcampaignredemptionDescRedeemedAt.Default.(func() time.Time)
 	redeemcodeFields := schema.RedeemCode{}.Fields()
 	_ = redeemcodeFields
 	// redeemcodeDescCode is the schema descriptor for code field.
@@ -1802,11 +1840,11 @@ func init() {
 	// redeemcode.DefaultCreatedAt holds the default value on creation for the created_at field.
 	redeemcode.DefaultCreatedAt = redeemcodeDescCreatedAt.Default.(func() time.Time)
 	// redeemcodeDescValidityDays is the schema descriptor for validity_days field.
-	redeemcodeDescValidityDays := redeemcodeFields[11].Descriptor()
+	redeemcodeDescValidityDays := redeemcodeFields[12].Descriptor()
 	// redeemcode.DefaultValidityDays holds the default value on creation for the validity_days field.
 	redeemcode.DefaultValidityDays = redeemcodeDescValidityDays.Default.(int)
 	// redeemcodeDescQuotaResetScope is the schema descriptor for quota_reset_scope field.
-	redeemcodeDescQuotaResetScope := redeemcodeFields[12].Descriptor()
+	redeemcodeDescQuotaResetScope := redeemcodeFields[13].Descriptor()
 	// redeemcode.DefaultQuotaResetScope holds the default value on creation for the quota_reset_scope field.
 	redeemcode.DefaultQuotaResetScope = redeemcodeDescQuotaResetScope.Default.(string)
 	// redeemcode.QuotaResetScopeValidator is a validator for the "quota_reset_scope" field. It is called by the builders before save.

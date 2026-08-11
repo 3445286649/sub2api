@@ -3,9 +3,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import RedeemView from '../RedeemView.vue'
 
-const { listRedeemCodes, batchUpdateRedeemCodes, getAllGroups, showSuccess, showError, showInfo } =
+const { listRedeemCodes, generateRedeemCodes, generateRedeemCampaign, batchUpdateRedeemCodes, getAllGroups, showSuccess, showError, showInfo } =
   vi.hoisted(() => ({
     listRedeemCodes: vi.fn(),
+    generateRedeemCodes: vi.fn(),
+    generateRedeemCampaign: vi.fn(),
     batchUpdateRedeemCodes: vi.fn(),
     getAllGroups: vi.fn(),
     showSuccess: vi.fn(),
@@ -17,7 +19,8 @@ vi.mock('@/api/admin', () => ({
   adminAPI: {
     redeem: {
       list: listRedeemCodes,
-      generate: vi.fn(),
+      generate: generateRedeemCodes,
+      generateCampaign: generateRedeemCampaign,
       delete: vi.fn(),
       batchDelete: vi.fn(),
       batchUpdate: batchUpdateRedeemCodes,
@@ -105,6 +108,8 @@ describe('admin RedeemView batch update', () => {
     document.body.innerHTML = ''
 
     listRedeemCodes.mockReset()
+    generateRedeemCodes.mockReset()
+    generateRedeemCampaign.mockReset()
     batchUpdateRedeemCodes.mockReset()
     getAllGroups.mockReset()
     showSuccess.mockReset()
@@ -142,6 +147,8 @@ describe('admin RedeemView batch update', () => {
       pages: 1
     })
     batchUpdateRedeemCodes.mockResolvedValue({ updated: 1, message: 'ok' })
+    generateRedeemCodes.mockResolvedValue([])
+    generateRedeemCampaign.mockResolvedValue([{ id: 3, code: 'CAMPAIGN-CODE' }])
     getAllGroups.mockResolvedValue([])
   })
 
@@ -183,5 +190,41 @@ describe('admin RedeemView batch update', () => {
       notes: 'maintenance'
     })
     expect(showSuccess).toHaveBeenCalledWith('admin.redeem.batchUpdateSuccess')
+  })
+
+  it('uses the dedicated campaign endpoint for campaign mode', async () => {
+    const wrapper = mount(RedeemView, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          Select: SelectStub,
+          GroupBadge: true,
+          GroupOptionItem: true,
+          Icon: true,
+          Teleport: { template: '<div><slot /></div>' }
+        }
+      }
+    })
+
+    await flushPromises()
+    const generateButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('admin.redeem.generateCodes'))
+    expect(generateButton).toBeDefined()
+    await generateButton!.trigger('click')
+    await wrapper.get('[data-test="redeem-mode-campaign"]').trigger('click')
+    await wrapper.get('[data-test="campaign-name"]').setValue('August benefit')
+    await wrapper.get('[data-test="generate-redeem-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(generateRedeemCampaign).toHaveBeenCalledWith('August benefit', 1, 10, undefined)
+    expect(generateRedeemCodes).not.toHaveBeenCalled()
   })
 })

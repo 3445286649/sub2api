@@ -13,6 +13,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -43,6 +44,14 @@ type GenerateRedeemCodesRequest struct {
 	QuotaResetScope           string     `json:"quota_reset_scope"` // 订阅额度刷新码使用
 	ExpiresAt                 *time.Time `json:"expires_at"`
 	ExpiresInDays             *int       `json:"expires_in_days" binding:"omitempty,min=1,max=3650"`
+}
+
+type GenerateRedeemCampaignCodesRequest struct {
+	Name          string     `json:"name" binding:"required,min=1,max=100"`
+	Count         int        `json:"count" binding:"required,min=1,max=100"`
+	Value         float64    `json:"value" binding:"required,gt=0"`
+	ExpiresAt     *time.Time `json:"expires_at"`
+	ExpiresInDays *int       `json:"expires_in_days" binding:"omitempty,min=1,max=3650"`
 }
 
 // CreateAndRedeemCodeRequest represents creating a fixed code and redeeming it for a target user.
@@ -156,6 +165,53 @@ func (h *RedeemHandler) Generate(c *gin.Context) {
 			ValidityDays:              req.ValidityDays,
 			QuotaResetScope:           req.QuotaResetScope,
 			ExpiresAt:                 expiresAt,
+		})
+		if execErr != nil {
+			return nil, execErr
+		}
+
+		out := make([]dto.AdminRedeemCode, 0, len(codes))
+		for i := range codes {
+			out = append(out, *dto.RedeemCodeFromServiceAdmin(&codes[i]))
+		}
+		return out, nil
+	})
+}
+
+// GenerateCampaign creates balance redeem codes that each user can redeem once per campaign.
+// POST /api/v1/admin/redeem-campaigns/generate
+func (h *RedeemHandler) GenerateCampaign(c *gin.Context) {
+	if h.redeemService == nil {
+		response.InternalError(c, "redeem service not configured")
+		return
+	}
+
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	var req GenerateRedeemCampaignCodesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+
+	expiresAt, err := resolveRedeemCodeExpiresAt(req.ExpiresAt, req.ExpiresInDays)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	executeAdminIdempotentJSON(c, "admin.redeem_campaigns.generate", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		codes, execErr := h.redeemService.GenerateRedeemCampaignCodes(ctx, service.GenerateRedeemCampaignCodesInput{
+			Name:      req.Name,
+			Count:     req.Count,
+			Value:     req.Value,
+			CreatedBy: subject.UserID,
+			ExpiresAt: expiresAt,
 		})
 		if execErr != nil {
 			return nil, execErr

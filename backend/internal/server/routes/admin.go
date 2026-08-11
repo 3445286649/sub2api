@@ -574,6 +574,11 @@ func registerProxyRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth
 }
 
 func registerRedeemCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	campaigns := admin.Group("/redeem-campaigns")
+	{
+		campaigns.POST("/generate", h.Admin.Redeem.GenerateCampaign)
+	}
+
 	codes := admin.Group("/redeem-codes")
 	{
 		codes.GET("", h.Admin.Redeem.List)

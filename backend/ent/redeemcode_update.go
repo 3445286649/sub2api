@@ -393,6 +393,9 @@ func (_u *RedeemCodeUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if _u.mutation.ExpiresAtCleared() {
 		_spec.ClearField(redeemcode.FieldExpiresAt, field.TypeTime)
 	}
+	if _u.mutation.CampaignIDCleared() {
+		_spec.ClearField(redeemcode.FieldCampaignID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.ValidityDays(); ok {
 		_spec.SetField(redeemcode.FieldValidityDays, field.TypeInt, value)
 	}
@@ -872,6 +875,9 @@ func (_u *RedeemCodeUpdateOne) sqlSave(ctx context.Context) (_node *RedeemCode, 
 	}
 	if _u.mutation.ExpiresAtCleared() {
 		_spec.ClearField(redeemcode.FieldExpiresAt, field.TypeTime)
+	}
+	if _u.mutation.CampaignIDCleared() {
+		_spec.ClearField(redeemcode.FieldCampaignID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.ValidityDays(); ok {
 		_spec.SetField(redeemcode.FieldValidityDays, field.TypeInt, value)

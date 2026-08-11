@@ -39,6 +39,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcampaign"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcampaignredemption"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
@@ -92,6 +94,8 @@ const (
 	TypePromoCode                     = "PromoCode"
 	TypePromoCodeUsage                = "PromoCodeUsage"
 	TypeProxy                         = "Proxy"
+	TypeRedeemCampaign                = "RedeemCampaign"
+	TypeRedeemCampaignRedemption      = "RedeemCampaignRedemption"
 	TypeRedeemCode                    = "RedeemCode"
 	TypeSecuritySecret                = "SecuritySecret"
 	TypeSetting                       = "Setting"
@@ -39179,6 +39183,1219 @@ func (m *ProxyMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Proxy edge %s", name)
 }
 
+// RedeemCampaignMutation represents an operation that mutates the RedeemCampaign nodes in the graph.
+type RedeemCampaignMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int64
+	name          *string
+	status        *string
+	created_by    *int64
+	addcreated_by *int64
+	expires_at    *time.Time
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*RedeemCampaign, error)
+	predicates    []predicate.RedeemCampaign
+}
+
+var _ ent.Mutation = (*RedeemCampaignMutation)(nil)
+
+// redeemcampaignOption allows management of the mutation configuration using functional options.
+type redeemcampaignOption func(*RedeemCampaignMutation)
+
+// newRedeemCampaignMutation creates new mutation for the RedeemCampaign entity.
+func newRedeemCampaignMutation(c config, op Op, opts ...redeemcampaignOption) *RedeemCampaignMutation {
+	m := &RedeemCampaignMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRedeemCampaign,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRedeemCampaignID sets the ID field of the mutation.
+func withRedeemCampaignID(id int64) redeemcampaignOption {
+	return func(m *RedeemCampaignMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RedeemCampaign
+		)
+		m.oldValue = func(ctx context.Context) (*RedeemCampaign, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RedeemCampaign.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRedeemCampaign sets the old RedeemCampaign of the mutation.
+func withRedeemCampaign(node *RedeemCampaign) redeemcampaignOption {
+	return func(m *RedeemCampaignMutation) {
+		m.oldValue = func(context.Context) (*RedeemCampaign, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RedeemCampaignMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RedeemCampaignMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RedeemCampaignMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RedeemCampaignMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RedeemCampaign.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetName sets the "name" field.
+func (m *RedeemCampaignMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *RedeemCampaignMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the RedeemCampaign entity.
+// If the RedeemCampaign object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCampaignMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *RedeemCampaignMutation) ResetName() {
+	m.name = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *RedeemCampaignMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *RedeemCampaignMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the RedeemCampaign entity.
+// If the RedeemCampaign object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCampaignMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *RedeemCampaignMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *RedeemCampaignMutation) SetCreatedBy(i int64) {
+	m.created_by = &i
+	m.addcreated_by = nil
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *RedeemCampaignMutation) CreatedBy() (r int64, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the RedeemCampaign entity.
+// If the RedeemCampaign object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCampaignMutation) OldCreatedBy(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// AddCreatedBy adds i to the "created_by" field.
+func (m *RedeemCampaignMutation) AddCreatedBy(i int64) {
+	if m.addcreated_by != nil {
+		*m.addcreated_by += i
+	} else {
+		m.addcreated_by = &i
+	}
+}
+
+// AddedCreatedBy returns the value that was added to the "created_by" field in this mutation.
+func (m *RedeemCampaignMutation) AddedCreatedBy() (r int64, exists bool) {
+	v := m.addcreated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *RedeemCampaignMutation) ResetCreatedBy() {
+	m.created_by = nil
+	m.addcreated_by = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *RedeemCampaignMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *RedeemCampaignMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the RedeemCampaign entity.
+// If the RedeemCampaign object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCampaignMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *RedeemCampaignMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[redeemcampaign.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *RedeemCampaignMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[redeemcampaign.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *RedeemCampaignMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, redeemcampaign.FieldExpiresAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *RedeemCampaignMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *RedeemCampaignMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the RedeemCampaign entity.
+// If the RedeemCampaign object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCampaignMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *RedeemCampaignMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the RedeemCampaignMutation builder.
+func (m *RedeemCampaignMutation) Where(ps ...predicate.RedeemCampaign) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RedeemCampaignMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RedeemCampaignMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RedeemCampaign, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RedeemCampaignMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RedeemCampaignMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RedeemCampaign).
+func (m *RedeemCampaignMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RedeemCampaignMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.name != nil {
+		fields = append(fields, redeemcampaign.FieldName)
+	}
+	if m.status != nil {
+		fields = append(fields, redeemcampaign.FieldStatus)
+	}
+	if m.created_by != nil {
+		fields = append(fields, redeemcampaign.FieldCreatedBy)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, redeemcampaign.FieldExpiresAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, redeemcampaign.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RedeemCampaignMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case redeemcampaign.FieldName:
+		return m.Name()
+	case redeemcampaign.FieldStatus:
+		return m.Status()
+	case redeemcampaign.FieldCreatedBy:
+		return m.CreatedBy()
+	case redeemcampaign.FieldExpiresAt:
+		return m.ExpiresAt()
+	case redeemcampaign.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RedeemCampaignMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case redeemcampaign.FieldName:
+		return m.OldName(ctx)
+	case redeemcampaign.FieldStatus:
+		return m.OldStatus(ctx)
+	case redeemcampaign.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case redeemcampaign.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case redeemcampaign.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown RedeemCampaign field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RedeemCampaignMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case redeemcampaign.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case redeemcampaign.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case redeemcampaign.FieldCreatedBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case redeemcampaign.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case redeemcampaign.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCampaign field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RedeemCampaignMutation) AddedFields() []string {
+	var fields []string
+	if m.addcreated_by != nil {
+		fields = append(fields, redeemcampaign.FieldCreatedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RedeemCampaignMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case redeemcampaign.FieldCreatedBy:
+		return m.AddedCreatedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RedeemCampaignMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case redeemcampaign.FieldCreatedBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreatedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCampaign numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RedeemCampaignMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(redeemcampaign.FieldExpiresAt) {
+		fields = append(fields, redeemcampaign.FieldExpiresAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RedeemCampaignMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RedeemCampaignMutation) ClearField(name string) error {
+	switch name {
+	case redeemcampaign.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCampaign nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RedeemCampaignMutation) ResetField(name string) error {
+	switch name {
+	case redeemcampaign.FieldName:
+		m.ResetName()
+		return nil
+	case redeemcampaign.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case redeemcampaign.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case redeemcampaign.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case redeemcampaign.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCampaign field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RedeemCampaignMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RedeemCampaignMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RedeemCampaignMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RedeemCampaignMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RedeemCampaignMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RedeemCampaignMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RedeemCampaignMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown RedeemCampaign unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RedeemCampaignMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown RedeemCampaign edge %s", name)
+}
+
+// RedeemCampaignRedemptionMutation represents an operation that mutates the RedeemCampaignRedemption nodes in the graph.
+type RedeemCampaignRedemptionMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int64
+	campaign_id       *int64
+	addcampaign_id    *int64
+	user_id           *int64
+	adduser_id        *int64
+	redeem_code_id    *int64
+	addredeem_code_id *int64
+	redeemed_at       *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*RedeemCampaignRedemption, error)
+	predicates        []predicate.RedeemCampaignRedemption
+}
+
+var _ ent.Mutation = (*RedeemCampaignRedemptionMutation)(nil)
+
+// redeemcampaignredemptionOption allows management of the mutation configuration using functional options.
+type redeemcampaignredemptionOption func(*RedeemCampaignRedemptionMutation)
+
+// newRedeemCampaignRedemptionMutation creates new mutation for the RedeemCampaignRedemption entity.
+func newRedeemCampaignRedemptionMutation(c config, op Op, opts ...redeemcampaignredemptionOption) *RedeemCampaignRedemptionMutation {
+	m := &RedeemCampaignRedemptionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRedeemCampaignRedemption,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRedeemCampaignRedemptionID sets the ID field of the mutation.
+func withRedeemCampaignRedemptionID(id int64) redeemcampaignredemptionOption {
+	return func(m *RedeemCampaignRedemptionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RedeemCampaignRedemption
+		)
+		m.oldValue = func(ctx context.Context) (*RedeemCampaignRedemption, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RedeemCampaignRedemption.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRedeemCampaignRedemption sets the old RedeemCampaignRedemption of the mutation.
+func withRedeemCampaignRedemption(node *RedeemCampaignRedemption) redeemcampaignredemptionOption {
+	return func(m *RedeemCampaignRedemptionMutation) {
+		m.oldValue = func(context.Context) (*RedeemCampaignRedemption, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RedeemCampaignRedemptionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RedeemCampaignRedemptionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RedeemCampaignRedemptionMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RedeemCampaignRedemptionMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RedeemCampaignRedemption.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCampaignID sets the "campaign_id" field.
+func (m *RedeemCampaignRedemptionMutation) SetCampaignID(i int64) {
+	m.campaign_id = &i
+	m.addcampaign_id = nil
+}
+
+// CampaignID returns the value of the "campaign_id" field in the mutation.
+func (m *RedeemCampaignRedemptionMutation) CampaignID() (r int64, exists bool) {
+	v := m.campaign_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCampaignID returns the old "campaign_id" field's value of the RedeemCampaignRedemption entity.
+// If the RedeemCampaignRedemption object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCampaignRedemptionMutation) OldCampaignID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCampaignID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCampaignID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCampaignID: %w", err)
+	}
+	return oldValue.CampaignID, nil
+}
+
+// AddCampaignID adds i to the "campaign_id" field.
+func (m *RedeemCampaignRedemptionMutation) AddCampaignID(i int64) {
+	if m.addcampaign_id != nil {
+		*m.addcampaign_id += i
+	} else {
+		m.addcampaign_id = &i
+	}
+}
+
+// AddedCampaignID returns the value that was added to the "campaign_id" field in this mutation.
+func (m *RedeemCampaignRedemptionMutation) AddedCampaignID() (r int64, exists bool) {
+	v := m.addcampaign_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCampaignID resets all changes to the "campaign_id" field.
+func (m *RedeemCampaignRedemptionMutation) ResetCampaignID() {
+	m.campaign_id = nil
+	m.addcampaign_id = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *RedeemCampaignRedemptionMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *RedeemCampaignRedemptionMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the RedeemCampaignRedemption entity.
+// If the RedeemCampaignRedemption object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCampaignRedemptionMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *RedeemCampaignRedemptionMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *RedeemCampaignRedemptionMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *RedeemCampaignRedemptionMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetRedeemCodeID sets the "redeem_code_id" field.
+func (m *RedeemCampaignRedemptionMutation) SetRedeemCodeID(i int64) {
+	m.redeem_code_id = &i
+	m.addredeem_code_id = nil
+}
+
+// RedeemCodeID returns the value of the "redeem_code_id" field in the mutation.
+func (m *RedeemCampaignRedemptionMutation) RedeemCodeID() (r int64, exists bool) {
+	v := m.redeem_code_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRedeemCodeID returns the old "redeem_code_id" field's value of the RedeemCampaignRedemption entity.
+// If the RedeemCampaignRedemption object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCampaignRedemptionMutation) OldRedeemCodeID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRedeemCodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRedeemCodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRedeemCodeID: %w", err)
+	}
+	return oldValue.RedeemCodeID, nil
+}
+
+// AddRedeemCodeID adds i to the "redeem_code_id" field.
+func (m *RedeemCampaignRedemptionMutation) AddRedeemCodeID(i int64) {
+	if m.addredeem_code_id != nil {
+		*m.addredeem_code_id += i
+	} else {
+		m.addredeem_code_id = &i
+	}
+}
+
+// AddedRedeemCodeID returns the value that was added to the "redeem_code_id" field in this mutation.
+func (m *RedeemCampaignRedemptionMutation) AddedRedeemCodeID() (r int64, exists bool) {
+	v := m.addredeem_code_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRedeemCodeID clears the value of the "redeem_code_id" field.
+func (m *RedeemCampaignRedemptionMutation) ClearRedeemCodeID() {
+	m.redeem_code_id = nil
+	m.addredeem_code_id = nil
+	m.clearedFields[redeemcampaignredemption.FieldRedeemCodeID] = struct{}{}
+}
+
+// RedeemCodeIDCleared returns if the "redeem_code_id" field was cleared in this mutation.
+func (m *RedeemCampaignRedemptionMutation) RedeemCodeIDCleared() bool {
+	_, ok := m.clearedFields[redeemcampaignredemption.FieldRedeemCodeID]
+	return ok
+}
+
+// ResetRedeemCodeID resets all changes to the "redeem_code_id" field.
+func (m *RedeemCampaignRedemptionMutation) ResetRedeemCodeID() {
+	m.redeem_code_id = nil
+	m.addredeem_code_id = nil
+	delete(m.clearedFields, redeemcampaignredemption.FieldRedeemCodeID)
+}
+
+// SetRedeemedAt sets the "redeemed_at" field.
+func (m *RedeemCampaignRedemptionMutation) SetRedeemedAt(t time.Time) {
+	m.redeemed_at = &t
+}
+
+// RedeemedAt returns the value of the "redeemed_at" field in the mutation.
+func (m *RedeemCampaignRedemptionMutation) RedeemedAt() (r time.Time, exists bool) {
+	v := m.redeemed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRedeemedAt returns the old "redeemed_at" field's value of the RedeemCampaignRedemption entity.
+// If the RedeemCampaignRedemption object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCampaignRedemptionMutation) OldRedeemedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRedeemedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRedeemedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRedeemedAt: %w", err)
+	}
+	return oldValue.RedeemedAt, nil
+}
+
+// ResetRedeemedAt resets all changes to the "redeemed_at" field.
+func (m *RedeemCampaignRedemptionMutation) ResetRedeemedAt() {
+	m.redeemed_at = nil
+}
+
+// Where appends a list predicates to the RedeemCampaignRedemptionMutation builder.
+func (m *RedeemCampaignRedemptionMutation) Where(ps ...predicate.RedeemCampaignRedemption) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RedeemCampaignRedemptionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RedeemCampaignRedemptionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RedeemCampaignRedemption, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RedeemCampaignRedemptionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RedeemCampaignRedemptionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RedeemCampaignRedemption).
+func (m *RedeemCampaignRedemptionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RedeemCampaignRedemptionMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.campaign_id != nil {
+		fields = append(fields, redeemcampaignredemption.FieldCampaignID)
+	}
+	if m.user_id != nil {
+		fields = append(fields, redeemcampaignredemption.FieldUserID)
+	}
+	if m.redeem_code_id != nil {
+		fields = append(fields, redeemcampaignredemption.FieldRedeemCodeID)
+	}
+	if m.redeemed_at != nil {
+		fields = append(fields, redeemcampaignredemption.FieldRedeemedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RedeemCampaignRedemptionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case redeemcampaignredemption.FieldCampaignID:
+		return m.CampaignID()
+	case redeemcampaignredemption.FieldUserID:
+		return m.UserID()
+	case redeemcampaignredemption.FieldRedeemCodeID:
+		return m.RedeemCodeID()
+	case redeemcampaignredemption.FieldRedeemedAt:
+		return m.RedeemedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RedeemCampaignRedemptionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case redeemcampaignredemption.FieldCampaignID:
+		return m.OldCampaignID(ctx)
+	case redeemcampaignredemption.FieldUserID:
+		return m.OldUserID(ctx)
+	case redeemcampaignredemption.FieldRedeemCodeID:
+		return m.OldRedeemCodeID(ctx)
+	case redeemcampaignredemption.FieldRedeemedAt:
+		return m.OldRedeemedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown RedeemCampaignRedemption field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RedeemCampaignRedemptionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case redeemcampaignredemption.FieldCampaignID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCampaignID(v)
+		return nil
+	case redeemcampaignredemption.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case redeemcampaignredemption.FieldRedeemCodeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRedeemCodeID(v)
+		return nil
+	case redeemcampaignredemption.FieldRedeemedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRedeemedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCampaignRedemption field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RedeemCampaignRedemptionMutation) AddedFields() []string {
+	var fields []string
+	if m.addcampaign_id != nil {
+		fields = append(fields, redeemcampaignredemption.FieldCampaignID)
+	}
+	if m.adduser_id != nil {
+		fields = append(fields, redeemcampaignredemption.FieldUserID)
+	}
+	if m.addredeem_code_id != nil {
+		fields = append(fields, redeemcampaignredemption.FieldRedeemCodeID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RedeemCampaignRedemptionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case redeemcampaignredemption.FieldCampaignID:
+		return m.AddedCampaignID()
+	case redeemcampaignredemption.FieldUserID:
+		return m.AddedUserID()
+	case redeemcampaignredemption.FieldRedeemCodeID:
+		return m.AddedRedeemCodeID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RedeemCampaignRedemptionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case redeemcampaignredemption.FieldCampaignID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCampaignID(v)
+		return nil
+	case redeemcampaignredemption.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case redeemcampaignredemption.FieldRedeemCodeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRedeemCodeID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCampaignRedemption numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RedeemCampaignRedemptionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(redeemcampaignredemption.FieldRedeemCodeID) {
+		fields = append(fields, redeemcampaignredemption.FieldRedeemCodeID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RedeemCampaignRedemptionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RedeemCampaignRedemptionMutation) ClearField(name string) error {
+	switch name {
+	case redeemcampaignredemption.FieldRedeemCodeID:
+		m.ClearRedeemCodeID()
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCampaignRedemption nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RedeemCampaignRedemptionMutation) ResetField(name string) error {
+	switch name {
+	case redeemcampaignredemption.FieldCampaignID:
+		m.ResetCampaignID()
+		return nil
+	case redeemcampaignredemption.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case redeemcampaignredemption.FieldRedeemCodeID:
+		m.ResetRedeemCodeID()
+		return nil
+	case redeemcampaignredemption.FieldRedeemedAt:
+		m.ResetRedeemedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RedeemCampaignRedemption field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RedeemCampaignRedemptionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RedeemCampaignRedemptionMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RedeemCampaignRedemptionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RedeemCampaignRedemptionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RedeemCampaignRedemptionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RedeemCampaignRedemptionMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RedeemCampaignRedemptionMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown RedeemCampaignRedemption unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RedeemCampaignRedemptionMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown RedeemCampaignRedemption edge %s", name)
+}
+
 // RedeemCodeMutation represents an operation that mutates the RedeemCode nodes in the graph.
 type RedeemCodeMutation struct {
 	config
@@ -39196,6 +40413,8 @@ type RedeemCodeMutation struct {
 	notes                           *string
 	created_at                      *time.Time
 	expires_at                      *time.Time
+	campaign_id                     *int64
+	addcampaign_id                  *int64
 	validity_days                   *int
 	addvalidity_days                *int
 	quota_reset_scope               *string
@@ -39808,6 +41027,76 @@ func (m *RedeemCodeMutation) ResetGroupID() {
 	delete(m.clearedFields, redeemcode.FieldGroupID)
 }
 
+// SetCampaignID sets the "campaign_id" field.
+func (m *RedeemCodeMutation) SetCampaignID(i int64) {
+	m.campaign_id = &i
+	m.addcampaign_id = nil
+}
+
+// CampaignID returns the value of the "campaign_id" field in the mutation.
+func (m *RedeemCodeMutation) CampaignID() (r int64, exists bool) {
+	v := m.campaign_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCampaignID returns the old "campaign_id" field's value of the RedeemCode entity.
+// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeMutation) OldCampaignID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCampaignID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCampaignID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCampaignID: %w", err)
+	}
+	return oldValue.CampaignID, nil
+}
+
+// AddCampaignID adds i to the "campaign_id" field.
+func (m *RedeemCodeMutation) AddCampaignID(i int64) {
+	if m.addcampaign_id != nil {
+		*m.addcampaign_id += i
+	} else {
+		m.addcampaign_id = &i
+	}
+}
+
+// AddedCampaignID returns the value that was added to the "campaign_id" field in this mutation.
+func (m *RedeemCodeMutation) AddedCampaignID() (r int64, exists bool) {
+	v := m.addcampaign_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCampaignID clears the value of the "campaign_id" field.
+func (m *RedeemCodeMutation) ClearCampaignID() {
+	m.campaign_id = nil
+	m.addcampaign_id = nil
+	m.clearedFields[redeemcode.FieldCampaignID] = struct{}{}
+}
+
+// CampaignIDCleared returns if the "campaign_id" field was cleared in this mutation.
+func (m *RedeemCodeMutation) CampaignIDCleared() bool {
+	_, ok := m.clearedFields[redeemcode.FieldCampaignID]
+	return ok
+}
+
+// ResetCampaignID resets all changes to the "campaign_id" field.
+func (m *RedeemCodeMutation) ResetCampaignID() {
+	m.campaign_id = nil
+	m.addcampaign_id = nil
+	delete(m.clearedFields, redeemcode.FieldCampaignID)
+}
+
 // SetValidityDays sets the "validity_days" field.
 func (m *RedeemCodeMutation) SetValidityDays(i int) {
 	m.validity_days = &i
@@ -40001,7 +41290,7 @@ func (m *RedeemCodeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RedeemCodeMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.code != nil {
 		fields = append(fields, redeemcode.FieldCode)
 	}
@@ -40034,6 +41323,9 @@ func (m *RedeemCodeMutation) Fields() []string {
 	}
 	if m.group != nil {
 		fields = append(fields, redeemcode.FieldGroupID)
+	}
+	if m.campaign_id != nil {
+		fields = append(fields, redeemcode.FieldCampaignID)
 	}
 	if m.validity_days != nil {
 		fields = append(fields, redeemcode.FieldValidityDays)
@@ -40071,6 +41363,8 @@ func (m *RedeemCodeMutation) Field(name string) (ent.Value, bool) {
 		return m.ExpiresAt()
 	case redeemcode.FieldGroupID:
 		return m.GroupID()
+	case redeemcode.FieldCampaignID:
+		return m.CampaignID()
 	case redeemcode.FieldValidityDays:
 		return m.ValidityDays()
 	case redeemcode.FieldQuotaResetScope:
@@ -40106,6 +41400,8 @@ func (m *RedeemCodeMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldExpiresAt(ctx)
 	case redeemcode.FieldGroupID:
 		return m.OldGroupID(ctx)
+	case redeemcode.FieldCampaignID:
+		return m.OldCampaignID(ctx)
 	case redeemcode.FieldValidityDays:
 		return m.OldValidityDays(ctx)
 	case redeemcode.FieldQuotaResetScope:
@@ -40196,6 +41492,13 @@ func (m *RedeemCodeMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetGroupID(v)
 		return nil
+	case redeemcode.FieldCampaignID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCampaignID(v)
+		return nil
 	case redeemcode.FieldValidityDays:
 		v, ok := value.(int)
 		if !ok {
@@ -40224,6 +41527,9 @@ func (m *RedeemCodeMutation) AddedFields() []string {
 	if m.addaffiliate_rebate_base_amount != nil {
 		fields = append(fields, redeemcode.FieldAffiliateRebateBaseAmount)
 	}
+	if m.addcampaign_id != nil {
+		fields = append(fields, redeemcode.FieldCampaignID)
+	}
 	if m.addvalidity_days != nil {
 		fields = append(fields, redeemcode.FieldValidityDays)
 	}
@@ -40239,6 +41545,8 @@ func (m *RedeemCodeMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedValue()
 	case redeemcode.FieldAffiliateRebateBaseAmount:
 		return m.AddedAffiliateRebateBaseAmount()
+	case redeemcode.FieldCampaignID:
+		return m.AddedCampaignID()
 	case redeemcode.FieldValidityDays:
 		return m.AddedValidityDays()
 	}
@@ -40263,6 +41571,13 @@ func (m *RedeemCodeMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddAffiliateRebateBaseAmount(v)
+		return nil
+	case redeemcode.FieldCampaignID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCampaignID(v)
 		return nil
 	case redeemcode.FieldValidityDays:
 		v, ok := value.(int)
@@ -40294,6 +41609,9 @@ func (m *RedeemCodeMutation) ClearedFields() []string {
 	if m.FieldCleared(redeemcode.FieldGroupID) {
 		fields = append(fields, redeemcode.FieldGroupID)
 	}
+	if m.FieldCleared(redeemcode.FieldCampaignID) {
+		fields = append(fields, redeemcode.FieldCampaignID)
+	}
 	return fields
 }
 
@@ -40322,6 +41640,9 @@ func (m *RedeemCodeMutation) ClearField(name string) error {
 		return nil
 	case redeemcode.FieldGroupID:
 		m.ClearGroupID()
+		return nil
+	case redeemcode.FieldCampaignID:
+		m.ClearCampaignID()
 		return nil
 	}
 	return fmt.Errorf("unknown RedeemCode nullable field %s", name)
@@ -40363,6 +41684,9 @@ func (m *RedeemCodeMutation) ResetField(name string) error {
 		return nil
 	case redeemcode.FieldGroupID:
 		m.ResetGroupID()
+		return nil
+	case redeemcode.FieldCampaignID:
+		m.ResetCampaignID()
 		return nil
 	case redeemcode.FieldValidityDays:
 		m.ResetValidityDays()

@@ -41,6 +41,8 @@ type RedeemCode struct {
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 	// GroupID holds the value of the "group_id" field.
 	GroupID *int64 `json:"group_id,omitempty"`
+	// CampaignID holds the value of the "campaign_id" field.
+	CampaignID *int64 `json:"campaign_id,omitempty"`
 	// ValidityDays holds the value of the "validity_days" field.
 	ValidityDays int `json:"validity_days,omitempty"`
 	// QuotaResetScope holds the value of the "quota_reset_scope" field.
@@ -91,7 +93,7 @@ func (*RedeemCode) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case redeemcode.FieldValue, redeemcode.FieldAffiliateRebateBaseAmount:
 			values[i] = new(sql.NullFloat64)
-		case redeemcode.FieldID, redeemcode.FieldUsedBy, redeemcode.FieldGroupID, redeemcode.FieldValidityDays:
+		case redeemcode.FieldID, redeemcode.FieldUsedBy, redeemcode.FieldGroupID, redeemcode.FieldCampaignID, redeemcode.FieldValidityDays:
 			values[i] = new(sql.NullInt64)
 		case redeemcode.FieldCode, redeemcode.FieldType, redeemcode.FieldStatus, redeemcode.FieldNotes, redeemcode.FieldQuotaResetScope:
 			values[i] = new(sql.NullString)
@@ -188,6 +190,13 @@ func (_m *RedeemCode) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.GroupID = new(int64)
 				*_m.GroupID = value.Int64
+			}
+		case redeemcode.FieldCampaignID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field campaign_id", values[i])
+			} else if value.Valid {
+				_m.CampaignID = new(int64)
+				*_m.CampaignID = value.Int64
 			}
 		case redeemcode.FieldValidityDays:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -287,6 +296,11 @@ func (_m *RedeemCode) String() string {
 	builder.WriteString(", ")
 	if v := _m.GroupID; v != nil {
 		builder.WriteString("group_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CampaignID; v != nil {
+		builder.WriteString("campaign_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

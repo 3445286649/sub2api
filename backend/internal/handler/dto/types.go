@@ -412,6 +412,7 @@ type RedeemCode struct {
 	ExpiresAt                 *time.Time `json:"expires_at,omitempty"`
 
 	GroupID         *int64 `json:"group_id"`
+	CampaignID      *int64 `json:"campaign_id,omitempty"`
 	ValidityDays    int    `json:"validity_days"`
 	QuotaResetScope string `json:"quota_reset_scope,omitempty"`
 

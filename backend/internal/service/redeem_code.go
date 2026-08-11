@@ -20,6 +20,7 @@ type RedeemCode struct {
 	ExpiresAt                 *time.Time
 
 	GroupID         *int64
+	CampaignID      *int64
 	ValidityDays    int
 	QuotaResetScope string
 

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -22,12 +23,15 @@ var (
 	ErrInsufficientBalance = infraerrors.BadRequest("INSUFFICIENT_BALANCE", "insufficient balance")
 	ErrRedeemRateLimited   = infraerrors.TooManyRequests("REDEEM_RATE_LIMITED", "too many failed attempts, please try again later")
 	ErrRedeemCodeLocked    = infraerrors.Conflict("REDEEM_CODE_LOCKED", "redeem code is being processed, please try again")
+	ErrRedeemCampaignUsed  = infraerrors.Conflict("REDEEM_CAMPAIGN_ALREADY_REDEEMED", "this campaign has already been redeemed")
+	ErrRedeemCampaignEnded = infraerrors.Conflict("REDEEM_CAMPAIGN_ENDED", "redeem campaign is not active")
 )
 
 const (
 	redeemMaxErrorsPerHour  = 20
 	redeemRateLimitDuration = time.Hour
 	redeemLockDuration      = 10 * time.Second // 锁超时时间，防止死锁
+	redeemCampaignMaxValue  = 1e12
 )
 
 type ctxKeySkipRedeemAffiliate struct{}
@@ -84,6 +88,14 @@ type RedeemCodeResponse struct {
 	Value     float64   `json:"value"`
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type GenerateRedeemCampaignCodesInput struct {
+	Name      string
+	Count     int
+	Value     float64
+	CreatedBy int64
+	ExpiresAt *time.Time
 }
 
 type NullableTimeUpdate struct {
@@ -192,6 +204,86 @@ func (s *RedeemService) GenerateRandomCode() (string, error) {
 	}
 
 	return strings.Join(parts, "-"), nil
+}
+
+func (s *RedeemService) GenerateRedeemCampaignCodes(ctx context.Context, input GenerateRedeemCampaignCodesInput) ([]RedeemCode, error) {
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Name == "" || len([]rune(input.Name)) > 100 {
+		return nil, infraerrors.BadRequest("REDEEM_CAMPAIGN_NAME_INVALID", "campaign name must be between 1 and 100 characters")
+	}
+	if input.Count < 1 || input.Count > 100 {
+		return nil, infraerrors.BadRequest("REDEEM_CAMPAIGN_COUNT_INVALID", "count must be between 1 and 100")
+	}
+	if input.Value <= 0 || input.Value >= redeemCampaignMaxValue || math.IsNaN(input.Value) || math.IsInf(input.Value, 0) {
+		return nil, infraerrors.BadRequest("REDEEM_CAMPAIGN_VALUE_INVALID", "campaign balance value must be greater than zero and less than 1000000000000")
+	}
+	if input.CreatedBy <= 0 {
+		return nil, infraerrors.BadRequest("REDEEM_CAMPAIGN_CREATOR_INVALID", "created_by must be positive")
+	}
+	if input.ExpiresAt != nil {
+		expiresAt := input.ExpiresAt.UTC()
+		if !expiresAt.After(time.Now().UTC()) {
+			return nil, infraerrors.BadRequest("REDEEM_CAMPAIGN_EXPIRES_AT_INVALID", "expires_at must be in the future")
+		}
+		input.ExpiresAt = &expiresAt
+	}
+
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin redeem campaign transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	client := tx.Client()
+	campaign, err := client.RedeemCampaign.Create().
+		SetName(input.Name).
+		SetCreatedBy(input.CreatedBy).
+		SetNillableExpiresAt(input.ExpiresAt).
+		Save(ctx)
+	if err != nil {
+		if isCampaignNameUniqueViolation(err) {
+			return nil, infraerrors.Conflict("REDEEM_CAMPAIGN_NAME_EXISTS", "campaign name already exists")
+		}
+		return nil, fmt.Errorf("create redeem campaign: %w", err)
+	}
+
+	codes := make([]RedeemCode, 0, input.Count)
+	builders := make([]*dbent.RedeemCodeCreate, 0, input.Count)
+	for i := 0; i < input.Count; i++ {
+		codeValue, generateErr := GenerateRedeemCode()
+		if generateErr != nil {
+			return nil, fmt.Errorf("generate redeem campaign code: %w", generateErr)
+		}
+		codes = append(codes, RedeemCode{
+			Code:       codeValue,
+			Type:       RedeemTypeBalance,
+			Value:      input.Value,
+			Status:     StatusUnused,
+			CampaignID: &campaign.ID,
+			ExpiresAt:  input.ExpiresAt,
+		})
+		builders = append(builders, client.RedeemCode.Create().
+			SetCode(codeValue).
+			SetType(RedeemTypeBalance).
+			SetValue(input.Value).
+			SetStatus(StatusUnused).
+			SetCampaignID(campaign.ID).
+			SetNillableExpiresAt(input.ExpiresAt))
+	}
+
+	created, err := client.RedeemCode.CreateBulk(builders...).Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create redeem campaign codes: %w", err)
+	}
+	for i := range created {
+		codes[i].ID = created[i].ID
+		codes[i].CreatedAt = created[i].CreatedAt
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit redeem campaign transaction: %w", err)
+	}
+	return codes, nil
 }
 
 // GenerateCodes 批量生成兑换码
@@ -470,6 +562,27 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	// 将事务放入 context，使 repository 方法能够使用同一事务
 	txCtx := dbent.NewTxContext(ctx, tx)
 
+	if redeemCode.CampaignID != nil {
+		campaign, campaignErr := tx.Client().RedeemCampaign.Get(ctx, *redeemCode.CampaignID)
+		if campaignErr != nil {
+			return nil, fmt.Errorf("get redeem campaign: %w", campaignErr)
+		}
+		if campaign.Status != "active" || (campaign.ExpiresAt != nil && !campaign.ExpiresAt.After(time.Now())) {
+			return nil, ErrRedeemCampaignEnded
+		}
+		_, campaignErr = tx.Client().RedeemCampaignRedemption.Create().
+			SetCampaignID(campaign.ID).
+			SetUserID(userID).
+			SetRedeemCodeID(redeemCode.ID).
+			Save(ctx)
+		if campaignErr != nil {
+			if isCampaignUserUniqueViolation(campaignErr) {
+				return nil, ErrRedeemCampaignUsed
+			}
+			return nil, fmt.Errorf("record redeem campaign redemption: %w", campaignErr)
+		}
+	}
+
 	// 【关键】先标记兑换码为已使用，确保并发安全
 	// 利用数据库乐观锁（WHERE status = 'unused'）保证原子性
 	if err := s.redeemRepo.Use(txCtx, redeemCode.ID, userID); err != nil {
@@ -566,6 +679,26 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	}
 
 	return redeemCode, nil
+}
+
+func isCampaignUserUniqueViolation(err error) bool {
+	if !dbent.IsConstraintError(err) {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "redeem_campaign_redemptions_campaign_user_key") ||
+		(strings.Contains(message, "redeem_campaign_redemptions.campaign_id") &&
+			strings.Contains(message, "redeem_campaign_redemptions.user_id"))
+}
+
+func isCampaignNameUniqueViolation(err error) bool {
+	if !dbent.IsConstraintError(err) {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "redeem_campaigns_name_key") ||
+		strings.Contains(message, "redeem_campaigns_name") ||
+		strings.Contains(message, "redeem_campaigns.name")
 }
 
 func (s *RedeemService) resolveQuotaResetSubscription(ctx context.Context, userID int64, redeemCode *RedeemCode) (*UserSubscription, error) {

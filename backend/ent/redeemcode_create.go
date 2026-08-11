@@ -170,6 +170,20 @@ func (_c *RedeemCodeCreate) SetNillableGroupID(v *int64) *RedeemCodeCreate {
 	return _c
 }
 
+// SetCampaignID sets the "campaign_id" field.
+func (_c *RedeemCodeCreate) SetCampaignID(v int64) *RedeemCodeCreate {
+	_c.mutation.SetCampaignID(v)
+	return _c
+}
+
+// SetNillableCampaignID sets the "campaign_id" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableCampaignID(v *int64) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetCampaignID(*v)
+	}
+	return _c
+}
+
 // SetValidityDays sets the "validity_days" field.
 func (_c *RedeemCodeCreate) SetValidityDays(v int) *RedeemCodeCreate {
 	_c.mutation.SetValidityDays(v)
@@ -395,6 +409,10 @@ func (_c *RedeemCodeCreate) createSpec() (*RedeemCode, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ExpiresAt(); ok {
 		_spec.SetField(redeemcode.FieldExpiresAt, field.TypeTime, value)
 		_node.ExpiresAt = &value
+	}
+	if value, ok := _c.mutation.CampaignID(); ok {
+		_spec.SetField(redeemcode.FieldCampaignID, field.TypeInt64, value)
+		_node.CampaignID = &value
 	}
 	if value, ok := _c.mutation.ValidityDays(); ok {
 		_spec.SetField(redeemcode.FieldValidityDays, field.TypeInt, value)
@@ -695,6 +713,9 @@ func (u *RedeemCodeUpsertOne) UpdateNewValues() *RedeemCodeUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
 		if _, exists := u.create.mutation.CreatedAt(); exists {
 			s.SetIgnore(redeemcode.FieldCreatedAt)
+		}
+		if _, exists := u.create.mutation.CampaignID(); exists {
+			s.SetIgnore(redeemcode.FieldCampaignID)
 		}
 	}))
 	return u
@@ -1129,6 +1150,9 @@ func (u *RedeemCodeUpsertBulk) UpdateNewValues() *RedeemCodeUpsertBulk {
 		for _, b := range u.create.builders {
 			if _, exists := b.mutation.CreatedAt(); exists {
 				s.SetIgnore(redeemcode.FieldCreatedAt)
+			}
+			if _, exists := b.mutation.CampaignID(); exists {
+				s.SetIgnore(redeemcode.FieldCampaignID)
 			}
 		}
 	}))

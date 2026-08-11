@@ -87,9 +87,12 @@
             />
           </template>
 
-          <template #cell-code="{ value }">
+          <template #cell-code="{ value, row }">
             <div class="flex items-center space-x-2">
               <code class="font-mono text-sm text-gray-900 dark:text-gray-100">{{ value }}</code>
+              <span v-if="row.campaign_id" class="badge badge-primary whitespace-nowrap">
+                {{ t('admin.redeem.campaignMode') }}
+              </span>
               <button
                 @click="copyToClipboard(value)"
                 :class="[
@@ -294,20 +297,69 @@
           <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
             {{ t('admin.redeem.generateCodesTitle') }}
           </h2>
-          <form @submit.prevent="handleGenerateCodes" class="space-y-4">
+          <form data-test="generate-redeem-form" @submit.prevent="handleGenerateCodes" class="space-y-4">
             <div>
+              <label class="input-label">{{ t('admin.redeem.distributionMode') }}</label>
+              <div class="grid grid-cols-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-700">
+                <button
+                  type="button"
+                  data-test="redeem-mode-standard"
+                  :class="[
+                    'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    generateForm.mode === 'standard'
+                      ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-600 dark:text-white'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  ]"
+                  @click="generateForm.mode = 'standard'"
+                >
+                  {{ t('admin.redeem.standardMode') }}
+                </button>
+                <button
+                  type="button"
+                  data-test="redeem-mode-campaign"
+                  :class="[
+                    'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    generateForm.mode === 'campaign'
+                      ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-600 dark:text-white'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  ]"
+                  @click="generateForm.mode = 'campaign'"
+                >
+                  {{ t('admin.redeem.campaignMode') }}
+                </button>
+              </div>
+            </div>
+            <div v-if="generateForm.mode === 'campaign'">
+              <label class="input-label">{{ t('admin.redeem.campaignName') }}</label>
+              <input
+                v-model.trim="generateForm.campaign_name"
+                data-test="campaign-name"
+                type="text"
+                maxlength="100"
+                required
+                class="input"
+                :placeholder="t('admin.redeem.campaignNamePlaceholder')"
+              />
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.redeem.campaignHint') }}
+              </p>
+            </div>
+            <div v-if="generateForm.mode === 'standard'">
               <label class="input-label">{{ t('admin.redeem.codeType') }}</label>
               <Select v-model="generateForm.type" :options="typeOptions" />
             </div>
             <!-- 余额/并发/订阅额度刷新类型：显示数值输入 -->
             <div
               v-if="
+                generateForm.mode === 'campaign' ||
                 !['subscription', 'invitation'].includes(generateForm.type)
               "
             >
               <label class="input-label">
                 {{
-                  generateForm.type === 'balance' || generateForm.type === 'subscription_quota_reset'
+                  generateForm.mode === 'campaign' ||
+                  generateForm.type === 'balance' ||
+                  generateForm.type === 'subscription_quota_reset'
                     ? t('admin.redeem.amount')
                     : t('admin.redeem.columns.value')
                 }}
@@ -315,15 +367,25 @@
               <input
                 v-model.number="generateForm.value"
                 type="number"
-                :step="['balance', 'subscription_quota_reset'].includes(generateForm.type) ? '0.01' : '1'"
-                :min="['balance', 'subscription_quota_reset'].includes(generateForm.type) ? '0.01' : '1'"
+                :step="
+                  generateForm.mode === 'campaign' ||
+                  ['balance', 'subscription_quota_reset'].includes(generateForm.type)
+                    ? '0.01'
+                    : '1'
+                "
+                :min="
+                  generateForm.mode === 'campaign' ||
+                  ['balance', 'subscription_quota_reset'].includes(generateForm.type)
+                    ? '0.01'
+                    : '1'
+                "
                 required
                 class="input"
               />
             </div>
             <!-- 邀请码类型：显示提示信息 -->
             <div
-              v-if="generateForm.type === 'invitation'"
+              v-if="generateForm.mode === 'standard' && generateForm.type === 'invitation'"
               class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20"
             >
               <p class="text-sm text-blue-700 dark:text-blue-300">
@@ -333,8 +395,9 @@
             <!-- 订阅类型：显示分组选择和有效天数 -->
             <template
               v-if="
-                generateForm.type === 'subscription' ||
-                generateForm.type === 'subscription_quota_reset'
+                generateForm.mode === 'standard' &&
+                (generateForm.type === 'subscription' ||
+                generateForm.type === 'subscription_quota_reset')
               "
             >
               <div>
@@ -906,6 +969,8 @@ const redeemCodeExpiryOptions = computed<{ value: RedeemCodeExpiryOption; label:
 ])
 
 const generateForm = reactive({
+  mode: 'standard' as 'standard' | 'campaign',
+  campaign_name: '',
   type: 'balance' as RedeemCodeType,
   value: 10,
   count: 1,
@@ -924,6 +989,15 @@ watch(
     if (newType === 'invitation') {
       generateForm.value = 0
     } else if (generateForm.value === 0) {
+      generateForm.value = 10
+    }
+  }
+)
+
+watch(
+  () => generateForm.mode,
+  (newMode) => {
+    if (newMode === 'campaign' && generateForm.value <= 0) {
       generateForm.value = 10
     }
   }
@@ -1098,8 +1172,14 @@ const buildBatchUpdateFields = (): BatchUpdateRedeemCodeFields | null => {
 }
 
 const handleGenerateCodes = async () => {
+  if (generateForm.mode === 'campaign' && !generateForm.campaign_name.trim()) {
+    appStore.showError(t('admin.redeem.campaignNameRequired'))
+    return
+  }
+
   // 订阅类型必须选择分组
   if (
+    generateForm.mode === 'standard' &&
     (generateForm.type === 'subscription' || generateForm.type === 'subscription_quota_reset') &&
     !generateForm.group_id
   ) {
@@ -1115,22 +1195,35 @@ const handleGenerateCodes = async () => {
 
   generating.value = true
   try {
-    const result = await adminAPI.redeem.generate(
-      generateForm.count,
-      generateForm.type,
-      generateForm.value,
-      ['subscription', 'subscription_quota_reset'].includes(generateForm.type)
-        ? generateForm.group_id
-        : undefined,
-      generateForm.type === 'subscription' ? generateForm.validity_days : undefined,
-      generateForm.type === 'subscription' ? generateForm.affiliate_rebate_base_amount : undefined,
-      generateForm.type === 'subscription_quota_reset' ? generateForm.quota_reset_scope : undefined,
-      expiresInDays
-    )
+    const result =
+      generateForm.mode === 'campaign'
+        ? await adminAPI.redeem.generateCampaign(
+            generateForm.campaign_name,
+            generateForm.count,
+            generateForm.value,
+            expiresInDays
+          )
+        : await adminAPI.redeem.generate(
+            generateForm.count,
+            generateForm.type,
+            generateForm.value,
+            ['subscription', 'subscription_quota_reset'].includes(generateForm.type)
+              ? generateForm.group_id
+              : undefined,
+            generateForm.type === 'subscription' ? generateForm.validity_days : undefined,
+            generateForm.type === 'subscription'
+              ? generateForm.affiliate_rebate_base_amount
+              : undefined,
+            generateForm.type === 'subscription_quota_reset'
+              ? generateForm.quota_reset_scope
+              : undefined,
+            expiresInDays
+          )
     showGenerateDialog.value = false
     generatedCodes.value = result
     showResultDialog.value = true
     // 重置表单
+    generateForm.campaign_name = ''
     generateForm.group_id = null
     generateForm.validity_days = 30
     generateForm.affiliate_rebate_base_amount = 0

@@ -1456,6 +1456,64 @@ var (
 			},
 		},
 	}
+	// RedeemCampaignsColumns holds the columns for the "redeem_campaigns" table.
+	RedeemCampaignsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "name", Type: field.TypeString, Unique: true, Size: 100},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "active"},
+		{Name: "created_by", Type: field.TypeInt64},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// RedeemCampaignsTable holds the schema information for the "redeem_campaigns" table.
+	RedeemCampaignsTable = &schema.Table{
+		Name:       "redeem_campaigns",
+		Columns:    RedeemCampaignsColumns,
+		PrimaryKey: []*schema.Column{RedeemCampaignsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "redeemcampaign_status",
+				Unique:  false,
+				Columns: []*schema.Column{RedeemCampaignsColumns[2]},
+			},
+			{
+				Name:    "redeemcampaign_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{RedeemCampaignsColumns[4]},
+			},
+		},
+	}
+	// RedeemCampaignRedemptionsColumns holds the columns for the "redeem_campaign_redemptions" table.
+	RedeemCampaignRedemptionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "campaign_id", Type: field.TypeInt64},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "redeem_code_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "redeemed_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// RedeemCampaignRedemptionsTable holds the schema information for the "redeem_campaign_redemptions" table.
+	RedeemCampaignRedemptionsTable = &schema.Table{
+		Name:       "redeem_campaign_redemptions",
+		Columns:    RedeemCampaignRedemptionsColumns,
+		PrimaryKey: []*schema.Column{RedeemCampaignRedemptionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "redeemcampaignredemption_campaign_id_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{RedeemCampaignRedemptionsColumns[1], RedeemCampaignRedemptionsColumns[2]},
+			},
+			{
+				Name:    "redeemcampaignredemption_redeem_code_id",
+				Unique:  true,
+				Columns: []*schema.Column{RedeemCampaignRedemptionsColumns[3]},
+			},
+			{
+				Name:    "redeemcampaignredemption_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{RedeemCampaignRedemptionsColumns[2]},
+			},
+		},
+	}
 	// RedeemCodesColumns holds the columns for the "redeem_codes" table.
 	RedeemCodesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1468,6 +1526,7 @@ var (
 		{Name: "notes", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "expires_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "campaign_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "validity_days", Type: field.TypeInt, Default: 30},
 		{Name: "quota_reset_scope", Type: field.TypeString, Size: 20, Default: ""},
 		{Name: "group_id", Type: field.TypeInt64, Nullable: true},
@@ -1481,13 +1540,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "redeem_codes_groups_redeem_codes",
-				Columns:    []*schema.Column{RedeemCodesColumns[12]},
+				Columns:    []*schema.Column{RedeemCodesColumns[13]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "redeem_codes_users_redeem_codes",
-				Columns:    []*schema.Column{RedeemCodesColumns[13]},
+				Columns:    []*schema.Column{RedeemCodesColumns[14]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -1501,12 +1560,17 @@ var (
 			{
 				Name:    "redeemcode_used_by",
 				Unique:  false,
-				Columns: []*schema.Column{RedeemCodesColumns[13]},
+				Columns: []*schema.Column{RedeemCodesColumns[14]},
 			},
 			{
 				Name:    "redeemcode_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{RedeemCodesColumns[12]},
+				Columns: []*schema.Column{RedeemCodesColumns[13]},
+			},
+			{
+				Name:    "redeemcode_campaign_id",
+				Unique:  false,
+				Columns: []*schema.Column{RedeemCodesColumns[10]},
 			},
 			{
 				Name:    "redeemcode_expires_at",
@@ -2261,6 +2325,8 @@ var (
 		PromoCodesTable,
 		PromoCodeUsagesTable,
 		ProxiesTable,
+		RedeemCampaignsTable,
+		RedeemCampaignRedemptionsTable,
 		RedeemCodesTable,
 		SecuritySecretsTable,
 		SettingsTable,
@@ -2378,6 +2444,12 @@ func init() {
 	ProxiesTable.ForeignKeys[0].RefTable = ProxiesTable
 	ProxiesTable.Annotation = &entsql.Annotation{
 		Table: "proxies",
+	}
+	RedeemCampaignsTable.Annotation = &entsql.Annotation{
+		Table: "redeem_campaigns",
+	}
+	RedeemCampaignRedemptionsTable.Annotation = &entsql.Annotation{
+		Table: "redeem_campaign_redemptions",
 	}
 	RedeemCodesTable.ForeignKeys[0].RefTable = GroupsTable
 	RedeemCodesTable.ForeignKeys[1].RefTable = UsersTable

@@ -7,6 +7,7 @@ import { apiClient } from '../client'
 import type {
   RedeemCode,
   GenerateRedeemCodesRequest,
+  GenerateRedeemCampaignCodesRequest,
   BatchUpdateRedeemCodeFields,
   RedeemCodeType,
   PaginatedResponse
@@ -99,6 +100,25 @@ export async function generate(
   }
 
   const { data } = await apiClient.post<RedeemCode[]>('/admin/redeem-codes/generate', payload)
+  return data
+}
+
+export async function generateCampaign(
+  name: string,
+  count: number,
+  value: number,
+  expiresInDays?: number | null
+): Promise<RedeemCode[]> {
+  const payload: GenerateRedeemCampaignCodesRequest = {
+    name: name.trim(),
+    count,
+    value
+  }
+  if (expiresInDays && expiresInDays > 0) {
+    payload.expires_in_days = expiresInDays
+  }
+
+  const { data } = await apiClient.post<RedeemCode[]>('/admin/redeem-campaigns/generate', payload)
   return data
 }
 
@@ -204,6 +224,7 @@ export const redeemAPI = {
   list,
   getById,
   generate,
+  generateCampaign,
   delete: deleteCode,
   batchDelete,
   batchUpdate,

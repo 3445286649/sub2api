@@ -41,6 +41,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcampaign"
+	"github.com/Wei-Shaw/sub2api/ent/redeemcampaignredemption"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
@@ -117,6 +119,10 @@ type Client struct {
 	PromoCodeUsage *PromoCodeUsageClient
 	// Proxy is the client for interacting with the Proxy builders.
 	Proxy *ProxyClient
+	// RedeemCampaign is the client for interacting with the RedeemCampaign builders.
+	RedeemCampaign *RedeemCampaignClient
+	// RedeemCampaignRedemption is the client for interacting with the RedeemCampaignRedemption builders.
+	RedeemCampaignRedemption *RedeemCampaignRedemptionClient
 	// RedeemCode is the client for interacting with the RedeemCode builders.
 	RedeemCode *RedeemCodeClient
 	// SecuritySecret is the client for interacting with the SecuritySecret builders.
@@ -184,6 +190,8 @@ func (c *Client) init() {
 	c.PromoCode = NewPromoCodeClient(c.config)
 	c.PromoCodeUsage = NewPromoCodeUsageClient(c.config)
 	c.Proxy = NewProxyClient(c.config)
+	c.RedeemCampaign = NewRedeemCampaignClient(c.config)
+	c.RedeemCampaignRedemption = NewRedeemCampaignRedemptionClient(c.config)
 	c.RedeemCode = NewRedeemCodeClient(c.config)
 	c.SecuritySecret = NewSecuritySecretClient(c.config)
 	c.Setting = NewSettingClient(c.config)
@@ -317,6 +325,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PromoCode:                     NewPromoCodeClient(cfg),
 		PromoCodeUsage:                NewPromoCodeUsageClient(cfg),
 		Proxy:                         NewProxyClient(cfg),
+		RedeemCampaign:                NewRedeemCampaignClient(cfg),
+		RedeemCampaignRedemption:      NewRedeemCampaignRedemptionClient(cfg),
 		RedeemCode:                    NewRedeemCodeClient(cfg),
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
@@ -377,6 +387,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PromoCode:                     NewPromoCodeClient(cfg),
 		PromoCodeUsage:                NewPromoCodeUsageClient(cfg),
 		Proxy:                         NewProxyClient(cfg),
+		RedeemCampaign:                NewRedeemCampaignClient(cfg),
+		RedeemCampaignRedemption:      NewRedeemCampaignRedemptionClient(cfg),
 		RedeemCode:                    NewRedeemCodeClient(cfg),
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
@@ -428,11 +440,11 @@ func (c *Client) Use(hooks ...Hook) {
 		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.SupportTicket, c.SupportTicketMessage, c.TLSFingerprintProfile,
-		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
-		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
-		c.UserSubscription,
+		c.Proxy, c.RedeemCampaign, c.RedeemCampaignRedemption, c.RedeemCode,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SupportTicket,
+		c.SupportTicketMessage, c.TLSFingerprintProfile, c.UsageCleanupTask,
+		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
+		c.UserAttributeValue, c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -449,11 +461,11 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.SupportTicket, c.SupportTicketMessage, c.TLSFingerprintProfile,
-		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
-		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
-		c.UserSubscription,
+		c.Proxy, c.RedeemCampaign, c.RedeemCampaignRedemption, c.RedeemCode,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SupportTicket,
+		c.SupportTicketMessage, c.TLSFingerprintProfile, c.UsageCleanupTask,
+		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
+		c.UserAttributeValue, c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -514,6 +526,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.PromoCodeUsage.mutate(ctx, m)
 	case *ProxyMutation:
 		return c.Proxy.mutate(ctx, m)
+	case *RedeemCampaignMutation:
+		return c.RedeemCampaign.mutate(ctx, m)
+	case *RedeemCampaignRedemptionMutation:
+		return c.RedeemCampaignRedemption.mutate(ctx, m)
 	case *RedeemCodeMutation:
 		return c.RedeemCode.mutate(ctx, m)
 	case *SecuritySecretMutation:
@@ -4656,6 +4672,272 @@ func (c *ProxyClient) mutate(ctx context.Context, m *ProxyMutation) (Value, erro
 	}
 }
 
+// RedeemCampaignClient is a client for the RedeemCampaign schema.
+type RedeemCampaignClient struct {
+	config
+}
+
+// NewRedeemCampaignClient returns a client for the RedeemCampaign from the given config.
+func NewRedeemCampaignClient(c config) *RedeemCampaignClient {
+	return &RedeemCampaignClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `redeemcampaign.Hooks(f(g(h())))`.
+func (c *RedeemCampaignClient) Use(hooks ...Hook) {
+	c.hooks.RedeemCampaign = append(c.hooks.RedeemCampaign, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `redeemcampaign.Intercept(f(g(h())))`.
+func (c *RedeemCampaignClient) Intercept(interceptors ...Interceptor) {
+	c.inters.RedeemCampaign = append(c.inters.RedeemCampaign, interceptors...)
+}
+
+// Create returns a builder for creating a RedeemCampaign entity.
+func (c *RedeemCampaignClient) Create() *RedeemCampaignCreate {
+	mutation := newRedeemCampaignMutation(c.config, OpCreate)
+	return &RedeemCampaignCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of RedeemCampaign entities.
+func (c *RedeemCampaignClient) CreateBulk(builders ...*RedeemCampaignCreate) *RedeemCampaignCreateBulk {
+	return &RedeemCampaignCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RedeemCampaignClient) MapCreateBulk(slice any, setFunc func(*RedeemCampaignCreate, int)) *RedeemCampaignCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RedeemCampaignCreateBulk{err: fmt.Errorf("calling to RedeemCampaignClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RedeemCampaignCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RedeemCampaignCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for RedeemCampaign.
+func (c *RedeemCampaignClient) Update() *RedeemCampaignUpdate {
+	mutation := newRedeemCampaignMutation(c.config, OpUpdate)
+	return &RedeemCampaignUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RedeemCampaignClient) UpdateOne(_m *RedeemCampaign) *RedeemCampaignUpdateOne {
+	mutation := newRedeemCampaignMutation(c.config, OpUpdateOne, withRedeemCampaign(_m))
+	return &RedeemCampaignUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RedeemCampaignClient) UpdateOneID(id int64) *RedeemCampaignUpdateOne {
+	mutation := newRedeemCampaignMutation(c.config, OpUpdateOne, withRedeemCampaignID(id))
+	return &RedeemCampaignUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for RedeemCampaign.
+func (c *RedeemCampaignClient) Delete() *RedeemCampaignDelete {
+	mutation := newRedeemCampaignMutation(c.config, OpDelete)
+	return &RedeemCampaignDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RedeemCampaignClient) DeleteOne(_m *RedeemCampaign) *RedeemCampaignDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RedeemCampaignClient) DeleteOneID(id int64) *RedeemCampaignDeleteOne {
+	builder := c.Delete().Where(redeemcampaign.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RedeemCampaignDeleteOne{builder}
+}
+
+// Query returns a query builder for RedeemCampaign.
+func (c *RedeemCampaignClient) Query() *RedeemCampaignQuery {
+	return &RedeemCampaignQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRedeemCampaign},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a RedeemCampaign entity by its id.
+func (c *RedeemCampaignClient) Get(ctx context.Context, id int64) (*RedeemCampaign, error) {
+	return c.Query().Where(redeemcampaign.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RedeemCampaignClient) GetX(ctx context.Context, id int64) *RedeemCampaign {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *RedeemCampaignClient) Hooks() []Hook {
+	return c.hooks.RedeemCampaign
+}
+
+// Interceptors returns the client interceptors.
+func (c *RedeemCampaignClient) Interceptors() []Interceptor {
+	return c.inters.RedeemCampaign
+}
+
+func (c *RedeemCampaignClient) mutate(ctx context.Context, m *RedeemCampaignMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RedeemCampaignCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RedeemCampaignUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RedeemCampaignUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RedeemCampaignDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown RedeemCampaign mutation op: %q", m.Op())
+	}
+}
+
+// RedeemCampaignRedemptionClient is a client for the RedeemCampaignRedemption schema.
+type RedeemCampaignRedemptionClient struct {
+	config
+}
+
+// NewRedeemCampaignRedemptionClient returns a client for the RedeemCampaignRedemption from the given config.
+func NewRedeemCampaignRedemptionClient(c config) *RedeemCampaignRedemptionClient {
+	return &RedeemCampaignRedemptionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `redeemcampaignredemption.Hooks(f(g(h())))`.
+func (c *RedeemCampaignRedemptionClient) Use(hooks ...Hook) {
+	c.hooks.RedeemCampaignRedemption = append(c.hooks.RedeemCampaignRedemption, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `redeemcampaignredemption.Intercept(f(g(h())))`.
+func (c *RedeemCampaignRedemptionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.RedeemCampaignRedemption = append(c.inters.RedeemCampaignRedemption, interceptors...)
+}
+
+// Create returns a builder for creating a RedeemCampaignRedemption entity.
+func (c *RedeemCampaignRedemptionClient) Create() *RedeemCampaignRedemptionCreate {
+	mutation := newRedeemCampaignRedemptionMutation(c.config, OpCreate)
+	return &RedeemCampaignRedemptionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of RedeemCampaignRedemption entities.
+func (c *RedeemCampaignRedemptionClient) CreateBulk(builders ...*RedeemCampaignRedemptionCreate) *RedeemCampaignRedemptionCreateBulk {
+	return &RedeemCampaignRedemptionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RedeemCampaignRedemptionClient) MapCreateBulk(slice any, setFunc func(*RedeemCampaignRedemptionCreate, int)) *RedeemCampaignRedemptionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RedeemCampaignRedemptionCreateBulk{err: fmt.Errorf("calling to RedeemCampaignRedemptionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RedeemCampaignRedemptionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RedeemCampaignRedemptionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for RedeemCampaignRedemption.
+func (c *RedeemCampaignRedemptionClient) Update() *RedeemCampaignRedemptionUpdate {
+	mutation := newRedeemCampaignRedemptionMutation(c.config, OpUpdate)
+	return &RedeemCampaignRedemptionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RedeemCampaignRedemptionClient) UpdateOne(_m *RedeemCampaignRedemption) *RedeemCampaignRedemptionUpdateOne {
+	mutation := newRedeemCampaignRedemptionMutation(c.config, OpUpdateOne, withRedeemCampaignRedemption(_m))
+	return &RedeemCampaignRedemptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RedeemCampaignRedemptionClient) UpdateOneID(id int64) *RedeemCampaignRedemptionUpdateOne {
+	mutation := newRedeemCampaignRedemptionMutation(c.config, OpUpdateOne, withRedeemCampaignRedemptionID(id))
+	return &RedeemCampaignRedemptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for RedeemCampaignRedemption.
+func (c *RedeemCampaignRedemptionClient) Delete() *RedeemCampaignRedemptionDelete {
+	mutation := newRedeemCampaignRedemptionMutation(c.config, OpDelete)
+	return &RedeemCampaignRedemptionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RedeemCampaignRedemptionClient) DeleteOne(_m *RedeemCampaignRedemption) *RedeemCampaignRedemptionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RedeemCampaignRedemptionClient) DeleteOneID(id int64) *RedeemCampaignRedemptionDeleteOne {
+	builder := c.Delete().Where(redeemcampaignredemption.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RedeemCampaignRedemptionDeleteOne{builder}
+}
+
+// Query returns a query builder for RedeemCampaignRedemption.
+func (c *RedeemCampaignRedemptionClient) Query() *RedeemCampaignRedemptionQuery {
+	return &RedeemCampaignRedemptionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRedeemCampaignRedemption},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a RedeemCampaignRedemption entity by its id.
+func (c *RedeemCampaignRedemptionClient) Get(ctx context.Context, id int64) (*RedeemCampaignRedemption, error) {
+	return c.Query().Where(redeemcampaignredemption.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RedeemCampaignRedemptionClient) GetX(ctx context.Context, id int64) *RedeemCampaignRedemption {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *RedeemCampaignRedemptionClient) Hooks() []Hook {
+	return c.hooks.RedeemCampaignRedemption
+}
+
+// Interceptors returns the client interceptors.
+func (c *RedeemCampaignRedemptionClient) Interceptors() []Interceptor {
+	return c.inters.RedeemCampaignRedemption
+}
+
+func (c *RedeemCampaignRedemptionClient) mutate(ctx context.Context, m *RedeemCampaignRedemptionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RedeemCampaignRedemptionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RedeemCampaignRedemptionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RedeemCampaignRedemptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RedeemCampaignRedemptionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown RedeemCampaignRedemption mutation op: %q", m.Op())
+	}
+}
+
 // RedeemCodeClient is a client for the RedeemCode schema.
 type RedeemCodeClient struct {
 	config
@@ -7275,10 +7557,11 @@ type (
 		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		SupportTicket, SupportTicketMessage, TLSFingerprintProfile, UsageCleanupTask,
-		UsageLog, User, UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
-		UserPlatformQuota, UserSubscription []ent.Hook
+		PromoCodeUsage, Proxy, RedeemCampaign, RedeemCampaignRedemption, RedeemCode,
+		SecuritySecret, Setting, SubscriptionPlan, SupportTicket, SupportTicketMessage,
+		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
+		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
+		UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
@@ -7287,10 +7570,11 @@ type (
 		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		SupportTicket, SupportTicketMessage, TLSFingerprintProfile, UsageCleanupTask,
-		UsageLog, User, UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
-		UserPlatformQuota, UserSubscription []ent.Interceptor
+		PromoCodeUsage, Proxy, RedeemCampaign, RedeemCampaignRedemption, RedeemCode,
+		SecuritySecret, Setting, SubscriptionPlan, SupportTicket, SupportTicketMessage,
+		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
+		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
+		UserSubscription []ent.Interceptor
 	}
 )
 

@@ -1939,6 +1939,7 @@ export interface RedeemCode {
   updated_at?: string
   notes?: string
   group_id?: number | null // 订阅类型专用
+  campaign_id?: number | null
   validity_days?: number // 订阅类型专用
   quota_reset_scope?: 'daily' | 'weekly' | 'monthly' | 'all' | null
   user?: User
@@ -1953,6 +1954,14 @@ export interface GenerateRedeemCodesRequest {
   group_id?: number | null // 订阅类型专用
   validity_days?: number // 订阅类型专用
   quota_reset_scope?: 'daily' | 'weekly' | 'monthly' | 'all'
+  expires_at?: string | null
+  expires_in_days?: number
+}
+
+export interface GenerateRedeemCampaignCodesRequest {
+  name: string
+  count: number
+  value: number
   expires_at?: string | null
   expires_in_days?: number
 }

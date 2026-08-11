@@ -74,6 +74,10 @@ func (RedeemCode) Fields() []ent.Field {
 		field.Int64("group_id").
 			Optional().
 			Nillable(),
+		field.Int64("campaign_id").
+			Optional().
+			Nillable().
+			Immutable(),
 		field.Int("validity_days").
 			Default(30),
 		field.String("quota_reset_scope").
@@ -101,6 +105,7 @@ func (RedeemCode) Indexes() []ent.Index {
 		index.Fields("status"),
 		index.Fields("used_by"),
 		index.Fields("group_id"),
+		index.Fields("campaign_id"),
 		index.Fields("expires_at"),
 	}
 }
