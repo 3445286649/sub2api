@@ -240,3 +240,25 @@ func TestMigration173AllowsCyberBlockedUsageRequestType(t *testing.T) {
 	require.Contains(t, sql, "ADD CONSTRAINT usage_logs_request_type_check")
 	require.Contains(t, sql, "CHECK (request_type IN (0, 1, 2, 3, 4)) NOT VALID")
 }
+
+func TestMigration221KeepsLocalRedeemCampaignsAndAddsGroupPricing(t *testing.T) {
+	entries, err := FS.ReadDir(".")
+	require.NoError(t, err)
+
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	require.Contains(t, names, "221_redeem_campaigns.sql")
+	require.Contains(t, names, "221_group_model_pricing.sql")
+
+	redeemContent, err := FS.ReadFile("221_redeem_campaigns.sql")
+	require.NoError(t, err)
+	require.Contains(t, string(redeemContent), "CREATE TABLE IF NOT EXISTS redeem_campaigns")
+
+	pricingContent, err := FS.ReadFile("221_group_model_pricing.sql")
+	require.NoError(t, err)
+	pricingSQL := string(pricingContent)
+	require.Contains(t, pricingSQL, "ADD COLUMN IF NOT EXISTS long_context_pricing_enabled")
+	require.Contains(t, pricingSQL, "ADD COLUMN IF NOT EXISTS model_pricing JSONB")
+}

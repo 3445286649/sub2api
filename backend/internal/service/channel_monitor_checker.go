@@ -712,9 +712,9 @@ func responsesSSEIncompleteReason(event *apicompat.ResponsesStreamEvent) string 
 	return "unspecified reason"
 }
 
-// extractAnthropicMessagesText 聚合 Anthropic Messages 响应里的文本块。
+// extractAnthropicMonitorText 聚合 Anthropic Messages 响应里的文本块。
 // 兼容部分反代在 content[0] 放 thinking/tool_use 等非 text block 的情况。
-func extractAnthropicMessagesText(respBytes []byte) string {
+func extractAnthropicMonitorText(respBytes []byte) string {
 	var texts []string
 	content := gjson.GetBytes(respBytes, "content")
 	if content.IsArray() {
@@ -723,7 +723,7 @@ func extractAnthropicMessagesText(respBytes []byte) string {
 			if blockType != "" && blockType != "text" {
 				return true
 			}
-			if text := block.Get("text").String(); strings.TrimSpace(text) != "" {
+			if text := strings.TrimSpace(block.Get("text").String()); text != "" {
 				texts = append(texts, text)
 			}
 			return true
@@ -731,9 +731,13 @@ func extractAnthropicMessagesText(respBytes []byte) string {
 	}
 
 	if len(texts) > 0 {
-		return strings.Join(texts, "")
+		return strings.Join(texts, "\n")
 	}
 	return gjson.GetBytes(respBytes, "content.0.text").String()
+}
+
+func extractAnthropicMessagesText(respBytes []byte) string {
+	return extractAnthropicMonitorText(respBytes)
 }
 
 // mergeHeaders 把用户自定义 headers 合并到 adapter 默认 headers 上。
