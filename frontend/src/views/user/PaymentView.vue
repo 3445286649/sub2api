@@ -263,8 +263,45 @@
               </div>
             </template>
           </template>
+          <!-- Points Shop Tab -->
+          <template v-else-if="activeTab === 'points'">
+            <div class="grid gap-3 sm:grid-cols-3">
+              <div class="card p-4">
+                <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('points.available') }}</p>
+                <p class="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">{{ pointsAccount.available_points }}</p>
+              </div>
+              <div class="card p-4">
+                <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('points.frozen') }}</p>
+                <p class="mt-1 text-2xl font-bold text-amber-600 dark:text-amber-400">{{ pointsAccount.frozen_points }}</p>
+              </div>
+              <div class="card p-4">
+                <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('points.inviteRule') }}</p>
+                <p class="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-200">
+                  {{ t('points.inviteRuleValue', { amount: pointsConfig.invite_threshold_amount, points: pointsConfig.invite_reward_points }) }}
+                </p>
+              </div>
+            </div>
+
+            <div v-if="pointsStore.loading" class="flex justify-center py-16">
+              <div class="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
+            </div>
+            <div v-else-if="pointsStore.products.length === 0" class="card py-16 text-center">
+              <Icon name="gift" size="xl" class="mx-auto mb-3 text-gray-300 dark:text-dark-600" />
+              <p class="text-gray-500 dark:text-dark-400">{{ t('points.noProducts') }}</p>
+            </div>
+            <div v-else :class="planGridClass(pointsStore.products.length)">
+              <PointsProductCard
+                v-for="product in pointsStore.products"
+                :key="product.id"
+                :product="product"
+                :available-points="pointsAccount.available_points"
+                :loading="pointsStore.redeemingProductId === product.id"
+                @redeem="selectedPointsProduct = $event"
+              />
+            </div>
+          </template>
         </template>
-        <div v-if="(checkout.help_text || checkout.help_image_url) && paymentPhase === 'select' && !selectedPlan" class="card p-4">
+        <div v-if="activeTab !== 'points' && (checkout.help_text || checkout.help_image_url) && paymentPhase === 'select' && !selectedPlan" class="card p-4">
           <div class="flex flex-col items-center gap-3">
             <img v-if="checkout.help_image_url" :src="checkout.help_image_url" alt=""
               class="h-40 max-w-full cursor-pointer rounded-lg object-contain transition-opacity hover:opacity-80"
@@ -299,6 +336,14 @@
         </div>
       </Transition>
     </Teleport>
+    <ConfirmDialog
+      :show="selectedPointsProduct != null"
+      :title="t('points.confirmTitle')"
+      :message="selectedPointsProduct ? t('points.confirmMessage', { points: selectedPointsProduct.points_price, name: selectedPointsProduct.name, balance: selectedPointsProduct.balance_amount.toFixed(2) }) : ''"
+      :confirm-text="t('points.redeemNow')"
+      @confirm="confirmPointsRedemption"
+      @cancel="selectedPointsProduct = null"
+    />
   </AppLayout>
 </template>
 
@@ -309,12 +354,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { usePaymentStore } from '@/stores/payment'
 import { useSubscriptionStore } from '@/stores/subscriptions'
-import { useAppStore } from '@/stores'
+import { useAppStore, usePointsStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
 import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
+import type { PointsProduct } from '@/types/points'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
@@ -332,7 +378,9 @@ import {
 } from '@/components/payment/paymentFlow'
 import { platformAccentBarClass, platformBadgeLightClass, platformBadgeClass, platformTextClass, platformLabel } from '@/utils/platformColors'
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
+import PointsProductCard from '@/components/payment/PointsProductCard.vue'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
 import { planValiditySuffix as validitySuffixOf } from '@/components/payment/validity'
@@ -348,6 +396,7 @@ const authStore = useAuthStore()
 const paymentStore = usePaymentStore()
 const subscriptionStore = useSubscriptionStore()
 const appStore = useAppStore()
+const pointsStore = usePointsStore()
 
 const user = computed(() => authStore.user)
 const activeSubscriptions = computed(() => subscriptionStore.activeSubscriptions)
@@ -369,13 +418,32 @@ const loading = ref(true)
 const submitting = ref(false)
 const errorMessage = ref('')
 const errorHintMessage = ref('')
-const activeTab = ref<'recharge' | 'subscription'>('recharge')
+const activeTab = ref<'recharge' | 'subscription' | 'points'>('recharge')
 const purchaseMode = ref<'subscription' | 'reset'>('subscription')
 const resetGroupId = ref<number | null>(null)
 const amount = ref<number | null>(null)
 const selectedMethod = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
 const previewImage = ref('')
+const selectedPointsProduct = ref<PointsProduct | null>(null)
+
+const emptyPointsAccount = { available_points: 0, frozen_points: 0, debt_points: 0, lifetime_earned: 0, lifetime_spent: 0 }
+const emptyPointsConfig = { enabled: false, invite_threshold_amount: 50, invite_reward_points: 1, qualification_window_days: 30, freeze_hours: 168 }
+const pointsAccount = computed(() => pointsStore.summary?.account ?? emptyPointsAccount)
+const pointsConfig = computed(() => pointsStore.summary?.config ?? emptyPointsConfig)
+
+async function confirmPointsRedemption() {
+  const product = selectedPointsProduct.value
+  if (!product) return
+  try {
+    const order = await pointsStore.redeem(product.id)
+    selectedPointsProduct.value = null
+    await authStore.refreshUser()
+    appStore.showSuccess(t('points.redeemSuccess', { balance: order.balance_amount.toFixed(2) }))
+  } catch (err: unknown) {
+    appStore.showError(extractApiErrorMessage(err, t('common.error')))
+  }
+}
 
 const paymentPhase = ref<'select' | 'paying'>('select')
 
@@ -561,10 +629,11 @@ const checkout = ref<CheckoutInfoResponse>({
 })
 
 const tabs = computed(() => {
-  const result: { key: 'recharge' | 'subscription'; label: string }[] = []
-  if (!checkout.value.balance_disabled) result.push({ key: 'recharge', label: t('payment.tabTopUp') })
-  result.push({ key: 'subscription', label: t('payment.tabSubscribe') })
-  return result
+	const result: { key: 'recharge' | 'subscription' | 'points'; label: string }[] = []
+	if (!checkout.value.balance_disabled) result.push({ key: 'recharge', label: t('payment.tabTopUp') })
+	result.push({ key: 'subscription', label: t('payment.tabSubscribe') })
+	if (pointsConfig.value.enabled) result.push({ key: 'points', label: t('points.shop') })
+	return result
 })
 
 const visibleMethods = computed(() => getVisibleMethods(checkout.value.methods))
@@ -1227,7 +1296,8 @@ async function resumeWechatPaymentFromQuery() {
 }
 
 onMounted(async () => {
-  let loadedActiveSubscriptionsForReset = false
+	let loadedActiveSubscriptionsForReset = false
+	const pointsLoad = pointsStore.load().catch(() => {})
   try {
     const res = await paymentAPI.getCheckoutInfo()
     checkout.value = res.data
@@ -1269,11 +1339,11 @@ onMounted(async () => {
       await subscriptionStore.fetchActiveSubscriptions(true)
       loadedActiveSubscriptionsForReset = true
     }
-    if (checkout.value.balance_disabled) {
-      activeTab.value = 'subscription'
-    }
+		if (checkout.value.balance_disabled) {
+			activeTab.value = 'subscription'
+		}
     // Handle renewal navigation: ?tab=subscription&group=123
-    if (route.query.tab === 'subscription') {
+		if (route.query.tab === 'subscription') {
       activeTab.value = 'subscription'
       purchaseMode.value = route.query.mode === 'reset' ? 'reset' : 'subscription'
       if (route.query.group) {
@@ -1290,8 +1360,12 @@ onMounted(async () => {
           }
         }
       }
-    }
-  } catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
+		}
+		await pointsLoad
+		if (route.query.tab === 'points' && pointsConfig.value.enabled) {
+			activeTab.value = 'points'
+		}
+	} catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
   finally { loading.value = false }
   // Fetch active subscriptions (uses cache, non-blocking)
   if (!loadedActiveSubscriptionsForReset) {

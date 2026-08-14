@@ -403,9 +403,15 @@ func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrde
 	if updated == 0 {
 		current, getErr := s.entClient.PaymentOrder.Get(ctx, o.ID)
 		if getErr == nil && current.Status == OrderStatusCompleted {
-			return nil
+			o = current
+		} else {
+			return infraerrors.Conflict("CONFLICT", "fulfillment lease was lost before completion")
 		}
-		return infraerrors.Conflict("CONFLICT", "fulfillment lease was lost before completion")
+	}
+	if s.pointsShopService != nil {
+		if err := s.pointsShopService.RecordPaymentCompletion(ctx, o); err != nil {
+			s.writeAuditLog(ctx, o.ID, "POINTS_AWARD_FAILED", "system", map[string]any{"error": err.Error()})
+		}
 	}
 	s.recordAcquisitionPaymentCompletion(ctx, o, now)
 	if !s.hasAuditLog(ctx, o.ID, auditAction) {

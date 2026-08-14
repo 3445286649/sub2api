@@ -505,6 +505,11 @@ func (s *PaymentService) finalizePendingRefundSuccess(ctx context.Context, p *Re
 	if err = tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit refund finalization: %w", err)
 	}
+	if s.pointsShopService != nil {
+		if pointsErr := s.pointsShopService.HandlePaymentRefund(ctx, p.Order.UserID); pointsErr != nil {
+			s.writeAuditLog(ctx, p.OrderID, "POINTS_REFUND_RECONCILE_FAILED", "system", map[string]any{"error": pointsErr.Error()})
+		}
+	}
 	return result, nil
 }
 
@@ -616,6 +621,11 @@ func (s *PaymentService) markRefundOk(ctx context.Context, p *RefundPlan) (*Refu
 		return nil, fmt.Errorf("mark refund: %w", err)
 	}
 	s.writeAuditLog(ctx, p.OrderID, "REFUND_SUCCESS", "admin", map[string]any{"refundAmount": p.RefundAmount, "reason": p.Reason, "balanceDeducted": p.BalanceToDeduct, "force": p.Force})
+	if s.pointsShopService != nil {
+		if pointsErr := s.pointsShopService.HandlePaymentRefund(ctx, p.Order.UserID); pointsErr != nil {
+			s.writeAuditLog(ctx, p.OrderID, "POINTS_REFUND_RECONCILE_FAILED", "system", map[string]any{"error": pointsErr.Error()})
+		}
+	}
 	return &RefundResult{Success: true, BalanceDeducted: p.BalanceToDeduct, SubDaysDeducted: p.SubDaysToDeduct}, nil
 }
 

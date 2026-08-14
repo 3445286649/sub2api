@@ -122,6 +122,9 @@ func RegisterAdminRoutes(
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
 
+		// 积分商城
+		registerPointsShopRoutes(admin, h)
+
 		// 拉新活动
 		registerAcquisitionRoutes(admin, h)
 		registerUsageRebateRoutes(admin, h)
@@ -131,6 +134,19 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerPointsShopRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	pointsShop := admin.Group("/points-shop")
+	{
+		pointsShop.GET("/config", h.Admin.PointsShop.GetConfig)
+		pointsShop.PUT("/config", h.Admin.PointsShop.UpdateConfig)
+		pointsShop.GET("/products", h.Admin.PointsShop.Products)
+		pointsShop.POST("/products", h.Admin.PointsShop.CreateProduct)
+		pointsShop.PUT("/products/:id", h.Admin.PointsShop.UpdateProduct)
+		pointsShop.DELETE("/products/:id", h.Admin.PointsShop.DeleteProduct)
+		pointsShop.GET("/orders", h.Admin.PointsShop.Orders)
 	}
 }
 

@@ -75,6 +75,9 @@
           <span class="text-sm font-semibold text-primary-700 dark:text-primary-300">
             {{ formatHeaderMoney(availableBalance) }}
           </span>
+          <span v-if="pointsEnabled" class="hidden text-xs font-semibold text-emerald-700 dark:text-emerald-300 lg:inline">
+            · {{ availablePoints }} {{ t('points.unit') }}
+          </span>
           <span
             v-if="frozenBalance > 0"
             class="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
@@ -96,6 +99,16 @@
               <div class="flex items-center justify-between">
                 <span class="text-gray-500 dark:text-dark-400">{{ balanceTotalText }}</span>
                 <span class="font-semibold text-gray-900 dark:text-white">{{ formatHeaderMoney(totalBalance) }}</span>
+              </div>
+            </div>
+            <div v-if="pointsEnabled" class="mt-2 border-t border-gray-100 pt-2 dark:border-dark-700">
+              <div class="flex items-center justify-between">
+                <span class="text-gray-500 dark:text-dark-400">{{ t('points.available') }}</span>
+                <span class="font-semibold text-emerald-700 dark:text-emerald-300">{{ availablePoints }}</span>
+              </div>
+              <div v-if="frozenPoints > 0" class="mt-2 flex items-center justify-between">
+                <span class="text-gray-500 dark:text-dark-400">{{ t('points.frozen') }}</span>
+                <span class="font-medium text-amber-700 dark:text-amber-200">{{ frozenPoints }}</span>
               </div>
             </div>
           </div>
@@ -461,7 +474,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
+import { useAppStore, useAuthStore, useOnboardingStore, usePointsStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
@@ -478,6 +491,7 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()
 const onboardingStore = useOnboardingStore()
+const pointsStore = usePointsStore()
 
 const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
@@ -525,6 +539,9 @@ const showSupportGroup = computed(() => {
 const availableBalance = computed(() => Number(user.value?.balance || 0))
 const frozenBalance = computed(() => Number(user.value?.frozen_balance || 0))
 const totalBalance = computed(() => availableBalance.value + frozenBalance.value)
+const pointsEnabled = computed(() => pointsStore.summary?.config.enabled === true)
+const availablePoints = computed(() => pointsStore.summary?.account.available_points ?? 0)
+const frozenPoints = computed(() => pointsStore.summary?.account.frozen_points ?? 0)
 const balanceAvailableText = computed(() => t('common.availableBalance') === 'common.availableBalance' ? '可用余额' : t('common.availableBalance'))
 const balanceFrozenText = computed(() => t('common.frozenBalance') === 'common.frozenBalance' ? '冻结金额' : t('common.frozenBalance'))
 const balanceTotalText = computed(() => t('common.totalBalance') === 'common.totalBalance' ? '总余额' : t('common.totalBalance'))
@@ -684,6 +701,7 @@ function handleClickOutside(event: MouseEvent) {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  pointsStore.fetchSummary().catch(() => {})
 })
 
 onBeforeUnmount(() => {

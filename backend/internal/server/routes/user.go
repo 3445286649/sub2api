@@ -111,6 +111,15 @@ func RegisterUserRoutes(
 			modelRadar.GET("/current", h.ModelRadar.Current)
 		}
 
+		pointsShop := authenticated.Group("/points-shop")
+		{
+			pointsShop.GET("/summary", h.PointsShop.Summary)
+			pointsShop.GET("/products", h.PointsShop.Products)
+			pointsShop.GET("/ledger", h.PointsShop.Ledger)
+			pointsShop.GET("/orders", h.PointsShop.Orders)
+			pointsShop.POST("/products/:id/redeem", h.PointsShop.Redeem)
+		}
+
 		// 使用记录（聚合统计属重查询，叠加更严格的按用户限流）
 		usage := authenticated.Group("/usage")
 		usage.Use(panelRateLimiter.Heavy())

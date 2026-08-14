@@ -21,6 +21,8 @@ const fetchActiveSubscriptions = vi.hoisted(() => vi.fn().mockResolvedValue(unde
 const showError = vi.hoisted(() => vi.fn())
 const showInfo = vi.hoisted(() => vi.fn())
 const showWarning = vi.hoisted(() => vi.fn())
+const showSuccess = vi.hoisted(() => vi.fn())
+const loadPoints = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 const getCheckoutInfo = vi.hoisted(() => vi.fn())
 const bridgeInvoke = vi.hoisted(() => vi.fn())
 
@@ -75,6 +77,18 @@ vi.mock('@/stores', () => ({
     showError,
     showInfo,
     showWarning,
+    showSuccess,
+  }),
+  usePointsStore: () => ({
+    summary: {
+      account: { available_points: 0, frozen_points: 0, debt_points: 0, lifetime_earned: 0, lifetime_spent: 0 },
+      config: { enabled: true, invite_threshold_amount: 50, invite_reward_points: 1, qualification_window_days: 30, freeze_hours: 168 },
+    },
+    products: [],
+    loading: false,
+    redeemingProductId: null,
+    load: loadPoints,
+    redeem: vi.fn(),
   }),
 }))
 

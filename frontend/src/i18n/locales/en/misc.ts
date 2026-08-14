@@ -284,6 +284,19 @@ export default {
   },
 
   // Payment System
+  points: {
+    shop: 'Points Shop', unit: 'points', available: 'Available Points', frozen: 'Pending Points', debt: 'Points Debt',
+    inviteRule: 'Qualified Referral Reward', inviteRuleValue: 'New user tops up {amount}, earn {points} points',
+    balanceReward: 'Balance Credit', remainingStock: 'Remaining', perUserLimit: 'Limit per User', noProducts: 'No products available',
+    redeemNow: 'Redeem', insufficient: 'Insufficient Points', confirmTitle: 'Confirm Redemption',
+    confirmMessage: 'Spend {points} points on “{name}” and receive ${balance} balance.', redeemSuccess: '${balance} balance credited',
+    adminTitle: 'Points Shop', products: 'Products', orders: 'Redemptions', rules: 'Points Rules', createProduct: 'Create Product',
+    editProduct: 'Edit Product', productName: 'Product Name', description: 'Description', pointsPrice: 'Points Price',
+    originalPointsPrice: 'Original Points', stockTotal: 'Total Stock', unlimitedStock: 'Leave empty for unlimited stock',
+    features: 'Features', sortOrder: 'Sort Order', forSale: 'For Sale', enabled: 'Enable Points Shop',
+    threshold: 'Qualification Threshold', rewardPoints: 'Reward Points', windowDays: 'Window (days)', freezeHours: 'Freeze (hours)',
+    saveRules: 'Save Rules', deleteConfirm: 'Delete this product? Products with redemption history can only be taken off sale.', orderNo: 'Order No.', user: 'User', time: 'Time',
+  },
   payment: {
     title: 'Recharge / Subscription',
     amountLabel: 'Amount',

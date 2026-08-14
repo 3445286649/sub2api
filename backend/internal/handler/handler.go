@@ -40,6 +40,7 @@ type AdminHandlers struct {
 	ContentModeration      *admin.ContentModerationHandler
 	PromptAudit            *securityaudit.PromptAdminHandler
 	Payment                *admin.PaymentHandler
+	PointsShop             *admin.PointsShopHandler
 	Affiliate              *admin.AffiliateHandler
 	Acquisition            *admin.AcquisitionHandler
 	UsageRebate            *admin.UsageRebateHandler
@@ -67,6 +68,7 @@ type Handlers struct {
 	Totp             *TotpHandler
 	Passkey          *PasskeyHandler
 	Payment          *PaymentHandler
+	PointsShop       *PointsShopHandler
 	PaymentWebhook   *PaymentWebhookHandler
 	AvailableChannel *AvailableChannelHandler
 	Acquisition      *AcquisitionHandler

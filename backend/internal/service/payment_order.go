@@ -282,12 +282,14 @@ func (s *PaymentService) checkPendingLimit(ctx context.Context, tx *dbent.Tx, us
 }
 
 func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req CreateOrderRequest) map[string]any {
-	if sel == nil {
-		return nil
-	}
-
 	snapshot := map[string]any{}
-	snapshot["schema_version"] = 2
+	snapshot["schema_version"] = 3
+	if req.OrderType == payment.OrderTypeBalance && req.Amount > 0 {
+		snapshot["base_recharge_amount"] = req.Amount
+	}
+	if sel == nil {
+		return snapshot
+	}
 
 	instanceID := strings.TrimSpace(sel.InstanceID)
 	if instanceID != "" {
