@@ -621,8 +621,39 @@ export default {
       columns: {
         email: '邮箱',
         username: '用户名',
+        user: '受邀用户',
+        status: '积分状态',
+        progress: '有效充值进度',
+        reward: '奖励积分',
+        timeline: '关键时间',
         rebate: '返利明细',
         joinedAt: '注册时间'
+      },
+      status: {
+        notRecharged: '未充值',
+        progressing: '累计中',
+        pending: '冻结中',
+        available: '已到账',
+        revoked: '已撤销',
+        expired: '已过期',
+        syncing: '状态同步中'
+      },
+      rewardPoints: '{points} 积分',
+      reason: {
+        notRecharged: '等待受邀用户完成余额充值',
+        remaining: '距离达标还差 {amount}',
+        pending: '冻结期内发生退款将撤销奖励',
+        available: '邀请奖励已计入可用积分',
+        refundBelowThreshold: '退款后有效充值低于门槛，奖励已撤销',
+        qualificationWindowExpired: '注册后 {days} 天内未达到充值门槛',
+        syncing: '积分状态正在同步，请稍后刷新'
+      },
+      timeline: {
+        deadline: '达标截止：{time}',
+        releaseAt: '预计解冻：{time}',
+        releasedAt: '到账时间：{time}',
+        revokedAt: '撤销时间：{time}',
+        expiredAt: '已于 {time} 截止'
       }
     },
     tips: {

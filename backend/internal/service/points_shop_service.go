@@ -120,6 +120,34 @@ type PointsShopService struct {
 	billingCacheService *BillingCacheService
 }
 
+const qualifyingRechargeAmountSQL = `
+	SELECT COALESCE(SUM(
+		CASE
+			WHEN jsonb_typeof(provider_snapshot->'base_recharge_amount') = 'number'
+				THEN GREATEST(0, (provider_snapshot->>'base_recharge_amount')::numeric)
+			ELSE 0
+		END * CASE
+			WHEN amount > 0 THEN GREATEST(0, 1 - (refund_amount / amount))
+			ELSE 0
+		END
+	), 0)
+	FROM payment_orders
+	WHERE user_id = $1
+	  AND order_type = 'balance'
+	  AND status IN ('COMPLETED', 'PARTIALLY_REFUNDED')
+	  AND completed_at IS NOT NULL
+	  AND completed_at <= $2`
+
+type pointsQueryRower interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+func queryQualifyingRechargeAmount(ctx context.Context, q pointsQueryRower, inviteeID int64, cutoff time.Time) (float64, error) {
+	var amount float64
+	err := q.QueryRowContext(ctx, qualifyingRechargeAmountSQL, inviteeID, cutoff).Scan(&amount)
+	return amount, err
+}
+
 func NewPointsShopService(db *sql.DB, billingCacheService *BillingCacheService) *PointsShopService {
 	return &PointsShopService{db: db, billingCacheService: billingCacheService}
 }
@@ -259,8 +287,8 @@ func (s *PointsShopService) releaseMatured(ctx context.Context, userID int64) er
 		return err
 	}
 	for _, award := range awards {
-		var qualifyingAmount float64
-		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM((CASE WHEN provider_snapshot ? 'base_recharge_amount' THEN (provider_snapshot->>'base_recharge_amount')::numeric ELSE amount END) * CASE WHEN amount>0 THEN GREATEST(0,1-(refund_amount/amount)) ELSE 0 END),0) FROM payment_orders WHERE user_id=$1 AND order_type='balance' AND status IN ('COMPLETED','PARTIALLY_REFUNDED') AND completed_at IS NOT NULL AND completed_at<=$2`, award.inviteeID, award.registeredAt.AddDate(0, 0, award.windowDays)).Scan(&qualifyingAmount); err != nil {
+		qualifyingAmount, err := queryQualifyingRechargeAmount(ctx, tx, award.inviteeID, award.registeredAt.AddDate(0, 0, award.windowDays))
+		if err != nil {
 			return err
 		}
 		if account.FrozenPoints < award.points {
@@ -327,16 +355,7 @@ func (s *PointsShopService) RecordPaymentCompletion(ctx context.Context, order *
 }
 
 func (s *PointsShopService) qualifyingRechargeAmount(ctx context.Context, inviteeID int64, registeredAt time.Time, windowDays int) (float64, error) {
-	var amount float64
-	err := s.db.QueryRowContext(ctx, `
-		SELECT COALESCE(SUM((CASE
-			WHEN provider_snapshot ? 'base_recharge_amount' THEN (provider_snapshot->>'base_recharge_amount')::numeric
-			ELSE amount
-		END) * CASE WHEN amount>0 THEN GREATEST(0,1-(refund_amount/amount)) ELSE 0 END),0)
-		FROM payment_orders
-		WHERE user_id=$1 AND order_type='balance' AND status IN ('COMPLETED','PARTIALLY_REFUNDED')
-		  AND completed_at IS NOT NULL AND completed_at <= $2`, inviteeID, registeredAt.AddDate(0, 0, windowDays)).Scan(&amount)
-	return amount, err
+	return queryQualifyingRechargeAmount(ctx, s.db, inviteeID, registeredAt.AddDate(0, 0, windowDays))
 }
 
 func (s *PointsShopService) createOrRestoreAward(ctx context.Context, inviterID, inviteeID, sourceOrderID int64, qualifyingAmount float64, cfg PointsConfig) error {
@@ -425,8 +444,7 @@ func (s *PointsShopService) HandlePaymentRefund(ctx context.Context, inviteeID i
 	if err != nil {
 		return err
 	}
-	var amount float64
-	err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM((CASE WHEN provider_snapshot ? 'base_recharge_amount' THEN (provider_snapshot->>'base_recharge_amount')::numeric ELSE amount END) * CASE WHEN amount>0 THEN GREATEST(0,1-(refund_amount/amount)) ELSE 0 END),0) FROM payment_orders WHERE user_id=$1 AND order_type='balance' AND status IN ('COMPLETED','PARTIALLY_REFUNDED') AND completed_at IS NOT NULL AND completed_at<=$2`, inviteeID, registeredAt.AddDate(0, 0, windowDays)).Scan(&amount)
+	amount, err := queryQualifyingRechargeAmount(ctx, tx, inviteeID, registeredAt.AddDate(0, 0, windowDays))
 	if err != nil || amount+1e-8 >= threshold {
 		if err != nil {
 			return err

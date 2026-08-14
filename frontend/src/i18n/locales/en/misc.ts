@@ -296,6 +296,11 @@ export default {
     features: 'Features', sortOrder: 'Sort Order', forSale: 'For Sale', enabled: 'Enable Points Shop',
     threshold: 'Qualification Threshold', rewardPoints: 'Reward Points', windowDays: 'Window (days)', freezeHours: 'Freeze (hours)',
     saveRules: 'Save Rules', deleteConfirm: 'Delete this product? Products with redemption history can only be taken off sale.', orderNo: 'Order No.', user: 'User', time: 'Time',
+    userOrders: {
+      tabsLabel: 'Order type', paymentTab: 'Recharge / Subscription', redemptionTab: 'Points Redemptions',
+      product: 'Product', pointsSpent: 'Points Spent', balanceCredited: 'Balance Credited', balanceAfter: 'Balance After',
+      status: 'Status', completedAt: 'Completed At', completed: 'Completed',
+    },
   },
   payment: {
     title: 'Recharge / Subscription',

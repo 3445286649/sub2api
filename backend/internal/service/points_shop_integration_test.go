@@ -52,6 +52,15 @@ func TestPointsShopInviteAwardRedeemIdempotencyAndRefund(t *testing.T) {
 	require.EqualValues(t, 1, account.AvailablePoints)
 	require.EqualValues(t, 1, account.LifetimeEarned)
 
+	legacyInviteeID := insertPointsTestUser(t, db, "legacy-invitee@example.test")
+	insertPointsAffiliate(t, db, legacyInviteeID, &inviterID, "LEGACYINVITEE")
+	legacyOrderID := insertLegacyPointsPaymentOrder(t, db, legacyInviteeID, 50, "COMPLETED")
+	legacyOrder := &dbent.PaymentOrder{ID: legacyOrderID, UserID: legacyInviteeID, Amount: 50, PayAmount: 50, OrderType: payment.OrderTypeBalance, Status: "COMPLETED"}
+	require.NoError(t, svc.RecordPaymentCompletion(ctx, legacyOrder))
+	var legacyAwardCount int
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM affiliate_point_awards WHERE invitee_user_id=$1`, legacyInviteeID).Scan(&legacyAwardCount))
+	require.Zero(t, legacyAwardCount, "orders without a base recharge snapshot must not qualify")
+
 	product, err := svc.CreateProduct(ctx, service.PointsProductInput{ProductType: "balance", Name: "Balance 5", PointsPrice: 1, BalanceAmount: 5, ForSale: true})
 	require.NoError(t, err)
 	first, err := svc.Redeem(ctx, inviterID, product.ID, "redeem-once")
@@ -105,6 +114,7 @@ func TestPointsShopInviteAwardRedeemIdempotencyAndRefund(t *testing.T) {
 
 	invitee2ID := insertPointsTestUser(t, db, "invitee2@example.test")
 	insertPointsAffiliate(t, db, invitee2ID, &inviterID, "INVITEE2")
+	_ = insertLegacyPointsPaymentOrder(t, db, invitee2ID, 50, "COMPLETED")
 	order2ID := insertPointsPaymentOrder(t, db, invitee2ID, 50, "COMPLETED")
 	order2 := &dbent.PaymentOrder{ID: order2ID, UserID: invitee2ID, Amount: 50, PayAmount: 50, OrderType: payment.OrderTypeBalance, Status: "COMPLETED", ProviderSnapshot: map[string]any{"base_recharge_amount": float64(50)}}
 	require.NoError(t, svc.RecordPaymentCompletion(ctx, order2))
@@ -116,12 +126,41 @@ func TestPointsShopInviteAwardRedeemIdempotencyAndRefund(t *testing.T) {
 	require.Zero(t, account.FrozenPoints)
 	require.Zero(t, account.DebtPoints)
 
+	_, err = svc.UpdateConfig(ctx, service.PointsConfig{Enabled: true, InviteThresholdAmount: 50, InviteRewardPoints: 1, QualificationWindowDays: 30, FreezeHours: 168})
+	require.NoError(t, err)
+	invitee3ID := insertPointsTestUser(t, db, "invitee3@example.test")
+	insertPointsAffiliate(t, db, invitee3ID, &inviterID, "INVITEE3")
+	_ = insertLegacyPointsPaymentOrder(t, db, invitee3ID, 50, "COMPLETED")
+	order3ID := insertPointsPaymentOrder(t, db, invitee3ID, 50, "COMPLETED")
+	order3 := &dbent.PaymentOrder{ID: order3ID, UserID: invitee3ID, Amount: 50, PayAmount: 50, OrderType: payment.OrderTypeBalance, Status: "COMPLETED", ProviderSnapshot: map[string]any{"base_recharge_amount": float64(50)}}
+	require.NoError(t, svc.RecordPaymentCompletion(ctx, order3))
+	_, err = db.ExecContext(ctx, `UPDATE payment_orders SET status='PARTIALLY_REFUNDED',refund_amount=50,refund_at=NOW() WHERE id=$1`, order3ID)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `UPDATE affiliate_point_awards SET release_at=NOW()-INTERVAL '1 second' WHERE invitee_user_id=$1`, invitee3ID)
+	require.NoError(t, err)
+	account, err = svc.GetAccount(ctx, inviterID)
+	require.NoError(t, err)
+	require.Zero(t, account.AvailablePoints, "maturity checks must not fall back to legacy order amounts")
+	require.Zero(t, account.FrozenPoints)
+	var maturedStatus string
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT status FROM affiliate_point_awards WHERE invitee_user_id=$1`, invitee3ID).Scan(&maturedStatus))
+	require.Equal(t, "revoked", maturedStatus)
+
+	userOrders, err := svc.ListOrders(ctx, inviterID, false, 1, 20)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, userOrders.Total)
+	require.Len(t, userOrders.Items, 3)
+	otherUserOrders, err := svc.ListOrders(ctx, inviteeID, false, 1, 20)
+	require.NoError(t, err)
+	require.Zero(t, otherUserOrders.Total, "users must not see another user's points redemptions")
+	require.Empty(t, otherUserOrders.Items)
+
 	var awardCount, ledgerCount, orderCount int
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM affiliate_point_awards`).Scan(&awardCount))
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_points_ledger`).Scan(&ledgerCount))
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM points_shop_orders`).Scan(&orderCount))
-	require.Equal(t, 2, awardCount)
-	require.Equal(t, 8, ledgerCount)
+	require.Equal(t, 3, awardCount)
+	require.Equal(t, 10, ledgerCount)
 	require.Equal(t, 3, orderCount)
 }
 
@@ -144,6 +183,15 @@ func insertPointsPaymentOrder(t *testing.T, db *sql.DB, userID int64, amount flo
 	var id int64
 	outTradeNo := fmt.Sprintf("points-%d-%d", userID, time.Now().UnixNano())
 	err := db.QueryRow(`INSERT INTO payment_orders(user_id,user_email,user_name,amount,pay_amount,fee_rate,recharge_code,out_trade_no,payment_type,payment_trade_no,order_type,status,expires_at,completed_at,client_ip,src_host,provider_snapshot) VALUES($1,$2,'test',$3::numeric,$3::numeric,0,$4,$4,'test','trade','balance',$5,NOW()+INTERVAL '1 hour',NOW(),'127.0.0.1','local',jsonb_build_object('base_recharge_amount',$3::numeric)) RETURNING id`, userID, fmt.Sprintf("user-%d@example.test", userID), amount, outTradeNo, status).Scan(&id)
+	require.NoError(t, err)
+	return id
+}
+
+func insertLegacyPointsPaymentOrder(t *testing.T, db *sql.DB, userID int64, amount float64, status string) int64 {
+	t.Helper()
+	var id int64
+	outTradeNo := fmt.Sprintf("legacy-points-%d-%d", userID, time.Now().UnixNano())
+	err := db.QueryRow(`INSERT INTO payment_orders(user_id,user_email,user_name,amount,pay_amount,fee_rate,recharge_code,out_trade_no,payment_type,payment_trade_no,order_type,status,expires_at,completed_at,client_ip,src_host) VALUES($1,$2,'test',$3::numeric,$3::numeric,0,$4,$4,'test','trade','balance',$5,NOW()+INTERVAL '1 hour',NOW(),'127.0.0.1','local') RETURNING id`, userID, fmt.Sprintf("user-%d@example.test", userID), amount, outTradeNo, status).Scan(&id)
 	require.NoError(t, err)
 	return id
 }

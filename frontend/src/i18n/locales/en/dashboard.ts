@@ -616,8 +616,39 @@ export default {
       columns: {
         email: 'Email',
         username: 'Username',
+        user: 'Invitee',
+        status: 'Points Status',
+        progress: 'Qualifying Recharge',
+        reward: 'Reward',
+        timeline: 'Timeline',
         rebate: 'Rebate',
         joinedAt: 'Joined At'
+      },
+      status: {
+        notRecharged: 'Not recharged',
+        progressing: 'In progress',
+        pending: 'Pending',
+        available: 'Available',
+        revoked: 'Revoked',
+        expired: 'Expired',
+        syncing: 'Syncing'
+      },
+      rewardPoints: '{points} points',
+      reason: {
+        notRecharged: 'Waiting for a completed balance recharge',
+        remaining: '{amount} more is needed to qualify',
+        pending: 'A refund during the hold period revokes the reward',
+        available: 'The invite reward is now available',
+        refundBelowThreshold: 'The reward was revoked after refunds reduced the qualifying amount',
+        qualificationWindowExpired: 'The recharge threshold was not reached within {days} days of registration',
+        syncing: 'Points status is syncing. Refresh shortly.'
+      },
+      timeline: {
+        deadline: 'Qualify by {time}',
+        releaseAt: 'Releases at {time}',
+        releasedAt: 'Released at {time}',
+        revokedAt: 'Revoked at {time}',
+        expiredAt: 'Expired at {time}'
       }
     },
     tips: {

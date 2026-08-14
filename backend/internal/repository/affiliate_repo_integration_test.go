@@ -39,6 +39,111 @@ func querySingleInt(t *testing.T, ctx context.Context, client *dbent.Client, que
 	return value
 }
 
+func TestAffiliateRepository_ListInvitees_IncludesPointsQualificationStatuses(t *testing.T) {
+	ctx := context.Background()
+	tx := testEntTx(t)
+	txCtx := dbent.NewTxContext(ctx, tx)
+	client := tx.Client()
+	repo := NewAffiliateRepository(client, integrationDB)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	_, err := client.ExecContext(txCtx, `UPDATE settings SET value=CASE key
+		WHEN 'points_invite_threshold_amount' THEN '50'
+		WHEN 'points_invite_reward_points' THEN '1'
+		WHEN 'points_invite_window_days' THEN '30'
+		WHEN 'points_invite_freeze_hours' THEN '168'
+		ELSE value END
+		WHERE key IN ('points_invite_threshold_amount','points_invite_reward_points','points_invite_window_days','points_invite_freeze_hours')`)
+	require.NoError(t, err)
+
+	inviter := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("points-status-inviter-%d@example.com", now.UnixNano()), PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 5})
+	_, err = repo.EnsureUserAffiliate(txCtx, inviter.ID)
+	require.NoError(t, err)
+
+	createInvitee := func(label string, registeredAt time.Time) *service.User {
+		t.Helper()
+		u := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("points-status-%s-%d@example.com", label, now.UnixNano()), Username: label, PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 5})
+		_, createErr := repo.EnsureUserAffiliate(txCtx, u.ID)
+		require.NoError(t, createErr)
+		bound, bindErr := repo.BindInviter(txCtx, u.ID, inviter.ID)
+		require.NoError(t, bindErr)
+		require.True(t, bound)
+		_, createErr = client.ExecContext(txCtx, `UPDATE users SET created_at=$1 WHERE id=$2`, registeredAt, u.ID)
+		require.NoError(t, createErr)
+		_, createErr = client.ExecContext(txCtx, `UPDATE user_affiliates SET created_at=$1 WHERE user_id=$2`, registeredAt, u.ID)
+		require.NoError(t, createErr)
+		return u
+	}
+
+	insertOrder := func(u *service.User, amount float64, completedAt time.Time, orderType, status string, refundAmount float64, withBaseSnapshot bool) int64 {
+		t.Helper()
+		var id int64
+		var snapshot any
+		if withBaseSnapshot {
+			snapshot = fmt.Sprintf(`{"base_recharge_amount":%g}`, amount)
+		}
+		outTradeNo := fmt.Sprintf("points-status-%d-%d", u.ID, completedAt.UnixNano())
+		rows, queryErr := client.QueryContext(txCtx, `INSERT INTO payment_orders(user_id,user_email,user_name,amount,pay_amount,fee_rate,recharge_code,out_trade_no,payment_type,payment_trade_no,order_type,status,refund_amount,expires_at,completed_at,client_ip,src_host,provider_snapshot) VALUES($1,$2,$3,$4,$4,0,$5,$5,'test','trade',$6,$7,$8,$9::timestamptz+INTERVAL '1 hour',$9::timestamptz,'127.0.0.1','local',$10::jsonb) RETURNING id`, u.ID, u.Email, u.Username, amount, outTradeNo, orderType, status, refundAmount, completedAt, snapshot)
+		require.NoError(t, queryErr)
+		require.True(t, rows.Next())
+		require.NoError(t, rows.Scan(&id))
+		require.NoError(t, rows.Close())
+		return id
+	}
+
+	notRecharged := createInvitee("not-recharged", now.Add(-24*time.Hour))
+	progressing := createInvitee("progressing", now.Add(-5*24*time.Hour))
+	pending := createInvitee("pending", now.Add(-2*24*time.Hour))
+	available := createInvitee("available", now.Add(-10*24*time.Hour))
+	revoked := createInvitee("revoked", now.Add(-4*24*time.Hour))
+	expired := createInvitee("expired", now.Add(-40*24*time.Hour))
+
+	_ = notRecharged
+	insertOrder(progressing, 100, now.Add(-2*time.Hour), "balance", "COMPLETED", 0, false)
+	insertOrder(progressing, 30, now.Add(-time.Hour), "balance", "COMPLETED", 0, true)
+	pendingOrderID := insertOrder(pending, 50, now.Add(-24*time.Hour), "balance", "COMPLETED", 0, true)
+	availableOrderID := insertOrder(available, 50, now.Add(-8*24*time.Hour), "balance", "COMPLETED", 0, true)
+	revokedOrderID := insertOrder(revoked, 50, now.Add(-3*24*time.Hour), "balance", "PARTIALLY_REFUNDED", 50, true)
+	insertOrder(expired, 50, now.Add(-5*24*time.Hour), "balance", "COMPLETED", 0, true)
+
+	_, err = client.ExecContext(txCtx, `INSERT INTO affiliate_point_awards(inviter_user_id,invitee_user_id,source_order_id,status,points,threshold_amount,qualifying_amount,qualification_window_days,freeze_hours,release_at,created_at,updated_at) VALUES
+		($1,$2,$3,'pending',1,50,50,30,168,$4,$5,$5),
+		($1,$6,$7,'available',1,50,50,30,168,$8,$9,$9),
+		($1,$10,$11,'revoked',1,50,0,30,168,$12,$13,$13)`,
+		inviter.ID, pending.ID, pendingOrderID, now.Add(6*24*time.Hour), now.Add(-24*time.Hour),
+		available.ID, availableOrderID, now.Add(-24*time.Hour), now.Add(-8*24*time.Hour),
+		revoked.ID, revokedOrderID, now.Add(4*24*time.Hour), now.Add(-3*24*time.Hour))
+	require.NoError(t, err)
+	_, err = client.ExecContext(txCtx, `UPDATE affiliate_point_awards SET released_at=$1 WHERE invitee_user_id=$2`, now.Add(-24*time.Hour), available.ID)
+	require.NoError(t, err)
+	_, err = client.ExecContext(txCtx, `UPDATE affiliate_point_awards SET revoked_at=$1 WHERE invitee_user_id=$2`, now.Add(-24*time.Hour), revoked.ID)
+	require.NoError(t, err)
+
+	items, err := repo.ListInvitees(txCtx, inviter.ID, 100)
+	require.NoError(t, err)
+	byName := make(map[string]service.AffiliateInvitee, len(items))
+	for _, item := range items {
+		byName[item.Username] = item
+	}
+
+	require.Equal(t, "not_recharged", byName[notRecharged.Username].PointsStatus)
+	require.Equal(t, "progressing", byName[progressing.Username].PointsStatus)
+	require.InDelta(t, 30, byName[progressing.Username].QualifyingAmount, 1e-9, "legacy orders without base snapshots must be excluded")
+	require.Equal(t, "pending", byName[pending.Username].PointsStatus)
+	require.EqualValues(t, 1, byName[pending.Username].RewardPoints)
+	require.WithinDuration(t, now.Add(6*24*time.Hour), *byName[pending.Username].ReleaseAt, time.Second)
+	require.Equal(t, "available", byName[available.Username].PointsStatus)
+	require.NotNil(t, byName[available.Username].ReleasedAt)
+	require.Equal(t, "revoked", byName[revoked.Username].PointsStatus)
+	require.Equal(t, "refund_below_threshold", byName[revoked.Username].PointsStatusReason)
+	require.Equal(t, "expired", byName[expired.Username].PointsStatus)
+	require.Equal(t, "qualification_window_expired", byName[expired.Username].PointsStatusReason)
+	require.Zero(t, byName[expired.Username].QualifyingAmount, "recharges after the qualification deadline must be excluded")
+	require.InDelta(t, 50, byName[expired.Username].ThresholdAmount, 1e-9)
+	require.Equal(t, 30, byName[expired.Username].QualificationWindowDays)
+	require.NotNil(t, byName[expired.Username].QualificationDeadline)
+}
+
 func TestAffiliateRepository_TransferQuotaToBalance_UsesClaimedQuotaBeforeClear(t *testing.T) {
 	ctx := context.Background()
 	tx := testEntTx(t)

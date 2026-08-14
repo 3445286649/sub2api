@@ -350,6 +350,18 @@ export default {
     orderNo: '订单编号',
     user: '用户',
     time: '时间',
+    userOrders: {
+      tabsLabel: '订单类型',
+      paymentTab: '充值/订阅订单',
+      redemptionTab: '积分兑换记录',
+      product: '兑换商品',
+      pointsSpent: '消耗积分',
+      balanceCredited: '到账余额',
+      balanceAfter: '兑换后余额',
+      status: '状态',
+      completedAt: '完成时间',
+      completed: '已完成'
+    },
   },
   payment: {
     title: '充值/订阅',

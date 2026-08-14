@@ -210,6 +210,17 @@ export interface AffiliateInvitee {
   username: string
   created_at?: string
   total_rebate: number
+  points_status?: 'not_recharged' | 'progressing' | 'pending' | 'available' | 'revoked' | 'expired'
+  points_status_reason?: 'refund_below_threshold' | 'qualification_window_expired' | ''
+  qualifying_amount: number
+  threshold_amount: number
+  reward_points: number
+  qualification_window_days: number
+  freeze_hours: number
+  qualification_deadline?: string
+  release_at?: string
+  released_at?: string
+  revoked_at?: string
 }
 
 export interface UserAffiliateDetail {

@@ -113,4 +113,59 @@ describe('AffiliateView', () => {
       'affiliate.linkCopied',
     )
   })
+
+  it('renders all invite points statuses with server-calculated progress and timing', async () => {
+    const baseInvitee = {
+      email: 'm***@e***.com',
+      username: 'invitee',
+      created_at: '2026-08-01T00:00:00Z',
+      total_rebate: 0,
+      qualifying_amount: 0,
+      threshold_amount: 50,
+      reward_points: 1,
+      qualification_window_days: 30,
+      freeze_hours: 168,
+      qualification_deadline: '2026-08-31T00:00:00Z',
+    }
+    getAffiliateDetail.mockResolvedValue({
+      user_id: 1,
+      aff_code: affiliateCode,
+      inviter_id: null,
+      aff_count: 6,
+      aff_quota: 0,
+      aff_frozen_quota: 0,
+      aff_history_quota: 0,
+      effective_rebate_rate_percent: 10,
+      invitees: [
+        { ...baseInvitee, user_id: 1, points_status: 'not_recharged' },
+        { ...baseInvitee, user_id: 2, points_status: 'progressing', qualifying_amount: 30 },
+        { ...baseInvitee, user_id: 3, points_status: 'pending', qualifying_amount: 50, release_at: '2026-08-20T00:00:00Z' },
+        { ...baseInvitee, user_id: 4, points_status: 'available', qualifying_amount: 50, released_at: '2026-08-13T00:00:00Z' },
+        { ...baseInvitee, user_id: 5, points_status: 'revoked', points_status_reason: 'refund_below_threshold', revoked_at: '2026-08-12T00:00:00Z' },
+        { ...baseInvitee, user_id: 6, points_status: 'expired', points_status_reason: 'qualification_window_expired' },
+        { user_id: 7, email: 'o***@e***.com', username: 'old-api', created_at: '2026-08-01T00:00:00Z', total_rebate: 0 },
+      ],
+    })
+
+    const wrapper = mount(AffiliateView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<main><slot /></main>' },
+          Icon: true,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    for (const status of ['notRecharged', 'progressing', 'pending', 'available', 'revoked', 'expired']) {
+      expect(wrapper.text()).toContain(`affiliate.invitees.status.${status}`)
+    }
+    expect(wrapper.text()).toContain('30 / 50')
+    expect(wrapper.text()).toContain('affiliate.invitees.timeline.releaseAt')
+    expect(wrapper.text()).toContain('affiliate.invitees.timeline.releasedAt')
+    expect(wrapper.text()).toContain('affiliate.invitees.reason.refundBelowThreshold')
+    expect(wrapper.text()).toContain('affiliate.invitees.reason.qualificationWindowExpired')
+    expect(wrapper.text()).toContain('affiliate.invitees.status.syncing')
+  })
 })

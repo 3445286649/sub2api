@@ -72,11 +72,22 @@ type AffiliateSummary struct {
 }
 
 type AffiliateInvitee struct {
-	UserID      int64      `json:"user_id"`
-	Email       string     `json:"email"`
-	Username    string     `json:"username"`
-	CreatedAt   *time.Time `json:"created_at,omitempty"`
-	TotalRebate float64    `json:"total_rebate"`
+	UserID                  int64      `json:"user_id"`
+	Email                   string     `json:"email"`
+	Username                string     `json:"username"`
+	CreatedAt               *time.Time `json:"created_at,omitempty"`
+	TotalRebate             float64    `json:"total_rebate"`
+	PointsStatus            string     `json:"points_status"`
+	PointsStatusReason      string     `json:"points_status_reason,omitempty"`
+	QualifyingAmount        float64    `json:"qualifying_amount"`
+	ThresholdAmount         float64    `json:"threshold_amount"`
+	RewardPoints            int64      `json:"reward_points"`
+	QualificationWindowDays int        `json:"qualification_window_days"`
+	FreezeHours             int        `json:"freeze_hours"`
+	QualificationDeadline   *time.Time `json:"qualification_deadline,omitempty"`
+	ReleaseAt               *time.Time `json:"release_at,omitempty"`
+	ReleasedAt              *time.Time `json:"released_at,omitempty"`
+	RevokedAt               *time.Time `json:"revoked_at,omitempty"`
 }
 
 type AffiliateDetail struct {

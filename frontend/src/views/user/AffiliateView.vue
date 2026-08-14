@@ -109,12 +109,59 @@
           <div v-if="detail.invitees.length === 0" class="mt-4 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-dark-700 dark:text-dark-400">
             {{ t('affiliate.invitees.empty') }}
           </div>
-          <div v-else class="mt-4 overflow-x-auto">
-            <table class="w-full min-w-[560px] text-left text-sm">
+          <template v-else>
+            <div class="mt-4 divide-y divide-gray-100 dark:divide-dark-800 md:hidden">
+              <section v-for="item in detail.invitees" :key="item.user_id" class="py-4 first:pt-0 last:pb-0">
+                <div class="flex min-w-0 items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ item.username || '-' }}</p>
+                    <p class="mt-0.5 truncate text-xs text-gray-500 dark:text-dark-400">{{ item.email || '-' }}</p>
+                  </div>
+                  <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium" :class="pointsStatusClass(item)">
+                    {{ pointsStatusLabel(item) }}
+                  </span>
+                </div>
+
+                <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                  <div class="col-span-2">
+                    <div class="flex items-center justify-between gap-3 text-xs">
+                      <span class="text-gray-500 dark:text-dark-400">{{ t('affiliate.invitees.columns.progress') }}</span>
+                      <span class="font-medium text-gray-800 dark:text-gray-200">{{ pointsProgress(item) }}</span>
+                    </div>
+                    <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
+                      <div class="h-full rounded-full bg-primary-500 transition-[width]" :style="{ width: `${pointsProgressPercent(item)}%` }"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('affiliate.invitees.columns.reward') }}</p>
+                    <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ rewardPointsLabel(item) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('affiliate.invitees.columns.timeline') }}</p>
+                    <p class="mt-1 text-gray-700 dark:text-gray-300">{{ pointsTimeline(item) }}</p>
+                  </div>
+                  <p class="col-span-2 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ pointsStatusReason(item) }}</p>
+                  <div>
+                    <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('affiliate.invitees.columns.rebate') }}</p>
+                    <p class="mt-1 font-medium text-emerald-600 dark:text-emerald-400">{{ formatCurrency(item.total_rebate) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('affiliate.invitees.columns.joinedAt') }}</p>
+                    <p class="mt-1 text-gray-700 dark:text-gray-300">{{ formatDateTime(item.created_at) || '-' }}</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div class="mt-4 hidden overflow-x-auto md:block">
+            <table class="w-full min-w-[1040px] text-left text-sm">
               <thead>
                 <tr class="border-b border-gray-200 text-gray-500 dark:border-dark-700 dark:text-dark-400">
-                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.email') }}</th>
-                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.username') }}</th>
+                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.user') }}</th>
+                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.status') }}</th>
+                  <th class="w-44 px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.progress') }}</th>
+                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.reward') }}</th>
+                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.timeline') }}</th>
                   <th class="px-3 py-2 font-medium text-right">{{ t('affiliate.invitees.columns.rebate') }}</th>
                   <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.joinedAt') }}</th>
                 </tr>
@@ -125,14 +172,34 @@
                   :key="item.user_id"
                   class="border-b border-gray-100 last:border-b-0 dark:border-dark-800"
                 >
-                  <td class="px-3 py-3 text-gray-900 dark:text-white">{{ item.email || '-' }}</td>
-                  <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ item.username || '-' }}</td>
+                  <td class="px-3 py-3">
+                    <p class="font-medium text-gray-900 dark:text-white">{{ item.username || '-' }}</p>
+                    <p class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">{{ item.email || '-' }}</p>
+                  </td>
+                  <td class="px-3 py-3 align-top">
+                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="pointsStatusClass(item)">
+                      {{ pointsStatusLabel(item) }}
+                    </span>
+                    <p class="mt-1.5 max-w-52 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ pointsStatusReason(item) }}</p>
+                  </td>
+                  <td class="px-3 py-3 align-top">
+                    <div class="flex items-center justify-between gap-3 text-xs">
+                      <span class="font-medium text-gray-800 dark:text-gray-200">{{ pointsProgress(item) }}</span>
+                      <span class="text-gray-400">{{ pointsProgressPercent(item) }}%</span>
+                    </div>
+                    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
+                      <div class="h-full rounded-full bg-primary-500 transition-[width]" :style="{ width: `${pointsProgressPercent(item)}%` }"></div>
+                    </div>
+                  </td>
+                  <td class="px-3 py-3 font-medium text-gray-900 dark:text-white">{{ rewardPointsLabel(item) }}</td>
+                  <td class="px-3 py-3 text-xs leading-5 text-gray-700 dark:text-gray-300">{{ pointsTimeline(item) }}</td>
                   <td class="px-3 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">{{ formatCurrency(item.total_rebate) }}</td>
                   <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ formatDateTime(item.created_at) || '-' }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
+          </template>
         </div>
       </template>
     </div>
@@ -145,7 +212,7 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import userAPI from '@/api/user'
-import type { UserAffiliateDetail } from '@/types'
+import type { AffiliateInvitee, UserAffiliateDetail } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useClipboard } from '@/composables/useClipboard'
@@ -177,6 +244,104 @@ const formattedRebateRate = computed(() => {
 
 function formatCount(value: number): string {
   return value.toLocaleString()
+}
+
+type InviteePointsStatus = NonNullable<AffiliateInvitee['points_status']>
+
+const pointsStatusStyles: Record<InviteePointsStatus, string> = {
+  not_recharged: 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-300',
+  progressing: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+  pending: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+  available: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+  revoked: 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300',
+  expired: 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-400',
+}
+
+const pointsStatusLabelKeys: Record<InviteePointsStatus, string> = {
+  not_recharged: 'affiliate.invitees.status.notRecharged',
+  progressing: 'affiliate.invitees.status.progressing',
+  pending: 'affiliate.invitees.status.pending',
+  available: 'affiliate.invitees.status.available',
+  revoked: 'affiliate.invitees.status.revoked',
+  expired: 'affiliate.invitees.status.expired',
+}
+
+function normalizedPointsStatus(item: AffiliateInvitee): InviteePointsStatus | null {
+  return item.points_status || null
+}
+
+function pointsStatusClass(item: AffiliateInvitee): string {
+  const status = normalizedPointsStatus(item)
+  return status ? pointsStatusStyles[status] : pointsStatusStyles.not_recharged
+}
+
+function pointsStatusLabel(item: AffiliateInvitee): string {
+  const status = normalizedPointsStatus(item)
+  return status ? t(pointsStatusLabelKeys[status]) : t('affiliate.invitees.status.syncing')
+}
+
+function formatPointsAmount(value: number | undefined): string {
+  const normalized = Number.isFinite(value) ? Number(value) : 0
+  const rounded = Math.round(normalized * 100) / 100
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+}
+
+function pointsProgress(item: AffiliateInvitee): string {
+  if (!normalizedPointsStatus(item)) return '-'
+  return `${formatPointsAmount(item.qualifying_amount)} / ${formatPointsAmount(item.threshold_amount)}`
+}
+
+function pointsProgressPercent(item: AffiliateInvitee): number {
+  if (!normalizedPointsStatus(item)) return 0
+  const threshold = Number(item.threshold_amount) || 0
+  if (threshold <= 0) return 0
+  return Math.min(100, Math.max(0, Math.round(((Number(item.qualifying_amount) || 0) / threshold) * 100)))
+}
+
+function rewardPointsLabel(item: AffiliateInvitee): string {
+  if (!normalizedPointsStatus(item)) return '-'
+  return t('affiliate.invitees.rewardPoints', { points: item.reward_points || 0 })
+}
+
+function pointsStatusReason(item: AffiliateInvitee): string {
+  const status = normalizedPointsStatus(item)
+  if (!status) return t('affiliate.invitees.reason.syncing')
+  switch (status) {
+    case 'progressing':
+      return t('affiliate.invitees.reason.remaining', {
+        amount: formatPointsAmount(Math.max(0, (Number(item.threshold_amount) || 0) - (Number(item.qualifying_amount) || 0))),
+      })
+    case 'pending':
+      return t('affiliate.invitees.reason.pending')
+    case 'available':
+      return t('affiliate.invitees.reason.available')
+    case 'revoked':
+      return t('affiliate.invitees.reason.refundBelowThreshold')
+    case 'expired':
+      return t('affiliate.invitees.reason.qualificationWindowExpired', { days: item.qualification_window_days || 30 })
+    default:
+      return t('affiliate.invitees.reason.notRecharged')
+  }
+}
+
+function pointsTimeline(item: AffiliateInvitee): string {
+  const status = normalizedPointsStatus(item)
+  if (!status) return '-'
+  if (status === 'pending' && item.release_at) {
+    return t('affiliate.invitees.timeline.releaseAt', { time: formatDateTime(item.release_at) })
+  }
+  if (status === 'available' && item.released_at) {
+    return t('affiliate.invitees.timeline.releasedAt', { time: formatDateTime(item.released_at) })
+  }
+  if (status === 'revoked' && item.revoked_at) {
+    return t('affiliate.invitees.timeline.revokedAt', { time: formatDateTime(item.revoked_at) })
+  }
+  if (item.qualification_deadline) {
+    return t(status === 'expired' ? 'affiliate.invitees.timeline.expiredAt' : 'affiliate.invitees.timeline.deadline', {
+      time: formatDateTime(item.qualification_deadline),
+    })
+  }
+  return '-'
 }
 
 async function loadAffiliateDetail(silent = false): Promise<void> {
