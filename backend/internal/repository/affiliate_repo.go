@@ -510,13 +510,6 @@ func (r *affiliateRepository) ListInvitees(ctx context.Context, inviterID int64,
 	}
 	client := clientFromContext(ctx, r.client)
 	rows, err := client.QueryContext(ctx, `
-WITH points_config AS (
-    SELECT
-        COALESCE((SELECT value::double precision FROM settings WHERE key = 'points_invite_threshold_amount' LIMIT 1), 50) AS threshold_amount,
-        COALESCE((SELECT value::bigint FROM settings WHERE key = 'points_invite_reward_points' LIMIT 1), 1) AS reward_points,
-        COALESCE((SELECT value::integer FROM settings WHERE key = 'points_invite_window_days' LIMIT 1), 30) AS window_days,
-        COALESCE((SELECT value::integer FROM settings WHERE key = 'points_invite_freeze_hours' LIMIT 1), 168) AS freeze_hours
-)
 SELECT ua.user_id,
        COALESCE(u.email, ''),
        COALESCE(u.username, ''),
@@ -524,27 +517,26 @@ SELECT ua.user_id,
 	   COALESCE(rebate.total_rebate, 0)::double precision AS total_rebate,
        CASE
            WHEN award.status IS NOT NULL THEN award.status
-           WHEN NOW() >= u.created_at + make_interval(days => config.window_days) THEN 'expired'
+           WHEN NOW() >= u.created_at + make_interval(days => COALESCE(award.qualification_window_days, ua.points_rule_window_days, 30)) THEN 'expired'
            WHEN qualifying.amount > 0 THEN 'progressing'
            ELSE 'not_recharged'
        END AS points_status,
        CASE
            WHEN award.status = 'revoked' THEN 'refund_below_threshold'
-           WHEN award.status IS NULL AND NOW() >= u.created_at + make_interval(days => config.window_days) THEN 'qualification_window_expired'
+           WHEN award.status IS NULL AND NOW() >= u.created_at + make_interval(days => COALESCE(award.qualification_window_days, ua.points_rule_window_days, 30)) THEN 'qualification_window_expired'
            ELSE ''
        END AS points_status_reason,
        qualifying.amount::double precision,
-       COALESCE(award.threshold_amount::double precision, config.threshold_amount),
-       COALESCE(award.points, config.reward_points),
-       COALESCE(award.qualification_window_days, config.window_days),
-       COALESCE(award.freeze_hours, config.freeze_hours),
-       u.created_at + make_interval(days => COALESCE(award.qualification_window_days, config.window_days)),
+       COALESCE(award.threshold_amount::double precision, ua.points_rule_threshold_amount::double precision, 50),
+       COALESCE(award.points, ua.points_rule_reward_points, 1),
+       COALESCE(award.qualification_window_days, ua.points_rule_window_days, 30),
+       COALESCE(award.freeze_hours, ua.points_rule_freeze_hours, 168),
+       u.created_at + make_interval(days => COALESCE(award.qualification_window_days, ua.points_rule_window_days, 30)),
        award.release_at,
        award.released_at,
        award.revoked_at
 FROM user_affiliates ua
 JOIN users u ON u.id = ua.user_id
-CROSS JOIN points_config config
 LEFT JOIN affiliate_point_awards award ON award.invitee_user_id = ua.user_id
 LEFT JOIN LATERAL (
     SELECT COALESCE(SUM(amount), 0) AS total_rebate
@@ -569,7 +561,7 @@ LEFT JOIN LATERAL (
       AND order_type = 'balance'
       AND status IN ('COMPLETED', 'PARTIALLY_REFUNDED')
       AND completed_at IS NOT NULL
-      AND completed_at <= u.created_at + make_interval(days => COALESCE(award.qualification_window_days, config.window_days))
+      AND completed_at <= u.created_at + make_interval(days => COALESCE(award.qualification_window_days, ua.points_rule_window_days, 30))
 ) qualifying ON TRUE
 WHERE ua.inviter_id = $1
 ORDER BY ua.created_at DESC

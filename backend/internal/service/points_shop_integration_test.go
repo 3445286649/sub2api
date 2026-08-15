@@ -40,6 +40,8 @@ func TestPointsShopInviteAwardRedeemIdempotencyAndRefund(t *testing.T) {
 	inviteeID := insertPointsTestUser(t, db, "invitee@example.test")
 	insertPointsAffiliate(t, db, inviterID, nil, "INVITER")
 	insertPointsAffiliate(t, db, inviteeID, &inviterID, "INVITEE")
+	_, err = svc.UpdateConfig(ctx, service.PointsConfig{Enabled: true, InviteThresholdAmount: 5, InviteRewardPoints: 2, QualificationWindowDays: 30, FreezeHours: 48})
+	require.NoError(t, err)
 	orderID := insertPointsPaymentOrder(t, db, inviteeID, 50, "COMPLETED")
 
 	// markCompleted updates the database before invoking the points hook, while
@@ -51,6 +53,17 @@ func TestPointsShopInviteAwardRedeemIdempotencyAndRefund(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 1, account.AvailablePoints)
 	require.EqualValues(t, 1, account.LifetimeEarned)
+	var snapshotThreshold float64
+	var snapshotReward int64
+	var snapshotFreeze int
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT threshold_amount,points,freeze_hours FROM affiliate_point_awards WHERE invitee_user_id=$1`, inviteeID).
+		Scan(&snapshotThreshold, &snapshotReward, &snapshotFreeze))
+	require.InDelta(t, 50, snapshotThreshold, 1e-9)
+	require.EqualValues(t, 1, snapshotReward)
+	require.Zero(t, snapshotFreeze)
+
+	_, err = svc.UpdateConfig(ctx, service.PointsConfig{Enabled: true, InviteThresholdAmount: 50, InviteRewardPoints: 1, QualificationWindowDays: 30, FreezeHours: 0})
+	require.NoError(t, err)
 
 	legacyInviteeID := insertPointsTestUser(t, db, "legacy-invitee@example.test")
 	insertPointsAffiliate(t, db, legacyInviteeID, &inviterID, "LEGACYINVITEE")

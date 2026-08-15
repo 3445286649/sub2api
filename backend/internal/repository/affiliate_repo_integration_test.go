@@ -119,6 +119,27 @@ func TestAffiliateRepository_ListInvitees_IncludesPointsQualificationStatuses(t 
 	_, err = client.ExecContext(txCtx, `UPDATE affiliate_point_awards SET revoked_at=$1 WHERE invitee_user_id=$2`, now.Add(-24*time.Hour), revoked.ID)
 	require.NoError(t, err)
 
+	// Existing relationships keep the rule captured when they were bound. A
+	// later global rule change only affects relationships created afterwards.
+	_, err = client.ExecContext(txCtx, `UPDATE settings SET value=CASE key
+		WHEN 'points_invite_threshold_amount' THEN '5'
+		WHEN 'points_invite_reward_points' THEN '1'
+		WHEN 'points_invite_window_days' THEN '30'
+		WHEN 'points_invite_freeze_hours' THEN '48'
+		ELSE value END
+		WHERE key IN ('points_invite_threshold_amount','points_invite_reward_points','points_invite_window_days','points_invite_freeze_hours')`)
+	require.NoError(t, err)
+	newRule := createInvitee("new-rule", now.Add(-time.Hour))
+
+	_, err = client.ExecContext(txCtx, `UPDATE settings SET value=CASE key
+		WHEN 'points_invite_threshold_amount' THEN '9'
+		WHEN 'points_invite_reward_points' THEN '2'
+		WHEN 'points_invite_window_days' THEN '60'
+		WHEN 'points_invite_freeze_hours' THEN '24'
+		ELSE value END
+		WHERE key IN ('points_invite_threshold_amount','points_invite_reward_points','points_invite_window_days','points_invite_freeze_hours')`)
+	require.NoError(t, err)
+
 	items, err := repo.ListInvitees(txCtx, inviter.ID, 100)
 	require.NoError(t, err)
 	byName := make(map[string]service.AffiliateInvitee, len(items))
@@ -127,8 +148,11 @@ func TestAffiliateRepository_ListInvitees_IncludesPointsQualificationStatuses(t 
 	}
 
 	require.Equal(t, "not_recharged", byName[notRecharged.Username].PointsStatus)
+	require.InDelta(t, 50, byName[notRecharged.Username].ThresholdAmount, 1e-9)
+	require.Equal(t, 168, byName[notRecharged.Username].FreezeHours)
 	require.Equal(t, "progressing", byName[progressing.Username].PointsStatus)
 	require.InDelta(t, 30, byName[progressing.Username].QualifyingAmount, 1e-9, "legacy orders without base snapshots must be excluded")
+	require.InDelta(t, 50, byName[progressing.Username].ThresholdAmount, 1e-9)
 	require.Equal(t, "pending", byName[pending.Username].PointsStatus)
 	require.EqualValues(t, 1, byName[pending.Username].RewardPoints)
 	require.WithinDuration(t, now.Add(6*24*time.Hour), *byName[pending.Username].ReleaseAt, time.Second)
@@ -142,6 +166,11 @@ func TestAffiliateRepository_ListInvitees_IncludesPointsQualificationStatuses(t 
 	require.InDelta(t, 50, byName[expired.Username].ThresholdAmount, 1e-9)
 	require.Equal(t, 30, byName[expired.Username].QualificationWindowDays)
 	require.NotNil(t, byName[expired.Username].QualificationDeadline)
+	require.Equal(t, "not_recharged", byName[newRule.Username].PointsStatus)
+	require.InDelta(t, 5, byName[newRule.Username].ThresholdAmount, 1e-9)
+	require.EqualValues(t, 1, byName[newRule.Username].RewardPoints)
+	require.Equal(t, 30, byName[newRule.Username].QualificationWindowDays)
+	require.Equal(t, 48, byName[newRule.Username].FreezeHours)
 }
 
 func TestAffiliateRepository_TransferQuotaToBalance_UsesClaimedQuotaBeforeClear(t *testing.T) {

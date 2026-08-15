@@ -336,8 +336,14 @@ func (s *PointsShopService) RecordPaymentCompletion(ctx context.Context, order *
 	}
 	var inviterID int64
 	var registeredAt time.Time
-	err = s.db.QueryRowContext(ctx, `SELECT ua.inviter_id,u.created_at FROM user_affiliates ua JOIN users u ON u.id=ua.user_id WHERE ua.user_id=$1 AND ua.inviter_id IS NOT NULL`, order.UserID).
-		Scan(&inviterID, &registeredAt)
+	err = s.db.QueryRowContext(ctx, `SELECT ua.inviter_id,u.created_at,
+		COALESCE(ua.points_rule_threshold_amount::double precision,50),
+		COALESCE(ua.points_rule_reward_points,1),
+		COALESCE(ua.points_rule_window_days,30),
+		COALESCE(ua.points_rule_freeze_hours,168)
+		FROM user_affiliates ua JOIN users u ON u.id=ua.user_id
+		WHERE ua.user_id=$1 AND ua.inviter_id IS NOT NULL`, order.UserID).
+		Scan(&inviterID, &registeredAt, &cfg.InviteThresholdAmount, &cfg.InviteRewardPoints, &cfg.QualificationWindowDays, &cfg.FreezeHours)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}

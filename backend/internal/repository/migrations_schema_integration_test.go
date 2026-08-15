@@ -165,6 +165,14 @@ WHERE ns.nspname = 'public'
 	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.user_allowed_groups')").Scan(&uagRegclass))
 	require.True(t, uagRegclass.Valid, "expected user_allowed_groups table to exist")
 
+	// user_affiliates: points rules are captured when an inviter is bound.
+	requireColumn(t, tx, "user_affiliates", "points_rule_threshold_amount", "numeric", 0, true)
+	requireColumn(t, tx, "user_affiliates", "points_rule_reward_points", "bigint", 0, true)
+	requireColumn(t, tx, "user_affiliates", "points_rule_window_days", "integer", 0, true)
+	requireColumn(t, tx, "user_affiliates", "points_rule_freeze_hours", "integer", 0, true)
+	requireColumn(t, tx, "user_affiliates", "points_rule_version", "integer", 0, true)
+	requireConstraintDefinitionContains(t, tx, "user_affiliates", "user_affiliates_points_rule_complete", "inviter_id", "points_rule_threshold_amount", "points_rule_freeze_hours")
+
 	// user_subscriptions: deleted_at for soft delete support (migration 012)
 	requireColumn(t, tx, "user_subscriptions", "deleted_at", "timestamp with time zone", 0, true)
 
