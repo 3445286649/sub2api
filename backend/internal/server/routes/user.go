@@ -120,6 +120,13 @@ func RegisterUserRoutes(
 			pointsShop.POST("/products/:id/redeem", h.PointsShop.Redeem)
 		}
 
+		dailyCheckin := authenticated.Group("/daily-checkin")
+		{
+			dailyCheckin.GET("/status", h.DailyCheckin.Status)
+			dailyCheckin.POST("/claim", h.DailyCheckin.Claim)
+			dailyCheckin.GET("/history", h.DailyCheckin.History)
+		}
+
 		// 使用记录（聚合统计属重查询，叠加更严格的按用户限流）
 		usage := authenticated.Group("/usage")
 		usage.Use(panelRateLimiter.Heavy())

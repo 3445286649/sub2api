@@ -124,6 +124,7 @@ func RegisterAdminRoutes(
 
 		// 积分商城
 		registerPointsShopRoutes(admin, h)
+		registerDailyCheckinRoutes(admin, h)
 
 		// 拉新活动
 		registerAcquisitionRoutes(admin, h)
@@ -134,6 +135,16 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerDailyCheckinRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	dailyCheckin := admin.Group("/daily-checkin")
+	{
+		dailyCheckin.GET("/config", h.Admin.DailyCheckin.GetConfig)
+		dailyCheckin.PUT("/config", h.Admin.DailyCheckin.UpdateConfig)
+		dailyCheckin.GET("/stats", h.Admin.DailyCheckin.Stats)
+		dailyCheckin.GET("/records", h.Admin.DailyCheckin.Records)
 	}
 }
 

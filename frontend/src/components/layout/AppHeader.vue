@@ -54,6 +54,19 @@
         <!-- Subscription Progress (for users with active subscriptions) -->
         <SubscriptionProgressMini v-if="user" />
 
+        <!-- Daily Check-in -->
+        <button
+          v-if="dailyCheckinStore.enabled"
+          type="button"
+          class="relative hidden h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-primary-400 sm:flex"
+          :aria-label="t('dailyCheckin.title')"
+          :title="t('dailyCheckin.title')"
+          @click="dailyCheckinStore.show"
+        >
+          <Icon name="calendar" size="md" />
+          <span v-if="dailyCheckinStore.hasUnreadClaim" class="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-dark-900" />
+        </button>
+
         <!-- Balance Display -->
         <div
           v-if="user"
@@ -232,6 +245,14 @@
               </div>
 
               <div class="py-1">
+                <button v-if="dailyCheckinStore.enabled" type="button" @click="openDailyCheckinFromMenu" class="dropdown-item w-full">
+                  <span class="relative">
+                    <Icon name="calendar" size="sm" />
+                    <span v-if="dailyCheckinStore.hasUnreadClaim" class="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
+                  </span>
+                  {{ t('dailyCheckin.title') }}
+                </button>
+
                 <router-link to="/profile" @click="closeDropdown" class="dropdown-item">
                   <Icon name="user" size="sm" />
                   {{ t('nav.profile') }}
@@ -467,6 +488,7 @@
     </teleport>
 
     <UsageHelpModal v-model:open="usageHelpOpen" />
+    <DailyCheckinDialog />
   </header>
 </template>
 
@@ -474,12 +496,13 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useAppStore, useAuthStore, useOnboardingStore, usePointsStore } from '@/stores'
+import { useAppStore, useAuthStore, useDailyCheckinStore, useOnboardingStore, usePointsStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import UsageHelpModal from '@/components/help/UsageHelpModal.vue'
+import DailyCheckinDialog from '@/components/daily-checkin/DailyCheckinDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
@@ -492,6 +515,7 @@ const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()
 const onboardingStore = useOnboardingStore()
 const pointsStore = usePointsStore()
+const dailyCheckinStore = useDailyCheckinStore()
 
 const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
@@ -606,6 +630,11 @@ function closeDropdown() {
   dropdownOpen.value = false
 }
 
+function openDailyCheckinFromMenu() {
+  closeDropdown()
+  void dailyCheckinStore.show()
+}
+
 function openSupportGroup() {
   if (supportGroupLinkUrl.value) {
     window.open(supportGroupLinkUrl.value, '_blank', 'noopener,noreferrer')
@@ -702,6 +731,7 @@ function handleClickOutside(event: MouseEvent) {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   pointsStore.fetchSummary().catch(() => {})
+  dailyCheckinStore.fetchStatus().catch(() => {})
 })
 
 onBeforeUnmount(() => {

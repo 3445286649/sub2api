@@ -11,6 +11,7 @@ export { useOnboardingStore } from './onboarding'
 export { useAnnouncementStore } from './announcements'
 export { usePaymentStore } from './payment'
 export { usePointsStore } from './points'
+export { useDailyCheckinStore } from './dailyCheckin'
 export { useAdminComplianceStore } from './adminCompliance'
 
 // Re-export types for convenience

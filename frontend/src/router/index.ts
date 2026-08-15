@@ -657,6 +657,17 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/daily-checkin',
+    name: 'AdminDailyCheckin',
+    component: () => import('@/views/admin/DailyCheckinView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Daily Check-in',
+      titleKey: 'nav.dailyCheckin'
+    }
+  },
+  {
     path: '/admin/risk-control',
     name: 'AdminRiskControl',
     component: () => import('@/views/admin/RiskControlView.vue'),

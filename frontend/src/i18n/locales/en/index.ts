@@ -7,6 +7,7 @@ import admin from './admin'
 import misc from './misc'
 import compat from './compat'
 import local from './local'
+import dailyCheckin from './dailyCheckin'
 import { mergeLocaleFallback } from '../merge'
 
 const upstream = {
@@ -19,5 +20,5 @@ const upstream = {
   ...misc,
 }
 
-const current = mergeLocaleFallback(upstream, local)
+const current = mergeLocaleFallback(mergeLocaleFallback(upstream, local), dailyCheckin)
 export default mergeLocaleFallback(current, compat)
