@@ -305,6 +305,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores'
+import { buildGatewayUrl } from '@/api/url'
 import { getConfig, updateConfig, runNow as runNowAPI, listRuns, getRun } from '@/api/admin/modelRadar'
 import { keysAPI } from '@/api/keys'
 import { maskApiKey } from '@/utils/maskApiKey'
@@ -427,7 +428,7 @@ async function loadRunDetail(id: number) {
 
 async function saveConfig() {
   if (looksLikeEmail(form.api_base_url) || !looksLikeModelRadarURL(form.api_base_url)) {
-    appStore.showError('API Base URL 需要填写站点地址，例如 https://subapi.loucer.cn/v1')
+    appStore.showError(`API Base URL 需要填写站点地址，例如 ${buildGatewayUrl('/v1')}`)
     return
   }
   if (form.api_key_source === 'existing' && !form.api_key_id) {

@@ -175,6 +175,7 @@
 <script setup lang="ts">
 import { computed, defineComponent, h, onBeforeUnmount, ref, watch } from 'vue'
 import { useAppStore } from '@/stores'
+import { buildGatewayUrl } from '@/api/url'
 import Icon from '@/components/icons/Icon.vue'
 
 type IconName = InstanceType<typeof Icon>['$props']['name']
@@ -249,7 +250,7 @@ const contentRef = ref<HTMLElement | null>(null)
 const previewImage = ref<HelpImage | null>(null)
 
 const links = {
-  baseUrl: 'https://subapi.loucer.cn',
+  baseUrl: appStore.apiBaseUrl?.trim() || buildGatewayUrl('/').replace(/\/+$/, ''),
   ccswitch: 'https://ccswitch.io',
   windowsBackup: 'https://wwarq.lanzn.com/ie5Si3ss9ckb',
   macBackup: 'https://wwarq.lanzn.com/iGvms3ss9fgf',
@@ -408,7 +409,7 @@ const steps: HelpStep[] = [
     checks: [
       '浏览器地址栏是正常网站地址，不是聊天软件内置网页。',
       '点击导入后，CC Switch 能被唤起并出现配置。',
-      '导入的 Base URL 为 https://subapi.loucer.cn。',
+      `导入的 Base URL 为 ${links.baseUrl}。`,
     ],
     fallbacks: [
       '点击导入无反应时，换 Google Chrome 重新登录后再试。',
@@ -461,7 +462,7 @@ const steps: HelpStep[] = [
       '下游看不到余额：先用网站/API Key 自测，确认 Key、Base URL、余额和分组都正常。',
     ],
     checks: [
-      'Base URL 固定使用 https://subapi.loucer.cn。',
+      `Base URL 固定使用 ${links.baseUrl}。`,
       'API Key 不能多复制空格，也不要把后台截图发给下游。',
       '分组里必须放账号，否则探活或请求可能失败。',
     ],
