@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -63,6 +64,27 @@ func TestUSDTBSCCreatePaymentBuildsUniqueAmountAndAddressQR(t *testing.T) {
 	}
 	if _, err := time.Parse(time.RFC3339, intent.LockedAt); err != nil {
 		t.Fatalf("locked_at = %q is not RFC3339: %v", intent.LockedAt, err)
+	}
+}
+
+func TestAddUniqueMicroTailUsesFullConfiguredPool(t *testing.T) {
+	seenAboveLegacyByteRange := false
+	for i := 0; i < 5000; i++ {
+		amount := addUniqueMicroTail("10.000000", fmt.Sprintf("sub2_tail_%d", i))
+		parsed, err := strconv.ParseFloat(amount, 64)
+		if err != nil {
+			t.Fatalf("ParseFloat(%q): %v", amount, err)
+		}
+		tail := int64(math.Round((parsed - 10) * 1_000_000))
+		if tail < 1 || tail > int64(usdtBSCMicroTailMax) {
+			t.Fatalf("tail = %d, want [1,%d]", tail, usdtBSCMicroTailMax)
+		}
+		if tail > 256 {
+			seenAboveLegacyByteRange = true
+		}
+	}
+	if !seenAboveLegacyByteRange {
+		t.Fatal("tail pool never exceeded the legacy 256-value byte range")
 	}
 }
 
@@ -345,7 +367,7 @@ func TestUSDTBSCQueryOrderMatchesConfirmedTokenTransfer(t *testing.T) {
 
 func TestUSDTBSCQueryOrderKeepsLockedRateMetadata(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"status":"1","message":"OK","result":[{"blockNumber":"123","hash":"0xpaid","from":"0xfrom","contractAddress":"0x55d398326f99059ff775485246999027b3197955","to":"0x3b210bdc924c685fdd10ae96b7f95d0e14536106","value":"10000123000000000000","tokenDecimal":"18","confirmations":"21"}]}`)
+		fmt.Fprint(w, `{"status":"1","message":"OK","result":[{"blockNumber":"123","timeStamp":"1782201600","hash":"0xpaid","from":"0xfrom","contractAddress":"0x55d398326f99059ff775485246999027b3197955","to":"0x3b210bdc924c685fdd10ae96b7f95d0e14536106","value":"10000123000000000000","tokenDecimal":"18","confirmations":"21"}]}`)
 	}))
 	defer server.Close()
 
@@ -371,6 +393,49 @@ func TestUSDTBSCQueryOrderKeepsLockedRateMetadata(t *testing.T) {
 	}
 	if resp.Metadata["token_amount"] != "10.000123" || resp.Metadata["locked_cny_per_usdt"] != "7.200000" || resp.Metadata["locked_at"] != "2026-06-23T08:00:00Z" {
 		t.Fatalf("metadata = %+v", resp.Metadata)
+	}
+}
+
+func TestUSDTBSCQueryOrderRejectsTransferBeforeLockedAt(t *testing.T) {
+	lockedAt := time.Now().UTC().Add(-10 * time.Minute).Truncate(time.Second)
+	staleAt := lockedAt.Add(-3 * time.Minute)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, `{"status":"1","message":"OK","result":[{"blockNumber":"123","timeStamp":"%d","hash":"0xstale","from":"0xfrom","contractAddress":"0x55d398326f99059ff775485246999027b3197955","to":"0x3b210bdc924c685fdd10ae96b7f95d0e14536106","value":"10000123000000000000","tokenDecimal":"18","confirmations":"21"}]}`, staleAt.Unix())
+	}))
+	defer server.Close()
+
+	p, err := NewUSDTBSC("1", map[string]string{
+		"receiveAddress": "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
+		"cnyPerUsdt":     "7.2",
+		"confirmations":  "20",
+		"bscscanApiBase": server.URL + "/api",
+		"rpcUrl":         "disabled",
+	})
+	if err != nil {
+		t.Fatalf("NewUSDTBSC() error = %v", err)
+	}
+
+	queryRef := fmt.Sprintf("usdt_bsc|sub2_stale|72.00|10.000123|0x3b210bdc924c685fDd10Ae96b7f95D0E14536106|7.200000|%d", lockedAt.Unix())
+	resp, err := p.QueryOrder(context.Background(), queryRef)
+	if err != nil {
+		t.Fatalf("QueryOrder() error = %v", err)
+	}
+	if resp.Status != payment.ProviderStatusPending {
+		t.Fatalf("Status = %q, want pending for pre-intent transfer", resp.Status)
+	}
+}
+
+func TestUSDTBSCTransferInIntentWindowRejectsMissingAndFutureTimestamps(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	lockedAt := now.Add(-time.Minute).Format(time.RFC3339)
+	if usdtBSCTransferInIntentWindow("", lockedAt, now) {
+		t.Fatal("missing chain timestamp must be rejected")
+	}
+	if usdtBSCTransferInIntentWindow(strconv.FormatInt(now.Add(3*time.Minute).Unix(), 10), lockedAt, now) {
+		t.Fatal("future chain timestamp outside skew must be rejected")
+	}
+	if !usdtBSCTransferInIntentWindow(strconv.FormatInt(now.Unix(), 10), lockedAt, now) {
+		t.Fatal("chain timestamp inside intent window must be accepted")
 	}
 }
 
@@ -415,6 +480,53 @@ func TestUSDTBSCQueryOrderMatchesConfirmedTokenTransferByRPC(t *testing.T) {
 	}
 	if resp.TradeNo != "0xrpcpaid" || resp.Metadata["network"] != "BSC" {
 		t.Fatalf("response = %+v", resp)
+	}
+}
+
+func TestUSDTBSCQueryOrderRPCUsesNewestMatchingTransferAndBlockTime(t *testing.T) {
+	const address = "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106"
+	lockedAt := time.Now().UTC().Add(-10 * time.Minute).Truncate(time.Second)
+	validAtHex := fmt.Sprintf("0x%x", lockedAt.Add(time.Minute).Unix())
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Method string            `json:"method"`
+			Params []json.RawMessage `json:"params"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode rpc request: %v", err)
+		}
+		switch req.Method {
+		case "eth_blockNumber":
+			fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":"0x100"}`)
+		case "eth_getLogs":
+			fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":[{"address":"0x55d398326f99059ff775485246999027b3197955","blockNumber":"0xf0","transactionHash":"0xold","topics":["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","0x000000000000000000000000161ba15a00000000000000000076fbb64576fbb645","0x0000000000000000000000003b210bdc924c685fdd10ae96b7f95d0e14536106"],"data":"0x08ac792e2b536b000","removed":false},{"address":"0x55d398326f99059ff775485246999027b3197955","blockNumber":"0xf1","transactionHash":"0xnew","topics":["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","0x000000000000000000000000161ba15a00000000000000000076fbb64576fbb645","0x0000000000000000000000003b210bdc924c685fdd10ae96b7f95d0e14536106"],"data":"0x08ac792e2b536b000","removed":false}]}`)
+		case "eth_getBlockByNumber":
+			if len(req.Params) == 0 || string(req.Params[0]) != `"0xf1"` {
+				t.Fatalf("timestamp lookup params = %s, want newest block 0xf1", req.Params)
+			}
+			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":1,"result":{"timestamp":"%s"}}`, validAtHex)
+		default:
+			t.Fatalf("unexpected rpc method: %s", req.Method)
+		}
+	}))
+	defer server.Close()
+
+	p, err := NewUSDTBSC("1", map[string]string{
+		"receiveAddress": address,
+		"cnyPerUsdt":     "7.2",
+		"confirmations":  "16",
+		"rpcUrl":         server.URL,
+	})
+	if err != nil {
+		t.Fatalf("NewUSDTBSC() error = %v", err)
+	}
+	queryRef := fmt.Sprintf("usdt_bsc|sub2_rpc_window|72.00|10.000123|%s|7.200000|%d", address, lockedAt.Unix())
+	resp, err := p.QueryOrder(context.Background(), queryRef)
+	if err != nil {
+		t.Fatalf("QueryOrder() error = %v", err)
+	}
+	if resp.Status != payment.ProviderStatusPaid || resp.TradeNo != "0xnew" {
+		t.Fatalf("response = %+v, want newest in-window transfer", resp)
 	}
 }
 

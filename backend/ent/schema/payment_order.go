@@ -197,6 +197,9 @@ func (PaymentOrder) Indexes() []ent.Index {
 		index.Fields("out_trade_no").
 			Unique().
 			Annotations(entsql.IndexWhere("out_trade_no <> ''")),
+		index.Fields("payment_trade_no").
+			Unique().
+			Annotations(entsql.IndexWhere("payment_type = 'usdt_bsc' AND payment_trade_no <> ''")),
 		index.Fields("user_id"),
 		index.Fields("status"),
 		index.Fields("expires_at"),

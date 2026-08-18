@@ -57,6 +57,8 @@ const schedulerOutboxPendingDedupKeyMigration = "153_scheduler_outbox_pending_de
 const schedulerOutboxPendingDedupKeyIndex = "idx_scheduler_outbox_pending_dedup_key"
 const latestAPIKeyIPIndexMigration = "174_add_usage_logs_api_key_latest_ip_index_notx.sql"
 const latestAPIKeyIPIndex = "idx_usage_logs_api_key_latest_ip"
+const paymentOrdersUSDTBSCTradeNoUniqueMigration = "225_payment_orders_usdt_bsc_trade_no_unique_notx.sql"
+const paymentOrdersUSDTBSCTradeNoUniqueIndex = "payment_orders_usdt_bsc_trade_no_unique"
 const usageLogsUpstreamModelMismatchIndexMigration = "195_add_usage_log_upstream_model_mismatch_index_notx.sql"
 const usageLogsUpstreamModelMismatchIndex = "idx_usage_logs_upstream_model_mismatch_created_at"
 
@@ -293,11 +295,58 @@ func prepareNonTransactionalMigration(ctx context.Context, db migrationConnectio
 		return dropInvalidIndexIfPresent(ctx, db, schedulerOutboxPendingDedupKeyIndex)
 	case latestAPIKeyIPIndexMigration:
 		return dropInvalidIndexIfPresent(ctx, db, latestAPIKeyIPIndex)
+	case paymentOrdersUSDTBSCTradeNoUniqueMigration:
+		return preparePaymentOrdersUSDTBSCTradeNoUniqueMigration(ctx, db)
 	case usageLogsUpstreamModelMismatchIndexMigration:
 		return dropInvalidIndexIfPresent(ctx, db, usageLogsUpstreamModelMismatchIndex)
 	default:
 		return nil
 	}
+}
+
+func preparePaymentOrdersUSDTBSCTradeNoUniqueMigration(ctx context.Context, db migrationConnection) error {
+	duplicates, err := findDuplicatePaymentOrderUSDTBSCTradeNos(ctx, db)
+	if err != nil {
+		return fmt.Errorf("precheck duplicate usdt_bsc payment_trade_no: %w", err)
+	}
+	if len(duplicates) > 0 {
+		return fmt.Errorf(
+			"duplicate usdt_bsc payment_trade_no values block %s; remediate duplicates before retrying: %s",
+			paymentOrdersUSDTBSCTradeNoUniqueMigration,
+			strings.Join(duplicates, ", "),
+		)
+	}
+	return dropInvalidIndexIfPresent(ctx, db, paymentOrdersUSDTBSCTradeNoUniqueIndex)
+}
+
+func findDuplicatePaymentOrderUSDTBSCTradeNos(ctx context.Context, db migrationConnection) ([]string, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT payment_trade_no, COUNT(*) AS duplicate_count
+		FROM payment_orders
+		WHERE payment_type = 'usdt_bsc' AND payment_trade_no <> ''
+		GROUP BY payment_trade_no
+		HAVING COUNT(*) > 1
+		ORDER BY duplicate_count DESC, payment_trade_no
+		LIMIT 5
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	duplicates := make([]string, 0, 5)
+	for rows.Next() {
+		var tradeNo string
+		var duplicateCount int
+		if err := rows.Scan(&tradeNo, &duplicateCount); err != nil {
+			return nil, err
+		}
+		duplicates = append(duplicates, fmt.Sprintf("%s (count=%d)", tradeNo, duplicateCount))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return duplicates, nil
 }
 
 func preparePaymentOrdersOutTradeNoUniqueMigration(ctx context.Context, db migrationConnection) error {

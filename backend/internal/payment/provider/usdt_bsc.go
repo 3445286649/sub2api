@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -37,6 +38,8 @@ const (
 	usdtBSCDefaultLookback      = int64(3600)
 	usdtBSCRPCWindowBlocks      = int64(50)
 	usdtBSCMaxIntentLength      = 128
+	usdtBSCMicroTailMax         = uint64(899)
+	usdtBSCChainClockSkew       = 2 * time.Minute
 )
 
 var evmAddressPattern = regexp.MustCompile(`^0x[0-9a-fA-F]{40}$`)
@@ -205,10 +208,11 @@ func (p *USDTBSC) QueryOrder(ctx context.Context, queryRef string) (*payment.Que
 	if err != nil {
 		return nil, err
 	}
-	events, err := p.fetchTokenTransfers(ctx, intent.ReceiveAddress, expectedRaw)
+	events, err := p.fetchTokenTransfers(ctx, intent.ReceiveAddress, expectedRaw, intent.LockedAt != "")
 	if err != nil {
 		return nil, err
 	}
+	now := time.Now().UTC()
 	for _, event := range events {
 		if !strings.EqualFold(event.To, intent.ReceiveAddress) {
 			continue
@@ -217,6 +221,9 @@ func (p *USDTBSC) QueryOrder(ctx context.Context, queryRef string) (*payment.Que
 			continue
 		}
 		if strings.TrimSpace(event.Value) != expectedRaw.String() {
+			continue
+		}
+		if intent.LockedAt != "" && !usdtBSCTransferInIntentWindow(event.Timestamp, intent.LockedAt, now) {
 			continue
 		}
 		confirmations, _ := strconv.ParseInt(strings.TrimSpace(event.Confirmations), 10, 64)
@@ -243,6 +250,9 @@ func buildUSDTBSCQueryMetadata(intent usdtBSCIntent, event bscScanTokenTx) map[s
 		"token_amount":  intent.TokenAmount,
 		"confirmations": event.Confirmations,
 		"network":       "BSC",
+	}
+	if event.Timestamp != "" {
+		metadata["block_timestamp"] = event.Timestamp
 	}
 	if intent.LockedRate != "" {
 		metadata["locked_cny_per_usdt"] = intent.LockedRate
@@ -343,6 +353,7 @@ type bscScanTokenTx struct {
 	Value           string `json:"value"`
 	TokenDecimal    string `json:"tokenDecimal"`
 	Confirmations   string `json:"confirmations"`
+	Timestamp       string `json:"timeStamp"`
 }
 
 func buildUSDTBSCCreateMetadata(cnyAmount, tokenAmount, intent string, lockedRate *big.Rat, rateSource string, lockedAt string) map[string]string {
@@ -509,11 +520,11 @@ func rateFromJSONValue(value any) (*big.Rat, error) {
 	return rate, nil
 }
 
-func (p *USDTBSC) fetchTokenTransfers(ctx context.Context, address string, expectedRaw *big.Int) ([]bscScanTokenTx, error) {
+func (p *USDTBSC) fetchTokenTransfers(ctx context.Context, address string, expectedRaw *big.Int, needTimestamp bool) ([]bscScanTokenTx, error) {
 	if len(p.rpcURLs) > 0 && !p.rpcDisabled {
 		var lastErr error
 		for _, rpcURL := range p.rpcURLs {
-			events, err := p.fetchTokenTransfersByRPC(ctx, rpcURL, address, expectedRaw)
+			events, err := p.fetchTokenTransfersByRPC(ctx, rpcURL, address, expectedRaw, needTimestamp)
 			if err == nil {
 				return events, nil
 			}
@@ -600,7 +611,7 @@ type rpcLog struct {
 	LogIndex         string   `json:"logIndex"`
 }
 
-func (p *USDTBSC) fetchTokenTransfersByRPC(ctx context.Context, rpcURL string, address string, expectedRaw *big.Int) ([]bscScanTokenTx, error) {
+func (p *USDTBSC) fetchTokenTransfersByRPC(ctx context.Context, rpcURL string, address string, expectedRaw *big.Int, needTimestamp bool) ([]bscScanTokenTx, error) {
 	latestHex, err := p.rpcCall(ctx, rpcURL, "eth_blockNumber", []any{})
 	if err != nil {
 		return nil, err
@@ -638,7 +649,8 @@ func (p *USDTBSC) fetchTokenTransfersByRPC(ctx context.Context, rpcURL string, a
 		if err := json.Unmarshal(rawLogs, &logs); err != nil {
 			return nil, fmt.Errorf("decode rpc logs: %w", err)
 		}
-		for _, log := range logs {
+		for i := len(logs) - 1; i >= 0; i-- {
+			log := logs[i]
 			if log.Removed {
 				continue
 			}
@@ -648,6 +660,13 @@ func (p *USDTBSC) fetchTokenTransfersByRPC(ctx context.Context, rpcURL string, a
 			}
 			events = append(events, event)
 			if expectedRaw != nil && strings.TrimSpace(event.Value) == expectedRaw.String() {
+				if needTimestamp {
+					event.Timestamp, err = p.fetchRPCBlockTimestamp(ctx, rpcURL, log.BlockNumber)
+					if err != nil {
+						return nil, fmt.Errorf("fetch bsc block timestamp: %w", err)
+					}
+					events[len(events)-1] = event
+				}
 				return events, nil
 			}
 		}
@@ -656,6 +675,24 @@ func (p *USDTBSC) fetchTokenTransfersByRPC(ctx context.Context, rpcURL string, a
 		}
 	}
 	return events, nil
+}
+
+func (p *USDTBSC) fetchRPCBlockTimestamp(ctx context.Context, rpcURL, blockNumber string) (string, error) {
+	raw, err := p.rpcCall(ctx, rpcURL, "eth_getBlockByNumber", []any{blockNumber, false})
+	if err != nil {
+		return "", err
+	}
+	var block struct {
+		Timestamp string `json:"timestamp"`
+	}
+	if err := json.Unmarshal(raw, &block); err != nil {
+		return "", fmt.Errorf("decode bsc block: %w", err)
+	}
+	seconds, err := parseHexInt64(block.Timestamp)
+	if err != nil {
+		return "", fmt.Errorf("parse bsc block timestamp: %w", err)
+	}
+	return strconv.FormatInt(seconds, 10), nil
 }
 
 func (p *USDTBSC) rpcCall(ctx context.Context, rpcURL string, method string, params any) (json.RawMessage, error) {
@@ -811,9 +848,22 @@ func addUniqueMicroTail(baseAmount, orderID string) string {
 		return baseAmount
 	}
 	hash := sha256.Sum256([]byte(orderID))
-	tail := int(hash[0])%899 + 1
+	tail := binary.BigEndian.Uint64(hash[:8])%usdtBSCMicroTailMax + 1
 	amount := raw + float64(tail)/1_000_000
 	return strconv.FormatFloat(amount, 'f', 6, 64)
+}
+
+func usdtBSCTransferInIntentWindow(rawTimestamp, lockedAt string, now time.Time) bool {
+	chainSeconds, err := strconv.ParseInt(strings.TrimSpace(rawTimestamp), 10, 64)
+	if err != nil || chainSeconds <= 0 {
+		return false
+	}
+	locked, err := time.Parse(time.RFC3339, strings.TrimSpace(lockedAt))
+	if err != nil {
+		return false
+	}
+	chainAt := time.Unix(chainSeconds, 0).UTC()
+	return !chainAt.Before(locked.UTC().Add(-usdtBSCChainClockSkew)) && !chainAt.After(now.UTC().Add(usdtBSCChainClockSkew))
 }
 
 func decimalToRaw(decimal string, decimals int64) (*big.Int, error) {
