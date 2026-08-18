@@ -17,6 +17,7 @@
           <span class="text-[11px] text-gray-400 dark:text-gray-500">
             {{ diagnosticText(r) }}
           </span>
+          <MonitorQuotaView :snapshot="r.quota" class="mt-1" />
         </div>
         <div class="flex items-center gap-2">
           <span
@@ -43,6 +44,7 @@
 import { useI18n } from 'vue-i18n'
 import type { CheckResult } from '@/api/admin/channelMonitor'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import MonitorQuotaView from '@/components/common/MonitorQuotaView.vue'
 import { useChannelMonitorFormat } from '@/composables/useChannelMonitorFormat'
 
 defineProps<{

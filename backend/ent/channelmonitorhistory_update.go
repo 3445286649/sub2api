@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
 // ChannelMonitorHistoryUpdate is the builder for updating ChannelMonitorHistory entities.
@@ -221,6 +222,18 @@ func (_u *ChannelMonitorHistoryUpdate) AddAttempts(v int) *ChannelMonitorHistory
 	return _u
 }
 
+// SetQuota sets the "quota" field.
+func (_u *ChannelMonitorHistoryUpdate) SetQuota(v *domain.MonitorQuotaSnapshot) *ChannelMonitorHistoryUpdate {
+	_u.mutation.SetQuota(v)
+	return _u
+}
+
+// ClearQuota clears the value of the "quota" field.
+func (_u *ChannelMonitorHistoryUpdate) ClearQuota() *ChannelMonitorHistoryUpdate {
+	_u.mutation.ClearQuota()
+	return _u
+}
+
 // SetCheckedAt sets the "checked_at" field.
 func (_u *ChannelMonitorHistoryUpdate) SetCheckedAt(v time.Time) *ChannelMonitorHistoryUpdate {
 	_u.mutation.SetCheckedAt(v)
@@ -373,6 +386,12 @@ func (_u *ChannelMonitorHistoryUpdate) sqlSave(ctx context.Context) (_node int, 
 	}
 	if value, ok := _u.mutation.AddedAttempts(); ok {
 		_spec.AddField(channelmonitorhistory.FieldAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Quota(); ok {
+		_spec.SetField(channelmonitorhistory.FieldQuota, field.TypeJSON, value)
+	}
+	if _u.mutation.QuotaCleared() {
+		_spec.ClearField(channelmonitorhistory.FieldQuota, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CheckedAt(); ok {
 		_spec.SetField(channelmonitorhistory.FieldCheckedAt, field.TypeTime, value)
@@ -618,6 +637,18 @@ func (_u *ChannelMonitorHistoryUpdateOne) AddAttempts(v int) *ChannelMonitorHist
 	return _u
 }
 
+// SetQuota sets the "quota" field.
+func (_u *ChannelMonitorHistoryUpdateOne) SetQuota(v *domain.MonitorQuotaSnapshot) *ChannelMonitorHistoryUpdateOne {
+	_u.mutation.SetQuota(v)
+	return _u
+}
+
+// ClearQuota clears the value of the "quota" field.
+func (_u *ChannelMonitorHistoryUpdateOne) ClearQuota() *ChannelMonitorHistoryUpdateOne {
+	_u.mutation.ClearQuota()
+	return _u
+}
+
 // SetCheckedAt sets the "checked_at" field.
 func (_u *ChannelMonitorHistoryUpdateOne) SetCheckedAt(v time.Time) *ChannelMonitorHistoryUpdateOne {
 	_u.mutation.SetCheckedAt(v)
@@ -800,6 +831,12 @@ func (_u *ChannelMonitorHistoryUpdateOne) sqlSave(ctx context.Context) (_node *C
 	}
 	if value, ok := _u.mutation.AddedAttempts(); ok {
 		_spec.AddField(channelmonitorhistory.FieldAttempts, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Quota(); ok {
+		_spec.SetField(channelmonitorhistory.FieldQuota, field.TypeJSON, value)
+	}
+	if _u.mutation.QuotaCleared() {
+		_spec.ClearField(channelmonitorhistory.FieldQuota, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CheckedAt(); ok {
 		_spec.SetField(channelmonitorhistory.FieldCheckedAt, field.TypeTime, value)

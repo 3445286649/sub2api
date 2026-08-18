@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
 // ChannelMonitorHistoryCreate is the builder for creating a ChannelMonitorHistory entity.
@@ -136,6 +137,12 @@ func (_c *ChannelMonitorHistoryCreate) SetNillableAttempts(v *int) *ChannelMonit
 	if v != nil {
 		_c.SetAttempts(*v)
 	}
+	return _c
+}
+
+// SetQuota sets the "quota" field.
+func (_c *ChannelMonitorHistoryCreate) SetQuota(v *domain.MonitorQuotaSnapshot) *ChannelMonitorHistoryCreate {
+	_c.mutation.SetQuota(v)
 	return _c
 }
 
@@ -328,6 +335,10 @@ func (_c *ChannelMonitorHistoryCreate) createSpec() (*ChannelMonitorHistory, *sq
 	if value, ok := _c.mutation.Attempts(); ok {
 		_spec.SetField(channelmonitorhistory.FieldAttempts, field.TypeInt, value)
 		_node.Attempts = value
+	}
+	if value, ok := _c.mutation.Quota(); ok {
+		_spec.SetField(channelmonitorhistory.FieldQuota, field.TypeJSON, value)
+		_node.Quota = value
 	}
 	if value, ok := _c.mutation.CheckedAt(); ok {
 		_spec.SetField(channelmonitorhistory.FieldCheckedAt, field.TypeTime, value)
@@ -567,6 +578,24 @@ func (u *ChannelMonitorHistoryUpsert) UpdateAttempts() *ChannelMonitorHistoryUps
 // AddAttempts adds v to the "attempts" field.
 func (u *ChannelMonitorHistoryUpsert) AddAttempts(v int) *ChannelMonitorHistoryUpsert {
 	u.Add(channelmonitorhistory.FieldAttempts, v)
+	return u
+}
+
+// SetQuota sets the "quota" field.
+func (u *ChannelMonitorHistoryUpsert) SetQuota(v *domain.MonitorQuotaSnapshot) *ChannelMonitorHistoryUpsert {
+	u.Set(channelmonitorhistory.FieldQuota, v)
+	return u
+}
+
+// UpdateQuota sets the "quota" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsert) UpdateQuota() *ChannelMonitorHistoryUpsert {
+	u.SetExcluded(channelmonitorhistory.FieldQuota)
+	return u
+}
+
+// ClearQuota clears the value of the "quota" field.
+func (u *ChannelMonitorHistoryUpsert) ClearQuota() *ChannelMonitorHistoryUpsert {
+	u.SetNull(channelmonitorhistory.FieldQuota)
 	return u
 }
 
@@ -815,6 +844,27 @@ func (u *ChannelMonitorHistoryUpsertOne) AddAttempts(v int) *ChannelMonitorHisto
 func (u *ChannelMonitorHistoryUpsertOne) UpdateAttempts() *ChannelMonitorHistoryUpsertOne {
 	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
 		s.UpdateAttempts()
+	})
+}
+
+// SetQuota sets the "quota" field.
+func (u *ChannelMonitorHistoryUpsertOne) SetQuota(v *domain.MonitorQuotaSnapshot) *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetQuota(v)
+	})
+}
+
+// UpdateQuota sets the "quota" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertOne) UpdateQuota() *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateQuota()
+	})
+}
+
+// ClearQuota clears the value of the "quota" field.
+func (u *ChannelMonitorHistoryUpsertOne) ClearQuota() *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.ClearQuota()
 	})
 }
 
@@ -1229,6 +1279,27 @@ func (u *ChannelMonitorHistoryUpsertBulk) AddAttempts(v int) *ChannelMonitorHist
 func (u *ChannelMonitorHistoryUpsertBulk) UpdateAttempts() *ChannelMonitorHistoryUpsertBulk {
 	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
 		s.UpdateAttempts()
+	})
+}
+
+// SetQuota sets the "quota" field.
+func (u *ChannelMonitorHistoryUpsertBulk) SetQuota(v *domain.MonitorQuotaSnapshot) *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetQuota(v)
+	})
+}
+
+// UpdateQuota sets the "quota" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertBulk) UpdateQuota() *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateQuota()
+	})
+}
+
+// ClearQuota clears the value of the "quota" field.
+func (u *ChannelMonitorHistoryUpsertBulk) ClearQuota() *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.ClearQuota()
 	})
 }
 

@@ -35,6 +35,8 @@ const (
 	FieldRequestPath = "request_path"
 	// FieldAttempts holds the string denoting the attempts field in the database.
 	FieldAttempts = "attempts"
+	// FieldQuota holds the string denoting the quota field in the database.
+	FieldQuota = "quota"
 	// FieldCheckedAt holds the string denoting the checked_at field in the database.
 	FieldCheckedAt = "checked_at"
 	// EdgeMonitor holds the string denoting the monitor edge name in mutations.
@@ -63,6 +65,7 @@ var Columns = []string{
 	FieldHTTPStatus,
 	FieldRequestPath,
 	FieldAttempts,
+	FieldQuota,
 	FieldCheckedAt,
 }
 

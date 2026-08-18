@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
 
@@ -51,9 +53,13 @@ func (r *channelMonitorRepository) Create(ctx context.Context, m *service.Channe
 		SetJitterSeconds(m.JitterSeconds).
 		SetCreatedBy(m.CreatedBy).
 		SetExtraHeaders(channelMonitorHeadersForPersistence(m)).
-		SetBodyOverrideMode(defaultBodyModeRepo(m.BodyOverrideMode))
+		SetBodyOverrideMode(defaultBodyModeRepo(m.BodyOverrideMode)).
+		SetCheckMode(defaultCheckModeRepo(m.CheckMode))
 	if m.TemplateID != nil {
 		builder = builder.SetTemplateID(*m.TemplateID)
+	}
+	if m.AccountID != nil {
+		builder = builder.SetAccountID(*m.AccountID)
 	}
 	if m.BodyOverride != nil {
 		builder = builder.SetBodyOverride(m.BodyOverride)
@@ -118,11 +124,17 @@ func (r *channelMonitorRepository) Update(ctx context.Context, m *service.Channe
 		SetIntervalSeconds(m.IntervalSeconds).
 		SetJitterSeconds(m.JitterSeconds).
 		SetExtraHeaders(channelMonitorHeadersForPersistence(m)).
-		SetBodyOverrideMode(defaultBodyModeRepo(m.BodyOverrideMode))
+		SetBodyOverrideMode(defaultBodyModeRepo(m.BodyOverrideMode)).
+		SetCheckMode(defaultCheckModeRepo(m.CheckMode))
 	if m.TemplateID != nil {
 		updater = updater.SetTemplateID(*m.TemplateID)
 	} else {
 		updater = updater.ClearTemplateID()
+	}
+	if m.AccountID != nil {
+		updater = updater.SetAccountID(*m.AccountID)
+	} else {
+		updater = updater.ClearAccountID()
 	}
 	if m.BodyOverride != nil {
 		updater = updater.SetBodyOverride(m.BodyOverride)
@@ -243,6 +255,9 @@ func (r *channelMonitorRepository) InsertHistoryBatch(ctx context.Context, rows 
 		if row.HTTPStatus != nil {
 			c = c.SetHTTPStatus(*row.HTTPStatus)
 		}
+		if row.Quota != nil {
+			c = c.SetQuota(row.Quota)
+		}
 		bulk = append(bulk, c)
 	}
 	if _, err := client.ChannelMonitorHistory.CreateBulk(bulk...).Save(ctx); err != nil {
@@ -286,6 +301,7 @@ func (r *channelMonitorRepository) ListHistory(ctx context.Context, monitorID in
 			HTTPStatus:      row.HTTPStatus,
 			RequestPath:     row.RequestPath,
 			Attempts:        row.Attempts,
+			Quota:           row.Quota,
 		}
 		out = append(out, entry)
 	}
@@ -299,7 +315,7 @@ func (r *channelMonitorRepository) ListHistory(ctx context.Context, monitorID in
 func (r *channelMonitorRepository) ListLatestPerModel(ctx context.Context, monitorID int64) ([]*service.ChannelMonitorLatest, error) {
 	const q = `
 		SELECT DISTINCT ON (model)
-		    model, status, latency_ms, ping_latency_ms, checked_at, failure_category
+		    model, status, latency_ms, ping_latency_ms, checked_at, failure_category, quota
 		FROM channel_monitor_histories
 		WHERE monitor_id = $1
 		ORDER BY model, checked_at DESC
@@ -314,11 +330,13 @@ func (r *channelMonitorRepository) ListLatestPerModel(ctx context.Context, monit
 	for rows.Next() {
 		l := &service.ChannelMonitorLatest{}
 		var latency, ping sql.NullInt64
-		if err := rows.Scan(&l.Model, &l.Status, &latency, &ping, &l.CheckedAt, &l.FailureCategory); err != nil {
+		var quota []byte
+		if err := rows.Scan(&l.Model, &l.Status, &latency, &ping, &l.CheckedAt, &l.FailureCategory, &quota); err != nil {
 			return nil, fmt.Errorf("scan latest row: %w", err)
 		}
 		assignNullInt(&l.LatencyMs, latency)
 		assignNullInt(&l.PingLatencyMs, ping)
+		l.Quota = scanMonitorQuota(quota)
 		out = append(out, l)
 	}
 	return out, rows.Err()
@@ -332,6 +350,20 @@ func assignNullInt(dst **int, n sql.NullInt64) {
 	}
 	v := int(n.Int64)
 	*dst = &v
+}
+
+// scanMonitorQuota 把裸 SQL 读出的 JSONB quota 列解包为配额快照。
+// NULL（探活模式旧行）返回 nil；解析失败也返回 nil 并由调用方日志感知，
+// 不阻断列表渲染（与聚合层"失败仅日志"的原则一致）。
+func scanMonitorQuota(data []byte) *domain.MonitorQuotaSnapshot {
+	if len(data) == 0 {
+		return nil
+	}
+	snapshot := &domain.MonitorQuotaSnapshot{}
+	if err := json.Unmarshal(data, snapshot); err != nil {
+		return nil
+	}
+	return snapshot
 }
 
 // ComputeAvailability 计算指定窗口内每个模型的可用率与平均延迟。
@@ -408,7 +440,7 @@ func (r *channelMonitorRepository) ListLatestForMonitorIDs(ctx context.Context, 
 	}
 	const q = `
 		SELECT DISTINCT ON (monitor_id, model)
-		    monitor_id, model, status, latency_ms, ping_latency_ms, checked_at, failure_category
+		    monitor_id, model, status, latency_ms, ping_latency_ms, checked_at, failure_category, quota
 		FROM channel_monitor_histories
 		WHERE monitor_id = ANY($1)
 		ORDER BY monitor_id, model, checked_at DESC
@@ -423,11 +455,13 @@ func (r *channelMonitorRepository) ListLatestForMonitorIDs(ctx context.Context, 
 		var monitorID int64
 		l := &service.ChannelMonitorLatest{}
 		var latency, ping sql.NullInt64
-		if err := rows.Scan(&monitorID, &l.Model, &l.Status, &latency, &ping, &l.CheckedAt, &l.FailureCategory); err != nil {
+		var quota []byte
+		if err := rows.Scan(&monitorID, &l.Model, &l.Status, &latency, &ping, &l.CheckedAt, &l.FailureCategory, &quota); err != nil {
 			return nil, fmt.Errorf("scan latest batch row: %w", err)
 		}
 		assignNullInt(&l.LatencyMs, latency)
 		assignNullInt(&l.PingLatencyMs, ping)
+		l.Quota = scanMonitorQuota(quota)
 		out[monitorID] = append(out[monitorID], l)
 	}
 	if err := rows.Err(); err != nil {
@@ -773,11 +807,16 @@ func entToServiceMonitor(row *dbent.ChannelMonitor) *service.ChannelMonitor {
 		ExtraHeaders:         headers,
 		BodyOverrideMode:     row.BodyOverrideMode,
 		BodyOverride:         row.BodyOverride,
+		CheckMode:            defaultCheckModeRepo(row.CheckMode),
 		DuplicateOperationID: duplicateOperationID,
 	}
 	if row.TemplateID != nil {
 		id := *row.TemplateID
 		out.TemplateID = &id
+	}
+	if row.AccountID != nil {
+		id := *row.AccountID
+		out.AccountID = &id
 	}
 	return out
 }
@@ -835,6 +874,14 @@ func defaultAttemptsRepo(attempts int) int {
 		return 1
 	}
 	return attempts
+}
+
+// defaultCheckModeRepo 空串归一为 probe（存量行有列默认值，这里兜底防御）。
+func defaultCheckModeRepo(checkMode string) string {
+	if checkMode == "" {
+		return "probe"
+	}
+	return checkMode
 }
 
 func emptySliceIfNil(in []string) []string {

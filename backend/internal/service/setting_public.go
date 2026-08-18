@@ -247,6 +247,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorMode,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyChannelMonitorHideThroughput,
+		SettingKeyChannelMonitorShowQuota,
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeySupportTicketsEnabled,
 		SettingKeyModelPlazaEnabled,
@@ -392,6 +393,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorMode:                   normalizeChannelMonitorMode(settings[SettingKeyChannelMonitorMode]),
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 		ChannelMonitorHideThroughput:         !isFalseSettingValue(settings[SettingKeyChannelMonitorHideThroughput]),
+		ChannelMonitorShowQuota:              settings[SettingKeyChannelMonitorShowQuota] == "true",
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 		SupportTicketsEnabled:    !isFalseSettingValue(settings[SettingKeySupportTicketsEnabled]),
@@ -460,7 +462,12 @@ type ChannelMonitorRuntime struct {
 	Enabled                bool
 	Mode                   string
 	DefaultIntervalSeconds int
-	HideThroughput         bool
+	// HideThroughput: when true, user-facing V2 APIs omit RPM/TPM scale signals.
+	HideThroughput bool
+	// ShowQuota: when true, user-facing monitor views keep the quota/balance
+	// snapshots; otherwise the user handler strips them server-side.
+	// Parsed fail-closed (only literal "true" enables). Admin always sees them.
+	ShowQuota bool
 }
 
 func (r ChannelMonitorRuntime) ActiveProbesAllowed() bool {
@@ -482,6 +489,7 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 		SettingKeyChannelMonitorMode,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyChannelMonitorHideThroughput,
+		SettingKeyChannelMonitorShowQuota,
 	})
 	if err != nil {
 		return ChannelMonitorRuntime{Enabled: true, Mode: defaultChannelMonitorMode, DefaultIntervalSeconds: channelMonitorIntervalFallback, HideThroughput: true}
@@ -491,6 +499,7 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 		Mode:                   normalizeChannelMonitorMode(vals[SettingKeyChannelMonitorMode]),
 		DefaultIntervalSeconds: parseChannelMonitorInterval(vals[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 		HideThroughput:         !isFalseSettingValue(vals[SettingKeyChannelMonitorHideThroughput]),
+		ShowQuota:              vals[SettingKeyChannelMonitorShowQuota] == "true",
 	}
 }
 
@@ -658,6 +667,9 @@ type PublicSettingsInjectionPayload struct {
 	UsageRebateEnabled                   bool   `json:"usage_rebate_enabled"`
 	RiskControlEnabled                   bool   `json:"risk_control_enabled"`
 	AllowUserViewErrorRequests           bool   `json:"allow_user_view_error_requests"`
+	// ChannelMonitorShowQuota gates the user-facing quota/balance display on
+	// monitors; fail-closed (absent/false = hidden). Admin UI always shows it.
+	ChannelMonitorShowQuota bool `json:"channel_monitor_show_quota"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -748,6 +760,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorMode:                   settings.ChannelMonitorMode,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		ChannelMonitorHideThroughput:         settings.ChannelMonitorHideThroughput,
+		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,

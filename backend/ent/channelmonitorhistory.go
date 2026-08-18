@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
 // ChannelMonitorHistory is the model entity for the ChannelMonitorHistory schema.
@@ -38,6 +40,8 @@ type ChannelMonitorHistory struct {
 	RequestPath string `json:"request_path,omitempty"`
 	// Attempts holds the value of the "attempts" field.
 	Attempts int `json:"attempts,omitempty"`
+	// Quota holds the value of the "quota" field.
+	Quota *domain.MonitorQuotaSnapshot `json:"quota,omitempty"`
 	// CheckedAt holds the value of the "checked_at" field.
 	CheckedAt time.Time `json:"checked_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -71,6 +75,8 @@ func (*ChannelMonitorHistory) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case channelmonitorhistory.FieldQuota:
+			values[i] = new([]byte)
 		case channelmonitorhistory.FieldID, channelmonitorhistory.FieldMonitorID, channelmonitorhistory.FieldLatencyMs, channelmonitorhistory.FieldPingLatencyMs, channelmonitorhistory.FieldHTTPStatus, channelmonitorhistory.FieldAttempts:
 			values[i] = new(sql.NullInt64)
 		case channelmonitorhistory.FieldModel, channelmonitorhistory.FieldStatus, channelmonitorhistory.FieldMessage, channelmonitorhistory.FieldFailureCategory, channelmonitorhistory.FieldRequestPath:
@@ -161,6 +167,14 @@ func (_m *ChannelMonitorHistory) assignValues(columns []string, values []any) er
 			} else if value.Valid {
 				_m.Attempts = int(value.Int64)
 			}
+		case channelmonitorhistory.FieldQuota:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field quota", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Quota); err != nil {
+					return fmt.Errorf("unmarshal field quota: %w", err)
+				}
+			}
 		case channelmonitorhistory.FieldCheckedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field checked_at", values[i])
@@ -243,6 +257,9 @@ func (_m *ChannelMonitorHistory) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("attempts=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Attempts))
+	builder.WriteString(", ")
+	builder.WriteString("quota=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Quota))
 	builder.WriteString(", ")
 	builder.WriteString("checked_at=")
 	builder.WriteString(_m.CheckedAt.Format(time.ANSIC))
