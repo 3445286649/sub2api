@@ -53,3 +53,14 @@ describe('AppSidebar header styles', () => {
     expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
   })
 })
+
+describe('AppSidebar backup recharge navigation', () => {
+  it('keeps the existing purchase links and builds a separate channel group', () => {
+    expect(componentSource).toContain("{ path: '/subscriptions', label: t('nav.mySubscriptions')")
+    expect(componentSource).toContain("{ path: '/purchase', label: t('nav.buySubscription')")
+    expect(componentSource).toContain("path: '/backup-recharge'")
+    expect(componentSource).toContain('children: resolveRechargeStorefrontChannels(appStore.cachedPublicSettings).map((channel) => ({')
+    expect(componentSource).toContain('path: `/backup-recharge/${channel.id}`')
+    expect(componentSource).toContain('label: channel.name')
+  })
+})

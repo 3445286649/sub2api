@@ -69,6 +69,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		settingKeyForwardedClientIPModeV2:                   "true",
 		SettingKeySiteName:                                  "Sub2API",
 		SettingKeySiteLogo:                                  "",
+		SettingKeyRechargeStorefrontEnabled:                 "false",
+		SettingKeyRechargeStorefrontText:                    "充值商城",
+		SettingKeyRechargeStorefrontURL:                     defaultRechargeStorefrontURL,
+		SettingKeyRechargeStorefrontBackupURL:               "",
+		SettingKeyRechargeStorefrontChannels:                defaultRechargeStorefrontJSON,
 		SettingKeyPurchaseSubscriptionEnabled:               "false",
 		SettingKeyPurchaseSubscriptionURL:                   "",
 		SettingKeyTableDefaultPageSize:                      "20",
@@ -987,9 +992,14 @@ func applyLocalFeatureSettingDefaults(result *SystemSettings, settings map[strin
 	}
 	result.RechargeStorefrontURL = strings.TrimSpace(settings[SettingKeyRechargeStorefrontURL])
 	if result.RechargeStorefrontURL == "" {
-		result.RechargeStorefrontURL = "https://shop.loucer.cn/"
+		result.RechargeStorefrontURL = defaultRechargeStorefrontURL
 	}
 	result.RechargeStorefrontBackupURL = strings.TrimSpace(settings[SettingKeyRechargeStorefrontBackupURL])
+	result.RechargeStorefrontChannels = parseRechargeStorefrontChannels(
+		settings[SettingKeyRechargeStorefrontChannels],
+		result.RechargeStorefrontURL,
+		result.RechargeStorefrontBackupURL,
+	)
 
 	result.SupportGroupEnabled = settings[SettingKeySupportGroupEnabled] == "true"
 	result.SupportGroupButtonText = strings.TrimSpace(settings[SettingKeySupportGroupButtonText])

@@ -348,8 +348,29 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyContactInfo] = settings.ContactInfo
 	updates[SettingKeyRechargeStorefrontEnabled] = strconv.FormatBool(settings.RechargeStorefrontEnabled)
 	updates[SettingKeyRechargeStorefrontText] = strings.TrimSpace(settings.RechargeStorefrontButtonText)
-	updates[SettingKeyRechargeStorefrontURL] = strings.TrimSpace(settings.RechargeStorefrontURL)
-	updates[SettingKeyRechargeStorefrontBackupURL] = strings.TrimSpace(settings.RechargeStorefrontBackupURL)
+	rechargeChannels := settings.RechargeStorefrontChannels
+	if rechargeChannels == nil {
+		rechargeChannels = parseRechargeStorefrontChannels("", settings.RechargeStorefrontURL, settings.RechargeStorefrontBackupURL)
+	}
+	rechargeChannels, err = NormalizeRechargeStorefrontChannels(rechargeChannels)
+	if err != nil {
+		return nil, infraerrors.BadRequest("RECHARGE_STOREFRONT_INVALID_CHANNELS", err.Error())
+	}
+	rechargeChannelsJSON, err := json.Marshal(rechargeChannels)
+	if err != nil {
+		return nil, fmt.Errorf("marshal recharge storefront channels: %w", err)
+	}
+	updates[SettingKeyRechargeStorefrontChannels] = string(rechargeChannelsJSON)
+	if len(rechargeChannels) > 0 {
+		updates[SettingKeyRechargeStorefrontURL] = rechargeChannels[0].URL
+	} else {
+		updates[SettingKeyRechargeStorefrontURL] = ""
+	}
+	if len(rechargeChannels) > 1 {
+		updates[SettingKeyRechargeStorefrontBackupURL] = rechargeChannels[1].URL
+	} else {
+		updates[SettingKeyRechargeStorefrontBackupURL] = ""
+	}
 	updates[SettingKeySupportGroupEnabled] = strconv.FormatBool(settings.SupportGroupEnabled)
 	updates[SettingKeySupportGroupButtonText] = strings.TrimSpace(settings.SupportGroupButtonText)
 	updates[SettingKeySupportGroupTitle] = strings.TrimSpace(settings.SupportGroupTitle)

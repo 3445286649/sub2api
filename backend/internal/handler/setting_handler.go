@@ -77,6 +77,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		RechargeStorefrontButtonText:        settings.RechargeStorefrontButtonText,
 		RechargeStorefrontURL:               settings.RechargeStorefrontURL,
 		RechargeStorefrontBackupURL:         settings.RechargeStorefrontBackupURL,
+		RechargeStorefrontChannels:          settings.RechargeStorefrontChannels,
 		SupportGroupEnabled:                 settings.SupportGroupEnabled,
 		SupportGroupButtonText:              settings.SupportGroupButtonText,
 		SupportGroupTitle:                   settings.SupportGroupTitle,

@@ -153,40 +153,41 @@ type UpdateSettingsRequest struct {
 	GoogleOAuthFrontendRedirectURL string `json:"google_oauth_frontend_redirect_url"`
 
 	// OEM设置
-	SiteName                      string                `json:"site_name"`
-	SiteLogo                      string                `json:"site_logo"`
-	SiteSubtitle                  string                `json:"site_subtitle"`
-	APIBaseURL                    string                `json:"api_base_url"`
-	ContactInfo                   string                `json:"contact_info"`
-	RechargeStorefrontEnabled     bool                  `json:"recharge_storefront_enabled"`
-	RechargeStorefrontButtonText  string                `json:"recharge_storefront_button_text"`
-	RechargeStorefrontURL         string                `json:"recharge_storefront_url"`
-	RechargeStorefrontBackupURL   string                `json:"recharge_storefront_backup_url"`
-	SupportGroupEnabled           bool                  `json:"support_group_enabled"`
-	SupportGroupButtonText        string                `json:"support_group_button_text"`
-	SupportGroupTitle             string                `json:"support_group_title"`
-	SupportGroupDescription       string                `json:"support_group_description"`
-	SupportGroupQRCodeURL         string                `json:"support_group_qr_code_url"`
-	SupportGroupLinkURL           string                `json:"support_group_link_url"`
-	SupportTicketsEnabled         bool                  `json:"support_tickets_enabled"`
-	PixmoStudioEnabled            bool                  `json:"pixmo_studio_enabled"`
-	PixmoStudioButtonText         string                `json:"pixmo_studio_button_text"`
-	PixmoStudioURL                string                `json:"pixmo_studio_url"`
-	UsageHelpEnabled              bool                  `json:"usage_help_enabled"`
-	ModelRadarEnabled             bool                  `json:"model_radar_enabled"`
-	AcquisitionEnabled            bool                  `json:"acquisition_enabled"`
-	AcquisitionLeaderboardEnabled bool                  `json:"acquisition_leaderboard_enabled"`
-	AcquisitionLotteryEnabled     bool                  `json:"acquisition_lottery_enabled"`
-	DocURL                        string                `json:"doc_url"`
-	HomeContent                   string                `json:"home_content"`
-	CompactHomeEnabled            bool                  `json:"compact_home_enabled"`
-	HideCcsImportButton           bool                  `json:"hide_ccs_import_button"`
-	PurchaseSubscriptionEnabled   *bool                 `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL       *string               `json:"purchase_subscription_url"`
-	TableDefaultPageSize          int                   `json:"table_default_page_size"`
-	TablePageSizeOptions          []int                 `json:"table_page_size_options"`
-	CustomMenuItems               *[]dto.CustomMenuItem `json:"custom_menu_items"`
-	CustomEndpoints               *[]dto.CustomEndpoint `json:"custom_endpoints"`
+	SiteName                      string                              `json:"site_name"`
+	SiteLogo                      string                              `json:"site_logo"`
+	SiteSubtitle                  string                              `json:"site_subtitle"`
+	APIBaseURL                    string                              `json:"api_base_url"`
+	ContactInfo                   string                              `json:"contact_info"`
+	RechargeStorefrontEnabled     bool                                `json:"recharge_storefront_enabled"`
+	RechargeStorefrontButtonText  string                              `json:"recharge_storefront_button_text"`
+	RechargeStorefrontURL         string                              `json:"recharge_storefront_url"`
+	RechargeStorefrontBackupURL   string                              `json:"recharge_storefront_backup_url"`
+	RechargeStorefrontChannels    []service.RechargeStorefrontChannel `json:"recharge_storefront_channels"`
+	SupportGroupEnabled           bool                                `json:"support_group_enabled"`
+	SupportGroupButtonText        string                              `json:"support_group_button_text"`
+	SupportGroupTitle             string                              `json:"support_group_title"`
+	SupportGroupDescription       string                              `json:"support_group_description"`
+	SupportGroupQRCodeURL         string                              `json:"support_group_qr_code_url"`
+	SupportGroupLinkURL           string                              `json:"support_group_link_url"`
+	SupportTicketsEnabled         bool                                `json:"support_tickets_enabled"`
+	PixmoStudioEnabled            bool                                `json:"pixmo_studio_enabled"`
+	PixmoStudioButtonText         string                              `json:"pixmo_studio_button_text"`
+	PixmoStudioURL                string                              `json:"pixmo_studio_url"`
+	UsageHelpEnabled              bool                                `json:"usage_help_enabled"`
+	ModelRadarEnabled             bool                                `json:"model_radar_enabled"`
+	AcquisitionEnabled            bool                                `json:"acquisition_enabled"`
+	AcquisitionLeaderboardEnabled bool                                `json:"acquisition_leaderboard_enabled"`
+	AcquisitionLotteryEnabled     bool                                `json:"acquisition_lottery_enabled"`
+	DocURL                        string                              `json:"doc_url"`
+	HomeContent                   string                              `json:"home_content"`
+	CompactHomeEnabled            bool                                `json:"compact_home_enabled"`
+	HideCcsImportButton           bool                                `json:"hide_ccs_import_button"`
+	PurchaseSubscriptionEnabled   *bool                               `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL       *string                             `json:"purchase_subscription_url"`
+	TableDefaultPageSize          int                                 `json:"table_default_page_size"`
+	TablePageSizeOptions          []int                               `json:"table_page_size_options"`
+	CustomMenuItems               *[]dto.CustomMenuItem               `json:"custom_menu_items"`
+	CustomEndpoints               *[]dto.CustomEndpoint               `json:"custom_endpoints"`
 
 	// 默认配置
 	DefaultConcurrency                        int                               `json:"default_concurrency"`
@@ -1642,6 +1643,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		RechargeStorefrontButtonText:           req.RechargeStorefrontButtonText,
 		RechargeStorefrontURL:                  req.RechargeStorefrontURL,
 		RechargeStorefrontBackupURL:            req.RechargeStorefrontBackupURL,
+		RechargeStorefrontChannels:             req.RechargeStorefrontChannels,
 		SupportGroupEnabled:                    req.SupportGroupEnabled,
 		SupportGroupButtonText:                 req.SupportGroupButtonText,
 		SupportGroupTitle:                      req.SupportGroupTitle,
@@ -2282,6 +2284,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		RechargeStorefrontButtonText:                           updatedSettings.RechargeStorefrontButtonText,
 		RechargeStorefrontURL:                                  updatedSettings.RechargeStorefrontURL,
 		RechargeStorefrontBackupURL:                            updatedSettings.RechargeStorefrontBackupURL,
+		RechargeStorefrontChannels:                             updatedSettings.RechargeStorefrontChannels,
 		SupportGroupEnabled:                                    updatedSettings.SupportGroupEnabled,
 		SupportGroupButtonText:                                 updatedSettings.SupportGroupButtonText,
 		SupportGroupTitle:                                      updatedSettings.SupportGroupTitle,

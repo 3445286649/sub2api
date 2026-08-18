@@ -2,6 +2,7 @@ package admin
 
 import (
 	"log/slog"
+	"reflect"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -343,6 +344,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.RechargeStorefrontBackupURL != after.RechargeStorefrontBackupURL {
 		changed = append(changed, service.SettingKeyRechargeStorefrontBackupURL)
+	}
+	if !reflect.DeepEqual(before.RechargeStorefrontChannels, after.RechargeStorefrontChannels) {
+		changed = append(changed, service.SettingKeyRechargeStorefrontChannels)
 	}
 	if before.SupportGroupEnabled != after.SupportGroupEnabled {
 		changed = append(changed, service.SettingKeySupportGroupEnabled)

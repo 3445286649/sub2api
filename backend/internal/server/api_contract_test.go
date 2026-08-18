@@ -827,6 +827,10 @@ func TestAPIContracts(t *testing.T) {
 					"recharge_storefront_button_text": "充值商城",
 					"recharge_storefront_url": "https://shop.loucer.cn/",
 					"recharge_storefront_backup_url": "",
+					"recharge_storefront_channels": [
+						{"id":"backup-1","name":"备用一","url":"https://shop.loucer.cn/","enabled":true,"sort_order":1},
+						{"id":"backup-2","name":"备用二","url":"https://pay.ldxp.cn/shop/9QURDNRF","enabled":true,"sort_order":2}
+					],
 					"support_group_enabled": false,
 					"support_group_button_text": "售后群",
 					"support_group_title": "售后服务群",
@@ -1200,6 +1204,10 @@ func TestAPIContracts(t *testing.T) {
 					"recharge_storefront_button_text": "充值商城",
 					"recharge_storefront_url": "https://shop.loucer.cn/",
 					"recharge_storefront_backup_url": "",
+					"recharge_storefront_channels": [
+						{"id":"backup-1","name":"备用一","url":"https://shop.loucer.cn/","enabled":true,"sort_order":1},
+						{"id":"backup-2","name":"备用二","url":"https://pay.ldxp.cn/shop/9QURDNRF","enabled":true,"sort_order":2}
+					],
 					"support_group_enabled": false,
 					"support_group_button_text": "售后群",
 					"support_group_title": "售后服务群",

@@ -277,6 +277,14 @@ export interface LoginAgreementDocument {
   content_md: string
 }
 
+export interface RechargeStorefrontChannel {
+  id: string
+  name: string
+  url: string
+  enabled: boolean
+  sort_order: number
+}
+
 export interface PublicSettings {
   registration_enabled: boolean
   email_verify_enabled: boolean
@@ -310,6 +318,7 @@ export interface PublicSettings {
   recharge_storefront_button_text?: string
   recharge_storefront_url?: string
   recharge_storefront_backup_url?: string
+  recharge_storefront_channels?: RechargeStorefrontChannel[]
   support_group_enabled?: boolean
   support_group_button_text?: string
   support_group_title?: string

@@ -189,6 +189,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyRechargeStorefrontText,
 		SettingKeyRechargeStorefrontURL,
 		SettingKeyRechargeStorefrontBackupURL,
+		SettingKeyRechargeStorefrontChannels,
 		SettingKeySupportGroupEnabled,
 		SettingKeySupportGroupButtonText,
 		SettingKeySupportGroupTitle,
@@ -346,8 +347,9 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ContactInfo:                         settings[SettingKeyContactInfo],
 		RechargeStorefrontEnabled:           settings[SettingKeyRechargeStorefrontEnabled] == "true",
 		RechargeStorefrontButtonText:        strings.TrimSpace(s.getStringOrDefault(settings, SettingKeyRechargeStorefrontText, "充值商城")),
-		RechargeStorefrontURL:               strings.TrimSpace(s.getStringOrDefault(settings, SettingKeyRechargeStorefrontURL, "https://shop.loucer.cn/")),
+		RechargeStorefrontURL:               strings.TrimSpace(s.getStringOrDefault(settings, SettingKeyRechargeStorefrontURL, defaultRechargeStorefrontURL)),
 		RechargeStorefrontBackupURL:         strings.TrimSpace(settings[SettingKeyRechargeStorefrontBackupURL]),
+		RechargeStorefrontChannels:          enabledRechargeStorefrontChannels(parseRechargeStorefrontChannels(settings[SettingKeyRechargeStorefrontChannels], settings[SettingKeyRechargeStorefrontURL], settings[SettingKeyRechargeStorefrontBackupURL]), settings[SettingKeyRechargeStorefrontEnabled] == "true"),
 		SupportGroupEnabled:                 settings[SettingKeySupportGroupEnabled] == "true",
 		SupportGroupButtonText:              strings.TrimSpace(s.getStringOrDefault(settings, SettingKeySupportGroupButtonText, "售后群")),
 		SupportGroupTitle:                   strings.TrimSpace(s.getStringOrDefault(settings, SettingKeySupportGroupTitle, "售后服务群")),
@@ -563,73 +565,74 @@ func (s *SettingService) IsUserErrorViewAllowed(ctx context.Context) bool {
 // A unit test diffs this struct's JSON keys against dto.PublicSettings to catch
 // drift automatically (see setting_service_injection_test.go).
 type PublicSettingsInjectionPayload struct {
-	RegistrationEnabled                 bool                     `json:"registration_enabled"`
-	EmailVerifyEnabled                  bool                     `json:"email_verify_enabled"`
-	RegistrationEmailSuffixWhitelist    []string                 `json:"registration_email_suffix_whitelist"`
-	RegistrationEmailDomainQuotaEnabled bool                     `json:"registration_email_domain_quota_enabled"`
-	PromoCodeEnabled                    bool                     `json:"promo_code_enabled"`
-	PasswordResetEnabled                bool                     `json:"password_reset_enabled"`
-	InvitationCodeEnabled               bool                     `json:"invitation_code_enabled"`
-	TotpEnabled                         bool                     `json:"totp_enabled"`
-	PasskeyEnabled                      bool                     `json:"passkey_enabled"`
-	LoginAgreementEnabled               bool                     `json:"login_agreement_enabled"`
-	LoginAgreementMode                  string                   `json:"login_agreement_mode"`
-	LoginAgreementUpdatedAt             string                   `json:"login_agreement_updated_at"`
-	LoginAgreementRevision              string                   `json:"login_agreement_revision"`
-	LoginAgreementDocuments             []LoginAgreementDocument `json:"login_agreement_documents"`
-	TurnstileEnabled                    bool                     `json:"turnstile_enabled"`
-	TurnstileSiteKey                    string                   `json:"turnstile_site_key"`
-	TencentCaptchaEnabled               bool                     `json:"tencent_captcha_enabled"`
-	TencentCaptchaAppID                 string                   `json:"tencent_captcha_app_id"`
-	TencentCaptchaRegion                string                   `json:"tencent_captcha_region"`
-	AliyunCaptchaEnabled                bool                     `json:"aliyun_captcha_enabled"`
-	AliyunCaptchaSceneID                string                   `json:"aliyun_captcha_scene_id"`
-	AliyunCaptchaPrefix                 string                   `json:"aliyun_captcha_prefix"`
-	AliyunCaptchaRegion                 string                   `json:"aliyun_captcha_region"`
-	SiteName                            string                   `json:"site_name"`
-	SiteLogo                            string                   `json:"site_logo"`
-	SiteSubtitle                        string                   `json:"site_subtitle"`
-	APIBaseURL                          string                   `json:"api_base_url"`
-	ContactInfo                         string                   `json:"contact_info"`
-	RechargeStorefrontEnabled           bool                     `json:"recharge_storefront_enabled"`
-	RechargeStorefrontButtonText        string                   `json:"recharge_storefront_button_text"`
-	RechargeStorefrontURL               string                   `json:"recharge_storefront_url"`
-	RechargeStorefrontBackupURL         string                   `json:"recharge_storefront_backup_url"`
-	SupportGroupEnabled                 bool                     `json:"support_group_enabled"`
-	SupportGroupButtonText              string                   `json:"support_group_button_text"`
-	SupportGroupTitle                   string                   `json:"support_group_title"`
-	SupportGroupDescription             string                   `json:"support_group_description"`
-	SupportGroupQRCodeURL               string                   `json:"support_group_qr_code_url"`
-	SupportGroupLinkURL                 string                   `json:"support_group_link_url"`
-	SupportTicketsEnabled               bool                     `json:"support_tickets_enabled"`
-	PixmoStudioEnabled                  bool                     `json:"pixmo_studio_enabled"`
-	PixmoStudioButtonText               string                   `json:"pixmo_studio_button_text"`
-	PixmoStudioURL                      string                   `json:"pixmo_studio_url"`
-	DocURL                              string                   `json:"doc_url"`
-	HomeContent                         string                   `json:"home_content"`
-	CompactHomeEnabled                  bool                     `json:"compact_home_enabled"`
-	HideCcsImportButton                 bool                     `json:"hide_ccs_import_button"`
-	UsageHelpEnabled                    bool                     `json:"usage_help_enabled"`
-	ModelRadarEnabled                   bool                     `json:"model_radar_enabled"`
-	PurchaseSubscriptionEnabled         bool                     `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL             string                   `json:"purchase_subscription_url"`
-	TableDefaultPageSize                int                      `json:"table_default_page_size"`
-	TablePageSizeOptions                []int                    `json:"table_page_size_options"`
-	CustomMenuItems                     json.RawMessage          `json:"custom_menu_items"`
-	CustomEndpoints                     json.RawMessage          `json:"custom_endpoints"`
-	LinuxDoOAuthEnabled                 bool                     `json:"linuxdo_oauth_enabled"`
-	DingTalkOAuthEnabled                bool                     `json:"dingtalk_oauth_enabled"`
-	WeChatOAuthEnabled                  bool                     `json:"wechat_oauth_enabled"`
-	WeChatOAuthOpenEnabled              bool                     `json:"wechat_oauth_open_enabled"`
-	WeChatOAuthMPEnabled                bool                     `json:"wechat_oauth_mp_enabled"`
-	WeChatOAuthMobileEnabled            bool                     `json:"wechat_oauth_mobile_enabled"`
-	OIDCOAuthEnabled                    bool                     `json:"oidc_oauth_enabled"`
-	OIDCOAuthProviderName               string                   `json:"oidc_oauth_provider_name"`
-	GitHubOAuthEnabled                  bool                     `json:"github_oauth_enabled"`
-	GoogleOAuthEnabled                  bool                     `json:"google_oauth_enabled"`
-	BackendModeEnabled                  bool                     `json:"backend_mode_enabled"`
-	PaymentEnabled                      bool                     `json:"payment_enabled"`
-	Version                             string                   `json:"version"`
+	RegistrationEnabled                 bool                        `json:"registration_enabled"`
+	EmailVerifyEnabled                  bool                        `json:"email_verify_enabled"`
+	RegistrationEmailSuffixWhitelist    []string                    `json:"registration_email_suffix_whitelist"`
+	RegistrationEmailDomainQuotaEnabled bool                        `json:"registration_email_domain_quota_enabled"`
+	PromoCodeEnabled                    bool                        `json:"promo_code_enabled"`
+	PasswordResetEnabled                bool                        `json:"password_reset_enabled"`
+	InvitationCodeEnabled               bool                        `json:"invitation_code_enabled"`
+	TotpEnabled                         bool                        `json:"totp_enabled"`
+	PasskeyEnabled                      bool                        `json:"passkey_enabled"`
+	LoginAgreementEnabled               bool                        `json:"login_agreement_enabled"`
+	LoginAgreementMode                  string                      `json:"login_agreement_mode"`
+	LoginAgreementUpdatedAt             string                      `json:"login_agreement_updated_at"`
+	LoginAgreementRevision              string                      `json:"login_agreement_revision"`
+	LoginAgreementDocuments             []LoginAgreementDocument    `json:"login_agreement_documents"`
+	TurnstileEnabled                    bool                        `json:"turnstile_enabled"`
+	TurnstileSiteKey                    string                      `json:"turnstile_site_key"`
+	TencentCaptchaEnabled               bool                        `json:"tencent_captcha_enabled"`
+	TencentCaptchaAppID                 string                      `json:"tencent_captcha_app_id"`
+	TencentCaptchaRegion                string                      `json:"tencent_captcha_region"`
+	AliyunCaptchaEnabled                bool                        `json:"aliyun_captcha_enabled"`
+	AliyunCaptchaSceneID                string                      `json:"aliyun_captcha_scene_id"`
+	AliyunCaptchaPrefix                 string                      `json:"aliyun_captcha_prefix"`
+	AliyunCaptchaRegion                 string                      `json:"aliyun_captcha_region"`
+	SiteName                            string                      `json:"site_name"`
+	SiteLogo                            string                      `json:"site_logo"`
+	SiteSubtitle                        string                      `json:"site_subtitle"`
+	APIBaseURL                          string                      `json:"api_base_url"`
+	ContactInfo                         string                      `json:"contact_info"`
+	RechargeStorefrontEnabled           bool                        `json:"recharge_storefront_enabled"`
+	RechargeStorefrontButtonText        string                      `json:"recharge_storefront_button_text"`
+	RechargeStorefrontURL               string                      `json:"recharge_storefront_url"`
+	RechargeStorefrontBackupURL         string                      `json:"recharge_storefront_backup_url"`
+	RechargeStorefrontChannels          []RechargeStorefrontChannel `json:"recharge_storefront_channels"`
+	SupportGroupEnabled                 bool                        `json:"support_group_enabled"`
+	SupportGroupButtonText              string                      `json:"support_group_button_text"`
+	SupportGroupTitle                   string                      `json:"support_group_title"`
+	SupportGroupDescription             string                      `json:"support_group_description"`
+	SupportGroupQRCodeURL               string                      `json:"support_group_qr_code_url"`
+	SupportGroupLinkURL                 string                      `json:"support_group_link_url"`
+	SupportTicketsEnabled               bool                        `json:"support_tickets_enabled"`
+	PixmoStudioEnabled                  bool                        `json:"pixmo_studio_enabled"`
+	PixmoStudioButtonText               string                      `json:"pixmo_studio_button_text"`
+	PixmoStudioURL                      string                      `json:"pixmo_studio_url"`
+	DocURL                              string                      `json:"doc_url"`
+	HomeContent                         string                      `json:"home_content"`
+	CompactHomeEnabled                  bool                        `json:"compact_home_enabled"`
+	HideCcsImportButton                 bool                        `json:"hide_ccs_import_button"`
+	UsageHelpEnabled                    bool                        `json:"usage_help_enabled"`
+	ModelRadarEnabled                   bool                        `json:"model_radar_enabled"`
+	PurchaseSubscriptionEnabled         bool                        `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL             string                      `json:"purchase_subscription_url"`
+	TableDefaultPageSize                int                         `json:"table_default_page_size"`
+	TablePageSizeOptions                []int                       `json:"table_page_size_options"`
+	CustomMenuItems                     json.RawMessage             `json:"custom_menu_items"`
+	CustomEndpoints                     json.RawMessage             `json:"custom_endpoints"`
+	LinuxDoOAuthEnabled                 bool                        `json:"linuxdo_oauth_enabled"`
+	DingTalkOAuthEnabled                bool                        `json:"dingtalk_oauth_enabled"`
+	WeChatOAuthEnabled                  bool                        `json:"wechat_oauth_enabled"`
+	WeChatOAuthOpenEnabled              bool                        `json:"wechat_oauth_open_enabled"`
+	WeChatOAuthMPEnabled                bool                        `json:"wechat_oauth_mp_enabled"`
+	WeChatOAuthMobileEnabled            bool                        `json:"wechat_oauth_mobile_enabled"`
+	OIDCOAuthEnabled                    bool                        `json:"oidc_oauth_enabled"`
+	OIDCOAuthProviderName               string                      `json:"oidc_oauth_provider_name"`
+	GitHubOAuthEnabled                  bool                        `json:"github_oauth_enabled"`
+	GoogleOAuthEnabled                  bool                        `json:"google_oauth_enabled"`
+	BackendModeEnabled                  bool                        `json:"backend_mode_enabled"`
+	PaymentEnabled                      bool                        `json:"payment_enabled"`
+	Version                             string                      `json:"version"`
 	// 服务器全局时区（IANA 名称与当前 UTC 偏移），高峰时段等服务端本地时间窗口的展示标注用
 	ServerTimezone              string  `json:"server_timezone"`
 	ServerUTCOffset             string  `json:"server_utc_offset"`
@@ -698,6 +701,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		RechargeStorefrontButtonText:        settings.RechargeStorefrontButtonText,
 		RechargeStorefrontURL:               settings.RechargeStorefrontURL,
 		RechargeStorefrontBackupURL:         settings.RechargeStorefrontBackupURL,
+		RechargeStorefrontChannels:          settings.RechargeStorefrontChannels,
 		SupportGroupEnabled:                 settings.SupportGroupEnabled,
 		SupportGroupButtonText:              settings.SupportGroupButtonText,
 		SupportGroupTitle:                   settings.SupportGroupTitle,
@@ -831,6 +835,9 @@ func (s *SettingService) GetFrameSrcOrigins(ctx context.Context) ([]string, erro
 	// purchase subscription URL
 	if settings.PurchaseSubscriptionEnabled {
 		addOrigin(settings.PurchaseSubscriptionURL)
+	}
+	for _, channel := range settings.RechargeStorefrontChannels {
+		addOrigin(channel.URL)
 	}
 
 	// all custom menu items (including admin-only, since CSP must allow all iframes)

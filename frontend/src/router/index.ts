@@ -431,6 +431,18 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'customPage.title',
     }
   },
+  {
+    path: '/backup-recharge/:channelId?',
+    name: 'BackupRecharge',
+    component: () => import('@/views/user/BackupRechargeView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Backup Recharge',
+      titleKey: 'backupRecharge.title',
+      descriptionKey: 'backupRecharge.description',
+    },
+  },
 
   // ==================== Admin Routes ====================
   {

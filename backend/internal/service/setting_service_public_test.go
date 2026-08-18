@@ -177,6 +177,7 @@ func TestSettingService_GetPublicSettings_ExposesLocalNavigationSettings(t *test
 			SettingKeyRechargeStorefrontText:      "快速充值",
 			SettingKeyRechargeStorefrontURL:       "https://shop.example.com/",
 			SettingKeyRechargeStorefrontBackupURL: "https://backup.example.com/",
+			SettingKeyRechargeStorefrontChannels:  `[{"id":"backup-2","name":"备用二","url":"https://backup.example.com/shop","enabled":false,"sort_order":2},{"id":"backup-1","name":"备用一","url":"https://shop.example.com/","enabled":true,"sort_order":1}]`,
 			SettingKeySupportGroupEnabled:         "true",
 			SettingKeyPixmoStudioEnabled:          "true",
 			SettingKeyAcquisitionEnabled:          "true",
@@ -190,9 +191,23 @@ func TestSettingService_GetPublicSettings_ExposesLocalNavigationSettings(t *test
 	require.Equal(t, "快速充值", settings.RechargeStorefrontButtonText)
 	require.Equal(t, "https://shop.example.com/", settings.RechargeStorefrontURL)
 	require.Equal(t, "https://backup.example.com/", settings.RechargeStorefrontBackupURL)
+	require.Len(t, settings.RechargeStorefrontChannels, 1)
+	require.Equal(t, "backup-1", settings.RechargeStorefrontChannels[0].ID)
 	require.True(t, settings.SupportGroupEnabled)
 	require.True(t, settings.PixmoStudioEnabled)
 	require.True(t, settings.AcquisitionEnabled)
+}
+
+func TestSettingService_GetFrameSrcOriginsIncludesOnlyEnabledRechargeChannels(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{values: map[string]string{
+		SettingKeyRechargeStorefrontEnabled:  "true",
+		SettingKeyRechargeStorefrontChannels: `[{"id":"backup-1","name":"备用一","url":"https://shop.example.com/path","enabled":true,"sort_order":1},{"id":"backup-2","name":"备用二","url":"https://disabled.example.com/","enabled":false,"sort_order":2}]`,
+	}}, &config.Config{})
+
+	origins, err := svc.GetFrameSrcOrigins(context.Background())
+	require.NoError(t, err)
+	require.Contains(t, origins, "https://shop.example.com")
+	require.NotContains(t, origins, "https://disabled.example.com")
 }
 
 func TestSettingService_GetPublicSettings_SupportTicketsDefaultEnabled(t *testing.T) {

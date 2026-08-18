@@ -132,6 +132,27 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.Equal(t, 1, countDirectiveValue(csp, "worker-src", TencentCaptchaWorkerSource))
 	})
 
+	t.Run("csp_enabled_injects_dynamic_frame_origins", func(t *testing.T) {
+		cfg := config.CSPConfig{
+			Enabled: true,
+			Policy:  "default-src 'self'; frame-src 'self'",
+		}
+		middleware := SecurityHeaders(cfg, func() []string {
+			return []string{"https://shop.example.com", "https://pay.example.com"}
+		})
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+
+		middleware(c)
+
+		csp := w.Header().Get("Content-Security-Policy")
+		assert.Equal(t, 1, countDirectiveValue(csp, "frame-src", "https://shop.example.com"))
+		assert.Equal(t, 1, countDirectiveValue(csp, "frame-src", "https://pay.example.com"))
+		assert.Equal(t, 0, countDirectiveValue(csp, "frame-src", "https:"))
+	})
+
 	t.Run("api_route_skips_csp_nonce_generation", func(t *testing.T) {
 		cfg := config.CSPConfig{
 			Enabled: true,

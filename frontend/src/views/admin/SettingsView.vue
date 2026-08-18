@@ -6569,7 +6569,7 @@
                   </div>
                   <Toggle v-model="form.recharge_storefront_enabled" />
                 </div>
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="space-y-4">
                   <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       {{ t("admin.settings.site.rechargeStorefront.buttonText") }}
@@ -6581,34 +6581,47 @@
                       :placeholder="t('admin.settings.site.rechargeStorefront.buttonTextPlaceholder')"
                     />
                   </div>
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.site.rechargeStorefront.primaryUrl") }}
-                    </label>
-                    <input
-                      v-model="form.recharge_storefront_url"
-                      type="url"
-                      class="input font-mono text-sm"
-                      :placeholder="t('admin.settings.site.rechargeStorefront.primaryUrlPlaceholder')"
-                    />
-                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.site.rechargeStorefront.primaryUrlHint") }}
-                    </p>
+                  <div class="rounded-xl border border-gray-200 dark:border-dark-700">
+                    <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-dark-700">
+                      <div>
+                        <h4 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.site.rechargeStorefront.channelsTitle") }}</h4>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t("admin.settings.site.rechargeStorefront.channelsHint") }}</p>
+                      </div>
+                      <button v-if="form.recharge_storefront_channels.length < 8" type="button" class="btn btn-secondary btn-sm" @click="addRechargeStorefrontChannel">
+                        <Icon name="plus" size="sm" class="mr-1.5" />
+                        {{ t("admin.settings.site.rechargeStorefront.addChannel") }}
+                      </button>
+                    </div>
+                    <div v-if="form.recharge_storefront_channels.length" class="divide-y divide-gray-100 dark:divide-dark-700">
+                      <div v-for="(channel, index) in form.recharge_storefront_channels" :key="channel.id" class="grid grid-cols-1 gap-3 p-4 md:grid-cols-[auto_1fr_1.7fr_auto_auto] md:items-end">
+                        <div class="flex h-10 items-center gap-1">
+                          <button type="button" class="icon-button" :disabled="index === 0" :title="t('admin.settings.site.rechargeStorefront.moveUp')" :aria-label="t('admin.settings.site.rechargeStorefront.moveUp')" @click="moveRechargeStorefrontChannel(index, -1)">
+                            <Icon name="arrowUp" size="xs" />
+                          </button>
+                          <button type="button" class="icon-button" :disabled="index === form.recharge_storefront_channels.length - 1" :title="t('admin.settings.site.rechargeStorefront.moveDown')" :aria-label="t('admin.settings.site.rechargeStorefront.moveDown')" @click="moveRechargeStorefrontChannel(index, 1)">
+                            <Icon name="arrowDown" size="xs" />
+                          </button>
+                        </div>
+                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                          {{ t("admin.settings.site.rechargeStorefront.channelName") }}
+                          <input v-model="channel.name" type="text" class="input mt-1" maxlength="64" />
+                        </label>
+                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                          {{ t("admin.settings.site.rechargeStorefront.channelUrl") }}
+                          <input v-model="channel.url" type="url" class="input mt-1 font-mono text-sm" placeholder="https://" />
+                        </label>
+                        <label class="flex h-10 items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                          <Toggle v-model="channel.enabled" />
+                          {{ t("admin.settings.site.rechargeStorefront.enabled") }}
+                        </label>
+                        <button type="button" class="icon-button text-gray-400 hover:text-red-600 dark:hover:text-red-400" :title="t('common.delete')" :aria-label="t('common.delete')" @click="removeRechargeStorefrontChannel(index)">
+                          <Icon name="trash" size="sm" />
+                        </button>
+                      </div>
+                    </div>
+                    <p v-else class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ t("admin.settings.site.rechargeStorefront.noChannels") }}</p>
                   </div>
-                  <div class="md:col-span-2">
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.site.rechargeStorefront.backupUrl") }}
-                    </label>
-                    <input
-                      v-model="form.recharge_storefront_backup_url"
-                      type="url"
-                      class="input font-mono text-sm"
-                      :placeholder="t('admin.settings.site.rechargeStorefront.backupUrlPlaceholder')"
-                    />
-                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.site.rechargeStorefront.backupUrlHint") }}
-                    </p>
-                  </div>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ t("admin.settings.site.rechargeStorefront.compatibilityHint") }}</p>
                 </div>
               </div>
 
@@ -9248,6 +9261,7 @@ import type {
   LoginAgreementDocument,
   NotifyEmailEntry,
   Proxy,
+  RechargeStorefrontChannel,
 } from "@/types";
 import type { ProviderInstance } from "@/types/payment";
 import AppLayout from "@/components/layout/AppLayout.vue";
@@ -10192,6 +10206,7 @@ const form = reactive<SettingsForm>({
   recharge_storefront_button_text: "充值商城",
   recharge_storefront_url: "",
   recharge_storefront_backup_url: "",
+  recharge_storefront_channels: [] as RechargeStorefrontChannel[],
   support_group_enabled: false,
   support_group_button_text: "售后群",
   support_group_title: "售后服务群",
@@ -11404,6 +11419,40 @@ function removeCodexWhitelistRow(i: number): void {
   codexWhitelistRows.value.splice(i, 1);
 }
 
+function addRechargeStorefrontChannel(): void {
+  const usedIds = new Set(form.recharge_storefront_channels.map((channel) => channel.id));
+  let sequence = form.recharge_storefront_channels.length + 1;
+  let id = `backup-${sequence}`;
+  while (usedIds.has(id)) {
+    sequence += 1;
+    id = `backup-${sequence}`;
+  }
+  form.recharge_storefront_channels.push({
+    id,
+    name: `备用${sequence}`,
+    url: "",
+    enabled: true,
+    sort_order: form.recharge_storefront_channels.length + 1,
+  });
+}
+
+function removeRechargeStorefrontChannel(index: number): void {
+  form.recharge_storefront_channels.splice(index, 1);
+  form.recharge_storefront_channels.forEach((channel, channelIndex) => {
+    channel.sort_order = channelIndex + 1;
+  });
+}
+
+function moveRechargeStorefrontChannel(index: number, direction: -1 | 1): void {
+  const target = index + direction;
+  if (target < 0 || target >= form.recharge_storefront_channels.length) return;
+  const [channel] = form.recharge_storefront_channels.splice(index, 1);
+  form.recharge_storefront_channels.splice(target, 0, channel);
+  form.recharge_storefront_channels.forEach((item, channelIndex) => {
+    item.sort_order = channelIndex + 1;
+  });
+}
+
 const codexSyncedVersionLabel = computed(() => {
   const synced = form.openai_codex_client_version_synced?.trim();
   if (!synced) return "";
@@ -11803,15 +11852,29 @@ async function saveSettings() {
     // Optional URL fields: auto-clear invalid values so they don't cause backend 400 errors
     if (!isValidHttpUrl(form.frontend_url)) form.frontend_url = "";
     if (!isValidHttpUrl(form.doc_url)) form.doc_url = "";
-    if (!isValidHttpUrl(form.recharge_storefront_url)) {
-      form.recharge_storefront_url = "";
+    const invalidRechargeChannel = form.recharge_storefront_channels.find((channel) => {
+      if (!channel.name.trim() || !channel.url.trim()) return true;
+      try {
+        const parsed = new URL(channel.url.trim());
+        return parsed.protocol !== "https:" || Boolean(parsed.username || parsed.password);
+      } catch {
+        return true;
+      }
+    });
+    if (invalidRechargeChannel) {
+      appStore.showError(localText("充值渠道必须填写名称和完整的 HTTPS 地址。", "Each recharge channel needs a name and a complete HTTPS URL."));
+      return;
     }
-    if (form.recharge_storefront_backup_url && !isValidHttpUrl(form.recharge_storefront_backup_url)) {
-      form.recharge_storefront_backup_url = "";
-    }
-    if (!form.recharge_storefront_url && !form.recharge_storefront_backup_url) {
-      form.recharge_storefront_enabled = false;
-    }
+    form.recharge_storefront_channels = form.recharge_storefront_channels.map((channel, index) => ({
+      ...channel,
+      id: channel.id.trim(),
+      name: channel.name.trim(),
+      url: channel.url.trim(),
+      sort_order: index + 1,
+    }));
+    form.recharge_storefront_enabled = form.recharge_storefront_enabled && form.recharge_storefront_channels.length > 0;
+    form.recharge_storefront_url = form.recharge_storefront_channels[0]?.url || "";
+    form.recharge_storefront_backup_url = form.recharge_storefront_channels[1]?.url || "";
     if (!isValidHttpUrl(form.support_group_qr_code_url)) {
       form.support_group_qr_code_url = "";
     }
@@ -11886,6 +11949,7 @@ async function saveSettings() {
       recharge_storefront_button_text: form.recharge_storefront_button_text,
       recharge_storefront_url: form.recharge_storefront_url,
       recharge_storefront_backup_url: form.recharge_storefront_backup_url,
+      recharge_storefront_channels: form.recharge_storefront_channels,
       support_group_enabled: form.support_group_enabled,
       support_group_button_text: form.support_group_button_text,
       support_group_title: form.support_group_title,

@@ -1078,7 +1078,10 @@ describe("admin SettingsView payment visible method controls", () => {
   it("submits local navigation settings and refreshes the public settings cache", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
-      recharge_storefront_enabled: false,
+      recharge_storefront_enabled: true,
+      recharge_storefront_channels: [
+        { id: "backup-1", name: "备用一", url: "https://shop.example.com/", enabled: true, sort_order: 1 },
+      ],
       support_group_enabled: true,
       support_group_link_url: "https://chat.example.com/group",
       pixmo_studio_enabled: false,
@@ -1099,7 +1102,10 @@ describe("admin SettingsView payment visible method controls", () => {
 
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({
-        recharge_storefront_enabled: false,
+        recharge_storefront_enabled: true,
+        recharge_storefront_channels: [
+          { id: "backup-1", name: "备用一", url: "https://shop.example.com/", enabled: true, sort_order: 1 },
+        ],
         support_group_enabled: true,
         support_group_link_url: "https://chat.example.com/group",
         pixmo_studio_enabled: false,
