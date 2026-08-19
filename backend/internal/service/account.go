@@ -437,6 +437,17 @@ func (a *Account) IsTempUnschedulableEnabled() bool {
 	return ok && enabled
 }
 
+// ShouldSkipCNProviderBalanceCheck reports whether this account should be
+// excluded from the periodic DeepSeek payg balance probe. It does not suppress
+// cooldowns caused by an actual upstream insufficient-balance response.
+func (a *Account) ShouldSkipCNProviderBalanceCheck() bool {
+	if a == nil || a.Platform != PlatformDeepseek || a.Type != AccountTypeAPIKey || a.GetAccountMode() != AccountModePayG {
+		return false
+	}
+	value, ok := a.Credentials[cnBalanceCheckSkipCredentialKey].(bool)
+	return ok && value
+}
+
 func (a *Account) GetTempUnschedulableRules() []TempUnschedulableRule {
 	if a.Credentials == nil {
 		return nil

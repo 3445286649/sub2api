@@ -104,6 +104,22 @@
           </div>
           <p class="input-hint">{{ t(`admin.accounts.cnProviders.apiProtocol.${cnProtocolDescKey}Desc`) }}</p>
         </div>
+        <div
+          v-if="account.platform === 'deepseek' && account.type === 'apikey' && editAccountMode === 'payg'"
+          class="flex items-center justify-between gap-4 rounded-lg border border-gray-200 p-3 dark:border-dark-600"
+        >
+          <div class="min-w-0">
+            <label class="input-label mb-0">{{ t('admin.accounts.cnProviders.skipBalanceCheck.title') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.cnProviders.skipBalanceCheck.hint') }}
+            </p>
+          </div>
+          <Toggle
+            v-model="skipDeepSeekBalanceCheck"
+            data-testid="deepseek-skip-balance-check-toggle"
+            :aria-label="t('admin.accounts.cnProviders.skipBalanceCheck.title')"
+          />
+        </div>
         <div>
           <label class="input-label">{{ t('admin.accounts.apiKey') }}</label>
           <input
@@ -2989,6 +3005,7 @@ const cnPresetPlatform = computed<'kimi' | 'zhipu' | 'deepseek'>(() => {
 })
 const editApiProtocol = ref<CnApiProtocol>('chat_completions')
 const editAccountMode = ref<CnAccountMode>('payg')
+const skipDeepSeekBalanceCheck = ref(false)
 // 回填窗口标志：syncFormFromAccount 会同步改写 editAccountMode / editApiProtocol，
 // 而 watcher（pre-flush）在同步代码执行完之后才触发——若不抑制，会把刚恢复的
 // 存储版 base_url（可能是用户自定义/中转地址）覆盖为官方预设并在下次保存时持久化。
@@ -3680,6 +3697,10 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   // Load intercept warmup requests setting (applies to all account types)
   const credentials = newAccount.credentials as Record<string, unknown> | undefined
   interceptWarmupRequests.value = credentials?.intercept_warmup_requests === true
+  skipDeepSeekBalanceCheck.value =
+    newAccount.platform === 'deepseek' &&
+    newAccount.type === 'apikey' &&
+    credentials?.skip_balance_check === true
   autoPauseOnExpired.value = newAccount.auto_pause_on_expired === true
   editVertexProjectId.value = ''
   editVertexClientEmail.value = ''
@@ -4649,6 +4670,13 @@ const handleSubmit = async () => {
       if (isCNApiKeyAccount.value) {
         newCredentials.account_mode = editAccountMode.value
         newCredentials.api_protocol = editApiProtocol.value
+      }
+      if (props.account.platform === 'deepseek' && editAccountMode.value === 'payg') {
+        if (skipDeepSeekBalanceCheck.value) {
+          newCredentials.skip_balance_check = true
+        } else {
+          delete newCredentials.skip_balance_check
+        }
       }
 
       // Handle API key

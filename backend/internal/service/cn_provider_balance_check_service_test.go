@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -15,10 +16,13 @@ import (
 //   - 非激活账号完全跳过。
 
 type fakeCNQuotaProber struct {
+	mu     sync.Mutex
 	probed []int64
 }
 
 func (f *fakeCNQuotaProber) QueryUsage(ctx context.Context, accountID int64) (*CNProviderQuotaProbeResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.probed = append(f.probed, accountID)
 	return &CNProviderQuotaProbeResult{Success: true, Persisted: true}, nil
 }
@@ -66,6 +70,76 @@ func TestCNProviderBalanceCheckRunOnceWithoutQuotaService(t *testing.T) {
 		PlatformZhipu: {{ID: 4, Platform: PlatformZhipu, Type: AccountTypeAPIKey, Status: StatusActive,
 			Credentials: map[string]any{"account_mode": "coding"}}},
 	}}
+	svc := &CNProviderBalanceCheckService{accountRepo: repo, cfg: &config.Config{}}
+	require.NotPanics(t, func() { svc.runOnce() })
+}
+
+func TestAccountShouldSkipCNProviderBalanceCheck(t *testing.T) {
+	t.Parallel()
+
+	deepseekPayG := &Account{
+		Platform: PlatformDeepseek,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"account_mode":       AccountModePayG,
+			"skip_balance_check": true,
+		},
+	}
+	require.True(t, deepseekPayG.ShouldSkipCNProviderBalanceCheck())
+
+	deepseekDefault := &Account{
+		Platform:    PlatformDeepseek,
+		Type:        AccountTypeAPIKey,
+		Credentials: map[string]any{"account_mode": AccountModePayG},
+	}
+	require.False(t, deepseekDefault.ShouldSkipCNProviderBalanceCheck())
+
+	deepseekUnknownMode := &Account{
+		Platform: PlatformDeepseek,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"skip_balance_check": true,
+		},
+	}
+	require.False(t, deepseekUnknownMode.ShouldSkipCNProviderBalanceCheck())
+
+	kimiPayG := &Account{
+		Platform: PlatformKimi,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"account_mode":       AccountModePayG,
+			"skip_balance_check": true,
+		},
+	}
+	require.False(t, kimiPayG.ShouldSkipCNProviderBalanceCheck())
+
+	deepseekCoding := &Account{
+		Platform: PlatformDeepseek,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"account_mode":       AccountModeCoding,
+			"skip_balance_check": true,
+		},
+	}
+	require.False(t, deepseekCoding.ShouldSkipCNProviderBalanceCheck())
+}
+
+func TestCNProviderBalanceCheckRunOnceSkipsOptedOutDeepSeekPayG(t *testing.T) {
+	repo := &fakeCNCheckRepo{byPlatform: map[string][]Account{
+		PlatformDeepseek: {{
+			ID:          5,
+			Platform:    PlatformDeepseek,
+			Type:        AccountTypeAPIKey,
+			Status:      StatusActive,
+			Schedulable: true,
+			Credentials: map[string]any{
+				"account_mode":       AccountModePayG,
+				"skip_balance_check": true,
+			},
+		}},
+	}}
+	// A nil balance service would panic if the opted-out account entered the
+	// payg probe queue, so this exercises the runOnce collection boundary.
 	svc := &CNProviderBalanceCheckService{accountRepo: repo, cfg: &config.Config{}}
 	require.NotPanics(t, func() { svc.runOnce() })
 }

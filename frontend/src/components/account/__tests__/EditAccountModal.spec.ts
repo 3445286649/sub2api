@@ -279,6 +279,22 @@ function buildGrokAPIKeyAccount() {
   } as any
 }
 
+function buildDeepSeekAccount(skipBalanceCheck = false) {
+  return {
+    ...buildAccount(),
+    id: 7,
+    name: 'DeepSeek Upstream',
+    platform: 'deepseek',
+    credentials: {
+      api_key: 'sk-deepseek',
+      base_url: 'https://deepseek-upstream.example.com',
+      account_mode: 'payg',
+      api_protocol: 'chat_completions',
+      ...(skipBalanceCheck ? { skip_balance_check: true } : {})
+    }
+  } as any
+}
+
 function buildOpenAISetupTokenAccount() {
   return {
     ...buildAccount(),
@@ -314,6 +330,42 @@ function mountModal(account = buildAccount()) {
 describe('EditAccountModal', () => {
   beforeEach(() => {
     authIsSimpleMode.value = true
+  })
+
+  it('defaults DeepSeek automatic balance check bypass to off and submits it when enabled', async () => {
+    const account = buildDeepSeekAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    const toggle = wrapper.get('[data-testid="deepseek-skip-balance-check-toggle"]')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+
+    await toggle.trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.skip_balance_check).toBe(true)
+  })
+
+  it('loads and removes the DeepSeek automatic balance check bypass when disabled', async () => {
+    const account = buildDeepSeekAccount(true)
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    const toggle = wrapper.get('[data-testid="deepseek-skip-balance-check-toggle"]')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+
+    await toggle.trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials).not.toHaveProperty('skip_balance_check')
   })
 
   it('reopening the same account rehydrates the OpenAI whitelist from props', async () => {

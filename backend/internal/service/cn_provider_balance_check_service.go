@@ -121,7 +121,7 @@ func (s *CNProviderBalanceCheckService) runOnce() {
 			}
 			// payg 余额探测仅 kimi/deepseek（智谱无公开余额端点，payg 账号
 			// 依赖响应式 402/429 处理）。
-			if platform != PlatformZhipu && account.Schedulable {
+			if platform != PlatformZhipu && account.Schedulable && !account.ShouldSkipCNProviderBalanceCheck() {
 				paygTargets = append(paygTargets, account)
 			}
 		}

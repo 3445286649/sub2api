@@ -26,6 +26,12 @@ const cnBalanceExtraSuffixLow = "balance_low"
 // 其他子系统（阈值/限流/401）写入的临时停调。
 const cnBalanceLowReasonPrefix = "cn_balance_low"
 
+// cnBalanceCheckSkipCredentialKey allows a DeepSeek payg account backed by a
+// third-party gateway to opt out when the gateway does not implement the
+// official /user/balance contract. Reactive insufficient-balance handling is
+// intentionally unaffected.
+const cnBalanceCheckSkipCredentialKey = "skip_balance_check"
+
 // cnBalanceLowReason 构造余额不足临时停调的 reason（带稳定前缀）。
 func cnBalanceLowReason(upstreamMsg string) string {
 	if upstreamMsg = strings.TrimSpace(upstreamMsg); upstreamMsg != "" {
