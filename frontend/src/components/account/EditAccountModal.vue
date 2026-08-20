@@ -1580,6 +1580,21 @@
             />
           </div>
         </div>
+        <div v-if="account?.type === 'apikey'">
+          <label class="input-label">{{ t('admin.accounts.upstreamBilling.rechargeRatio') }}</label>
+          <div class="flex items-center gap-2">
+            <span class="flex-shrink-0 text-sm text-gray-500 dark:text-gray-400">1 :</span>
+            <input
+              v-model.number="upstreamBillingRechargeRatio"
+              type="number"
+              min="0.0001"
+              step="0.0001"
+              class="input"
+              data-testid="upstream-billing-recharge-ratio"
+            />
+          </div>
+          <p class="input-hint">{{ t('admin.accounts.upstreamBilling.rechargeRatioHint') }}</p>
+        </div>
       </div>
       <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
         <label class="input-label">{{ t('admin.accounts.expiresAt') }}</label>
@@ -3138,6 +3153,7 @@ const autoPause5hDisabled = ref(false)
 const autoPause7dDisabled = ref(false)
 const upstreamBillingAutoProbeEnabled = ref(false)
 const upstreamBillingRateSyncEnabled = ref(false)
+const upstreamBillingRechargeRatio = ref(1)
 const mixedScheduling = ref(false) // For antigravity accounts: enable mixed scheduling
 const allowOverages = ref(false) // For antigravity accounts: enable AI Credits overages
 const antigravityProjectId = ref('')
@@ -3725,6 +3741,10 @@ const syncFormFromAccount = (newAccount: Account | null) => {
 	upstreamBillingAutoProbeEnabled.value = extra?.upstream_billing_probe_enabled === true
   upstreamBillingRateSyncEnabled.value =
     upstreamBillingAutoProbeEnabled.value && extra?.upstream_billing_rate_sync_enabled === true
+  const rechargeRatio = Number(extra?.upstream_billing_recharge_ratio ?? 1)
+  upstreamBillingRechargeRatio.value = Number.isFinite(rechargeRatio) && rechargeRatio > 0
+    ? Math.round(rechargeRatio * 10_000) / 10_000
+    : 1
 
   // Load OpenAI passthrough toggle (OpenAI OAuth/SetupToken/API Key)
   openaiPassthroughEnabled.value = false
@@ -4647,8 +4667,14 @@ const handleSubmit = async () => {
     }
     updatePayload.auto_pause_on_expired = autoPauseOnExpired.value
     if (props.account.type === 'apikey') {
+      const rechargeRatio = Math.round(Number(upstreamBillingRechargeRatio.value) * 10_000) / 10_000
+      if (!Number.isFinite(rechargeRatio) || rechargeRatio <= 0) {
+        appStore.showError(t('admin.accounts.upstreamBilling.invalidRechargeRatio'))
+        return
+      }
       updatePayload.upstream_billing_probe_enabled = upstreamBillingAutoProbeEnabled.value
       updatePayload.upstream_billing_rate_sync_enabled = upstreamBillingRateSyncEnabled.value
+      updatePayload.upstream_billing_recharge_ratio = rechargeRatio
       if (upstreamBillingRateSyncEnabled.value) {
         delete updatePayload.rate_multiplier
       }
@@ -5252,6 +5278,7 @@ const handleSubmit = async () => {
       if (props.account.type === 'apikey') {
         delete newExtra.upstream_billing_probe_enabled
         delete newExtra.upstream_billing_rate_sync_enabled
+        delete newExtra.upstream_billing_recharge_ratio
       }
       // Total quota
       if (editQuotaLimit.value != null && editQuotaLimit.value > 0) {

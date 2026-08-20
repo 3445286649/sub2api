@@ -765,6 +765,28 @@ describe('EditAccountModal', () => {
     expect(payload).not.toHaveProperty('rate_multiplier')
   })
 
+  it('loads and submits the account-level upstream recharge ratio', async () => {
+    const account = buildAccount()
+    account.extra = { upstream_billing_recharge_ratio: 10 }
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+    const ratioInput = wrapper.get<HTMLInputElement>('[data-testid="upstream-billing-recharge-ratio"]')
+    expect(ratioInput.element.value).toBe('10')
+
+    await ratioInput.setValue('10.123456')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.upstream_billing_recharge_ratio).toBe(10.1235)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra).not.toHaveProperty(
+      'upstream_billing_recharge_ratio'
+    )
+  })
+
   it('disabling probing also disables rate sync and restores manual rate editing', async () => {
     const account = buildAccount()
     account.extra = {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"testing"
 
@@ -29,6 +30,7 @@ func (r *accountBillingSettingsAdminRepo) UpdateWithAccountBillingSettings(
 	account *Account,
 	probeEnabled *bool,
 	rateSyncEnabled *bool,
+	rechargeRatio *float64,
 	rateMultiplier *float64,
 ) error {
 	r.mu.Lock()
@@ -49,6 +51,10 @@ func (r *accountBillingSettingsAdminRepo) UpdateWithAccountBillingSettings(
 	}
 	if rateSyncEnabled != nil {
 		updated.Extra[UpstreamBillingRateSyncEnabledExtraKey] = *rateSyncEnabled
+	}
+	if rechargeRatio != nil {
+		updated.Extra[UpstreamBillingRechargeRatioExtraKey] = *rechargeRatio
+		delete(updated.Extra, UpstreamBillingProbeExtraKey)
 	}
 	switch {
 	case rateMultiplier != nil:
@@ -110,6 +116,34 @@ func TestUpdateAccountRoutesRateIntentThroughAtomicBillingUpdater(t *testing.T) 
 	require.NotNil(t, repo.lastExplicitRate)
 	require.Zero(t, *repo.lastExplicitRate)
 	require.Zero(t, *updated.RateMultiplier)
+}
+
+func TestUpdateAccountValidatesAndNormalizesUpstreamRechargeRatio(t *testing.T) {
+	accountID := int64(113)
+	repo := &accountBillingSettingsAdminRepo{
+		upstreamBillingProbeAccountRepo: &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{
+			accountID: {
+				ID: accountID, Name: "upstream", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
+				Status: StatusActive, Extra: map[string]any{UpstreamBillingProbeExtraKey: map[string]any{"status": "ok"}},
+			},
+		}},
+	}
+	svc := &adminServiceImpl{accountRepo: repo}
+
+	ratio := 10.123456
+	updated, err := svc.UpdateAccount(context.Background(), accountID, &UpdateAccountInput{
+		UpstreamBillingRechargeRatio: &ratio,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 10.1235, updated.Extra[UpstreamBillingRechargeRatioExtraKey])
+	require.NotContains(t, updated.Extra, UpstreamBillingProbeExtraKey)
+
+	for _, invalid := range []float64{0, -1, math.NaN(), math.Inf(1)} {
+		_, err = svc.UpdateAccount(context.Background(), accountID, &UpdateAccountInput{
+			UpstreamBillingRechargeRatio: &invalid,
+		})
+		require.Error(t, err)
+	}
 }
 
 func TestCreateAccountDropsManagedUpstreamBillingProbeState(t *testing.T) {

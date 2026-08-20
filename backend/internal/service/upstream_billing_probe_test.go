@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"reflect"
 	"strings"
@@ -426,7 +427,7 @@ func TestUpstreamBillingProbeSyncRateRangeAndPrecision(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := upstreamBillingProbeSyncRate(map[string]any{"resolved_rate_multiplier": tt.value})
+			got, ok := upstreamBillingProbeSyncRate(map[string]any{"resolved_rate_multiplier": tt.value}, nil)
 			require.Equal(t, tt.ok, ok)
 			if tt.ok {
 				require.Equal(t, tt.want, got)
@@ -435,17 +436,81 @@ func TestUpstreamBillingProbeSyncRateRangeAndPrecision(t *testing.T) {
 	}
 }
 
+func TestUpstreamBillingRechargeRatioConversion(t *testing.T) {
+	tests := []struct {
+		name  string
+		extra map[string]any
+		want  float64
+		ok    bool
+	}{
+		{name: "missing ratio defaults to one", extra: nil, want: 1, ok: true},
+		{name: "ten upstream units per local unit", extra: map[string]any{UpstreamBillingRechargeRatioExtraKey: 10.0}, want: 10, ok: true},
+		{name: "rounds to four decimals", extra: map[string]any{UpstreamBillingRechargeRatioExtraKey: 1.23456}, want: 1.2346, ok: true},
+		{name: "zero is rejected", extra: map[string]any{UpstreamBillingRechargeRatioExtraKey: 0.0}, ok: false},
+		{name: "negative is rejected", extra: map[string]any{UpstreamBillingRechargeRatioExtraKey: -1.0}, ok: false},
+		{name: "nan is rejected", extra: map[string]any{UpstreamBillingRechargeRatioExtraKey: math.NaN()}, ok: false},
+		{name: "infinity is rejected", extra: map[string]any{UpstreamBillingRechargeRatioExtraKey: math.Inf(1)}, ok: false},
+		{name: "finite value that overflows normalization is rejected", extra: map[string]any{UpstreamBillingRechargeRatioExtraKey: math.MaxFloat64}, ok: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := upstreamBillingRechargeRatio(tt.extra)
+			require.Equal(t, tt.ok, ok)
+			if tt.ok {
+				require.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
+func TestUpstreamBillingRateUsesRechargeRatioAndCurrentPeak(t *testing.T) {
+	data := map[string]any{
+		"billing_scope":            "token",
+		"resolved_rate_multiplier": 1.5,
+		"peak_rate_enabled":        true,
+		"peak_start":               "09:00",
+		"peak_end":                 "18:00",
+		"peak_rate_multiplier":     1.5,
+		"timezone":                 "Asia/Shanghai",
+	}
+	extra := map[string]any{UpstreamBillingRechargeRatioExtraKey: 10.0}
+
+	offPeak, ok := upstreamBillingRateAt(data, extra, time.Date(2026, time.July, 13, 0, 0, 0, 0, time.UTC))
+	require.True(t, ok)
+	require.Equal(t, 0.15, offPeak)
+
+	peak, ok := upstreamBillingRateAt(data, extra, time.Date(2026, time.July, 13, 2, 0, 0, 0, time.UTC))
+	require.True(t, ok)
+	require.Equal(t, 0.225, peak)
+}
+
+func TestUpstreamBillingProbeSyncRateUsesRechargeRatio(t *testing.T) {
+	got, ok := upstreamBillingProbeSyncRate(
+		map[string]any{"resolved_rate_multiplier": 1.5},
+		map[string]any{UpstreamBillingRechargeRatioExtraKey: 10.0},
+	)
+	require.True(t, ok)
+	require.Equal(t, 0.15, got)
+
+	_, ok = upstreamBillingProbeSyncRate(
+		map[string]any{"resolved_rate_multiplier": 0.0001},
+		map[string]any{UpstreamBillingRechargeRatioExtraKey: 10.0},
+	)
+	require.False(t, ok)
+}
+
 // 只读取 resolved（时间无关的基准倍率）：effective 含探测那一刻的高峰系数，
 // 写回它会把一个探测周期的峰值/谷值冻结进静态列。
 func TestUpstreamBillingProbeSyncRateIgnoresEffectiveRate(t *testing.T) {
 	got, ok := upstreamBillingProbeSyncRate(map[string]any{
 		"resolved_rate_multiplier":  0.6,
 		"effective_rate_multiplier": 0.9,
-	})
+	}, nil)
 	require.True(t, ok)
 	require.Equal(t, 0.6, got)
 
-	_, ok = upstreamBillingProbeSyncRate(map[string]any{"effective_rate_multiplier": 0.9})
+	_, ok = upstreamBillingProbeSyncRate(map[string]any{"effective_rate_multiplier": 0.9}, nil)
 	require.False(t, ok)
 }
 
@@ -680,10 +745,10 @@ func TestUpstreamBillingRateAtHandlesDST(t *testing.T) {
 	beforeJump := time.Date(2026, time.March, 8, 6, 30, 0, 0, time.UTC)
 	afterJump := time.Date(2026, time.March, 8, 7, 30, 0, 0, time.UTC)
 
-	rate, ok := upstreamBillingRateAt(data, beforeJump)
+	rate, ok := upstreamBillingRateAt(data, nil, beforeJump)
 	require.True(t, ok)
 	require.Equal(t, 1.0, rate)
-	rate, ok = upstreamBillingRateAt(data, afterJump)
+	rate, ok = upstreamBillingRateAt(data, nil, afterJump)
 	require.True(t, ok)
 	require.Equal(t, 2.0, rate)
 }

@@ -28,7 +28,9 @@
                 : t('admin.accounts.upstreamBilling.noPeakRate')
             }}
           </p>
-          <p>{{ t('admin.accounts.upstreamBilling.effectiveRate', { value: currentEffectiveRate ?? '-' }) }}</p>
+          <p>{{ t('admin.accounts.upstreamBilling.declaredRate', { value: formattedDeclaredRate }) }}</p>
+          <p>{{ t('admin.accounts.upstreamBilling.rechargeRatioValue', { value: formattedRechargeRatio }) }}</p>
+          <p>{{ t('admin.accounts.upstreamBilling.convertedRate', { value: formattedConvertedRate }) }}</p>
           <p>{{ t('admin.accounts.upstreamBilling.updatedAt', { value: formatDate(snapshot?.received_at) }) }}</p>
         </template>
         <template v-else-if="stale && lastDetectedRate != null">
@@ -111,6 +113,12 @@ const eligible = computed(() => props.account.type === 'apikey')
 const snapshot = computed<UpstreamBillingProbeSnapshot | undefined>(() => props.account.extra?.upstream_billing_probe)
 const data = computed(() => snapshot.value?.data)
 const probeEnabled = computed(() => props.account.extra?.upstream_billing_probe_enabled === true)
+const rechargeRatio = computed(() => {
+  const raw = Number(props.account.extra?.upstream_billing_recharge_ratio ?? 1)
+  if (!Number.isFinite(raw) || raw <= 0) return null
+  const normalized = Math.round(raw * 10_000) / 10_000
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : null
+})
 const nextProbeAt = computed(() => {
   const value = snapshot.value?.next_probe_at
   return typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : ''
@@ -158,7 +166,7 @@ const minuteInTimeZone = (timestamp: number, timeZone?: string) => {
     return null
   }
 }
-const currentEffectiveRate = computed(() => {
+const currentDeclaredRate = computed(() => {
   const billing = data.value
   if (!billing) return null
   if (billing.billing_scope !== 'token') return null
@@ -174,10 +182,21 @@ const currentEffectiveRate = computed(() => {
   const value = minute >= start && minute < end ? base * peak : base
   return Number.isFinite(value) ? value : null
 })
+const currentConvertedRate = computed(() => {
+  const declared = currentDeclaredRate.value
+  const ratio = rechargeRatio.value
+  if (declared == null || ratio == null) return null
+  const converted = Math.round((declared / ratio) * 10_000) / 10_000
+  return Number.isFinite(converted) ? converted : null
+})
+const formattedDeclaredRate = computed(() => currentDeclaredRate.value == null ? '-' : formatMultiplier(currentDeclaredRate.value))
+const formattedRechargeRatio = computed(() => rechargeRatio.value == null ? '-' : formatMultiplier(rechargeRatio.value))
+const formattedConvertedRate = computed(() => currentConvertedRate.value == null ? '-' : formatMultiplier(currentConvertedRate.value))
 const lastDetectedRate = computed(() => {
   const value = data.value?.effective_rate_multiplier
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
-    ? Number(value.toPrecision(12))
+  const ratio = rechargeRatio.value
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && ratio != null
+    ? Math.round((value / ratio) * 10_000) / 10_000
     : null
 })
 const elapsedSinceLastSuccess = computed(() => {
@@ -191,7 +210,7 @@ const elapsedSinceLastSuccess = computed(() => {
 })
 const effectiveRate = computed(() => {
   if (!validTimestamps.value || stale.value || !['ok', 'failed'].includes(snapshot.value?.status ?? '')) return '-'
-  const value = currentEffectiveRate.value
+  const value = currentConvertedRate.value
   return value == null ? '-' : `${formatMultiplier(value)}x`
 })
 const statusLabel = computed(() => {

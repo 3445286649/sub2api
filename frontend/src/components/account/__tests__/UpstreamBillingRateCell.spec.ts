@@ -100,6 +100,40 @@ describe('UpstreamBillingRateCell', () => {
     )
   })
 
+  it('shows the locally converted rate while retaining the upstream declaration in details', async () => {
+    const wrapper = mount(UpstreamBillingRateCell, {
+      attachTo: document.body,
+      props: {
+        account: makeAccount({
+          extra: {
+            upstream_billing_probe_enabled: true,
+            upstream_billing_recharge_ratio: 10,
+            upstream_billing_probe: {
+              status: 'ok',
+              data: { ...billingData, resolved_rate_multiplier: 1.5, effective_rate_multiplier: 1.5 },
+              received_at: '2026-07-13T00:00:00Z',
+              fresh_until: '2026-07-14T00:00:00Z',
+              last_attempt_at: '2026-07-13T00:00:00Z',
+              next_probe_at: '2026-07-13T00:30:00Z'
+            }
+          }
+        }),
+        now: Date.now()
+      }
+    })
+
+    expect(wrapper.get('[data-testid="upstream-billing-rate"]').text()).toBe('0.15x')
+    await wrapper.get('[data-testid="upstream-billing-details"]').trigger('mouseenter')
+    await flushPromises()
+
+    const tooltips = document.body.querySelectorAll('[role="tooltip"]')
+    const tooltip = tooltips[tooltips.length - 1] as HTMLElement
+    expect(tooltip.textContent).toContain('admin.accounts.upstreamBilling.declaredRate:1.50')
+    expect(tooltip.textContent).toContain('admin.accounts.upstreamBilling.rechargeRatioValue:10.00')
+    expect(tooltip.textContent).toContain('admin.accounts.upstreamBilling.convertedRate:0.15')
+    wrapper.unmount()
+  })
+
   it('uses retained failed data only while it is still fresh', async () => {
     const account = makeAccount({
       extra: {

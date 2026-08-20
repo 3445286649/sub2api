@@ -2824,7 +2824,7 @@ func openAIFreshUpstreamBillingRate(account *Account, now time.Time) (float64, b
 	if freshUntil == nil || !freshUntil.After(receivedAt) || now.Before(receivedAt) || now.After(*freshUntil) {
 		return 0, false
 	}
-	return upstreamBillingRateAt(snapshot.Data, now)
+	return upstreamBillingRateAt(snapshot.Data, account.Extra, now)
 }
 
 func openAIQuotaHeadroomFactor(account *Account, now time.Time) float64 {

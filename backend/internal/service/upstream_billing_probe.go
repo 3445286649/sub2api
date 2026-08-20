@@ -32,6 +32,7 @@ const (
 	UpstreamBillingProbeExtraKey           = "upstream_billing_probe"
 	UpstreamBillingProbeEnabledExtraKey    = "upstream_billing_probe_enabled"
 	UpstreamBillingRateSyncEnabledExtraKey = "upstream_billing_rate_sync_enabled"
+	UpstreamBillingRechargeRatioExtraKey   = "upstream_billing_recharge_ratio"
 
 	upstreamBillingProbeDefaultIntervalMinutes = 30
 	upstreamBillingProbeMinIntervalMinutes     = 5
@@ -684,7 +685,7 @@ func (s *UpstreamBillingProbeService) probeLoadedAccount(ctx context.Context, ac
 	var syncRate *float64
 	previousRate := account.BillingRateMultiplier()
 	if upstreamBillingRateSyncEnabled(account) {
-		if value, valid := upstreamBillingProbeSyncRate(data); valid {
+		if value, valid := upstreamBillingProbeSyncRate(data, account.Extra); valid {
 			syncRate = &value
 			snapshot.SyncedRateMultiplier = &value
 		} else {
@@ -849,7 +850,7 @@ func parseUpstreamBillingProbeResponse(body []byte) (map[string]any, error) {
 	return data, nil
 }
 
-func upstreamBillingRateAt(data map[string]any, now time.Time) (float64, bool) {
+func upstreamBillingRateAt(data, accountExtra map[string]any, now time.Time) (float64, bool) {
 	if scope, _ := data["billing_scope"].(string); scope != "token" {
 		return 0, false
 	}
@@ -861,11 +862,47 @@ func upstreamBillingRateAt(data map[string]any, now time.Time) (float64, bool) {
 	if !ok {
 		return 0, false
 	}
-	base *= appliedPeak
+	ratio, ok := upstreamBillingRechargeRatio(accountExtra)
+	if !ok {
+		return 0, false
+	}
+	base = base * appliedPeak / ratio
 	if math.IsNaN(base) || math.IsInf(base, 0) {
 		return 0, false
 	}
-	return base, true
+	rounded := roundUpstreamBillingRate(base)
+	if math.IsNaN(rounded) || math.IsInf(rounded, 0) {
+		return 0, false
+	}
+	return rounded, true
+}
+
+func upstreamBillingRechargeRatio(extra map[string]any) (float64, bool) {
+	if extra == nil {
+		return 1, true
+	}
+	if _, exists := extra[UpstreamBillingRechargeRatioExtraKey]; !exists {
+		return 1, true
+	}
+	ratio, ok := resolveAccountExtraNumber(extra, UpstreamBillingRechargeRatioExtraKey)
+	if !ok {
+		return 0, false
+	}
+	return NormalizeUpstreamBillingRechargeRatio(ratio)
+}
+
+// NormalizeUpstreamBillingRechargeRatio validates and stores the ratio at the
+// same four-decimal precision used by account billing multipliers.
+func NormalizeUpstreamBillingRechargeRatio(value float64) (float64, bool) {
+	if value <= 0 || math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0, false
+	}
+	value = roundUpstreamBillingRate(value)
+	return value, value > 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
+}
+
+func roundUpstreamBillingRate(value float64) float64 {
+	return math.Round(value*upstreamBillingProbeAccountRateScale) / upstreamBillingProbeAccountRateScale
 }
 
 // upstreamBillingProbeSyncRate converts the declared multiplier into the value
@@ -887,12 +924,16 @@ func upstreamBillingRateAt(data map[string]any, now time.Time) (float64, bool) {
 //
 // A rejected declaration leaves the current multiplier untouched; the probe
 // still records an OK snapshot carrying the raw declaration for display.
-func upstreamBillingProbeSyncRate(data map[string]any) (float64, bool) {
+func upstreamBillingProbeSyncRate(data, accountExtra map[string]any) (float64, bool) {
 	value, ok := resolveAccountExtraNumber(data, "resolved_rate_multiplier")
 	if !ok || math.IsNaN(value) || math.IsInf(value, 0) {
 		return 0, false
 	}
-	rounded := math.Round(value*upstreamBillingProbeAccountRateScale) / upstreamBillingProbeAccountRateScale
+	ratio, ok := upstreamBillingRechargeRatio(accountExtra)
+	if !ok {
+		return 0, false
+	}
+	rounded := roundUpstreamBillingRate(value / ratio)
 	if rounded <= 0 || rounded > upstreamBillingRateSyncMaxMultiplier {
 		return 0, false
 	}

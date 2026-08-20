@@ -388,6 +388,7 @@ func TestAdvancedSchedulerKnownFullPoolsDoNotRecheckDB(t *testing.T) {
 func TestOpenAIFreshUpstreamBillingRateRecomputesPeakAtSelectionTime(t *testing.T) {
 	receivedAt := time.Date(2026, 7, 13, 17, 30, 0, 0, time.UTC)
 	account := upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.4, receivedAt, time.Hour)
+	account.Extra[UpstreamBillingRechargeRatioExtraKey] = 10.0
 	snapshot, ok := account.Extra[UpstreamBillingProbeExtraKey].(map[string]any)
 	require.True(t, ok)
 	snapshot["data"] = map[string]any{
@@ -404,11 +405,11 @@ func TestOpenAIFreshUpstreamBillingRateRecomputesPeakAtSelectionTime(t *testing.
 
 	duringPeak, ok := openAIFreshUpstreamBillingRate(account, time.Date(2026, 7, 13, 17, 59, 0, 0, time.UTC))
 	require.True(t, ok)
-	require.Equal(t, 0.8, duringPeak)
+	require.Equal(t, 0.08, duringPeak)
 
 	afterPeak, ok := openAIFreshUpstreamBillingRate(account, time.Date(2026, 7, 13, 18, 1, 0, 0, time.UTC))
 	require.True(t, ok)
-	require.Equal(t, 0.4, afterPeak)
+	require.Equal(t, 0.04, afterPeak)
 }
 
 func TestOpenAIUpstreamCostFactorsSparseProbeIsNeutral(t *testing.T) {
