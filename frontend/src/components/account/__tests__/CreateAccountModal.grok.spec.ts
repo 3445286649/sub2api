@@ -14,6 +14,7 @@ describe('CreateAccountModal Grok account types', () => {
     expect(source).toContain("newPlatform === 'grok'")
     expect(source).toContain("? 'https://api.x.ai/v1'")
     expect(source).toContain("case 'grok':")
+    expect(source).toContain(':placeholder="apiKeyValuePlaceholder"')
     expect(source).toContain("return 'xai-...'")
     expect(source).toContain("ref<GrokUpstreamProtocol>('openai_responses')")
     expect(source).toContain('<option value="openai_responses">')
