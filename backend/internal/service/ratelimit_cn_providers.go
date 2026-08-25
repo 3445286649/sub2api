@@ -32,6 +32,33 @@ const cnBalanceLowReasonPrefix = "cn_balance_low"
 // intentionally unaffected.
 const cnBalanceCheckSkipCredentialKey = "skip_balance_check"
 
+const kimiConcurrentRequestLimitMessage = "You've reached your concurrent request limit. Please wait for your ongoing requests to finish and try again."
+
+const cnConcurrencyLimitReasonPrefix = "cn_concurrency_limit"
+
+func isCNProviderConcurrencyLimit403(account *Account, upstreamMsg string) bool {
+	return account != nil && account.Platform == PlatformKimi &&
+		strings.TrimSpace(upstreamMsg) == kimiConcurrentRequestLimitMessage
+}
+
+func (s *RateLimitService) handleCNProviderConcurrencyLimit403(
+	ctx context.Context,
+	account *Account,
+) {
+	until := time.Now().Add(time.Duration(openAI403CooldownMinutesDefault) * time.Minute)
+	reason := cnConcurrencyLimitReasonPrefix + ": " + kimiConcurrentRequestLimitMessage
+	s.notifyAccountSchedulingBlocked(account, until, cnConcurrencyLimitReasonPrefix)
+	if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, reason); err != nil {
+		slog.Warn("cn_concurrency_limit_set_temp_unschedulable_failed", "account_id", account.ID, "error", err)
+		return
+	}
+	slog.Info("cn_provider_concurrency_limited",
+		"account_id", account.ID,
+		"platform", account.Platform,
+		"until", until.UTC(),
+	)
+}
+
 // cnBalanceLowReason 构造余额不足临时停调的 reason（带稳定前缀）。
 func cnBalanceLowReason(upstreamMsg string) string {
 	if upstreamMsg = strings.TrimSpace(upstreamMsg); upstreamMsg != "" {
