@@ -7,12 +7,14 @@ const {
   listAccounts,
   listWithEtag,
   getBatchTodayStats,
+  getHealthTrends,
   getAllProxies,
   getAllGroups
 } = vi.hoisted(() => ({
   listAccounts: vi.fn(),
   listWithEtag: vi.fn(),
   getBatchTodayStats: vi.fn(),
+  getHealthTrends: vi.fn(),
   getAllProxies: vi.fn(),
   getAllGroups: vi.fn()
 }))
@@ -23,7 +25,7 @@ vi.mock('@/api/admin', () => ({
       list: listAccounts,
       listWithEtag,
       getBatchTodayStats,
-      getHealthTrends: vi.fn().mockResolvedValue([]),
+      getHealthTrends,
       getUpstreamBillingProbeSettings: vi.fn().mockResolvedValue({ enabled: true, interval_minutes: 30 }),
       delete: vi.fn(),
       batchClearError: vi.fn(),
@@ -76,8 +78,9 @@ const DataTableStub = {
           <slot :name="'header-' + column.key" :column="column" />
         </div>
       </template>
-      <div v-for="row in data" :key="row.id" data-test="account-rate">
-        <slot name="cell-rate_multiplier" :row="row" />
+      <div v-for="row in data" :key="row.id">
+        <div data-test="account-rate"><slot name="cell-rate_multiplier" :row="row" /></div>
+        <div data-test="account-probe-trend"><slot name="cell-probe_trend" :row="row" /></div>
       </div>
     </div>
   `
@@ -101,7 +104,7 @@ function mountView() {
         HelpTooltip: HelpTooltipStub,
         Pagination: true,
         ConfirmDialog: true,
-        AccountTableActions: { template: '<div><slot name="beforeCreate" /><slot name="after" /></div>' },
+        AccountTableActions: { template: '<div><button data-test="manual-refresh" @click="$emit(\'refresh\')">refresh</button><slot name="beforeCreate" /><slot name="after" /></div>' },
         AccountTableFilters: {
           props: ['groups'],
           template: '<div data-test="account-filters" :data-group-count="groups.length"></div>'
@@ -126,6 +129,7 @@ function mountView() {
         AccountTodayStatsCell: true,
         AccountGroupsCell: true,
         AccountUsageCell: true,
+        AccountProbeSparkline: true,
         Icon: true
       }
     }
@@ -139,6 +143,7 @@ describe('admin AccountsView usage windows hint', () => {
     listAccounts.mockReset()
     listWithEtag.mockReset()
     getBatchTodayStats.mockReset()
+    getHealthTrends.mockReset()
     getAllProxies.mockReset()
     getAllGroups.mockReset()
 
@@ -155,6 +160,7 @@ describe('admin AccountsView usage windows hint', () => {
       data: null
     })
     getBatchTodayStats.mockResolvedValue({ stats: {} })
+    getHealthTrends.mockResolvedValue([])
     getAllProxies.mockResolvedValue([])
     getAllGroups.mockResolvedValue([])
   })
@@ -167,6 +173,61 @@ describe('admin AccountsView usage windows hint', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-test="account-filters"]').attributes('data-group-count')).toBe('1')
+  })
+
+  it('loads the full current page probe trends initially and ignores a stale page response', async () => {
+    const account = (id: number) => ({
+      id,
+      name: `account-${id}`,
+      platform: 'anthropic',
+      type: 'apikey',
+      status: 'active',
+      schedulable: true,
+      created_at: '2026-08-25T00:00:00Z',
+      updated_at: '2026-08-25T00:00:00Z'
+    })
+    listAccounts
+      .mockResolvedValueOnce({ items: [account(7)], total: 1, page: 1, page_size: 20, pages: 1 })
+      .mockResolvedValueOnce({ items: [account(8)], total: 1, page: 1, page_size: 20, pages: 1 })
+
+    let resolveFirstTrend!: (value: any[]) => void
+    getHealthTrends
+      .mockReturnValueOnce(new Promise(resolve => { resolveFirstTrend = resolve }))
+      .mockResolvedValueOnce([{
+        account_id: 8,
+        range: '24h',
+        from: '2026-08-24T00:00:00Z',
+        to: '2026-08-25T00:00:00Z',
+        points: [],
+        total: 1,
+        success_count: 1,
+        failure_count: 0,
+        last_result: 'success'
+      }])
+
+    const wrapper = mountView()
+    await flushPromises()
+    expect(getHealthTrends).toHaveBeenCalledWith([7])
+
+    await wrapper.get('[data-test="manual-refresh"]').trigger('click')
+    await flushPromises()
+    expect(getHealthTrends).toHaveBeenCalledWith([8])
+
+    resolveFirstTrend([{
+      account_id: 7,
+      range: '24h',
+      from: '2026-08-24T00:00:00Z',
+      to: '2026-08-25T00:00:00Z',
+      points: [],
+      total: 1,
+      success_count: 0,
+      failure_count: 1,
+      last_result: 'failure'
+    }])
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('admin.accounts.probeNormal')
+    expect(wrapper.text()).not.toContain('admin.accounts.probeAbnormal')
   })
 
   it('renders an explanatory tooltip next to the usage windows column header', async () => {

@@ -1349,7 +1349,7 @@ export interface AccountProbePoint {
 
 export interface AccountProbeTrend {
   account_id: number
-  range: '24h' | '7d' | '30d'
+  range: '24h'
   from: string
   to: string
   points: AccountProbePoint[]
@@ -1367,7 +1367,17 @@ export interface AccountProbeTrend {
   next_probe_at?: string | null
 }
 
+export interface AccountProbeCacheStats {
+  window: '1h'
+  request_count: number
+  input_tokens: number
+  cache_creation_tokens: number
+  cache_read_tokens: number
+  cache_rate?: number | null
+}
+
 export interface AccountProbeDetail extends AccountProbeTrend {
+  cache_stats: AccountProbeCacheStats
   health_probe_enabled: boolean
   health_probe_interval_minutes?: number | null
   health_probe_model?: string | null

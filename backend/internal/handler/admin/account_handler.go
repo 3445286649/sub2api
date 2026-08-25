@@ -471,12 +471,11 @@ func (h *AccountHandler) GetHealth(c *gin.Context) {
 		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_ACCOUNT_ID", "invalid account id"))
 		return
 	}
-	rangeValue := strings.ToLower(strings.TrimSpace(c.DefaultQuery("range", "24h")))
-	if rangeValue != "24h" && rangeValue != "7d" && rangeValue != "30d" {
-		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_PROBE_RANGE", "range must be one of 24h, 7d, or 30d"))
+	if rangeValue := strings.ToLower(strings.TrimSpace(c.DefaultQuery("range", "24h"))); rangeValue != "24h" {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_PROBE_RANGE", "range must be 24h"))
 		return
 	}
-	health, err := h.accountHealthService.GetProbeDetail(c.Request.Context(), accountID, rangeValue)
+	health, err := h.accountHealthService.GetProbeDetail(c.Request.Context(), accountID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -538,7 +537,7 @@ func (h *AccountHandler) ProbeHealth(c *gin.Context) {
 		}
 		_ = h.accountHealthService.RecordManualProbeFailure(c.Request.Context(), accountID, service.AccountHealthProbeFailureCategory(msg), msg, actorUserID)
 	}
-	health, err := h.accountHealthService.GetProbeDetail(c.Request.Context(), accountID, "24h")
+	health, err := h.accountHealthService.GetProbeDetail(c.Request.Context(), accountID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -683,7 +682,7 @@ func (h *AccountHandler) UpdateHealthProbeSettings(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	health, err := h.accountHealthService.GetProbeDetail(c.Request.Context(), account.ID, "24h")
+	health, err := h.accountHealthService.GetProbeDetail(c.Request.Context(), account.ID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

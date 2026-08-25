@@ -496,7 +496,7 @@
       <div v-if="healthDetailAccount" class="space-y-4">
         <div v-if="healthDetailLoading && !probeDetail" class="py-10 text-center text-sm text-gray-500">{{ t('common.loading') }}</div>
         <template v-else-if="probeDetail">
-          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div class="rounded-md border border-gray-200 p-3 dark:border-gray-700">
               <div class="text-xs text-gray-500">{{ t('admin.accounts.probeSuccessRate') }}</div>
               <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatPercent(probeDetail.success_rate) }}</div>
@@ -516,6 +516,11 @@
               </div>
               <div class="mt-1 text-xs text-gray-500">{{ probeDetail.last_probed_at ? formatDateTime(probeDetail.last_probed_at) : '-' }}</div>
             </div>
+            <div class="rounded-md border border-gray-200 p-3 dark:border-gray-700">
+              <div class="text-xs text-gray-500">{{ t('admin.accounts.cacheRateOneHour') }}</div>
+              <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ probeDetail.cache_stats.cache_rate == null ? t('admin.accounts.probeNoData') : formatPercent(probeDetail.cache_stats.cache_rate) }}</div>
+              <div class="mt-1 text-xs text-gray-500">{{ t('admin.accounts.cacheRateSample', { count: probeDetail.cache_stats.request_count }) }}</div>
+            </div>
           </div>
 
           <div class="rounded-md border border-gray-200 p-3 dark:border-gray-700">
@@ -526,9 +531,7 @@
                   {{ t('admin.accounts.lastError') }}: {{ probeDetail.last_error_category || probeDetail.last_error_message }}
                 </div>
               </div>
-              <div class="inline-flex rounded-md border border-gray-200 p-0.5 dark:border-dark-600">
-                <button v-for="range in probeRanges" :key="range" type="button" :class="['rounded px-3 py-1 text-xs', probeDetailRange === range ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-700']" @click="changeProbeDetailRange(range)">{{ range }}</button>
-              </div>
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400">24h</span>
             </div>
             <AccountProbeTrendChart :trend="probeDetail" :ariaLabel="t('admin.accounts.probeLatencyTrend')" :emptyText="t('admin.accounts.probeNoData')" />
             <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500">
@@ -598,7 +601,7 @@
         <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 md:col-span-2">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ t('admin.accounts.probeEvents') }}</div>
+              <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ t('admin.accounts.probeEvents24h') }}</div>
             </div>
             <select v-model="healthEventFilter" class="health-detail-control form-select w-[180px] text-sm" @change="loadHealthEvents(1)">
               <option value="">{{ t('admin.accounts.healthEventAll') }}</option>
@@ -765,8 +768,6 @@ const healthDetailLoading = ref(false)
 const healthDetailLoaded = ref(false)
 const healthDetailRequestToken = ref(0)
 const probeDetail = ref<AccountProbeDetail | null>(null)
-const probeDetailRange = ref<'24h' | '7d' | '30d'>('24h')
-const probeRanges = ['24h', '7d', '30d'] as const
 const probeTrendsByAccount = reactive<Record<number, AccountProbeTrend>>({})
 const probeTrendsLoading = ref(false)
 const savingRateMultiplier = ref<number | null>(null)
@@ -1127,23 +1128,37 @@ const resetAutoRefreshCache = () => {
 
 const isFirstLoad = ref(true)
 
-const refreshProbeTrends = async () => {
-  const accountIDs = accounts.value.map(account => account.id)
+let probeTrendRequestVersion = 0
+let activeProbeTrendRefresh: { key: string; promise: Promise<void> } | null = null
+
+const refreshProbeTrends = (requestedAccountIDs = accounts.value.map(account => account.id)): Promise<void> => {
+  const accountIDs = [...requestedAccountIDs]
+  const requestKey = accountIDs.join(',')
+  if (activeProbeTrendRefresh?.key === requestKey) return activeProbeTrendRefresh.promise
+  const requestVersion = ++probeTrendRequestVersion
   probeTrendsLoading.value = true
-  try {
-    const trends = await adminAPI.accounts.getHealthTrends(accountIDs)
-    if (!Array.isArray(trends)) return
-    const visibleIDs = new Set(accountIDs)
-    for (const key of Object.keys(probeTrendsByAccount)) {
-      const accountID = Number(key)
-      if (!visibleIDs.has(accountID)) delete probeTrendsByAccount[accountID]
+  const promise = (async () => {
+    try {
+      const trends = await adminAPI.accounts.getHealthTrends(accountIDs)
+      const currentKey = accounts.value.map(account => account.id).join(',')
+      if (requestVersion !== probeTrendRequestVersion || currentKey !== requestKey || !Array.isArray(trends)) return
+      const visibleIDs = new Set(accountIDs)
+      for (const key of Object.keys(probeTrendsByAccount)) {
+        const accountID = Number(key)
+        if (!visibleIDs.has(accountID)) delete probeTrendsByAccount[accountID]
+      }
+      for (const trend of trends) probeTrendsByAccount[trend.account_id] = trend
+    } catch (error) {
+      console.error('Failed to load account probe trends:', error)
+    } finally {
+      if (requestVersion === probeTrendRequestVersion) {
+        probeTrendsLoading.value = false
+        activeProbeTrendRefresh = null
+      }
     }
-    for (const trend of trends) probeTrendsByAccount[trend.account_id] = trend
-  } catch (error) {
-    console.error('Failed to load account probe trends:', error)
-  } finally {
-    probeTrendsLoading.value = false
-  }
+  })()
+  activeProbeTrendRefresh = { key: requestKey, promise }
+  return promise
 }
 
 function markUpstreamBillingSortRefresh() {
@@ -1167,7 +1182,7 @@ const load = async () => {
     isFirstLoad.value = false
     delete requestParams.lite
   }
-  await refreshTodayStatsBatch()
+  await Promise.all([refreshTodayStatsBatch(), refreshProbeTrends()])
 }
 
 const reload = async () => {
@@ -1177,7 +1192,7 @@ const reload = async () => {
   resetAutoRefreshCache()
   pendingTodayStatsRefresh.value = false
   await baseReload()
-  await refreshTodayStatsBatch()
+  await Promise.all([refreshTodayStatsBatch(), refreshProbeTrends()])
 }
 
 const refreshUpstreamBillingSortedList = async (force = false) => {
@@ -1457,14 +1472,13 @@ const openHealthDetail = async (account: Account) => {
   healthDetailLoaded.value = false
   healthDetailAccount.value = account
   probeDetail.value = null
-  probeDetailRange.value = '24h'
   healthEventFilter.value = ''
   healthEvents.value = []
   healthEventsPage.value = 1
   healthEventsTotalPages.value = 1
   healthProbeModelOptions.value = []
   try {
-    const health = await adminAPI.accounts.getHealth(account.id, probeDetailRange.value)
+    const health = await adminAPI.accounts.getHealth(account.id)
     if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== account.id) return
     probeDetail.value = health
     await loadHealthProbeModels(account.id, requestToken)
@@ -1513,20 +1527,6 @@ watch(probeDetail, (detail) => {
   healthProbeSettings.interval = interval && interval > 0 ? interval : ''
   healthProbeSettings.model = detail.health_probe_model ?? ''
 })
-
-const changeProbeDetailRange = async (range: '24h' | '7d' | '30d') => {
-  const account = healthDetailAccount.value
-  if (!account || probeDetailRange.value === range) return
-  probeDetailRange.value = range
-  healthDetailLoading.value = true
-  try {
-    probeDetail.value = await adminAPI.accounts.getHealth(account.id, range)
-  } catch (error: any) {
-    appStore.showError(error?.message || t('admin.accounts.probeDetailLoadFailed'))
-  } finally {
-    healthDetailLoading.value = false
-  }
-}
 
 const normalizeHealthProbeModels = (models: Array<ClaudeModel | string>): ClaudeModel[] => {
   const seen = new Set<string>()

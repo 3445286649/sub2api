@@ -123,7 +123,7 @@ func (r *accountHealthRepository) ListProbeEvents(ctx context.Context, accountID
 	return events, rows.Err()
 }
 
-func (r *accountHealthRepository) ListEvents(ctx context.Context, accountID int64, eventType string, params pagination.PaginationParams) (*service.AccountHealthEventList, error) {
+func (r *accountHealthRepository) ListEvents(ctx context.Context, accountID int64, eventType string, since time.Time, params pagination.PaginationParams) (*service.AccountHealthEventList, error) {
 	if params.Page <= 0 {
 		params.Page = 1
 	}
@@ -132,10 +132,11 @@ func (r *accountHealthRepository) ListEvents(ctx context.Context, accountID int6
 	}
 	where := `WHERE account_id = $1
 		AND source IN ('background_probe', 'manual_probe')
-		AND event_type IN ('success', 'failure')`
-	args := []any{accountID}
+		AND event_type IN ('success', 'failure')
+		AND created_at >= $2`
+	args := []any{accountID, since}
 	if strings.TrimSpace(eventType) != "" {
-		where += " AND event_type = $2"
+		where += " AND event_type = $3"
 		args = append(args, strings.TrimSpace(eventType))
 	}
 	var total int64
@@ -167,6 +168,23 @@ func (r *accountHealthRepository) ListEvents(ctx context.Context, accountID int6
 	}
 	totalPages := int((total + int64(params.PageSize) - 1) / int64(params.PageSize))
 	return &service.AccountHealthEventList{Items: items, Total: total, Page: params.Page, PageSize: params.PageSize, TotalPages: totalPages}, nil
+}
+
+func (r *accountHealthRepository) GetRecentCacheUsage(ctx context.Context, accountID int64, from, to time.Time) (*service.AccountProbeCacheUsage, error) {
+	var usage service.AccountProbeCacheUsage
+	err := scanSingleRow(ctx, r.sql, `
+		SELECT
+			COUNT(DISTINCT COALESCE(NULLIF(request_id, ''), 'usage:' || id::text)) FILTER (WHERE actual_cost > 0),
+			COALESCE(SUM(input_tokens) FILTER (WHERE actual_cost > 0), 0),
+			COALESCE(SUM(cache_creation_tokens) FILTER (WHERE actual_cost > 0), 0),
+			COALESCE(SUM(cache_read_tokens) FILTER (WHERE actual_cost > 0), 0)
+		FROM usage_logs
+		WHERE account_id = $1 AND created_at >= $2 AND created_at <= $3
+	`, []any{accountID, from, to}, &usage.RequestCount, &usage.InputTokens, &usage.CacheCreationTokens, &usage.CacheReadTokens)
+	if err != nil {
+		return nil, err
+	}
+	return &usage, nil
 }
 
 func (r *accountHealthRepository) DeleteEventsBefore(ctx context.Context, before time.Time) (int64, error) {

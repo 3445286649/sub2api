@@ -537,8 +537,8 @@ export async function updateRateMultiplier(id: number, rateMultiplier: number): 
   return data
 }
 
-export async function getHealth(id: number, range: '24h' | '7d' | '30d' = '24h'): Promise<AccountProbeDetail> {
-  const { data } = await apiClient.get<AccountProbeDetail>(`/admin/accounts/${id}/health`, { params: { range } })
+export async function getHealth(id: number): Promise<AccountProbeDetail> {
+  const { data } = await apiClient.get<AccountProbeDetail>(`/admin/accounts/${id}/health`)
   return data
 }
 

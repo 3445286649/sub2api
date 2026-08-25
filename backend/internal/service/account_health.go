@@ -86,12 +86,29 @@ type AccountProbeTrend struct {
 
 type AccountProbeDetail struct {
 	AccountProbeTrend
-	HealthProbeEnabled          bool    `json:"health_probe_enabled"`
-	HealthProbeIntervalMinutes  *int    `json:"health_probe_interval_minutes,omitempty"`
-	HealthProbeModel            *string `json:"health_probe_model,omitempty"`
-	HealthyProbeEnabled         bool    `json:"healthy_probe_enabled"`
-	HealthyProbeIntervalMinutes *int    `json:"healthy_probe_interval_minutes,omitempty"`
-	HealthyProbeIntervalHours   *int    `json:"healthy_probe_interval_hours,omitempty"`
+	CacheStats                  AccountProbeCacheStats `json:"cache_stats"`
+	HealthProbeEnabled          bool                   `json:"health_probe_enabled"`
+	HealthProbeIntervalMinutes  *int                   `json:"health_probe_interval_minutes,omitempty"`
+	HealthProbeModel            *string                `json:"health_probe_model,omitempty"`
+	HealthyProbeEnabled         bool                   `json:"healthy_probe_enabled"`
+	HealthyProbeIntervalMinutes *int                   `json:"healthy_probe_interval_minutes,omitempty"`
+	HealthyProbeIntervalHours   *int                   `json:"healthy_probe_interval_hours,omitempty"`
+}
+
+type AccountProbeCacheStats struct {
+	Window              string   `json:"window"`
+	RequestCount        int64    `json:"request_count"`
+	InputTokens         int64    `json:"input_tokens"`
+	CacheCreationTokens int64    `json:"cache_creation_tokens"`
+	CacheReadTokens     int64    `json:"cache_read_tokens"`
+	CacheRate           *float64 `json:"cache_rate,omitempty"`
+}
+
+type AccountProbeCacheUsage struct {
+	RequestCount        int64
+	InputTokens         int64
+	CacheCreationTokens int64
+	CacheReadTokens     int64
 }
 
 type AccountHealthRepository interface {
@@ -100,7 +117,8 @@ type AccountHealthRepository interface {
 	GetNextProbeAt(ctx context.Context, accountID int64) (*time.Time, error)
 	InsertEvent(ctx context.Context, event *AccountHealthEvent) error
 	ListProbeEvents(ctx context.Context, accountIDs []int64, since time.Time) ([]AccountHealthEvent, error)
-	ListEvents(ctx context.Context, accountID int64, eventType string, params pagination.PaginationParams) (*AccountHealthEventList, error)
+	ListEvents(ctx context.Context, accountID int64, eventType string, since time.Time, params pagination.PaginationParams) (*AccountHealthEventList, error)
+	GetRecentCacheUsage(ctx context.Context, accountID int64, from, to time.Time) (*AccountProbeCacheUsage, error)
 	DeleteEventsBefore(ctx context.Context, before time.Time) (int64, error)
 }
 
@@ -250,7 +268,7 @@ func (s *AccountHealthService) GetProbeTrends(ctx context.Context, accountIDs []
 	return trends, nil
 }
 
-func (s *AccountHealthService) GetProbeDetail(ctx context.Context, accountID int64, rangeValue string) (*AccountProbeDetail, error) {
+func (s *AccountHealthService) GetProbeDetail(ctx context.Context, accountID int64) (*AccountProbeDetail, error) {
 	if accountID <= 0 {
 		return nil, fmt.Errorf("invalid account id")
 	}
@@ -258,17 +276,30 @@ func (s *AccountHealthService) GetProbeDetail(ctx context.Context, accountID int
 	if err != nil {
 		return nil, err
 	}
-	rangeName, duration, bucket, err := parseAccountProbeRange(rangeValue)
+	now := s.nowTime()
+	trends, err := s.buildProbeTrends(ctx, []int64{accountID}, "24h", now.Add(-24*time.Hour), now, 0)
 	if err != nil {
 		return nil, err
 	}
-	now := s.nowTime()
-	trends, err := s.buildProbeTrends(ctx, []int64{accountID}, rangeName, now.Add(-duration), now, bucket)
+	cacheUsage, err := s.repo.GetRecentCacheUsage(ctx, accountID, now.Add(-time.Hour), now)
 	if err != nil {
 		return nil, err
+	}
+	cacheStats := AccountProbeCacheStats{Window: "1h"}
+	if cacheUsage != nil {
+		cacheStats.RequestCount = cacheUsage.RequestCount
+		cacheStats.InputTokens = cacheUsage.InputTokens
+		cacheStats.CacheCreationTokens = cacheUsage.CacheCreationTokens
+		cacheStats.CacheReadTokens = cacheUsage.CacheReadTokens
+		denominator := cacheUsage.InputTokens + cacheUsage.CacheCreationTokens + cacheUsage.CacheReadTokens
+		if denominator > 0 {
+			rate := float64(cacheUsage.CacheReadTokens) / float64(denominator) * 100
+			cacheStats.CacheRate = &rate
+		}
 	}
 	detail := &AccountProbeDetail{
 		AccountProbeTrend:           trends[0],
+		CacheStats:                  cacheStats,
 		HealthProbeEnabled:          account.HealthProbeEnabled,
 		HealthProbeIntervalMinutes:  account.HealthProbeIntervalMinutes,
 		HealthProbeModel:            account.HealthProbeModel,
@@ -319,7 +350,7 @@ func (s *AccountHealthService) ListEvents(ctx context.Context, accountID int64, 
 	if eventType != "" && eventType != AccountHealthEventTypeSuccess && eventType != AccountHealthEventTypeFailure {
 		return nil, fmt.Errorf("invalid probe event type")
 	}
-	return s.repo.ListEvents(ctx, accountID, eventType, params)
+	return s.repo.ListEvents(ctx, accountID, eventType, s.nowTime().Add(-24*time.Hour), params)
 }
 
 func (s *AccountHealthService) CleanupEvents(ctx context.Context, before time.Time) (int64, error) {
@@ -450,19 +481,6 @@ func percentileLatency(sorted []int64, percentile float64) *int64 {
 	}
 	value := sorted[index]
 	return &value
-}
-
-func parseAccountProbeRange(value string) (string, time.Duration, time.Duration, error) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "", "24h":
-		return "24h", 24 * time.Hour, 0, nil
-	case "7d":
-		return "7d", 7 * 24 * time.Hour, time.Hour, nil
-	case "30d":
-		return "30d", 30 * 24 * time.Hour, 6 * time.Hour, nil
-	default:
-		return "", 0, 0, fmt.Errorf("invalid probe range")
-	}
 }
 
 func normalizeAccountProbeIDs(ids []int64) []int64 {

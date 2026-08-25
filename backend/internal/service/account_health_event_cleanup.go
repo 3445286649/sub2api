@@ -8,7 +8,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
 
-const accountHealthEventRetention = 30 * 24 * time.Hour
+const accountHealthEventRetention = 48 * time.Hour
 
 type AccountHealthEventCleanupRunner struct {
 	healthSvc *AccountHealthService

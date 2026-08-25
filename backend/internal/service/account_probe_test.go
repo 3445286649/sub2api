@@ -14,6 +14,7 @@ import (
 type memoryAccountProbeRepo struct {
 	events      []AccountHealthEvent
 	nextProbeAt map[int64]*time.Time
+	cacheUsage  AccountProbeCacheUsage
 }
 
 func (r *memoryAccountProbeRepo) ClaimDueProbe(_ context.Context, accountID int64, now, leaseUntil time.Time) (bool, error) {
@@ -60,8 +61,19 @@ func (r *memoryAccountProbeRepo) ListProbeEvents(_ context.Context, accountIDs [
 	return out, nil
 }
 
-func (r *memoryAccountProbeRepo) ListEvents(_ context.Context, _ int64, _ string, params pagination.PaginationParams) (*AccountHealthEventList, error) {
-	return &AccountHealthEventList{Items: append([]AccountHealthEvent(nil), r.events...), Page: params.Page, PageSize: params.PageSize}, nil
+func (r *memoryAccountProbeRepo) ListEvents(_ context.Context, accountID int64, eventType string, since time.Time, params pagination.PaginationParams) (*AccountHealthEventList, error) {
+	items := make([]AccountHealthEvent, 0)
+	for _, event := range r.events {
+		if event.AccountID == accountID && !event.CreatedAt.Before(since) && (eventType == "" || event.EventType == eventType) {
+			items = append(items, event)
+		}
+	}
+	return &AccountHealthEventList{Items: items, Total: int64(len(items)), Page: params.Page, PageSize: params.PageSize}, nil
+}
+
+func (r *memoryAccountProbeRepo) GetRecentCacheUsage(_ context.Context, _ int64, _, _ time.Time) (*AccountProbeCacheUsage, error) {
+	usage := r.cacheUsage
+	return &usage, nil
 }
 
 func (r *memoryAccountProbeRepo) DeleteEventsBefore(_ context.Context, before time.Time) (int64, error) {
@@ -155,26 +167,61 @@ func TestAccountProbeTrendUsesOnlyProbeEventsAndKeepsFailureLatencyEmpty(t *test
 	require.Equal(t, 1, trend.Points[1].FailureCount)
 }
 
-func TestAccountProbeDetailAggregatesLongRanges(t *testing.T) {
+func TestAccountProbeDetailUses24HoursAndCalculatesOneHourCacheRate(t *testing.T) {
 	now := time.Date(2026, 8, 25, 10, 0, 0, 0, time.UTC)
 	latency := int64(250)
 	account := &Account{ID: 9, Status: StatusActive}
-	repo := &memoryAccountProbeRepo{events: []AccountHealthEvent{
-		{AccountID: 9, Source: AccountHealthEventSourceBackgroundProbe, EventType: AccountHealthEventTypeSuccess, LatencyMs: &latency, CreatedAt: now.Add(-2*time.Hour - 10*time.Minute)},
-		{AccountID: 9, Source: AccountHealthEventSourceBackgroundProbe, EventType: AccountHealthEventTypeFailure, CreatedAt: now.Add(-2*time.Hour - 5*time.Minute)},
-	}}
+	repo := &memoryAccountProbeRepo{
+		events: []AccountHealthEvent{
+			{AccountID: 9, Source: AccountHealthEventSourceBackgroundProbe, EventType: AccountHealthEventTypeSuccess, LatencyMs: &latency, CreatedAt: now.Add(-2 * time.Hour)},
+			{AccountID: 9, Source: AccountHealthEventSourceBackgroundProbe, EventType: AccountHealthEventTypeFailure, CreatedAt: now.Add(-25 * time.Hour)},
+		},
+		cacheUsage: AccountProbeCacheUsage{RequestCount: 3, InputTokens: 50, CacheCreationTokens: 25, CacheReadTokens: 25},
+	}
 	svc := &AccountHealthService{
 		repo:        repo,
 		accountRepo: &accountProbeAccountRepoStub{accounts: map[int64]*Account{9: account}},
 		now:         func() time.Time { return now },
 	}
 
-	detail, err := svc.GetProbeDetail(context.Background(), 9, "7d")
+	detail, err := svc.GetProbeDetail(context.Background(), 9)
 	require.NoError(t, err)
 	require.Len(t, detail.Points, 1)
 	require.Equal(t, 1, detail.Points[0].SuccessCount)
-	require.Equal(t, 1, detail.Points[0].FailureCount)
 	require.Equal(t, latency, *detail.Points[0].LatencyMs)
+	require.Equal(t, "24h", detail.Range)
+	require.Equal(t, "1h", detail.CacheStats.Window)
+	require.Equal(t, int64(3), detail.CacheStats.RequestCount)
+	require.InDelta(t, 25.0, *detail.CacheStats.CacheRate, 0.001)
+}
+
+func TestAccountProbeEventListOnlyReturnsLast24Hours(t *testing.T) {
+	now := time.Date(2026, 8, 25, 10, 0, 0, 0, time.UTC)
+	repo := &memoryAccountProbeRepo{events: []AccountHealthEvent{
+		{AccountID: 9, Source: AccountHealthEventSourceBackgroundProbe, EventType: AccountHealthEventTypeSuccess, CreatedAt: now.Add(-23 * time.Hour)},
+		{AccountID: 9, Source: AccountHealthEventSourceBackgroundProbe, EventType: AccountHealthEventTypeFailure, CreatedAt: now.Add(-25 * time.Hour)},
+	}}
+	svc := &AccountHealthService{repo: repo, now: func() time.Time { return now }}
+
+	page, err := svc.ListEvents(context.Background(), 9, "", pagination.PaginationParams{Page: 1, PageSize: 20})
+	require.NoError(t, err)
+	require.Len(t, page.Items, 1)
+	require.Equal(t, AccountHealthEventTypeSuccess, page.Items[0].EventType)
+}
+
+func TestAccountProbeCleanupKeepsFortyEightHourSafetyWindow(t *testing.T) {
+	now := time.Date(2026, 8, 25, 10, 0, 0, 0, time.UTC)
+	repo := &memoryAccountProbeRepo{events: []AccountHealthEvent{
+		{AccountID: 9, CreatedAt: now.Add(-49 * time.Hour)},
+		{AccountID: 9, CreatedAt: now.Add(-47 * time.Hour)},
+	}}
+	runner := NewAccountHealthEventCleanupRunner(&AccountHealthService{repo: repo})
+	runner.now = func() time.Time { return now }
+
+	runner.cleanupOnce()
+
+	require.Len(t, repo.events, 1)
+	require.Equal(t, now.Add(-47*time.Hour), repo.events[0].CreatedAt)
 }
 
 func TestAccountProbeTrendsLimitSparklinePointsWithoutChangingSummary(t *testing.T) {
