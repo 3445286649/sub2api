@@ -53,13 +53,12 @@ func TestAccountSchedulingHoldStateMatchesFrozenFixture(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	accountUpdatedAt := mustSchedulingTime(t, "2026-07-15T16:10:00Z")
 	leaseUntil := mustSchedulingTime(t, "2026-07-15T16:30:00Z")
-	lastCheckedAt := mustSchedulingTime(t, "2026-07-15T16:09:00Z")
 	nextProbeAt := mustSchedulingTime(t, "2026-07-15T16:11:00Z")
 	repo := &schedulingHoldHandlerRepo{state: &service.AccountSchedulingState{
 		AccountID: 749, AccountUpdatedAt: accountUpdatedAt, ManualSchedulable: true,
 		InternalReasonCodes: []string{}, EffectiveReasonCodes: []string{"external_hold"}, EffectiveSchedulable: false,
 		ExternalHold: &service.AccountSchedulingExternalHold{Owner: service.AccountSchedulingHoldOwner, DecisionID: "ops-749-20260715-001", ReasonCode: service.AccountSchedulingHoldReasonSustainedTTFT, Status: "active", LeaseUntil: leaseUntil, Active: true},
-		Health:       &service.AccountSchedulingHealthEvidence{Score: 72, Status: "degraded", LastCheckedAt: &lastCheckedAt, NextProbeAt: &nextProbeAt, ProbeEnabled: true},
+		Health:       &service.AccountSchedulingHealthEvidence{NextProbeAt: &nextProbeAt, ProbeEnabled: true},
 	}}
 	handler := NewAccountSchedulingHoldHandler(service.NewAccountSchedulingHoldService(repo))
 	router := gin.New()

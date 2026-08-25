@@ -1150,9 +1150,26 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 			return nil, false, nil
 		}
 
-		health := s.loadAccountHealthSummaries(ctx, accounts)
-		sortAccountWithLoadByHealthCostAndLoad(available, health, false, s.gatewaySchedulingConfig(ctx))
-		shuffleWithinSortGroups(available, health, false, s.gatewaySchedulingConfig(ctx))
+		sort.SliceStable(available, func(i, j int) bool {
+			a, b := available[i], available[j]
+			if a.account.Priority != b.account.Priority {
+				return a.account.Priority < b.account.Priority
+			}
+			if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
+				return a.loadInfo.LoadRate < b.loadInfo.LoadRate
+			}
+			switch {
+			case a.account.LastUsedAt == nil && b.account.LastUsedAt != nil:
+				return true
+			case a.account.LastUsedAt != nil && b.account.LastUsedAt == nil:
+				return false
+			case a.account.LastUsedAt == nil && b.account.LastUsedAt == nil:
+				return false
+			default:
+				return a.account.LastUsedAt.Before(*b.account.LastUsedAt)
+			}
+		})
+		shuffleWithinSortGroups(available)
 		if rateOrder.enabled {
 			sort.SliceStable(available, func(i, j int) bool {
 				return rateOrder.compare(available[i].account, available[j].account) < 0
@@ -1557,12 +1574,4 @@ func (s *OpenAIGatewayService) schedulingConfig() config.GatewaySchedulingConfig
 		LoadBatchEnabled:         true,
 		SlotCleanupInterval:      30 * time.Second,
 	}
-}
-
-func (s *OpenAIGatewayService) gatewaySchedulingConfig(ctx context.Context) config.GatewaySchedulingConfig {
-	cfg := s.schedulingConfig()
-	if s != nil && s.settingService != nil {
-		return s.settingService.GatewaySchedulingConfigWithRuntimeWeights(ctx, cfg)
-	}
-	return cfg
 }

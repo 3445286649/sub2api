@@ -127,12 +127,6 @@
                         </span>
                         <span class="flex-1 text-left">{{ t('admin.errorPassthrough.title') }}</span>
                       </button>
-                      <button class="account-tools-menu-item" @click="openHealthOverview">
-                        <span class="account-tools-menu-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">
-                          <Icon name="chart" size="sm" />
-                        </span>
-                        <span class="flex-1 text-left">{{ t('admin.accounts.healthOverview') }}</span>
-                      </button>
                       <button class="account-tools-menu-item" @click="openTLSFingerprintProfiles">
                         <span class="account-tools-menu-icon bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200">
                           <Icon name="lock" size="sm" />
@@ -302,22 +296,25 @@
               <span class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" :class="[row.schedulable ? 'translate-x-4' : 'translate-x-0']" />
             </button>
           </template>
-          <template #cell-health="{ row }">
+          <template #cell-probe_trend="{ row }">
             <button
               type="button"
-              class="account-compact-metric account-health-metric"
-              :title="`${t('admin.accounts.healthDetail')}: ${(row.health?.score ?? 80)} / ${healthStatusLabel(row.health?.status)}`"
+              class="flex h-11 w-[140px] flex-col justify-center text-left"
+              :title="probeTrendTitle(row.id)"
               @click="openHealthDetail(row)"
             >
-              <span :class="['account-health-dot', healthDotClass(row.health?.status)]"></span>
-              <span class="account-metric-number">{{ row.health?.score ?? 80 }}</span>
-              <span class="account-metric-muted">{{ healthStatusLabel(row.health?.status) }}</span>
+              <span v-if="probeTrendsLoading && !probeTrendsByAccount[row.id]" class="text-xs text-gray-400">{{ t('common.loading') }}</span>
+              <span v-else-if="!probeTrendsByAccount[row.id]?.total" class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.accounts.probeNoData') }}</span>
+              <template v-else>
+                <span class="flex items-center justify-between gap-2 text-[11px] leading-4">
+                  <span :class="probeTrendsByAccount[row.id].failure_count > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'">
+                    {{ probeTrendsByAccount[row.id].failure_count > 0 ? t('admin.accounts.probeAbnormal') : t('admin.accounts.probeNormal') }}
+                  </span>
+                  <span class="font-mono text-gray-500 dark:text-gray-400">{{ formatLatencyMs(probeTrendsByAccount[row.id].last_latency_ms) }}</span>
+                </span>
+                <AccountProbeSparkline :trend="probeTrendsByAccount[row.id]" :ariaLabel="probeTrendTitle(row.id)" />
+              </template>
             </button>
-          </template>
-          <template #cell-auto_status="{ row }">
-            <span :class="['inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium', autoStatusClass(row)]">
-              {{ autoStatusLabel(row) }}
-            </span>
           </template>
           <template #cell-today_stats="{ row }">
             <AccountTodayStatsCell
@@ -396,35 +393,6 @@
                 />
                 <span class="account-rate-suffix">x</span>
               </div>
-              <span
-                v-if="row.extra?.upstream_billing_rate_sync_enabled !== true && !row.health?.rate_multiplier_configured && (row.rate_multiplier ?? 1) === 1"
-                class="max-w-[104px] truncate text-[11px] leading-4 text-amber-600 dark:text-amber-300"
-                :title="t('admin.accounts.rateMultiplierMissing')"
-              >
-                {{ t('admin.accounts.rateMultiplierMissing') }}
-              </span>
-            </div>
-          </template>
-          <template #cell-latency_ewma_ms="{ row }">
-            <span class="text-sm text-gray-600 dark:text-gray-300">{{ formatLatencyMs(row.health?.scheduler_latency_ewma_ms) }}</span>
-          </template>
-          <template #cell-next_probe_at="{ row }">
-            <span class="text-sm text-gray-500 dark:text-dark-400">{{ row.health?.next_probe_at ? formatDateTime(row.health.next_probe_at) : '-' }}</span>
-          </template>
-          <template #cell-scheduler_score="{ row }">
-            <div class="min-w-[132px] text-xs text-gray-600 dark:text-gray-300">
-              <template v-if="schedulerScoreEntries(row).length">
-                <div
-                  v-for="entry in schedulerScoreEntries(row)"
-                  :key="entry.key"
-                  class="flex items-center justify-between gap-2 whitespace-nowrap"
-                  :title="`${entry.label}: ${entry.value}`"
-                >
-                  <span class="max-w-[92px] truncate text-gray-500 dark:text-dark-400">{{ entry.label }}</span>
-                  <span class="font-mono tabular-nums text-gray-700 dark:text-gray-200">{{ entry.value }}</span>
-                </div>
-              </template>
-              <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
             </div>
           </template>
           <template #header-upstream_billing_rate="{ column }">
@@ -524,50 +492,51 @@
     </ConfirmDialog>
     <ErrorPassthroughRulesModal :show="showErrorPassthrough" @close="showErrorPassthrough = false" />
     <TLSFingerprintProfilesModal :show="showTLSFingerprintProfiles" @close="showTLSFingerprintProfiles = false" />
-    <AccountHealthOverviewDialog
-      :show="showHealthOverview"
-      :overview="healthOverview"
-      :loading="healthOverviewLoading"
-      :error="healthOverviewError"
-      :refreshing-balance-urls="refreshingUpstreamBalances"
-      @close="showHealthOverview = false"
-      @refresh="openHealthOverview"
-      @refresh-balance="refreshUpstreamBalance"
-    />
-    <BaseDialog :show="!!healthDetailAccount" :title="t('admin.accounts.healthDetail')" width="wide" @close="healthDetailAccount = null">
-      <div v-if="healthDetailAccount" class="grid gap-4 md:grid-cols-2">
-        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-          <div class="text-xs font-semibold uppercase text-gray-400">{{ t('admin.accounts.healthScore') }}</div>
-          <div class="mt-2 flex items-center gap-3">
-            <span :class="['h-3 w-3 rounded-full', healthDotClass(healthDetailAccount.health?.status)]"></span>
-            <span class="text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ healthDetailAccount.health?.score ?? 80 }}</span>
-            <span class="text-sm text-gray-500">{{ healthStatusLabel(healthDetailAccount.health?.status) }}</span>
-          </div>
-        </div>
-        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-          <div class="text-xs font-semibold uppercase text-gray-400">{{ t('admin.accounts.boundGroups') }}</div>
-          <div class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ healthDetailAccount.health?.group_names?.join(', ') || '-' }}</div>
-        </div>
-        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-          <div class="text-xs font-semibold uppercase text-gray-400">{{ t('admin.accounts.recentHealth') }}</div>
-          <div class="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
-            <div>{{ t('admin.accounts.lastSuccess') }}: {{ healthDetailAccount.health?.last_success_at ? formatDateTime(healthDetailAccount.health.last_success_at) : '-' }}</div>
-            <div>{{ t('admin.accounts.lastFailure') }}: {{ healthDetailAccount.health?.last_failure_at ? formatDateTime(healthDetailAccount.health.last_failure_at) : '-' }}</div>
-            <div>
-              {{ t('admin.accounts.avgLatency') }}: {{ healthDetailAccount.health?.scheduler_latency_ewma_ms ?? '-' }} ms
-              <span v-if="healthDetailAccount.health?.scheduler_latency_source" class="text-gray-400">
-                ({{ healthDetailAccount.health.scheduler_latency_source }})
-              </span>
+    <BaseDialog :show="!!healthDetailAccount" :title="t('admin.accounts.probeDetail')" width="wide" @close="healthDetailAccount = null">
+      <div v-if="healthDetailAccount" class="space-y-4">
+        <div v-if="healthDetailLoading && !probeDetail" class="py-10 text-center text-sm text-gray-500">{{ t('common.loading') }}</div>
+        <template v-else-if="probeDetail">
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-md border border-gray-200 p-3 dark:border-gray-700">
+              <div class="text-xs text-gray-500">{{ t('admin.accounts.probeSuccessRate') }}</div>
+              <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatPercent(probeDetail.success_rate) }}</div>
+            </div>
+            <div class="rounded-md border border-gray-200 p-3 dark:border-gray-700">
+              <div class="text-xs text-gray-500">P50</div>
+              <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatLatencyMs(probeDetail.p50_latency_ms) }}</div>
+            </div>
+            <div class="rounded-md border border-gray-200 p-3 dark:border-gray-700">
+              <div class="text-xs text-gray-500">P95</div>
+              <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{{ formatLatencyMs(probeDetail.p95_latency_ms) }}</div>
+            </div>
+            <div class="rounded-md border border-gray-200 p-3 dark:border-gray-700">
+              <div class="text-xs text-gray-500">{{ t('admin.accounts.probeLastResult') }}</div>
+              <div :class="['mt-1 text-sm font-semibold', probeDetail.last_result === 'failure' ? 'text-red-600 dark:text-red-400' : probeDetail.last_result === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500']">
+                {{ probeResultLabel(probeDetail.last_result) }} · {{ formatLatencyMs(probeDetail.last_latency_ms) }}
+              </div>
+              <div class="mt-1 text-xs text-gray-500">{{ probeDetail.last_probed_at ? formatDateTime(probeDetail.last_probed_at) : '-' }}</div>
             </div>
           </div>
-        </div>
-        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-          <div class="text-xs font-semibold uppercase text-gray-400">{{ t('admin.accounts.lastError') }}</div>
-          <div class="mt-2 text-sm text-gray-700 dark:text-gray-300">
-            <div>{{ healthDetailAccount.health?.last_error_category || '-' }}</div>
-            <div class="mt-1 break-words text-xs text-gray-500">{{ healthDetailAccount.health?.last_error_message || '-' }}</div>
+
+          <div class="rounded-md border border-gray-200 p-3 dark:border-gray-700">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ t('admin.accounts.probeLatencyTrend') }}</div>
+                <div v-if="probeDetail.last_error_message || probeDetail.last_error_category" class="mt-1 max-w-2xl truncate text-xs text-red-600 dark:text-red-400" :title="probeDetail.last_error_message">
+                  {{ t('admin.accounts.lastError') }}: {{ probeDetail.last_error_category || probeDetail.last_error_message }}
+                </div>
+              </div>
+              <div class="inline-flex rounded-md border border-gray-200 p-0.5 dark:border-dark-600">
+                <button v-for="range in probeRanges" :key="range" type="button" :class="['rounded px-3 py-1 text-xs', probeDetailRange === range ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-700']" @click="changeProbeDetailRange(range)">{{ range }}</button>
+              </div>
+            </div>
+            <AccountProbeTrendChart :trend="probeDetail" :ariaLabel="t('admin.accounts.probeLatencyTrend')" :emptyText="t('admin.accounts.probeNoData')" />
+            <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500">
+              <span>{{ t('admin.accounts.probeFailures') }}: {{ probeDetail.failure_count }}</span>
+              <span>{{ t('admin.accounts.nextProbe') }}: {{ probeDetail.next_probe_at ? formatDateTime(probeDetail.next_probe_at) : '-' }}</span>
+            </div>
           </div>
-        </div>
+
         <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 md:col-span-2">
           <div class="mb-3 flex items-center justify-between gap-3">
             <div>
@@ -588,13 +557,8 @@
               <span>{{ t('admin.accounts.probeEnabled') }}</span>
             </label>
             <label class="block">
-              <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.recoveryPriority') }}</span>
-              <select v-model="healthProbeSettings.interval" class="health-detail-control form-select w-full">
-                <option value="">{{ t('admin.accounts.recoveryPriorityDefault') }}</option>
-                <option value="3">{{ t('admin.accounts.recoveryPriorityFast') }}</option>
-                <option value="5">{{ t('admin.accounts.recoveryPriorityStandard') }}</option>
-                <option value="10">{{ t('admin.accounts.recoveryPriorityConservative') }}</option>
-              </select>
+              <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.probeIntervalCustom') }}</span>
+              <input v-model="healthProbeSettings.interval" type="number" min="1" step="1" class="health-detail-control form-input w-full" :placeholder="t('admin.accounts.probeIntervalPlaceholder')" />
             </label>
             <button
               class="btn btn-primary px-3 py-2 text-sm"
@@ -630,41 +594,11 @@
               {{ loadingHealthProbeModels ? t('common.loading') : t('admin.accounts.healthProbeModelHint') }}
             </div>
           </div>
-          <div class="mt-3">
-            <label class="block max-w-[220px]">
-              <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.probeIntervalCustom') }}</span>
-              <input
-                v-model="healthProbeSettings.interval"
-                type="number"
-                min="0"
-                step="1"
-                class="health-detail-control form-input w-full"
-                :placeholder="t('admin.accounts.probeIntervalPlaceholder')"
-              />
-            </label>
-          </div>
-          <div class="mt-4 grid gap-3 border-t border-gray-100 pt-4 dark:border-gray-700 md:grid-cols-[minmax(0,1fr)_180px] md:items-end">
-            <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <input v-model="healthProbeSettings.healthyEnabled" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-              <span>
-                <span class="block font-medium">{{ t('admin.accounts.healthyProbeEnabled') }}</span>
-                <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthyProbeHint') }}</span>
-              </span>
-            </label>
-            <label class="block">
-              <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthyProbeInterval') }}</span>
-              <select v-model.number="healthProbeSettings.healthyInterval" class="health-detail-control form-select w-full">
-                <option v-for="minutes in healthyProbeIntervalOptions" :key="minutes" :value="minutes">{{ healthyProbeIntervalLabel(minutes) }}</option>
-              </select>
-              <p class="mt-1 text-[11px] leading-4 text-amber-600 dark:text-amber-300">{{ t('admin.accounts.healthyProbeIntervalHint') }}</p>
-            </label>
-          </div>
         </div>
         <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 md:col-span-2">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthEvents') }}</div>
-              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthEventsHint') }}</div>
+              <div class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{{ t('admin.accounts.probeEvents') }}</div>
             </div>
             <select v-model="healthEventFilter" class="health-detail-control form-select w-[180px] text-sm" @change="loadHealthEvents(1)">
               <option value="">{{ t('admin.accounts.healthEventAll') }}</option>
@@ -683,8 +617,6 @@
                   <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.time') }}</th>
                   <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.type') }}</th>
                   <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.source') }}</th>
-                  <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.score') }}</th>
-                  <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.status') }}</th>
                   <th class="px-3 py-2 text-left">{{ t('admin.accounts.eventColumns.reason') }}</th>
                   <th class="px-3 py-2 text-right">{{ t('admin.accounts.eventColumns.latency') }}</th>
                 </tr>
@@ -694,8 +626,6 @@
                   <td class="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{{ formatDateTime(event.created_at) }}</td>
                   <td class="px-3 py-2"><span :class="['inline-flex rounded-md px-2 py-0.5 text-xs font-medium', healthEventClass(event.event_type)]">{{ healthEventTypeLabel(event.event_type) }}</span></td>
                   <td class="px-3 py-2 text-gray-600 dark:text-gray-300">{{ healthEventSourceLabel(event.source) }}</td>
-                  <td class="whitespace-nowrap px-3 py-2 font-mono text-gray-700 dark:text-gray-200">{{ event.score_before }} -> {{ event.score_after }} <span :class="event.delta >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'">({{ event.delta >= 0 ? '+' : '' }}{{ event.delta }})</span></td>
-                  <td class="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{{ healthStatusLabel(event.status_before) }} -> {{ healthStatusLabel(event.status_after) }}</td>
                   <td class="max-w-[260px] px-3 py-2 text-gray-500 dark:text-gray-400"><span class="line-clamp-2">{{ event.error_category || event.error_message || '-' }}</span></td>
                   <td class="px-3 py-2 text-right text-gray-600 dark:text-gray-300">{{ formatLatencyMs(event.latency_ms) }}</td>
                 </tr>
@@ -708,6 +638,7 @@
             <button class="btn btn-secondary px-3 py-1.5 text-xs" :disabled="healthEventsPage >= healthEventsTotalPages" @click="loadHealthEvents(healthEventsPage + 1)">{{ t('common.next') }}</button>
           </div>
         </div>
+        </template>
       </div>
     </BaseDialog>
     <TotpStepUpDialog :controller="accountExportStepUp" />
@@ -745,7 +676,8 @@ import AccountStatsModal from '@/components/admin/account/AccountStatsModal.vue'
 import ScheduledTestsPanel from '@/components/admin/account/ScheduledTestsPanel.vue'
 import type { SelectOption } from '@/components/common/Select.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
-import AccountHealthOverviewDialog from '@/components/account/AccountHealthOverviewDialog.vue'
+import AccountProbeSparkline from '@/components/account/AccountProbeSparkline.vue'
+import AccountProbeTrendChart from '@/components/account/AccountProbeTrendChart.vue'
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
@@ -763,7 +695,7 @@ import { extractApiErrorMessage } from '@/utils/apiError'
 import { sanitizeUrl } from '@/utils/url'
 import { getFloatingPanelPosition } from '@/utils/floatingPanel'
 import { formatMultiplier } from '@/utils/formatters'
-import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, AccountHealthOverview, AccountHealthSummary, AccountHealthEvent, UpstreamBillingProbeSnapshot } from '@/types'
+import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel, AccountProbeDetail, AccountProbeTrend, AccountHealthEvent, UpstreamBillingProbeSnapshot } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -828,22 +760,21 @@ const showTest = ref(false)
 const showStats = ref(false)
 const showErrorPassthrough = ref(false)
 const showTLSFingerprintProfiles = ref(false)
-const showHealthOverview = ref(false)
-const healthOverview = ref<AccountHealthOverview | null>(null)
-const healthOverviewLoading = ref(false)
-const healthOverviewError = ref('')
-const refreshingUpstreamBalances = ref<Set<string>>(new Set())
 const healthDetailAccount = ref<Account | null>(null)
 const healthDetailLoading = ref(false)
 const healthDetailLoaded = ref(false)
 const healthDetailRequestToken = ref(0)
+const probeDetail = ref<AccountProbeDetail | null>(null)
+const probeDetailRange = ref<'24h' | '7d' | '30d'>('24h')
+const probeRanges = ['24h', '7d', '30d'] as const
+const probeTrendsByAccount = reactive<Record<number, AccountProbeTrend>>({})
+const probeTrendsLoading = ref(false)
 const savingRateMultiplier = ref<number | null>(null)
 const probingHealth = ref<number | null>(null)
 const savingProbeSettings = ref(false)
 const loadingHealthProbeModels = ref(false)
 const syncingHealthProbeModels = ref(false)
-const healthyProbeIntervalOptions = [1, 5, 15, 30, 60, 180, 360, 720, 1440]
-const healthEventTypes = ['success', 'failure', 'isolated', 'recovering', 'recovered', 'settings_changed']
+const healthEventTypes = ['success', 'failure']
 const healthEvents = ref<AccountHealthEvent[]>([])
 const healthEventsLoading = ref(false)
 const healthEventsError = ref('')
@@ -853,9 +784,7 @@ const healthEventFilter = ref('')
 const healthProbeSettings = reactive({
   enabled: true,
   interval: '' as string | number,
-  model: '',
-  healthyEnabled: false,
-  healthyInterval: 360
+  model: ''
 })
 const healthProbeModelOptions = ref<ClaudeModel[]>([])
 const edAcc = ref<Account | null>(null)
@@ -895,11 +824,8 @@ const accountToolsDropdownStyle = computed(() => ({
   width: `${accountToolsDropdownPosition.width}px`
 }))
 const hiddenColumns = reactive<Set<string>>(new Set())
-const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'priority', 'scheduler_score']
+const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'priority']
 const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
-// One-time migration: hide scheduler score for existing admins too, because showing it opt-ins to heavy backend scoring.
-const HIDDEN_COLUMNS_VERSION_KEY = 'account-hidden-columns-version'
-const HIDDEN_COLUMNS_CURRENT_VERSION = 'scheduler-score-hidden-by-default'
 
 // Sorting settings
 const ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort'
@@ -1026,17 +952,10 @@ const loadSavedColumns = () => {
       parsed.forEach(key => {
         hiddenColumns.add(key)
       })
-      // Older saved column layouts may have scheduler_score visible; migrate them to the new safe default once.
-      if (localStorage.getItem(HIDDEN_COLUMNS_VERSION_KEY) !== HIDDEN_COLUMNS_CURRENT_VERSION) {
-        hiddenColumns.add('scheduler_score')
-        localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify([...hiddenColumns]))
-        localStorage.setItem(HIDDEN_COLUMNS_VERSION_KEY, HIDDEN_COLUMNS_CURRENT_VERSION)
-      }
     } else {
       DEFAULT_HIDDEN_COLUMNS.forEach(key => {
         hiddenColumns.add(key)
       })
-      localStorage.setItem(HIDDEN_COLUMNS_VERSION_KEY, HIDDEN_COLUMNS_CURRENT_VERSION)
     }
   } catch (e) {
     console.error('Failed to load saved columns:', e)
@@ -1049,7 +968,6 @@ const loadSavedColumns = () => {
 const saveColumnsToStorage = () => {
   try {
     localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify([...hiddenColumns]))
-    localStorage.setItem(HIDDEN_COLUMNS_VERSION_KEY, HIDDEN_COLUMNS_CURRENT_VERSION)
   } catch (e) {
     console.error('Failed to save columns:', e)
   }
@@ -1122,22 +1040,10 @@ const toggleColumn = (key: string) => {
       console.error('Failed to load account today stats after showing column:', error)
     })
   }
-  if (key === 'scheduler_score') {
-    // The server only returns scheduler scores when this column is visible, so reload the current page immediately.
-    syncAccountListDerivedParams()
-    load().catch((error) => {
-      console.error('Failed to reload accounts after toggling scheduler score column:', error)
-    })
-  }
 }
 
 const isColumnVisible = (key: string) => !hiddenColumns.has(key)
-const shouldIncludeSchedulerScore = () => isColumnVisible('scheduler_score')
-const syncAccountListDerivedParams = () => {
-  // Keep every load path, including auto-refresh and sorting, aligned with the current column visibility.
-  const requestParams = params as any
-  requestParams.include_scheduler_score = shouldIncludeSchedulerScore() ? '1' : '0'
-}
+const syncAccountListDerivedParams = () => {}
 
 const {
   items: accounts,
@@ -1158,7 +1064,6 @@ const {
     privacy_mode: '',
     group: '',
     search: '',
-    include_scheduler_score: shouldIncludeSchedulerScore() ? '1' : '0',
     sort_by: sortState.sort_by,
     sort_order: sortState.sort_order
   }
@@ -1221,6 +1126,25 @@ const resetAutoRefreshCache = () => {
 }
 
 const isFirstLoad = ref(true)
+
+const refreshProbeTrends = async () => {
+  const accountIDs = accounts.value.map(account => account.id)
+  probeTrendsLoading.value = true
+  try {
+    const trends = await adminAPI.accounts.getHealthTrends(accountIDs)
+    if (!Array.isArray(trends)) return
+    const visibleIDs = new Set(accountIDs)
+    for (const key of Object.keys(probeTrendsByAccount)) {
+      const accountID = Number(key)
+      if (!visibleIDs.has(accountID)) delete probeTrendsByAccount[accountID]
+    }
+    for (const trend of trends) probeTrendsByAccount[trend.account_id] = trend
+  } catch (error) {
+    console.error('Failed to load account probe trends:', error)
+  } finally {
+    probeTrendsLoading.value = false
+  }
+}
 
 function markUpstreamBillingSortRefresh() {
   if (sortState.sort_by === 'upstream_billing_rate') {
@@ -1318,6 +1242,9 @@ watch(loading, (isLoading, wasLoading) => {
       console.error('Failed to refresh account today stats after table load:', error)
     })
   }
+  if (wasLoading && !isLoading) {
+    refreshProbeTrends().catch((error) => console.error('Failed to refresh account probe trends:', error))
+  }
 })
 
 watch(upstreamBillingNow, () => {
@@ -1342,7 +1269,6 @@ const isAnyModalOpen = computed(() => {
     showSchedulePanel.value ||
     showErrorPassthrough.value ||
     showTLSFingerprintProfiles.value ||
-    showHealthOverview.value ||
     !!healthDetailAccount.value
   )
 })
@@ -1368,22 +1294,12 @@ const shouldReplaceAutoRefreshRow = (current: Account, next: Account) => {
     current.overload_until !== next.overload_until ||
     current.temp_unschedulable_until !== next.temp_unschedulable_until ||
     current.rate_multiplier !== next.rate_multiplier ||
-    current.health?.score !== next.health?.score ||
-    current.health?.status !== next.health?.status ||
-    current.health?.scheduler_latency_ewma_ms !== next.health?.scheduler_latency_ewma_ms ||
-    current.health?.next_probe_at !== next.health?.next_probe_at ||
     current.health_probe_enabled !== next.health_probe_enabled ||
     current.health_probe_interval_minutes !== next.health_probe_interval_minutes ||
     current.health_probe_model !== next.health_probe_model ||
     current.healthy_probe_enabled !== next.healthy_probe_enabled ||
     current.healthy_probe_interval_minutes !== next.healthy_probe_interval_minutes ||
     current.healthy_probe_interval_hours !== next.healthy_probe_interval_hours ||
-    current.health?.health_probe_enabled !== next.health?.health_probe_enabled ||
-    current.health?.health_probe_interval_minutes !== next.health?.health_probe_interval_minutes ||
-    current.health?.health_probe_model !== next.health?.health_probe_model ||
-    current.health?.healthy_probe_enabled !== next.health?.healthy_probe_enabled ||
-    current.health?.healthy_probe_interval_minutes !== next.health?.healthy_probe_interval_minutes ||
-    current.health?.healthy_probe_interval_hours !== next.health?.healthy_probe_interval_hours ||
     buildOpenAIUsageRefreshKey(current) !== buildOpenAIUsageRefreshKey(next) ||
     buildGrokUsageRefreshKey(current) !== buildGrokUsageRefreshKey(next)
   )
@@ -1459,6 +1375,7 @@ const refreshAccountsIncrementally = async () => {
       mergeAccountsIncrementally(result.data.items || [])
       hasPendingListSync.value = false
       markUpstreamBillingSortRefresh()
+      await refreshProbeTrends()
     }
     upstreamBillingNow.value = Date.now()
 
@@ -1533,64 +1450,23 @@ const openTLSFingerprintProfiles = () => {
   showTLSFingerprintProfiles.value = true
 }
 
-const openHealthOverview = async () => {
-  closeAccountToolsDropdown()
-  showHealthOverview.value = true
-  healthOverviewLoading.value = true
-  healthOverviewError.value = ''
-  try {
-    healthOverview.value = await adminAPI.accounts.getHealthOverview()
-  } catch (error: any) {
-    healthOverviewError.value = error?.message || t('admin.accounts.healthOverviewFailed')
-  } finally {
-    healthOverviewLoading.value = false
-  }
-}
-
-const setUpstreamBalanceRefreshing = (baseURL: string, refreshing: boolean) => {
-  const next = new Set(refreshingUpstreamBalances.value)
-  if (refreshing) {
-    next.add(baseURL)
-  } else {
-    next.delete(baseURL)
-  }
-  refreshingUpstreamBalances.value = next
-}
-
-const isRefreshingUpstreamBalance = (baseURL: string) => refreshingUpstreamBalances.value.has(baseURL)
-
-const refreshUpstreamBalance = async (baseURL: string) => {
-  if (!baseURL || isRefreshingUpstreamBalance(baseURL)) return
-  setUpstreamBalanceRefreshing(baseURL, true)
-  try {
-    const snapshot = await adminAPI.accounts.refreshHealthOverviewBalance(baseURL)
-    const target = healthOverview.value?.urls.find(item => item.base_url === baseURL)
-    if (target) {
-      target.balance = snapshot
-    }
-    appStore.showSuccess(t('admin.accounts.upstreamBalanceRefreshSuccess'))
-  } catch (error: any) {
-    appStore.showError(error?.message || t('admin.accounts.upstreamBalanceRefreshFailed'))
-  } finally {
-    setUpstreamBalanceRefreshing(baseURL, false)
-  }
-}
-
 const openHealthDetail = async (account: Account) => {
   const requestToken = healthDetailRequestToken.value + 1
   healthDetailRequestToken.value = requestToken
   healthDetailLoading.value = true
   healthDetailLoaded.value = false
   healthDetailAccount.value = account
+  probeDetail.value = null
+  probeDetailRange.value = '24h'
   healthEventFilter.value = ''
   healthEvents.value = []
   healthEventsPage.value = 1
   healthEventsTotalPages.value = 1
   healthProbeModelOptions.value = []
   try {
-    const health = await adminAPI.accounts.getHealth(account.id)
+    const health = await adminAPI.accounts.getHealth(account.id, probeDetailRange.value)
     if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== account.id) return
-    patchAccountHealthInList(account.id, health)
+    probeDetail.value = health
     await loadHealthProbeModels(account.id, requestToken)
     if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== account.id) return
     await loadHealthEvents(1, requestToken)
@@ -1598,10 +1474,11 @@ const openHealthDetail = async (account: Account) => {
     healthDetailLoaded.value = true
   } catch (error: any) {
     if (healthDetailRequestToken.value !== requestToken || healthDetailAccount.value?.id !== account.id) return
-    appStore.showError(error?.message || t('admin.accounts.healthDetailLoadFailed'))
+    appStore.showError(error?.message || t('admin.accounts.probeDetailLoadFailed'))
     healthDetailAccount.value = null
     healthEvents.value = []
     healthProbeModelOptions.value = []
+    probeDetail.value = null
   } finally {
     if (healthDetailRequestToken.value === requestToken) {
       healthDetailLoading.value = false
@@ -1614,20 +1491,42 @@ watch(healthDetailAccount, (account) => {
     healthDetailRequestToken.value += 1
     healthDetailLoading.value = false
     healthDetailLoaded.value = false
+    probeDetail.value = null
   }
-  healthProbeSettings.enabled = account?.health?.health_probe_enabled ?? account?.health_probe_enabled ?? true
-  const interval = account?.health?.health_probe_interval_minutes ?? account?.health_probe_interval_minutes
+  healthProbeSettings.enabled = probeDetail.value?.health_probe_enabled ?? account?.health_probe_enabled ?? true
+  const interval = probeDetail.value?.health_probe_interval_minutes
+    ?? probeDetail.value?.healthy_probe_interval_minutes
+    ?? (probeDetail.value?.healthy_probe_interval_hours ? probeDetail.value.healthy_probe_interval_hours * 60 : null)
+    ?? account?.health_probe_interval_minutes
+    ?? account?.healthy_probe_interval_minutes
+    ?? (account?.healthy_probe_interval_hours ? account.healthy_probe_interval_hours * 60 : null)
   healthProbeSettings.interval = interval && interval > 0 ? interval : ''
-  healthProbeSettings.model = account?.health?.health_probe_model ?? account?.health_probe_model ?? ''
-  healthProbeSettings.healthyEnabled = account?.health?.healthy_probe_enabled ?? account?.healthy_probe_enabled ?? false
-  const healthyIntervalMinutes = account?.health?.healthy_probe_interval_minutes ?? account?.healthy_probe_interval_minutes
-  const legacyHealthyIntervalHours = account?.health?.healthy_probe_interval_hours ?? account?.healthy_probe_interval_hours
-  healthProbeSettings.healthyInterval = healthyIntervalMinutes && healthyIntervalMinutes > 0
-    ? healthyIntervalMinutes
-    : legacyHealthyIntervalHours && legacyHealthyIntervalHours > 0
-      ? legacyHealthyIntervalHours * 60
-      : 360
+  healthProbeSettings.model = probeDetail.value?.health_probe_model ?? account?.health_probe_model ?? ''
 })
+
+watch(probeDetail, (detail) => {
+  if (!detail) return
+  healthProbeSettings.enabled = detail.health_probe_enabled
+  const interval = detail.health_probe_interval_minutes
+    ?? detail.healthy_probe_interval_minutes
+    ?? (detail.healthy_probe_interval_hours ? detail.healthy_probe_interval_hours * 60 : null)
+  healthProbeSettings.interval = interval && interval > 0 ? interval : ''
+  healthProbeSettings.model = detail.health_probe_model ?? ''
+})
+
+const changeProbeDetailRange = async (range: '24h' | '7d' | '30d') => {
+  const account = healthDetailAccount.value
+  if (!account || probeDetailRange.value === range) return
+  probeDetailRange.value = range
+  healthDetailLoading.value = true
+  try {
+    probeDetail.value = await adminAPI.accounts.getHealth(account.id, range)
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.probeDetailLoadFailed'))
+  } finally {
+    healthDetailLoading.value = false
+  }
+}
 
 const normalizeHealthProbeModels = (models: Array<ClaudeModel | string>): ClaudeModel[] => {
   const seen = new Set<string>()
@@ -1913,64 +1812,18 @@ function getAntigravityTierClass(row: any): string {
   }
 }
 
-function healthStatusLabel(status?: string | null): string {
-  switch (status) {
-    case 'isolated': return t('admin.accounts.healthStatus.isolated')
-    case 'recovering': return t('admin.accounts.healthStatus.recovering')
-    case 'degraded': return t('admin.accounts.healthStatus.degraded')
-    case 'healthy':
-    default: return t('admin.accounts.healthStatus.healthy')
-  }
-}
-
-function healthDotClass(status?: string | null): string {
-  switch (status) {
-    case 'isolated': return 'bg-red-500'
-    case 'recovering': return 'bg-blue-500'
-    case 'degraded': return 'bg-amber-500'
-    default: return 'bg-emerald-500'
-  }
-}
-
-function autoStatusLabel(row: Account): string {
-  if (!row.schedulable) return t('admin.accounts.autoStatus.manualOff')
-  if (row.health?.status === 'isolated') return t('admin.accounts.autoStatus.isolated')
-  if (row.health?.status === 'recovering') return t('admin.accounts.autoStatus.probing')
-  if (row.health?.status === 'degraded') return t('admin.accounts.autoStatus.degraded')
-  return t('admin.accounts.autoStatus.enabled')
-}
-
-function autoStatusClass(row: Account): string {
-  if (!row.schedulable) return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-  if (row.health?.status === 'isolated') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-  if (row.health?.status === 'recovering') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-  if (row.health?.status === 'degraded') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-  return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-}
-
-function healthyProbeIntervalLabel(minutes: number): string {
-  if (minutes % 60 === 0) return t('admin.accounts.healthyProbeIntervalOptionHours', { hours: minutes / 60 })
-  return t('admin.accounts.healthyProbeIntervalOptionMinutes', { minutes })
-}
-
 function healthEventTypeLabel(type?: string): string {
   switch (type) {
     case 'success': return t('admin.accounts.healthEventTypes.success')
     case 'failure': return t('admin.accounts.healthEventTypes.failure')
-    case 'isolated': return t('admin.accounts.healthEventTypes.isolated')
-    case 'recovering': return t('admin.accounts.healthEventTypes.recovering')
-    case 'recovered': return t('admin.accounts.healthEventTypes.recovered')
-    case 'settings_changed': return t('admin.accounts.healthEventTypes.settingsChanged')
     default: return type || '-'
   }
 }
 
 function healthEventSourceLabel(source?: string): string {
   switch (source) {
-    case 'real_request': return t('admin.accounts.healthEventSources.realRequest')
     case 'background_probe': return t('admin.accounts.healthEventSources.backgroundProbe')
     case 'manual_probe': return t('admin.accounts.healthEventSources.manualProbe')
-    case 'system': return t('admin.accounts.healthEventSources.system')
     default: return source || '-'
   }
 }
@@ -1978,11 +1831,7 @@ function healthEventSourceLabel(source?: string): string {
 function healthEventClass(type?: string): string {
   switch (type) {
     case 'failure':
-    case 'isolated':
       return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-    case 'recovering':
-      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-    case 'recovered':
     case 'success':
       return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
     default:
@@ -1998,31 +1847,25 @@ function formatRateInput(value?: number | null): string {
 
 function formatLatencyMs(value?: number | null): string {
   if (value === null || value === undefined || !Number.isFinite(Number(value))) return '-'
-  return `${Math.round(Number(value))} ms`
+  const milliseconds = Number(value)
+  return milliseconds >= 1000 ? `${(milliseconds / 1000).toFixed(milliseconds >= 10000 ? 0 : 1)} s` : `${Math.round(milliseconds)} ms`
 }
 
-function formatSchedulerScoreValue(value?: number | null): string {
+function formatPercent(value?: number | null): string {
   if (value === null || value === undefined || !Number.isFinite(Number(value))) return '-'
-  return Number(value).toFixed(6).replace(/\.?0+$/, '')
+  return `${Number(value).toFixed(1)}%`
 }
 
-type SchedulerScoreEntry = { key: string; label: string; value: string }
+function probeResultLabel(result?: string): string {
+  if (result === 'success') return t('admin.accounts.probeNormal')
+  if (result === 'failure') return t('admin.accounts.probeAbnormal')
+  return t('admin.accounts.probeNoData')
+}
 
-function schedulerScoreEntries(row: Account): SchedulerScoreEntry[] {
-  const groupScores = Array.isArray(row.scheduler_scores) ? row.scheduler_scores : []
-  if (groupScores.length > 0) {
-    return groupScores
-      .map((score, index) => ({
-        key: `${score.group_id ?? 'group'}-${index}`,
-        label: score.group_name || `#${score.group_id ?? '-'}`,
-        value: formatSchedulerScoreValue(score.base_score),
-      }))
-      .filter((entry) => entry.value !== '-')
-  }
-
-  const baseScore = row.scheduler_score?.base_score
-  const value = formatSchedulerScoreValue(baseScore)
-  return value === '-' ? [] : [{ key: 'ungrouped', label: t('admin.accounts.schedulerScore.ungrouped'), value }]
+function probeTrendTitle(accountID: number): string {
+  const trend = probeTrendsByAccount[accountID]
+  if (!trend?.total) return t('admin.accounts.probeNoData')
+  return `${probeResultLabel(trend.last_result)} · ${trend.success_count}/${trend.total} · P95 ${formatLatencyMs(trend.p95_latency_ms)}`
 }
 
 // All available columns
@@ -2035,8 +1878,7 @@ const allColumns = computed(() => {
     { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
     { key: 'status', label: t('admin.accounts.columns.status'), sortable: true },
     { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true },
-    { key: 'health', label: t('admin.accounts.columns.health'), sortable: false },
-    { key: 'auto_status', label: t('admin.accounts.columns.autoStatus'), sortable: false },
+    { key: 'probe_trend', label: t('admin.accounts.columns.probeTrend'), sortable: false },
     { key: 'today_stats', label: t('admin.accounts.columns.todayStats'), sortable: false }
   ]
   if (!authStore.isSimpleMode) {
@@ -2047,9 +1889,6 @@ const allColumns = computed(() => {
     { key: 'proxy', label: t('admin.accounts.columns.proxy'), sortable: false },
     { key: 'priority', label: t('admin.accounts.columns.priority'), sortable: true },
     { key: 'rate_multiplier', label: t('admin.accounts.columns.billingRateMultiplier'), sortable: true },
-    { key: 'latency_ewma_ms', label: t('admin.accounts.columns.avgLatency'), sortable: false },
-    { key: 'next_probe_at', label: t('admin.accounts.columns.nextProbe'), sortable: false },
-    { key: 'scheduler_score', label: t('admin.accounts.columns.schedulerScore'), sortable: false },
     { key: 'upstream_billing_rate', label: t('admin.accounts.columns.upstreamBillingRate'), sortable: true },
     { key: 'last_used_at', label: t('admin.accounts.columns.lastUsed'), sortable: true },
     { key: 'created_at', label: t('admin.accounts.columns.createdAt'), sortable: true },
@@ -2490,21 +2329,20 @@ const patchAccountInList = (updatedAccount: Account) => {
   accounts.value = nextAccounts
   syncAccountRefs(mergedAccount)
 }
-const patchAccountHealthInList = (accountID: number, health: AccountHealthSummary) => {
+const applyProbeDetail = (accountID: number, detail: AccountProbeDetail) => {
+  probeDetail.value = detail
+  probeTrendsByAccount[accountID] = detail
   const index = accounts.value.findIndex(account => account.id === accountID)
   if (index === -1) return
   const current = accounts.value[index]
   const nextAccount: Account = {
     ...current,
-    health,
-    health_probe_enabled: health.health_probe_enabled,
-    health_probe_interval_minutes: health.health_probe_interval_minutes ?? null,
-    health_probe_model: health.health_probe_model ?? null,
-    healthy_probe_enabled: health.healthy_probe_enabled,
-    healthy_probe_interval_hours: health.healthy_probe_interval_hours ?? null,
-    rate_multiplier: health.rate_multiplier ?? current.rate_multiplier,
-    schedulable: health.schedulable,
-    temp_unschedulable_until: health.temp_unschedulable_until ?? current.temp_unschedulable_until
+    health_probe_enabled: detail.health_probe_enabled,
+    health_probe_interval_minutes: detail.health_probe_interval_minutes ?? null,
+    health_probe_model: detail.health_probe_model ?? null,
+    healthy_probe_enabled: detail.healthy_probe_enabled,
+    healthy_probe_interval_minutes: detail.healthy_probe_interval_minutes ?? null,
+    healthy_probe_interval_hours: detail.healthy_probe_interval_hours ?? null,
   }
   const nextAccounts = [...accounts.value]
   nextAccounts[index] = nextAccount
@@ -2583,13 +2421,17 @@ const handleRateMultiplierCommit = async (account: Account, event: Event) => {
 const handleHealthProbe = async (account: Account) => {
   probingHealth.value = account.id
   try {
-    const health = await adminAPI.accounts.probeHealth(account.id)
-    patchAccountHealthInList(account.id, health)
+    const detail = await adminAPI.accounts.probeHealth(account.id)
+    applyProbeDetail(account.id, detail)
     if (healthDetailAccount.value?.id === account.id) {
       await loadHealthEvents(1)
     }
     enterAutoRefreshSilentWindow()
-    appStore.showSuccess(t('admin.accounts.healthProbeSuccess'))
+    if (detail.last_result === 'failure') {
+      appStore.showError(detail.last_error_message || t('admin.accounts.healthProbeFailed'))
+    } else {
+      appStore.showSuccess(t('admin.accounts.healthProbeSuccess'))
+    }
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.accounts.healthProbeFailed'))
   } finally {
@@ -2601,7 +2443,7 @@ const saveHealthProbeSettings = async () => {
   const account = healthDetailAccount.value
   if (!account) return
   if (!healthDetailLoaded.value) {
-    appStore.showError(t('admin.accounts.healthDetailLoadFailed'))
+    appStore.showError(t('admin.accounts.probeDetailLoadFailed'))
     return
   }
   const rawInterval = String(healthProbeSettings.interval ?? '').trim()
@@ -2610,23 +2452,16 @@ const saveHealthProbeSettings = async () => {
     appStore.showError(t('admin.accounts.probeIntervalInvalid'))
     return
   }
-  const healthyInterval = Number(healthProbeSettings.healthyInterval || 360)
-  if (!Number.isInteger(healthyInterval) || healthyInterval <= 0) {
-    appStore.showError(t('admin.accounts.healthyProbeIntervalInvalid'))
-    return
-  }
   const probeModel = String(healthProbeSettings.model || '').trim()
   const requestAccountID = account.id
   savingProbeSettings.value = true
   try {
-    const health = await adminAPI.accounts.updateHealthProbeSettings(requestAccountID, {
+    const detail = await adminAPI.accounts.updateHealthProbeSettings(requestAccountID, {
       health_probe_enabled: healthProbeSettings.enabled,
       health_probe_interval_minutes: interval && interval > 0 ? interval : null,
-      health_probe_model: probeModel || null,
-      healthy_probe_enabled: healthProbeSettings.healthyEnabled,
-      healthy_probe_interval_minutes: healthyInterval === 360 ? null : healthyInterval
+      health_probe_model: probeModel || null
     })
-    patchAccountHealthInList(requestAccountID, health)
+    applyProbeDetail(requestAccountID, detail)
     await loadHealthEvents(1)
     enterAutoRefreshSilentWindow()
     appStore.showSuccess(t('admin.accounts.probeSettingsSaved'))

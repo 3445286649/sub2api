@@ -89,7 +89,7 @@ func (r *AccountHealthRunner) runDueProbes() {
 			logger.LegacyPrintf("service.account_health_runner", "[AccountHealthRunner] ClaimDueProbe account_id=%d error: %v", state.AccountID, err)
 			continue
 		}
-		if state.NextProbeAt != nil && !claimed {
+		if !claimed {
 			r.release(state.AccountID)
 			continue
 		}

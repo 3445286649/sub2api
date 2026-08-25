@@ -33,6 +33,8 @@ const (
 	accountUpstreamBalanceMaxBodyBytes    = 64 * 1024
 )
 
+const accountUpstreamBalanceAccountLimit = 10000
+
 var (
 	upstreamBalanceLooseSKPattern     = regexp.MustCompile(`\bsk-[0-9A-Za-z_-]{8,}\b`)
 	upstreamBalanceAuthorizationValue = regexp.MustCompile(`(?i)\bauthorization\s*[:=]\s*bearer\s+[^,\s]+`)
@@ -135,7 +137,7 @@ func (s *AccountUpstreamBalanceService) refreshByBaseURL(ctx context.Context, ra
 	if err := validateUpstreamBalanceBaseURL(baseURL); err != nil {
 		return nil, infraerrors.BadRequest("INVALID_BASE_URL", "invalid base url")
 	}
-	accounts, _, err := s.accountRepo.List(ctx, pagination.PaginationParams{Page: 1, PageSize: accountHealthOverviewAccountLimit})
+	accounts, _, err := s.accountRepo.List(ctx, pagination.PaginationParams{Page: 1, PageSize: accountUpstreamBalanceAccountLimit})
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +467,7 @@ func selectUpstreamBalanceRepresentative(accounts []Account, baseURL string) (*A
 	candidates := make([]Account, 0)
 	matched := false
 	for _, account := range accounts {
-		if normalizeUpstreamBalanceBaseURL(accountHealthBaseURL(&account)) != baseURL {
+		if normalizeUpstreamBalanceBaseURL(accountUpstreamBalanceBaseURL(&account)) != baseURL {
 			continue
 		}
 		matched = true
@@ -486,6 +488,21 @@ func selectUpstreamBalanceRepresentative(accounts []Account, baseURL string) (*A
 		return candidates[i].ID < candidates[j].ID
 	})
 	return &candidates[0], matched
+}
+
+func accountUpstreamBalanceBaseURL(account *Account) string {
+	if account == nil {
+		return ""
+	}
+	for _, key := range []string{"base_url", "custom_base_url", "upstream_url", "api_url", "endpoint"} {
+		if value, ok := account.Credentials[key].(string); ok && strings.TrimSpace(value) != "" {
+			return strings.TrimRight(strings.TrimSpace(value), "/")
+		}
+	}
+	if value, ok := account.Extra["custom_base_url"].(string); ok && strings.TrimSpace(value) != "" {
+		return strings.TrimRight(strings.TrimSpace(value), "/")
+	}
+	return ""
 }
 
 func upstreamBalanceRepresentativeRank(account Account) int {

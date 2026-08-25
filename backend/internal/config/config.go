@@ -10,7 +10,6 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -1442,24 +1441,6 @@ type GatewaySchedulingConfig struct {
 	// 默认 false，保持原有「优先级 → 负载率 → LRU」行为不变。
 	PreferSoonestReset bool `mapstructure:"prefer_soonest_reset"`
 
-	// HealthSortEnabled 开启后，账号调度会在硬过滤后按「健康分层 → 同层加权评分」优化排序。
-	// 关闭后回退旧的优先级/负载/LRU 排序，方便线上排障。
-	HealthSortEnabled bool `mapstructure:"health_sort_enabled"`
-	// HealthTierHealthyMin / HealthTierDegradedMin 控制健康分层调度阈值。
-	// 默认 80/60；非法配置会在加载阶段回退默认值，不阻止启动。
-	HealthTierHealthyMin  int `mapstructure:"health_tier_healthy_min"`
-	HealthTierDegradedMin int `mapstructure:"health_tier_degraded_min"`
-	// 同一健康层内的加权评分权重。默认健康/延迟/成本/负载 = 30/45/15/10。
-	// 非法配置会在加载阶段回退默认值，不阻止启动。
-	ScoreWeightHealth  int `mapstructure:"score_weight_health"`
-	ScoreWeightLatency int `mapstructure:"score_weight_latency"`
-	ScoreWeightCost    int `mapstructure:"score_weight_cost"`
-	ScoreWeightLoad    int `mapstructure:"score_weight_load"`
-	// 高延迟护栏只影响排序，不改变账号健康分/状态。
-	LatencyPenaltyMS        int `mapstructure:"latency_penalty_ms"`
-	LatencyTierDowngradeMS  int `mapstructure:"latency_tier_downgrade_ms"`
-	HighLatencyPenaltyScore int `mapstructure:"high_latency_penalty_score"`
-
 	// 负载计算
 	LoadBatchEnabled    bool `mapstructure:"load_batch_enabled"`
 	LoadBatchCacheTTLMS int  `mapstructure:"load_batch_cache_ttl_ms"`
@@ -1765,168 +1746,6 @@ func NormalizeRunMode(value string) string {
 	}
 }
 
-const (
-	defaultSchedulingHealthTierHealthyMin  = 80
-	defaultSchedulingHealthTierDegradedMin = 60
-	defaultSchedulingScoreWeightHealth     = 30
-	defaultSchedulingScoreWeightLatency    = 45
-	defaultSchedulingScoreWeightCost       = 15
-	defaultSchedulingScoreWeightLoad       = 10
-	defaultSchedulingLatencyPenaltyMS      = 15000
-	defaultSchedulingLatencyDowngradeMS    = 30000
-	defaultSchedulingHighLatencyPenalty    = 20
-)
-
-func normalizeGatewaySchedulingHealthTiers(cfg *GatewaySchedulingConfig) {
-	if cfg == nil {
-		return
-	}
-	healthyMin := cfg.HealthTierHealthyMin
-	degradedMin := cfg.HealthTierDegradedMin
-	if healthyMin < 0 || healthyMin > 100 || degradedMin < 0 || degradedMin > 100 || healthyMin <= degradedMin {
-		slog.Warn("invalid gateway scheduling health tier thresholds, falling back to defaults",
-			"health_tier_healthy_min", healthyMin,
-			"health_tier_degraded_min", degradedMin,
-			"default_health_tier_healthy_min", defaultSchedulingHealthTierHealthyMin,
-			"default_health_tier_degraded_min", defaultSchedulingHealthTierDegradedMin)
-		cfg.HealthTierHealthyMin = defaultSchedulingHealthTierHealthyMin
-		cfg.HealthTierDegradedMin = defaultSchedulingHealthTierDegradedMin
-	}
-}
-
-func normalizeGatewaySchedulingScoreWeights(cfg *GatewaySchedulingConfig) {
-	if cfg == nil {
-		return
-	}
-	health := cfg.ScoreWeightHealth
-	latency := cfg.ScoreWeightLatency
-	cost := cfg.ScoreWeightCost
-	load := cfg.ScoreWeightLoad
-	if health < 0 || latency < 0 || cost < 0 || load < 0 || health+latency+cost+load <= 0 {
-		slog.Warn("invalid gateway scheduling score weights, falling back to defaults",
-			"score_weight_health", health,
-			"score_weight_latency", latency,
-			"score_weight_cost", cost,
-			"score_weight_load", load,
-			"default_score_weight_health", defaultSchedulingScoreWeightHealth,
-			"default_score_weight_latency", defaultSchedulingScoreWeightLatency,
-			"default_score_weight_cost", defaultSchedulingScoreWeightCost,
-			"default_score_weight_load", defaultSchedulingScoreWeightLoad)
-		cfg.ScoreWeightHealth = defaultSchedulingScoreWeightHealth
-		cfg.ScoreWeightLatency = defaultSchedulingScoreWeightLatency
-		cfg.ScoreWeightCost = defaultSchedulingScoreWeightCost
-		cfg.ScoreWeightLoad = defaultSchedulingScoreWeightLoad
-	}
-}
-
-func normalizeGatewaySchedulingLatencyGuards(cfg *GatewaySchedulingConfig) {
-	if cfg == nil {
-		return
-	}
-	penaltyMS := cfg.LatencyPenaltyMS
-	downgradeMS := cfg.LatencyTierDowngradeMS
-	penaltyScore := cfg.HighLatencyPenaltyScore
-	if penaltyMS <= 0 || downgradeMS <= penaltyMS || penaltyScore < 0 {
-		slog.Warn("invalid gateway scheduling latency guard values, falling back to defaults",
-			"latency_penalty_ms", penaltyMS,
-			"latency_tier_downgrade_ms", downgradeMS,
-			"high_latency_penalty_score", penaltyScore,
-			"default_latency_penalty_ms", defaultSchedulingLatencyPenaltyMS,
-			"default_latency_tier_downgrade_ms", defaultSchedulingLatencyDowngradeMS,
-			"default_high_latency_penalty_score", defaultSchedulingHighLatencyPenalty)
-		cfg.LatencyPenaltyMS = defaultSchedulingLatencyPenaltyMS
-		cfg.LatencyTierDowngradeMS = defaultSchedulingLatencyDowngradeMS
-		cfg.HighLatencyPenaltyScore = defaultSchedulingHighLatencyPenalty
-	}
-}
-
-func normalizeGatewaySchedulingHealthTierRawValues() {
-	keys := []string{
-		"gateway.scheduling.health_tier_healthy_min",
-		"gateway.scheduling.health_tier_degraded_min",
-	}
-	for _, key := range keys {
-		if !viper.IsSet(key) {
-			continue
-		}
-		raw := strings.TrimSpace(viper.GetString(key))
-		if raw == "" {
-			continue
-		}
-		if _, err := strconv.Atoi(raw); err != nil {
-			slog.Warn("invalid gateway scheduling health tier threshold value, falling back to defaults",
-				"key", key,
-				"value", raw,
-				"default_health_tier_healthy_min", defaultSchedulingHealthTierHealthyMin,
-				"default_health_tier_degraded_min", defaultSchedulingHealthTierDegradedMin)
-			viper.Set("gateway.scheduling.health_tier_healthy_min", defaultSchedulingHealthTierHealthyMin)
-			viper.Set("gateway.scheduling.health_tier_degraded_min", defaultSchedulingHealthTierDegradedMin)
-			return
-		}
-	}
-}
-
-func normalizeGatewaySchedulingScoreWeightRawValues() {
-	keys := []string{
-		"gateway.scheduling.score_weight_health",
-		"gateway.scheduling.score_weight_latency",
-		"gateway.scheduling.score_weight_cost",
-		"gateway.scheduling.score_weight_load",
-	}
-	for _, key := range keys {
-		if !viper.IsSet(key) {
-			continue
-		}
-		raw := strings.TrimSpace(viper.GetString(key))
-		if raw == "" {
-			continue
-		}
-		if _, err := strconv.Atoi(raw); err != nil {
-			slog.Warn("invalid gateway scheduling score weight value, falling back to defaults",
-				"key", key,
-				"value", raw,
-				"default_score_weight_health", defaultSchedulingScoreWeightHealth,
-				"default_score_weight_latency", defaultSchedulingScoreWeightLatency,
-				"default_score_weight_cost", defaultSchedulingScoreWeightCost,
-				"default_score_weight_load", defaultSchedulingScoreWeightLoad)
-			viper.Set("gateway.scheduling.score_weight_health", defaultSchedulingScoreWeightHealth)
-			viper.Set("gateway.scheduling.score_weight_latency", defaultSchedulingScoreWeightLatency)
-			viper.Set("gateway.scheduling.score_weight_cost", defaultSchedulingScoreWeightCost)
-			viper.Set("gateway.scheduling.score_weight_load", defaultSchedulingScoreWeightLoad)
-			return
-		}
-	}
-}
-
-func normalizeGatewaySchedulingLatencyGuardRawValues() {
-	keys := []string{
-		"gateway.scheduling.latency_penalty_ms",
-		"gateway.scheduling.latency_tier_downgrade_ms",
-		"gateway.scheduling.high_latency_penalty_score",
-	}
-	for _, key := range keys {
-		if !viper.IsSet(key) {
-			continue
-		}
-		raw := strings.TrimSpace(viper.GetString(key))
-		if raw == "" {
-			continue
-		}
-		if _, err := strconv.Atoi(raw); err != nil {
-			slog.Warn("invalid gateway scheduling latency guard value, falling back to defaults",
-				"key", key,
-				"value", raw,
-				"default_latency_penalty_ms", defaultSchedulingLatencyPenaltyMS,
-				"default_latency_tier_downgrade_ms", defaultSchedulingLatencyDowngradeMS,
-				"default_high_latency_penalty_score", defaultSchedulingHighLatencyPenalty)
-			viper.Set("gateway.scheduling.latency_penalty_ms", defaultSchedulingLatencyPenaltyMS)
-			viper.Set("gateway.scheduling.latency_tier_downgrade_ms", defaultSchedulingLatencyDowngradeMS)
-			viper.Set("gateway.scheduling.high_latency_penalty_score", defaultSchedulingHighLatencyPenalty)
-			return
-		}
-	}
-}
-
 // Load 读取并校验完整配置（要求 jwt.secret 已显式提供）。
 func Load() (*Config, error) {
 	return load(false)
@@ -1968,10 +1787,6 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	forwardedClientIPHeadersEnv, forwardedClientIPHeadersEnvConfigured := os.LookupEnv("SECURITY_FORWARDED_CLIENT_IP_HEADERS")
 	trustedProxiesConfigured := viper.InConfig("server.trusted_proxies") ||
 		viper.IsSet("server.trusted_proxies") || trustedProxiesEnvConfigured
-
-	normalizeGatewaySchedulingHealthTierRawValues()
-	normalizeGatewaySchedulingScoreWeightRawValues()
-	normalizeGatewaySchedulingLatencyGuardRawValues()
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
@@ -2083,10 +1898,6 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 			"valid_modes", []string{UMQModeSerialize, UMQModeThrottle})
 		cfg.Gateway.UserMessageQueue.Mode = ""
 	}
-	normalizeGatewaySchedulingHealthTiers(&cfg.Gateway.Scheduling)
-	normalizeGatewaySchedulingScoreWeights(&cfg.Gateway.Scheduling)
-	normalizeGatewaySchedulingLatencyGuards(&cfg.Gateway.Scheduling)
-
 	// Auto-generate TOTP encryption key if not set (32 bytes = 64 hex chars for AES-256)
 	cfg.Totp.EncryptionKey = strings.TrimSpace(cfg.Totp.EncryptionKey)
 	if cfg.Totp.EncryptionKey == "" {
@@ -2643,16 +2454,6 @@ func setDefaults() {
 	viper.SetDefault("gateway.scheduling.fallback_max_waiting", 100)
 	viper.SetDefault("gateway.scheduling.fallback_selection_mode", "last_used")
 	viper.SetDefault("gateway.scheduling.prefer_soonest_reset", false)
-	viper.SetDefault("gateway.scheduling.health_sort_enabled", true)
-	viper.SetDefault("gateway.scheduling.health_tier_healthy_min", 80)
-	viper.SetDefault("gateway.scheduling.health_tier_degraded_min", 60)
-	viper.SetDefault("gateway.scheduling.score_weight_health", 30)
-	viper.SetDefault("gateway.scheduling.score_weight_latency", 45)
-	viper.SetDefault("gateway.scheduling.score_weight_cost", 15)
-	viper.SetDefault("gateway.scheduling.score_weight_load", 10)
-	viper.SetDefault("gateway.scheduling.latency_penalty_ms", 15000)
-	viper.SetDefault("gateway.scheduling.latency_tier_downgrade_ms", 30000)
-	viper.SetDefault("gateway.scheduling.high_latency_penalty_score", 20)
 	viper.SetDefault("gateway.scheduling.load_batch_enabled", true)
 	viper.SetDefault("gateway.scheduling.load_batch_cache_ttl_ms", 200)
 	viper.SetDefault("gateway.scheduling.snapshot_mget_chunk_size", 128)

@@ -1116,17 +1116,6 @@ export interface TempUnschedulableStatus {
   state?: TempUnschedulableState
 }
 
-export interface AccountSchedulerScore {
-  group_id?: number | null
-  group_name?: string | null
-  base_score?: number | null
-  health_score?: number | null
-  latency_score?: number | null
-  cost_score?: number | null
-  load_score?: number | null
-  tier?: number | null
-}
-
 export interface UpstreamBillingData {
   object: 'sub2api.key_billing'
   schema_version: 1
@@ -1266,9 +1255,6 @@ export interface Account {
   proxy?: Proxy
   group_ids?: number[] // Groups this account belongs to
   groups?: Group[] // Preloaded group objects
-  scheduler_score?: AccountSchedulerScore | null
-  scheduler_scores?: AccountSchedulerScore[] | null
-
   // Rate limit & scheduling fields
   schedulable: boolean
   health_probe_enabled: boolean
@@ -1282,7 +1268,6 @@ export interface Account {
   overload_until: string | null
   temp_unschedulable_until: string | null
   temp_unschedulable_reason: string | null
-  health?: AccountHealthSummary | null
 
   // Session window fields (5-hour window)
   session_window_start: string | null
@@ -1353,69 +1338,52 @@ export interface Account {
   parent_chatgpt_account_id?: string
 }
 
-export interface AccountHealthSummary {
+export interface AccountProbePoint {
+  timestamp: string
+  latency_ms?: number | null
+  success_count: number
+  failure_count: number
+  error_category?: string
+  error_message?: string
+}
+
+export interface AccountProbeTrend {
   account_id: number
-  score: number
-  consecutive_successes: number
-  consecutive_failures: number
-  status: 'healthy' | 'degraded' | 'isolated' | 'recovering'
-  last_success_at?: string | null
-  last_failure_at?: string | null
-  last_checked_at?: string | null
+  range: '24h' | '7d' | '30d'
+  from: string
+  to: string
+  points: AccountProbePoint[]
+  total: number
+  success_count: number
+  failure_count: number
+  success_rate?: number | null
+  p50_latency_ms?: number | null
+  p95_latency_ms?: number | null
+  last_result?: 'success' | 'failure' | string
+  last_latency_ms?: number | null
+  last_probed_at?: string | null
   last_error_category?: string
   last_error_message?: string
-  latency_ewma_ms?: number | null
-  scheduler_latency_ewma_ms?: number | null
-  scheduler_latency_source?: string | null
-  consecutive_high_latency?: number
-  backoff_level: number
   next_probe_at?: string | null
-  isolated_at?: string | null
-  base_url?: string
-  key_fingerprint?: string
-  account_name?: string
-  platform?: AccountPlatform
-  type?: AccountType
-  rate_multiplier: number
-  rate_multiplier_configured: boolean
-  schedulable: boolean
-  temp_unschedulable_until?: string | null
+}
+
+export interface AccountProbeDetail extends AccountProbeTrend {
   health_probe_enabled: boolean
   health_probe_interval_minutes?: number | null
   health_probe_model?: string | null
   healthy_probe_enabled: boolean
   healthy_probe_interval_minutes?: number | null
   healthy_probe_interval_hours?: number | null
-  group_ids?: number[]
-  group_names?: string[]
-}
-
-export interface AccountHealthRisk {
-  level: 'critical' | 'warning' | 'info' | string
-  type: string
-  message: string
-  base_url?: string
-  account_id?: number | null
-  group_id?: number | null
-  group_name?: string
-  count?: number
-  threshold?: number
 }
 
 export interface AccountHealthEvent {
   id: number
   account_id: number
-  source: 'real_request' | 'background_probe' | 'manual_probe' | 'system' | string
-  event_type: 'success' | 'failure' | 'score_change' | 'isolated' | 'recovering' | 'recovered' | 'settings_changed' | string
-  score_before: number
-  score_after: number
-  status_before: string
-  status_after: string
-  delta: number
+  source: 'background_probe' | 'manual_probe' | string
+  event_type: 'success' | 'failure' | string
   error_category?: string
   error_message?: string
   latency_ms?: number | null
-  affected_group_ids?: number[]
   actor_user_id?: number | null
   created_at: string
 }
@@ -1426,15 +1394,6 @@ export interface AccountHealthEventList {
   page: number
   page_size: number
   total_pages: number
-}
-
-export interface AccountHealthURLOverview {
-  base_url: string
-  accounts: AccountHealthSummary[]
-  balance?: AccountUpstreamBalanceSnapshot | null
-  risks?: AccountHealthRisk[]
-  insufficient_group_ids?: number[]
-  insufficient_group_names?: string[]
 }
 
 export interface AccountUpstreamBalanceSnapshot {
@@ -1450,12 +1409,6 @@ export interface AccountUpstreamBalanceSnapshot {
   checked_at?: string | null
   next_check_at?: string | null
   updated_at: string
-}
-
-export interface AccountHealthOverview {
-  generated_at: string
-  urls: AccountHealthURLOverview[]
-  risks?: AccountHealthRisk[]
 }
 
 // Account Usage types

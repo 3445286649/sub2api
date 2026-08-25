@@ -91,7 +91,6 @@ func (s *OpenAIGatewayService) newGrokAnthropicGateway() *GatewayService {
 		httpUpstream:          s.httpUpstream,
 		deferredService:       s.deferredService,
 		settingService:        s.settingService,
-		accountHealthService:  s.accountHealthService,
 		responseHeaderFilter:  s.responseHeaderFilter,
 		channelService:        s.channelService,
 		resolver:              s.resolver,

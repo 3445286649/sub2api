@@ -218,27 +218,11 @@ type CheckMixedChannelRequest struct {
 // AccountWithConcurrency extends Account with real-time concurrency info
 type AccountWithConcurrency struct {
 	*dto.Account
-	CurrentConcurrency int                          `json:"current_concurrency"`
-	SchedulerScore     *AccountSchedulerScore       `json:"scheduler_score,omitempty"`
-	SchedulerScores    []AccountSchedulerGroupScore `json:"scheduler_scores,omitempty"`
+	CurrentConcurrency int `json:"current_concurrency"`
 	// 以下字段仅对 Anthropic OAuth/SetupToken 账号有效，且仅在启用相应功能时返回
 	CurrentWindowCost *float64 `json:"current_window_cost,omitempty"` // 当前窗口费用
 	ActiveSessions    *int     `json:"active_sessions,omitempty"`     // 当前活跃会话数
 	CurrentRPM        *int     `json:"current_rpm,omitempty"`         // 当前分钟 RPM 计数
-}
-
-type AccountSchedulerScore struct {
-	BaseScore             float64 `json:"base_score"`
-	StickyScore           float64 `json:"sticky_score"`
-	StickyScoreInfinity   bool    `json:"sticky_score_infinity"`
-	StickyWeightedEnabled bool    `json:"sticky_weighted_enabled"`
-}
-
-type AccountSchedulerGroupScore struct {
-	GroupID       *int64 `json:"group_id"`
-	GroupName     string `json:"group_name,omitempty"`
-	GroupPriority *int   `json:"group_priority,omitempty"`
-	AccountSchedulerScore
 }
 
 const accountListGroupUngroupedQueryValue = "ungrouped"
@@ -259,12 +243,6 @@ func (h *AccountHandler) buildAccountResponseWithRuntime(ctx context.Context, ac
 	if account == nil {
 		return item
 	}
-	if h.accountHealthService != nil && item.Account != nil {
-		if health, err := h.accountHealthService.Get(ctx, account.ID); err == nil {
-			item.Account.Health = health
-		}
-	}
-
 	if h.concurrencyService != nil {
 		if counts, err := h.concurrencyService.GetAccountConcurrencyBatch(ctx, []int64{account.ID}); err == nil {
 			item.CurrentConcurrency = counts[account.ID]
@@ -302,232 +280,6 @@ func (h *AccountHandler) buildAccountResponseWithRuntime(ctx context.Context, ac
 	return item
 }
 
-// scoreOpenAIAccountSchedulerPool 对池内 OpenAI 账号计算调度分数快照。
-// loadMap 为共享的账号负载数据（含池内全部账号即可，多余条目无害）；传 nil 时自行批查。
-func (h *AccountHandler) scoreOpenAIAccountSchedulerPool(ctx context.Context, accounts []service.Account, loadMap map[int64]*service.AccountLoadInfo) map[int64]AccountSchedulerScore {
-	if len(accounts) == 0 {
-		return nil
-	}
-
-	openAIAccounts := make([]*service.Account, 0, len(accounts))
-	for i := range accounts {
-		account := &accounts[i]
-		if account.Platform != service.PlatformOpenAI {
-			continue
-		}
-		openAIAccounts = append(openAIAccounts, account)
-	}
-	if len(openAIAccounts) == 0 {
-		return nil
-	}
-
-	if loadMap == nil {
-		loadMap = h.fetchOpenAIAccountLoadMap(ctx, openAIAccounts)
-	}
-
-	var scores map[int64]service.OpenAIAccountSchedulerScoreSnapshot
-	if h.rateLimitService != nil {
-		scores = h.rateLimitService.BuildOpenAIAccountSchedulerScoreSnapshot(ctx, openAIAccounts, loadMap)
-	} else {
-		scores = service.BuildOpenAIAccountSchedulerScoreSnapshot(openAIAccounts, loadMap)
-	}
-	result := make(map[int64]AccountSchedulerScore, len(scores))
-	for accountID, score := range scores {
-		result[accountID] = AccountSchedulerScore{
-			BaseScore:             score.BaseScore,
-			StickyScore:           score.StickyScore,
-			StickyScoreInfinity:   score.StickyScoreInfinity,
-			StickyWeightedEnabled: score.StickyWeightedEnabled,
-		}
-	}
-	return result
-}
-
-// fetchOpenAIAccountLoadMap 一次性批查给定 OpenAI 账号的负载数据；
-// 失败时记录日志并返回空表（分数按零负载计算，属可接受降级）。
-func (h *AccountHandler) fetchOpenAIAccountLoadMap(ctx context.Context, openAIAccounts []*service.Account) map[int64]*service.AccountLoadInfo {
-	loadMap := map[int64]*service.AccountLoadInfo{}
-	if h.concurrencyService == nil || len(openAIAccounts) == 0 {
-		return loadMap
-	}
-	seen := make(map[int64]struct{}, len(openAIAccounts))
-	loadReq := make([]service.AccountWithConcurrency, 0, len(openAIAccounts))
-	for _, account := range openAIAccounts {
-		if account == nil {
-			continue
-		}
-		if _, ok := seen[account.ID]; ok {
-			continue
-		}
-		seen[account.ID] = struct{}{}
-		loadReq = append(loadReq, service.AccountWithConcurrency{
-			ID:             account.ID,
-			MaxConcurrency: account.EffectiveLoadFactor(),
-		})
-	}
-	if batchLoad, err := h.concurrencyService.GetAccountsLoadBatch(ctx, loadReq); err != nil {
-		slog.Warn("openai_scheduler_score_load_batch_failed", "error", err)
-	} else if batchLoad != nil {
-		loadMap = batchLoad
-	}
-	return loadMap
-}
-
-func (h *AccountHandler) buildOpenAIAccountSchedulerScores(
-	ctx context.Context,
-	accounts []service.Account,
-	filterPool []service.Account,
-) (map[int64]*AccountSchedulerScore, map[int64][]AccountSchedulerGroupScore) {
-	if len(accounts) == 0 {
-		return nil, nil
-	}
-	if len(filterPool) == 0 {
-		filterPool = accounts
-	}
-
-	pageOpenAIAccountIDs := make(map[int64]struct{})
-	groupIDs := make(map[int64]struct{})
-	for i := range accounts {
-		account := &accounts[i]
-		if account.Platform != service.PlatformOpenAI {
-			continue
-		}
-		pageOpenAIAccountIDs[account.ID] = struct{}{}
-		if len(account.AccountGroups) == 0 && len(account.GroupIDs) == 0 {
-			continue
-		}
-		for _, accountGroup := range account.AccountGroups {
-			if accountGroup.GroupID > 0 {
-				groupIDs[accountGroup.GroupID] = struct{}{}
-			}
-		}
-		for _, groupID := range account.GroupIDs {
-			if groupID > 0 {
-				groupIDs[groupID] = struct{}{}
-			}
-		}
-	}
-	if len(pageOpenAIAccountIDs) == 0 {
-		return nil, nil
-	}
-
-	// 先取各分组池，再对"过滤池 ∪ 分组池"的账号并集做一次负载批查，
-	// 避免每个池各查一次 Redis 的 N+1。
-	groupIDList := make([]int64, 0, len(groupIDs))
-	for groupID := range groupIDs {
-		groupIDList = append(groupIDList, groupID)
-	}
-	sort.Slice(groupIDList, func(i, j int) bool { return groupIDList[i] < groupIDList[j] })
-
-	groupPools := make(map[int64][]service.Account, len(groupIDList))
-	if h.adminService != nil {
-		for _, groupID := range groupIDList {
-			gid := groupID
-			pool, err := h.adminService.ListOpenAISchedulableAccountsForSchedulerScore(ctx, &gid)
-			if err != nil {
-				slog.Warn("openai_scheduler_group_score_pool_failed", "group_id", gid, "error", err)
-				continue
-			}
-			groupPools[gid] = pool
-		}
-	}
-
-	loadUnion := make([]*service.Account, 0, len(filterPool))
-	collectOpenAIAccounts := func(pool []service.Account) {
-		for i := range pool {
-			if pool[i].Platform == service.PlatformOpenAI {
-				loadUnion = append(loadUnion, &pool[i])
-			}
-		}
-	}
-	collectOpenAIAccounts(filterPool)
-	for _, pool := range groupPools {
-		collectOpenAIAccounts(pool)
-	}
-	loadMap := h.fetchOpenAIAccountLoadMap(ctx, loadUnion)
-
-	baseScores := make(map[int64]*AccountSchedulerScore)
-	for accountID, score := range h.scoreOpenAIAccountSchedulerPool(ctx, filterPool, loadMap) {
-		copiedScore := score
-		baseScores[accountID] = &copiedScore
-	}
-
-	groupScoresByAccount := make(map[int64][]AccountSchedulerGroupScore)
-	scoreGroupPool := func(groupID *int64, groupNameByID map[int64]string, groupPriorityByAccount map[int64]int, pool []service.Account) {
-		if len(pool) == 0 {
-			return
-		}
-		scores := h.scoreOpenAIAccountSchedulerPool(ctx, pool, loadMap)
-		for accountID, schedulerScore := range scores {
-			if _, ok := pageOpenAIAccountIDs[accountID]; !ok {
-				continue
-			}
-			groupScore := AccountSchedulerGroupScore{
-				GroupID:               groupID,
-				AccountSchedulerScore: schedulerScore,
-			}
-			if groupID != nil {
-				groupScore.GroupName = groupNameByID[*groupID]
-				if priority, ok := groupPriorityByAccount[accountID]; ok {
-					groupScore.GroupPriority = &priority
-				}
-			}
-			groupScoresByAccount[accountID] = append(groupScoresByAccount[accountID], groupScore)
-		}
-	}
-
-	for _, groupID := range groupIDList {
-		gid := groupID
-		pool, ok := groupPools[gid]
-		if !ok {
-			continue
-		}
-		groupNameByID := make(map[int64]string)
-		groupPriorityByAccount := make(map[int64]int)
-		for i := range pool {
-			account := &pool[i]
-			for _, accountGroup := range account.AccountGroups {
-				if accountGroup.GroupID != gid {
-					continue
-				}
-				groupPriorityByAccount[account.ID] = accountGroup.Priority
-				if accountGroup.Group != nil {
-					groupNameByID[gid] = accountGroup.Group.Name
-				}
-			}
-		}
-		scoreGroupPool(&gid, groupNameByID, groupPriorityByAccount, pool)
-	}
-
-	for accountID := range groupScoresByAccount {
-		sort.SliceStable(groupScoresByAccount[accountID], func(i, j int) bool {
-			left := groupScoresByAccount[accountID][i]
-			right := groupScoresByAccount[accountID][j]
-			return *left.GroupID < *right.GroupID
-		})
-	}
-	return baseScores, groupScoresByAccount
-}
-
-func (h *AccountHandler) listAccountSchedulerScoreFilterPool(
-	ctx context.Context,
-	platform, accountType, status, search string,
-	groupID int64,
-	privacyMode string,
-) []service.Account {
-	if h.adminService == nil || (platform != "" && platform != service.PlatformOpenAI) {
-		return nil
-	}
-	// 池只用于 OpenAI 分数计算（非 OpenAI 账号会在打分时被丢弃），
-	// 无论列表页平台过滤为何，查询一律限定 openai，避免无过滤时全表扫描。
-	accounts, err := h.adminService.ListAccountsForSchedulerScoreFilter(ctx, service.PlatformOpenAI, accountType, status, search, groupID, privacyMode)
-	if err != nil {
-		slog.Warn("openai_scheduler_filter_score_pool_failed", "error", err)
-		return nil
-	}
-	return accounts
-}
-
 // List handles listing all accounts with pagination
 // GET /api/v1/admin/accounts
 func (h *AccountHandler) List(c *gin.Context) {
@@ -545,8 +297,6 @@ func (h *AccountHandler) List(c *gin.Context) {
 		search = search[:100]
 	}
 	lite := parseBoolQueryWithDefault(c.Query("lite"), false)
-	// 调度分需要跨候选池批量打分并读取负载，默认列表不计算；只有前端列可见时才显式开启。
-	includeSchedulerScore := parseBoolQueryWithDefault(c.Query("include_scheduler_score"), false)
 
 	var groupID int64
 	if groupIDStr := c.Query("group"); groupIDStr != "" {
@@ -592,21 +342,6 @@ func (h *AccountHandler) List(c *gin.Context) {
 	var windowCosts map[int64]float64
 	var activeSessions map[int64]int
 	var rpmCounts map[int64]int
-	// 双重门控：用户要看该列，且当前页确实有 OpenAI 账号，才进入昂贵的候选池打分路径。
-	var schedulerScores map[int64]*AccountSchedulerScore
-	var schedulerGroupScores map[int64][]AccountSchedulerGroupScore
-	pageHasOpenAIAccounts := false
-	for i := range accounts {
-		if accounts[i].Platform == service.PlatformOpenAI {
-			pageHasOpenAIAccounts = true
-			break
-		}
-	}
-	if includeSchedulerScore && pageHasOpenAIAccounts {
-		schedulerFilterPool := h.listAccountSchedulerScoreFilterPool(c.Request.Context(), platform, accountType, status, search, groupID, privacyMode)
-		schedulerScores, schedulerGroupScores = h.buildOpenAIAccountSchedulerScores(c.Request.Context(), accounts, schedulerFilterPool)
-	}
-
 	// 始终获取并发数（Redis ZCARD，极低开销）
 	if h.concurrencyService != nil {
 		if cc, ccErr := h.concurrencyService.GetAccountConcurrencyBatch(c.Request.Context(), accountIDs); ccErr == nil && cc != nil {
@@ -680,25 +415,13 @@ func (h *AccountHandler) List(c *gin.Context) {
 	}
 
 	// Build response with concurrency info
-	healthByAccountID := map[int64]*service.AccountHealthSummary{}
-	if h.accountHealthService != nil && len(accountIDs) > 0 {
-		if health, healthErr := h.accountHealthService.ListByAccountIDs(c.Request.Context(), accountIDs); healthErr == nil {
-			healthByAccountID = health
-		}
-	}
 	result := make([]AccountWithConcurrency, len(accounts))
 	for i := range accounts {
 		acc := &accounts[i]
 		item := AccountWithConcurrency{
 			Account:            h.accountResponseFromService(acc),
 			CurrentConcurrency: concurrencyCounts[acc.ID],
-			SchedulerScore:     schedulerScores[acc.ID],
-			SchedulerScores:    schedulerGroupScores[acc.ID],
 		}
-		if item.Account != nil {
-			item.Account.Health = healthByAccountID[acc.ID]
-		}
-
 		// 添加窗口费用（仅当启用时）
 		if windowCosts != nil {
 			if cost, ok := windowCosts[acc.ID]; ok {
@@ -748,7 +471,12 @@ func (h *AccountHandler) GetHealth(c *gin.Context) {
 		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_ACCOUNT_ID", "invalid account id"))
 		return
 	}
-	health, err := h.accountHealthService.Get(c.Request.Context(), accountID)
+	rangeValue := strings.ToLower(strings.TrimSpace(c.DefaultQuery("range", "24h")))
+	if rangeValue != "24h" && rangeValue != "7d" && rangeValue != "30d" {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_PROBE_RANGE", "range must be one of 24h, 7d, or 30d"))
+		return
+	}
+	health, err := h.accountHealthService.GetProbeDetail(c.Request.Context(), accountID, rangeValue)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -756,26 +484,35 @@ func (h *AccountHandler) GetHealth(c *gin.Context) {
 	response.Success(c, health)
 }
 
-func (h *AccountHandler) ResetHealth(c *gin.Context) {
+func (h *AccountHandler) GetHealthTrends(c *gin.Context) {
 	if h.accountHealthService == nil {
 		response.ErrorFrom(c, infraerrors.InternalServer("ACCOUNT_HEALTH_UNAVAILABLE", "account health service unavailable"))
 		return
 	}
-	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_ACCOUNT_ID", "invalid account id"))
-		return
+	parts := strings.Split(c.Query("account_ids"), ",")
+	accountIDs := make([]int64, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		accountID, err := strconv.ParseInt(part, 10, 64)
+		if err != nil || accountID <= 0 {
+			response.ErrorFrom(c, infraerrors.BadRequest("INVALID_ACCOUNT_IDS", "invalid account ids"))
+			return
+		}
+		accountIDs = append(accountIDs, accountID)
+		if len(accountIDs) > 100 {
+			response.ErrorFrom(c, infraerrors.BadRequest("INVALID_ACCOUNT_IDS", "too many account ids: maximum is 100"))
+			return
+		}
 	}
-	if err := h.accountHealthService.Reset(c.Request.Context(), accountID); err != nil {
+	trends, err := h.accountHealthService.GetProbeTrends(c.Request.Context(), accountIDs)
+	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	health, err := h.accountHealthService.Get(c.Request.Context(), accountID)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, health)
+	response.Success(c, trends)
 }
 
 func (h *AccountHandler) ProbeHealth(c *gin.Context) {
@@ -792,10 +529,7 @@ func (h *AccountHandler) ProbeHealth(c *gin.Context) {
 	result, err := h.accountTestService.RunTestBackground(c.Request.Context(), accountID, h.accountHealthService.HealthProbeModel(c.Request.Context(), accountID))
 	if err != nil {
 		_ = h.accountHealthService.RecordManualProbeFailure(c.Request.Context(), accountID, "probe_error", err.Error(), actorUserID)
-		response.ErrorFrom(c, err)
-		return
-	}
-	if result != nil && result.Status == "success" {
+	} else if result != nil && result.Status == "success" {
 		_ = h.accountHealthService.RecordManualProbeSuccess(c.Request.Context(), accountID, result.LatencyMs, actorUserID)
 	} else {
 		msg := ""
@@ -804,74 +538,12 @@ func (h *AccountHandler) ProbeHealth(c *gin.Context) {
 		}
 		_ = h.accountHealthService.RecordManualProbeFailure(c.Request.Context(), accountID, service.AccountHealthProbeFailureCategory(msg), msg, actorUserID)
 	}
-	health, err := h.accountHealthService.Get(c.Request.Context(), accountID)
+	health, err := h.accountHealthService.GetProbeDetail(c.Request.Context(), accountID, "24h")
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, health)
-}
-
-func (h *AccountHandler) HealthOverview(c *gin.Context) {
-	if h.accountHealthService == nil {
-		response.ErrorFrom(c, infraerrors.InternalServer("ACCOUNT_HEALTH_UNAVAILABLE", "account health service unavailable"))
-		return
-	}
-	overview, err := h.accountHealthService.Overview(c.Request.Context())
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	h.attachUpstreamBalanceOverview(c.Request.Context(), overview)
-	response.Success(c, overview)
-}
-
-type refreshUpstreamBalanceRequest struct {
-	BaseURL string `json:"base_url" binding:"required"`
-}
-
-func (h *AccountHandler) RefreshHealthOverviewBalance(c *gin.Context) {
-	if h.accountUpstreamBalanceService == nil {
-		response.ErrorFrom(c, infraerrors.InternalServer("UPSTREAM_BALANCE_UNAVAILABLE", "upstream balance service unavailable"))
-		return
-	}
-	var req refreshUpstreamBalanceRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-	snapshot, err := h.accountUpstreamBalanceService.RefreshByBaseURL(c.Request.Context(), req.BaseURL)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, snapshot)
-}
-
-func (h *AccountHandler) attachUpstreamBalanceOverview(ctx context.Context, overview *service.AccountHealthOverview) {
-	if h.accountUpstreamBalanceService == nil || overview == nil || len(overview.URLs) == 0 {
-		return
-	}
-	baseURLs := make([]string, 0, len(overview.URLs))
-	for i := range overview.URLs {
-		if overview.URLs[i].BaseURL != "" && overview.URLs[i].BaseURL != "(no upstream url)" {
-			baseURLs = append(baseURLs, overview.URLs[i].BaseURL)
-		}
-	}
-	h.accountUpstreamBalanceService.EnsureKnownBaseURLs(ctx, baseURLs)
-	snapshots, err := h.accountUpstreamBalanceService.SnapshotMap(ctx, baseURLs)
-	if err != nil {
-		return
-	}
-	for i := range overview.URLs {
-		if snapshot := snapshots[normalizeHealthOverviewBalanceBaseURL(overview.URLs[i].BaseURL)]; snapshot != nil {
-			overview.URLs[i].Balance = snapshot
-		}
-	}
-}
-
-func normalizeHealthOverviewBalanceBaseURL(raw string) string {
-	return strings.TrimRight(strings.TrimSpace(raw), "/")
 }
 
 func (h *AccountHandler) ListHealthEvents(c *gin.Context) {
@@ -1007,8 +679,11 @@ func (h *AccountHandler) UpdateHealthProbeSettings(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	_ = h.accountHealthService.RecordSettingsChanged(c.Request.Context(), account.ID, adminActorUserID(c))
-	health, err := h.accountHealthService.Get(c.Request.Context(), account.ID)
+	if err := h.accountHealthService.RescheduleProbe(c.Request.Context(), account.ID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	health, err := h.accountHealthService.GetProbeDetail(c.Request.Context(), account.ID, "24h")
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -2915,12 +2590,6 @@ func (h *AccountHandler) SetSchedulable(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	if h.accountHealthService != nil {
-		if err := h.accountHealthService.RecordSettingsChanged(c.Request.Context(), account.ID, adminActorUserID(c)); err != nil {
-			slog.Warn("reschedule_account_health_probe_failed", "account_id", account.ID, "err", err)
-		}
-	}
-
 	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
 }
 

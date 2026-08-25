@@ -126,11 +126,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	if err := s.normalizeOpenAIAdvancedSchedulerOverrides(settings); err != nil {
 		return nil, err
 	}
-	if isZeroGatewaySchedulingWeights(settings.GatewaySchedulingWeights) {
-		settings.GatewaySchedulingWeights = defaultGatewaySchedulingWeights(s.cfg)
-	} else if !validGatewaySchedulingWeights(settings.GatewaySchedulingWeights) {
-		return nil, infraerrors.BadRequest("INVALID_GATEWAY_SCHEDULING_WEIGHTS", "gateway scheduling weights must be non-negative and sum to 100")
-	}
 	settings.PaymentVisibleMethodAlipaySource = alipaySource
 	settings.PaymentVisibleMethodWxpaySource = wxpaySource
 	settings.WeChatConnectAppID = strings.TrimSpace(settings.WeChatConnectAppID)
@@ -550,10 +545,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyOpenAIAdvancedSchedulerWeightUpstreamCost] = settings.OpenAIAdvancedSchedulerWeightUpstreamCost
 	updates[SettingKeyOpenAIAdvancedSchedulerWeightPreviousResponse] = settings.OpenAIAdvancedSchedulerWeightPreviousResponse
 	updates[SettingKeyOpenAIAdvancedSchedulerWeightSessionSticky] = settings.OpenAIAdvancedSchedulerWeightSessionSticky
-	if raw, err := json.Marshal(settings.GatewaySchedulingWeights); err == nil {
-		updates[SettingKeyGatewaySchedulingWeights] = string(raw)
-	}
-
 	// 余额、订阅到期与账号限额通知
 	updates[SettingKeyBalanceLowNotifyEnabled] = strconv.FormatBool(settings.BalanceLowNotifyEnabled)
 	updates[SettingKeyBalanceLowNotifyThreshold] = strconv.FormatFloat(settings.BalanceLowNotifyThreshold, 'f', 8, 64)

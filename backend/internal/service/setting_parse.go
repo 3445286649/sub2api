@@ -1035,38 +1035,6 @@ func applyLocalFeatureSettingDefaults(result *SystemSettings, settings map[strin
 	result.AcquisitionLeaderboardEnabled = !isFalseSettingValue(settings[SettingKeyAcquisitionLeaderboardEnabled])
 	result.AcquisitionLotteryEnabled = !isFalseSettingValue(settings[SettingKeyAcquisitionLotteryEnabled])
 
-	weights := defaultGatewaySchedulingWeights(cfg)
-	if raw := strings.TrimSpace(settings[SettingKeyGatewaySchedulingWeights]); raw != "" {
-		var parsed GatewaySchedulingWeights
-		if err := json.Unmarshal([]byte(raw), &parsed); err == nil && validGatewaySchedulingWeights(parsed) {
-			weights = parsed
-		}
-	}
-	result.GatewaySchedulingWeights = weights
-}
-
-func defaultGatewaySchedulingWeights(cfg *config.Config) GatewaySchedulingWeights {
-	weights := GatewaySchedulingWeights{Health: 30, Latency: 45, Cost: 15, Load: 10}
-	if cfg != nil {
-		candidate := GatewaySchedulingWeights{
-			Health:  cfg.Gateway.Scheduling.ScoreWeightHealth,
-			Latency: cfg.Gateway.Scheduling.ScoreWeightLatency,
-			Cost:    cfg.Gateway.Scheduling.ScoreWeightCost,
-			Load:    cfg.Gateway.Scheduling.ScoreWeightLoad,
-		}
-		if validGatewaySchedulingWeights(candidate) {
-			return candidate
-		}
-	}
-	return weights
-}
-
-func isZeroGatewaySchedulingWeights(weights GatewaySchedulingWeights) bool {
-	return weights.Health == 0 && weights.Latency == 0 && weights.Cost == 0 && weights.Load == 0
-}
-
-func validGatewaySchedulingWeights(weights GatewaySchedulingWeights) bool {
-	return weights.Health >= 0 && weights.Latency >= 0 && weights.Cost >= 0 && weights.Load >= 0 && weights.Health+weights.Latency+weights.Cost+weights.Load == 100
 }
 
 func clampAffiliateRebateRate(value float64) float64 {

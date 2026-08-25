@@ -11,13 +11,6 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-type GatewaySchedulingWeights struct {
-	Health  int `json:"health"`
-	Latency int `json:"latency"`
-	Cost    int `json:"cost"`
-	Load    int `json:"load"`
-}
-
 type SystemSettings struct {
 	RegistrationEnabled                 bool
 	EmailVerifyEnabled                  bool
@@ -311,7 +304,6 @@ type SystemSettings struct {
 	OpenAIAdvancedSchedulerEffectiveWeightUpstreamCost     string
 	OpenAIAdvancedSchedulerEffectiveWeightPreviousResponse string
 	OpenAIAdvancedSchedulerEffectiveWeightSessionSticky    string
-	GatewaySchedulingWeights                               GatewaySchedulingWeights
 
 	// Payment recharge bonus rule
 	PaymentBalanceRechargeBonusEnabled   bool

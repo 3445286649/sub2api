@@ -141,7 +141,6 @@ type SettingService struct {
 	// instance owns its own cache, no shared package-level state.
 	openAIQuotaAutoPauseSettingsCache atomic.Value // *cachedOpenAIQuotaAutoPauseSettings
 	openAIQuotaAutoPauseSettingsSF    singleflight.Group
-	gatewaySchedulingWeightsCache     atomic.Value // *cachedGatewaySchedulingWeights
 	channelMonitorRuntimeListenersMu  sync.Mutex
 	channelMonitorRuntimeListeners    []func()
 }

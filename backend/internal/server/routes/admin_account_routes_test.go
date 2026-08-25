@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func TestRegisterAccountRoutes_HealthEnhancementRoutes(t *testing.T) {
+func TestRegisterAccountRoutes_ProbeObservationRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	admin := router.Group("/api/v1/admin")
@@ -29,7 +29,7 @@ func TestRegisterAccountRoutes_HealthEnhancementRoutes(t *testing.T) {
 		http.MethodPost + " /api/v1/admin/accounts/:id/health/probe":           false,
 		http.MethodGet + " /api/v1/admin/accounts/:id/health/events":           false,
 		http.MethodPatch + " /api/v1/admin/accounts/:id/health/probe-settings": false,
-		http.MethodGet + " /api/v1/admin/accounts/health/overview":             false,
+		http.MethodGet + " /api/v1/admin/accounts/health/trends":               false,
 	}
 	for _, route := range router.Routes() {
 		key := route.Method + " " + route.Path

@@ -273,38 +273,6 @@ func newOpenAIRecordUsageServiceWithBillingRepoForTest(usageRepo UsageLogReposit
 	return svc
 }
 
-func TestOpenAIGatewayServiceRecordAccountHealthForwardErrorRecordsOnlyUpstreamFailures(t *testing.T) {
-	ctx := context.Background()
-	accountRepo := &healthAccountRepoStub{accounts: map[int64]*Account{
-		701: {ID: 701, Status: StatusActive, Schedulable: true},
-	}}
-	healthRepo := &memoryAccountHealthRepo{}
-	healthSvc := &AccountHealthService{repo: healthRepo, accountRepo: accountRepo, now: time.Now}
-	svc := newOpenAIRecordUsageServiceForTest(nil, nil, nil, nil)
-	svc.SetAccountHealthService(healthSvc)
-
-	svc.RecordAccountHealthForwardError(ctx, 701, errors.New("upstream response failed: Upstream temporarily unavailable; please retry"))
-	require.Len(t, healthRepo.events, 1)
-	require.Equal(t, AccountHealthEventSourceRealRequest, healthRepo.events[0].Source)
-	require.Equal(t, AccountHealthEventTypeFailure, healthRepo.events[0].EventType)
-	require.Equal(t, "upstream_5xx", healthRepo.events[0].ErrorCategory)
-
-	svc.RecordAccountHealthForwardError(ctx, 701, errors.New("upstream response failed: Concurrency limit exceeded for account, please retry later"))
-	require.Len(t, healthRepo.events, 1)
-
-	svc.RecordAccountHealthForwardError(ctx, 701, errors.New("upstream error: 400 Unsupported parameter: max_output_tokens"))
-	svc.RecordAccountHealthForwardError(ctx, 701, errors.New("upstream error: model_not_found"))
-	svc.RecordAccountHealthFailure(ctx, 701, &UpstreamFailoverError{StatusCode: 400, ResponseBody: []byte(`{"error":{"message":"Input must be a list"}}`)})
-	svc.RecordAccountHealthFailure(ctx, 701, &UpstreamFailoverError{StatusCode: 404, ResponseBody: []byte(`{"error":{"code":"model_not_found"}}`)})
-	require.Len(t, healthRepo.events, 1)
-
-	canceledCtx, cancel := context.WithCancel(ctx)
-	cancel()
-	svc.RecordAccountHealthForwardError(canceledCtx, 701, errors.New("upstream response failed: timeout"))
-	svc.RecordAccountHealthFailure(canceledCtx, 701, &UpstreamFailoverError{StatusCode: 503})
-	require.Len(t, healthRepo.events, 1)
-}
-
 func expectedOpenAICost(t *testing.T, svc *OpenAIGatewayService, model string, usage OpenAIUsage, multiplier float64) *CostBreakdown {
 	t.Helper()
 

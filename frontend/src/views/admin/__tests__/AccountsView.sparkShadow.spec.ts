@@ -37,6 +37,7 @@ vi.mock('@/api/admin', () => ({
       list: listAccounts,
       listWithEtag,
       getBatchTodayStats,
+      getHealthTrends: vi.fn().mockResolvedValue([]),
       duplicate: duplicateAccount,
       getUpstreamBillingProbeSettings: vi.fn().mockResolvedValue({ enabled: true, interval_minutes: 30 }),
       createSparkShadow,
@@ -224,7 +225,6 @@ const mountViewWithRow = () =>
             <div v-for="(row, idx) in (data || [])" :key="idx">
               <slot name="cell-name" :row="row" :value="row.name" />
               <slot name="cell-platform_type" :row="row" />
-              <slot name="cell-health" :row="row" />
             </div>
           </div>`
         },
@@ -556,12 +556,10 @@ describe('admin AccountsView — 账号行展示', () => {
       name: 'refresh-tier',
       platform: 'grok',
       type: 'oauth',
-      health: { score: 71, status: 'degraded' },
       extra: { grok_usage_snapshot: { subscription_tier: 'Free', status_code: 200 } },
     }
     const refreshedAccount = {
       ...initialAccount,
-      health: { score: 88, status: 'healthy' },
       extra: { grok_usage_snapshot: { subscription_tier: 'SuperGrok', status_code: 200 } },
     }
     listAccounts.mockResolvedValue({ items: [initialAccount], total: 1, page: 1, page_size: 20, pages: 1 })
@@ -574,15 +572,12 @@ describe('admin AccountsView — 账号行展示', () => {
     const wrapper = mountViewWithRow()
     await flushPromises()
     expect(wrapper.findComponent(PlatformTypeBadge).props('planType')).toBe('Free')
-    expect(wrapper.text()).toContain('71')
 
     await vi.advanceTimersByTimeAsync(6000)
     await flushPromises()
 
     expect(listWithEtag).toHaveBeenCalledTimes(1)
     expect(wrapper.findComponent(PlatformTypeBadge).props('planType')).toBe('SuperGrok')
-    expect(wrapper.text()).toContain('88')
-    expect(wrapper.text()).not.toContain('71')
     wrapper.unmount()
   })
 })

@@ -17,13 +17,6 @@ export interface DefaultSubscriptionSetting {
   validity_days: number;
 }
 
-export interface GatewaySchedulingWeights {
-  health: number;
-  latency: number;
-  cost: number;
-  load: number;
-}
-
 // ── 平台限额类型 ──────────────────────────────────────────────────
 export type PlatformType = "anthropic" | "openai" | "gemini" | "antigravity" | "grok"
 export type QuotaWindowType = "daily" | "weekly" | "monthly"
@@ -708,7 +701,6 @@ export interface SystemSettings {
   openai_low_upstream_rate_priority_enabled?: boolean;
   openai_oauth_scheduling_rate_multiplier?: number;
   openai_advanced_scheduler_enabled?: boolean;
-  gateway_scheduling_weights?: GatewaySchedulingWeights;
   openai_advanced_scheduler_sticky_weighted_enabled?: boolean;
   openai_advanced_scheduler_subscription_priority_enabled?: boolean;
   openai_advanced_scheduler_lb_top_k?: string;
@@ -1048,7 +1040,6 @@ export interface UpdateSettingsRequest {
   openai_low_upstream_rate_priority_enabled?: boolean;
   openai_oauth_scheduling_rate_multiplier?: number;
   openai_advanced_scheduler_enabled?: boolean;
-  gateway_scheduling_weights?: GatewaySchedulingWeights;
   openai_advanced_scheduler_sticky_weighted_enabled?: boolean;
   openai_advanced_scheduler_subscription_priority_enabled?: boolean;
   openai_advanced_scheduler_lb_top_k?: string;

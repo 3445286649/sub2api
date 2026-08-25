@@ -19,219 +19,31 @@ func NewAccountHealthRepository(sqlDB *sql.DB) service.AccountHealthRepository {
 	return &accountHealthRepository{sql: sqlDB}
 }
 
-func (r *accountHealthRepository) Get(ctx context.Context, accountID int64) (*service.AccountHealthState, error) {
-	rows, err := r.sql.QueryContext(ctx, accountHealthSelectSQL+" WHERE account_id = $1", accountID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	if !rows.Next() {
-		return nil, rows.Err()
-	}
-	state, err := scanAccountHealthState(rows)
-	if err != nil {
-		return nil, err
-	}
-	return state, rows.Err()
-}
-
-func (r *accountHealthRepository) ListByAccountIDs(ctx context.Context, ids []int64) (map[int64]*service.AccountHealthState, error) {
-	out := make(map[int64]*service.AccountHealthState, len(ids))
-	if len(ids) == 0 {
-		return out, nil
-	}
-	rows, err := r.sql.QueryContext(ctx, accountHealthSelectSQL+" WHERE account_id = ANY($1)", pq.Array(ids))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		state, err := scanAccountHealthState(rows)
-		if err != nil {
-			return nil, err
-		}
-		out[state.AccountID] = state
-	}
-	return out, rows.Err()
-}
-
-func (r *accountHealthRepository) Upsert(ctx context.Context, state *service.AccountHealthState) error {
-	if state == nil {
-		return nil
-	}
-	_, err := r.sql.ExecContext(ctx, `
-		INSERT INTO account_health_states (
-			account_id, score, consecutive_successes, consecutive_failures, status,
-			last_success_at, last_failure_at, last_checked_at, last_error_category, last_error_message,
-			latency_ewma_ms, scheduler_latency_ewma_ms, scheduler_latency_source, consecutive_high_latency,
-			backoff_level, next_probe_at, isolated_at, created_at, updated_at
-		) VALUES (
-			$1, $2, $3, $4, $5,
-			$6, $7, $8, $9, $10,
-			$11, $12, $13, $14,
-			$15, $16, $17, $18, $19
-		)
-		ON CONFLICT (account_id) DO UPDATE SET
-			score = EXCLUDED.score,
-			consecutive_successes = EXCLUDED.consecutive_successes,
-			consecutive_failures = EXCLUDED.consecutive_failures,
-			status = EXCLUDED.status,
-			last_success_at = EXCLUDED.last_success_at,
-			last_failure_at = EXCLUDED.last_failure_at,
-			last_checked_at = EXCLUDED.last_checked_at,
-			last_error_category = EXCLUDED.last_error_category,
-			last_error_message = EXCLUDED.last_error_message,
-			latency_ewma_ms = EXCLUDED.latency_ewma_ms,
-			scheduler_latency_ewma_ms = EXCLUDED.scheduler_latency_ewma_ms,
-			scheduler_latency_source = EXCLUDED.scheduler_latency_source,
-			consecutive_high_latency = EXCLUDED.consecutive_high_latency,
-			backoff_level = EXCLUDED.backoff_level,
-			next_probe_at = EXCLUDED.next_probe_at,
-			isolated_at = EXCLUDED.isolated_at,
-			updated_at = EXCLUDED.updated_at
-	`, state.AccountID, state.Score, state.ConsecutiveSuccesses, state.ConsecutiveFailures, state.Status,
-		accountHealthNullTime(state.LastSuccessAt), accountHealthNullTime(state.LastFailureAt), accountHealthNullTime(state.LastCheckedAt), accountHealthNullString(state.LastErrorCategory), accountHealthNullString(state.LastErrorMessage),
-		accountHealthNullInt(state.LatencyEWMAMs), accountHealthNullInt(state.SchedulerLatencyEWMAMs), accountHealthNullString(state.SchedulerLatencySource), state.ConsecutiveHighLatency,
-		state.BackoffLevel, accountHealthNullTime(state.NextProbeAt), accountHealthNullTime(state.IsolatedAt), state.CreatedAt, state.UpdatedAt)
-	return err
-}
-
-func (r *accountHealthRepository) Delete(ctx context.Context, accountID int64) error {
-	_, err := r.sql.ExecContext(ctx, `DELETE FROM account_health_states WHERE account_id = $1`, accountID)
-	return err
-}
-
-func (r *accountHealthRepository) ListDueForProbe(ctx context.Context, now time.Time, limit int) ([]*service.AccountHealthState, error) {
-	rows, err := r.sql.QueryContext(ctx, accountHealthSelectSQL+`
-		JOIN accounts a ON a.id = account_health_states.account_id
-		WHERE (
-			account_health_states.status IN ('isolated', 'recovering', 'degraded')
-			OR (
-				a.status = 'active'
-				AND a.schedulable IS TRUE
-				AND a.external_scheduling_hold_until > $1
-			)
-		)
-		  AND account_health_states.next_probe_at IS NOT NULL
-		  AND account_health_states.next_probe_at <= $1
-		  AND a.deleted_at IS NULL
-		  AND (
-			a.health_probe_enabled IS TRUE
-			OR a.external_scheduling_hold_until > $1
-		  )
-		ORDER BY account_health_states.next_probe_at ASC
-		LIMIT $2`, now, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []*service.AccountHealthState
-	for rows.Next() {
-		state, err := scanAccountHealthState(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, state)
-	}
-	return out, rows.Err()
-}
-
-func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID int64, now time.Time, leaseUntil time.Time) (bool, error) {
+func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID int64, now, leaseUntil time.Time) (bool, error) {
 	res, err := r.sql.ExecContext(ctx, `
-		INSERT INTO account_health_states (
-			account_id, score, consecutive_successes, consecutive_failures, status,
-			last_success_at, last_failure_at, last_checked_at, last_error_category, last_error_message,
-			latency_ewma_ms, backoff_level, next_probe_at, isolated_at, created_at, updated_at
-		)
-		SELECT
-			a.id, 80, 0, 0, 'healthy',
-			NULL, NULL, NULL, NULL, NULL,
-			NULL, 0, $3, NULL, COALESCE(a.created_at, $2), COALESCE(a.updated_at, a.created_at, $2)
+		INSERT INTO account_health_states (account_id, next_probe_at, created_at, updated_at)
+		SELECT a.id, $3, $2, $2
 		FROM accounts a
 		WHERE a.id = $1
 		  AND a.deleted_at IS NULL
-		  AND (
-			(
-			  a.status = 'active'
-			  AND a.schedulable IS TRUE
-			  AND a.external_scheduling_hold_until > $2
-			)
-			OR (
-			  a.health_probe_enabled IS TRUE
-			  AND (
-			(
-			  a.status = 'active'
-			  AND a.schedulable IS TRUE
-			  AND a.healthy_probe_enabled IS TRUE
-			  AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $2)
-			)
-			OR EXISTS (
-			  SELECT 1
-			  FROM account_health_states s
-			  WHERE s.account_id = a.id
-			    AND s.status IN ('isolated', 'recovering', 'degraded')
-			    AND s.next_probe_at IS NOT NULL
-			    AND s.next_probe_at <= $2
-			)
-			  )
-			)
-		  )
+		  AND a.status = 'active'
+		  AND a.schedulable IS TRUE
+		  AND a.health_probe_enabled IS TRUE
+		  AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $2)
 		ON CONFLICT (account_id) DO UPDATE SET
-			next_probe_at = EXCLUDED.next_probe_at,
-			updated_at = CASE
-				WHEN account_health_states.status = 'healthy' THEN account_health_states.updated_at
-				ELSE $2
-			END
-		WHERE EXISTS (
+			next_probe_at = $3,
+			updated_at = $2
+		WHERE (account_health_states.next_probe_at IS NULL OR account_health_states.next_probe_at <= $2)
+		  AND EXISTS (
 			SELECT 1
 			FROM accounts a
 			WHERE a.id = account_health_states.account_id
 			  AND a.deleted_at IS NULL
-			  AND (
-				(
-				  a.status = 'active'
-				  AND a.schedulable IS TRUE
-				  AND a.external_scheduling_hold_until > $2
-				)
-				OR (
-				  a.health_probe_enabled IS TRUE
-				  AND (
-				(
-				  account_health_states.status IN ('isolated', 'recovering', 'degraded')
-				  AND account_health_states.next_probe_at IS NOT NULL
-				  AND account_health_states.next_probe_at <= $2
-				)
-				OR (
-				  account_health_states.status = 'healthy'
-				  AND a.status = 'active'
-				  AND a.schedulable IS TRUE
-				  AND a.healthy_probe_enabled IS TRUE
-				  AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $2)
-				  AND (
-					account_health_states.next_probe_at IS NULL
-					OR account_health_states.next_probe_at <= $2
-				  )
-				  AND COALESCE(
-					account_health_states.last_checked_at,
-					account_health_states.last_success_at,
-					account_health_states.updated_at,
-					account_health_states.created_at,
-					a.updated_at,
-					a.created_at
-				  ) + (
-					CASE
-					  WHEN a.healthy_probe_interval_minutes IS NOT NULL AND a.healthy_probe_interval_minutes > 0
-					  THEN a.healthy_probe_interval_minutes
-					  WHEN a.healthy_probe_interval_hours IS NOT NULL AND a.healthy_probe_interval_hours > 0
-					  THEN a.healthy_probe_interval_hours * 60
-					  ELSE 360
-					END * INTERVAL '1 minute'
-				  ) <= $2
-				)
-				  )
-				)
-			  )
-		)
+			  AND a.status = 'active'
+			  AND a.schedulable IS TRUE
+			  AND a.health_probe_enabled IS TRUE
+			  AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $2)
+		  )
 	`, accountID, now, leaseUntil)
 	if err != nil {
 		return false, err
@@ -241,6 +53,29 @@ func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID i
 		return false, err
 	}
 	return affected > 0, nil
+}
+
+func (r *accountHealthRepository) ScheduleNextProbe(ctx context.Context, accountID int64, nextProbeAt *time.Time, now time.Time) error {
+	_, err := r.sql.ExecContext(ctx, `
+		INSERT INTO account_health_states (account_id, next_probe_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $3)
+		ON CONFLICT (account_id) DO UPDATE SET
+			next_probe_at = EXCLUDED.next_probe_at,
+			updated_at = EXCLUDED.updated_at
+	`, accountID, accountHealthNullTime(nextProbeAt), now)
+	return err
+}
+
+func (r *accountHealthRepository) GetNextProbeAt(ctx context.Context, accountID int64) (*time.Time, error) {
+	var next sql.NullTime
+	err := scanSingleRow(ctx, r.sql, `SELECT next_probe_at FROM account_health_states WHERE account_id = $1`, []any{accountID}, &next)
+	if err != nil {
+		return nil, err
+	}
+	if !next.Valid {
+		return nil, nil
+	}
+	return &next.Time, nil
 }
 
 func (r *accountHealthRepository) InsertEvent(ctx context.Context, event *service.AccountHealthEvent) error {
@@ -253,14 +88,39 @@ func (r *accountHealthRepository) InsertEvent(ctx context.Context, event *servic
 			status_before, status_after, delta, error_category, error_message,
 			latency_ms, affected_group_ids, actor_user_id, created_at
 		) VALUES (
-			$1, $2, $3, $4, $5,
-			$6, $7, $8, $9, $10,
-			$11, $12, $13, $14
+			$1, $2, $3, 0, 0,
+			'', '', 0, $4, $5,
+			$6, NULL, $7, $8
 		)
-	`, event.AccountID, event.Source, event.EventType, event.ScoreBefore, event.ScoreAfter,
-		event.StatusBefore, event.StatusAfter, event.Delta, accountHealthNullString(event.ErrorCategory), accountHealthNullString(event.ErrorMessage),
-		accountHealthNullInt64(event.LatencyMs), pq.Array(event.AffectedGroupIDs), accountHealthNullInt64(event.ActorUserID), event.CreatedAt)
+	`, event.AccountID, event.Source, event.EventType,
+		accountHealthNullString(event.ErrorCategory), accountHealthNullString(event.ErrorMessage),
+		accountHealthNullInt64(event.LatencyMs), accountHealthNullInt64(event.ActorUserID), event.CreatedAt)
 	return err
+}
+
+func (r *accountHealthRepository) ListProbeEvents(ctx context.Context, accountIDs []int64, since time.Time) ([]service.AccountHealthEvent, error) {
+	if len(accountIDs) == 0 {
+		return []service.AccountHealthEvent{}, nil
+	}
+	rows, err := r.sql.QueryContext(ctx, accountHealthProbeEventSelectSQL+`
+		WHERE account_id = ANY($1)
+		  AND source IN ('background_probe', 'manual_probe')
+		  AND event_type IN ('success', 'failure')
+		  AND created_at >= $2
+		ORDER BY account_id ASC, created_at ASC, id ASC`, pq.Array(accountIDs), since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	events := make([]service.AccountHealthEvent, 0)
+	for rows.Next() {
+		event, err := scanAccountHealthProbeEvent(rows)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, *event)
+	}
+	return events, rows.Err()
 }
 
 func (r *accountHealthRepository) ListEvents(ctx context.Context, accountID int64, eventType string, params pagination.PaginationParams) (*service.AccountHealthEventList, error) {
@@ -270,15 +130,16 @@ func (r *accountHealthRepository) ListEvents(ctx context.Context, accountID int6
 	if params.PageSize <= 0 {
 		params.PageSize = 20
 	}
-	where := "WHERE account_id = $1"
+	where := `WHERE account_id = $1
+		AND source IN ('background_probe', 'manual_probe')
+		AND event_type IN ('success', 'failure')`
 	args := []any{accountID}
 	if strings.TrimSpace(eventType) != "" {
 		where += " AND event_type = $2"
 		args = append(args, strings.TrimSpace(eventType))
 	}
 	var total int64
-	countQuery := "SELECT COUNT(*) FROM account_health_events " + where
-	if err := scanSingleRow(ctx, r.sql, countQuery, args, &total); err != nil {
+	if err := scanSingleRow(ctx, r.sql, "SELECT COUNT(*) FROM account_health_events "+where, args, &total); err != nil {
 		return nil, err
 	}
 	offset := (params.Page - 1) * params.PageSize
@@ -286,7 +147,7 @@ func (r *accountHealthRepository) ListEvents(ctx context.Context, accountID int6
 	queryArgs = append(queryArgs, params.PageSize, offset)
 	limitPos := len(queryArgs) - 1
 	offsetPos := len(queryArgs)
-	rows, err := r.sql.QueryContext(ctx, accountHealthEventSelectSQL+" "+where+`
+	rows, err := r.sql.QueryContext(ctx, accountHealthProbeEventSelectSQL+" "+where+`
 		ORDER BY created_at DESC, id DESC
 		LIMIT $`+itoa(limitPos)+` OFFSET $`+itoa(offsetPos), queryArgs...)
 	if err != nil {
@@ -295,7 +156,7 @@ func (r *accountHealthRepository) ListEvents(ctx context.Context, accountID int6
 	defer rows.Close()
 	items := make([]service.AccountHealthEvent, 0)
 	for rows.Next() {
-		event, err := scanAccountHealthEvent(rows)
+		event, err := scanAccountHealthProbeEvent(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -304,10 +165,7 @@ func (r *accountHealthRepository) ListEvents(ctx context.Context, accountID int6
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	totalPages := 0
-	if params.PageSize > 0 {
-		totalPages = int((total + int64(params.PageSize) - 1) / int64(params.PageSize))
-	}
+	totalPages := int((total + int64(params.PageSize) - 1) / int64(params.PageSize))
 	return &service.AccountHealthEventList{Items: items, Total: total, Page: params.Page, PageSize: params.PageSize, TotalPages: totalPages}, nil
 }
 
@@ -319,92 +177,33 @@ func (r *accountHealthRepository) DeleteEventsBefore(ctx context.Context, before
 	return res.RowsAffected()
 }
 
-const accountHealthSelectSQL = `
-	SELECT account_health_states.account_id,
-		account_health_states.score,
-		account_health_states.consecutive_successes,
-		account_health_states.consecutive_failures,
-		account_health_states.status,
-		account_health_states.last_success_at,
-		account_health_states.last_failure_at,
-		account_health_states.last_checked_at,
-		account_health_states.last_error_category,
-		account_health_states.last_error_message,
-		account_health_states.latency_ewma_ms,
-		account_health_states.scheduler_latency_ewma_ms,
-		account_health_states.scheduler_latency_source,
-		account_health_states.consecutive_high_latency,
-		account_health_states.backoff_level,
-		account_health_states.next_probe_at,
-		account_health_states.isolated_at,
-		account_health_states.created_at,
-		account_health_states.updated_at
-	FROM account_health_states`
-
-const accountHealthEventSelectSQL = `
-	SELECT id, account_id, source, event_type, score_before, score_after,
-		status_before, status_after, delta, error_category, error_message,
-		latency_ms, affected_group_ids, actor_user_id, created_at
+const accountHealthProbeEventSelectSQL = `
+	SELECT id, account_id, source, event_type, error_category, error_message, latency_ms, actor_user_id, created_at
 	FROM account_health_events`
 
 type accountHealthScanner interface {
 	Scan(dest ...any) error
 }
 
-func scanAccountHealthState(scanner accountHealthScanner) (*service.AccountHealthState, error) {
-	var state service.AccountHealthState
-	var lastSuccess, lastFailure, lastChecked, nextProbe, isolated sql.NullTime
-	var lastCategory, lastMessage, schedulerLatencySource sql.NullString
-	var latency, schedulerLatency sql.NullInt64
-	if err := scanner.Scan(
-		&state.AccountID, &state.Score, &state.ConsecutiveSuccesses, &state.ConsecutiveFailures, &state.Status,
-		&lastSuccess, &lastFailure, &lastChecked, &lastCategory, &lastMessage,
-		&latency, &schedulerLatency, &schedulerLatencySource, &state.ConsecutiveHighLatency,
-		&state.BackoffLevel, &nextProbe, &isolated, &state.CreatedAt, &state.UpdatedAt,
-	); err != nil {
-		return nil, err
-	}
-	state.LastSuccessAt = ptrNullTime(lastSuccess)
-	state.LastFailureAt = ptrNullTime(lastFailure)
-	state.LastCheckedAt = ptrNullTime(lastChecked)
-	state.LastErrorCategory = lastCategory.String
-	state.LastErrorMessage = lastMessage.String
-	if latency.Valid {
-		v := int(latency.Int64)
-		state.LatencyEWMAMs = &v
-	}
-	if schedulerLatency.Valid {
-		v := int(schedulerLatency.Int64)
-		state.SchedulerLatencyEWMAMs = &v
-	}
-	state.SchedulerLatencySource = schedulerLatencySource.String
-	state.NextProbeAt = ptrNullTime(nextProbe)
-	state.IsolatedAt = ptrNullTime(isolated)
-	return &state, nil
-}
-
-func scanAccountHealthEvent(scanner accountHealthScanner) (*service.AccountHealthEvent, error) {
+func scanAccountHealthProbeEvent(scanner accountHealthScanner) (*service.AccountHealthEvent, error) {
 	var event service.AccountHealthEvent
 	var errorCategory, errorMessage sql.NullString
 	var latency, actor sql.NullInt64
-	var affected []int64
 	if err := scanner.Scan(
-		&event.ID, &event.AccountID, &event.Source, &event.EventType, &event.ScoreBefore, &event.ScoreAfter,
-		&event.StatusBefore, &event.StatusAfter, &event.Delta, &errorCategory, &errorMessage,
-		&latency, pq.Array(&affected), &actor, &event.CreatedAt,
+		&event.ID, &event.AccountID, &event.Source, &event.EventType,
+		&errorCategory, &errorMessage, &latency, &actor, &event.CreatedAt,
 	); err != nil {
 		return nil, err
 	}
 	event.ErrorCategory = errorCategory.String
 	event.ErrorMessage = errorMessage.String
 	if latency.Valid {
-		v := latency.Int64
-		event.LatencyMs = &v
+		value := latency.Int64
+		event.LatencyMs = &value
 	}
-	event.AffectedGroupIDs = affected
 	if actor.Valid {
-		v := actor.Int64
-		event.ActorUserID = &v
+		value := actor.Int64
+		event.ActorUserID = &value
 	}
 	return &event, nil
 }
@@ -423,23 +222,9 @@ func accountHealthNullString(value string) any {
 	return value
 }
 
-func accountHealthNullInt(value *int) any {
-	if value == nil {
-		return nil
-	}
-	return *value
-}
-
 func accountHealthNullInt64(value *int64) any {
 	if value == nil {
 		return nil
 	}
 	return *value
-}
-
-func ptrNullTime(value sql.NullTime) *time.Time {
-	if !value.Valid {
-		return nil
-	}
-	return &value.Time
 }

@@ -20,10 +20,6 @@
       "external_hold"
     ],
     "health": {
-      "score": 72,
-      "status": "degraded",
-      "consecutive_successes": 0,
-      "last_checked_at": "2026-07-15T16:09:00Z",
       "next_probe_at": "2026-07-15T16:11:00Z",
       "probe_enabled": true
     }

@@ -197,9 +197,7 @@ export default {
       "rateMultiplierSaved": "Upstream cost multiplier saved",
       "rateMultiplierSaveFailed": "Failed to save upstream cost multiplier",
       "rateMultiplierInvalid": "Enter a cost multiplier greater than or equal to 0",
-      "healthDetailSettings": "Health Details/Settings",
-      "probeInterval": "Probe interval (minutes)",
-      "healthyProbeIntervalOption": "{hours} hours"
+      "probeInterval": "Probe interval (minutes)"
     },
     "redeem": {
       "subscriptionQuotaReset": "Subscription Quota Reset",

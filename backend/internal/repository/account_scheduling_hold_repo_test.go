@@ -31,19 +31,17 @@ func TestFinalizeAccountSchedulingStateCombinesIndependentBlocks(t *testing.T) {
 
 func TestSchedulingStateProbeEnabledRequiresRunnablePlan(t *testing.T) {
 	account := &service.Account{
-		Status:              service.StatusActive,
-		Schedulable:         true,
-		HealthProbeEnabled:  true,
-		HealthyProbeEnabled: true,
+		Status:             service.StatusActive,
+		Schedulable:        true,
+		HealthProbeEnabled: true,
 	}
 
-	require.True(t, schedulingStateProbeEnabled(account, service.AccountHealthStatusHealthy, false))
+	require.True(t, schedulingStateProbeEnabled(account, false))
 	account.Schedulable = false
-	require.False(t, schedulingStateProbeEnabled(account, service.AccountHealthStatusHealthy, false))
+	require.False(t, schedulingStateProbeEnabled(account, false))
 	account.Schedulable = true
-	account.HealthyProbeEnabled = false
-	require.False(t, schedulingStateProbeEnabled(account, service.AccountHealthStatusHealthy, false))
-	require.True(t, schedulingStateProbeEnabled(account, service.AccountHealthStatusDegraded, false))
+	account.HealthProbeEnabled = false
+	require.False(t, schedulingStateProbeEnabled(account, false))
 }
 
 func TestSchedulingHoldExpiryDecisionIDIsStableAndBounded(t *testing.T) {

@@ -2,154 +2,49 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
+	"fmt"
 	"math"
+	"regexp"
 	"sort"
-	"strconv"
 	"strings"
-	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
 )
 
 const (
-	AccountHealthStatusHealthy    = "healthy"
-	AccountHealthStatusDegraded   = "degraded"
-	AccountHealthStatusIsolated   = "isolated"
-	AccountHealthStatusRecovering = "recovering"
-
-	defaultAccountHealthScore             = 80
-	accountHealthAuthFailurePenalty       = 30
-	accountHealthQuotaFailurePenalty      = 25
-	accountHealthRateLimitedPenalty       = 10
-	accountHealthTemporaryFailurePenalty1 = 8
-	accountHealthTemporaryFailurePenalty2 = 12
-	accountHealthTemporaryFailurePenalty3 = 20
-	accountHealthUpstream4xxPenalty       = 15
-	accountHealthModelConfigPenalty       = 5
-	accountHealthSuccessReward            = 5
-	accountHealthProbeRecoveryReward      = 25
-	accountHealthDegradedSuccessFloor     = 60
-	accountHealthDegradedSuccessesFloor   = 3
-	accountHealthIsolationScore           = 40
-	accountHealthIsolationFailures        = 3
-	accountHealthRecoverySuccesses        = 2
-	accountHealthManualAuthRecoveries     = 2
-	accountHealthRecoveryScore            = 70
-	accountHealthProbeRecoveryScore       = 50
-	accountHealthRecoveredScore           = 70
-	accountHealthIsolationReason          = "account_health_auto_isolation"
-	accountHealthDefaultHealthyHours      = 6
-	accountHealthDefaultProbePageSize     = 100
-	accountHealthOverviewAccountLimit     = 10000
-	accountHealthProbeFailureDedupeWindow = 10 * time.Second
-	accountHealthSchedulerLatencyCapMS    = 30_000
-	accountHealthHighLatencyThresholdMS   = 30_000
+	accountHealthDefaultProbePageSize = 100
+	accountProbeDefaultInterval       = 6 * time.Hour
+	accountProbeMaxBatchAccounts      = 100
+	accountProbeSparklinePointLimit   = 24
 )
+
+var accountProbeBearerTokenPattern = regexp.MustCompile(`(?i)\bBearer\s+[^\s,;]+`)
 
 const (
-	AccountHealthLatencySourceTTFT            = "ttft"
-	AccountHealthLatencySourceResponseHeaders = "response_headers"
-	AccountHealthLatencySourceProbe           = "probe"
+	AccountHealthEventSourceBackgroundProbe = "background_probe"
+	AccountHealthEventSourceManualProbe     = "manual_probe"
+	AccountHealthEventTypeSuccess           = "success"
+	AccountHealthEventTypeFailure           = "failure"
 )
 
-type AccountHealthLatencySample struct {
-	ObservedDurationMs int64
-	SchedulerLatencyMs int64
-	Source             string
-}
-
-var accountHealthBackoffSteps = []time.Duration{time.Minute, 2 * time.Minute, 5 * time.Minute, 10 * time.Minute, 30 * time.Minute}
-
 type AccountHealthState struct {
-	AccountID              int64      `json:"account_id"`
-	Score                  int        `json:"score"`
-	ConsecutiveSuccesses   int        `json:"consecutive_successes"`
-	ConsecutiveFailures    int        `json:"consecutive_failures"`
-	Status                 string     `json:"status"`
-	LastSuccessAt          *time.Time `json:"last_success_at,omitempty"`
-	LastFailureAt          *time.Time `json:"last_failure_at,omitempty"`
-	LastCheckedAt          *time.Time `json:"last_checked_at,omitempty"`
-	LastErrorCategory      string     `json:"last_error_category,omitempty"`
-	LastErrorMessage       string     `json:"last_error_message,omitempty"`
-	LatencyEWMAMs          *int       `json:"latency_ewma_ms,omitempty"`
-	SchedulerLatencyEWMAMs *int       `json:"scheduler_latency_ewma_ms,omitempty"`
-	SchedulerLatencySource string     `json:"scheduler_latency_source,omitempty"`
-	ConsecutiveHighLatency int        `json:"consecutive_high_latency"`
-	BackoffLevel           int        `json:"backoff_level"`
-	NextProbeAt            *time.Time `json:"next_probe_at,omitempty"`
-	IsolatedAt             *time.Time `json:"isolated_at,omitempty"`
-	CreatedAt              time.Time  `json:"created_at"`
-	UpdatedAt              time.Time  `json:"updated_at"`
-}
-
-type AccountHealthSummary struct {
-	AccountHealthState
-	BaseURL                     string     `json:"base_url,omitempty"`
-	KeyFingerprint              string     `json:"key_fingerprint,omitempty"`
-	AccountName                 string     `json:"account_name,omitempty"`
-	Platform                    string     `json:"platform,omitempty"`
-	Type                        string     `json:"type,omitempty"`
-	RateMultiplier              float64    `json:"rate_multiplier"`
-	RateMultiplierConfigured    bool       `json:"rate_multiplier_configured"`
-	Schedulable                 bool       `json:"schedulable"`
-	TempUnschedulableUntil      *time.Time `json:"temp_unschedulable_until,omitempty"`
-	HealthProbeEnabled          bool       `json:"health_probe_enabled"`
-	HealthProbeIntervalMinutes  *int       `json:"health_probe_interval_minutes,omitempty"`
-	HealthProbeModel            *string    `json:"health_probe_model,omitempty"`
-	HealthyProbeEnabled         bool       `json:"healthy_probe_enabled"`
-	HealthyProbeIntervalMinutes *int       `json:"healthy_probe_interval_minutes,omitempty"`
-	HealthyProbeIntervalHours   *int       `json:"healthy_probe_interval_hours,omitempty"`
-	GroupIDs                    []int64    `json:"group_ids,omitempty"`
-	GroupNames                  []string   `json:"group_names,omitempty"`
-}
-
-type AccountHealthURLOverview struct {
-	BaseURL                string                          `json:"base_url"`
-	Accounts               []AccountHealthSummary          `json:"accounts"`
-	Balance                *AccountUpstreamBalanceSnapshot `json:"balance,omitempty"`
-	Risks                  []AccountHealthRisk             `json:"risks,omitempty"`
-	InsufficientGroupIDs   []int64                         `json:"insufficient_group_ids,omitempty"`
-	InsufficientGroupNames []string                        `json:"insufficient_group_names,omitempty"`
-}
-
-type AccountHealthOverview struct {
-	GeneratedAt time.Time                  `json:"generated_at"`
-	URLs        []AccountHealthURLOverview `json:"urls"`
-	Risks       []AccountHealthRisk        `json:"risks,omitempty"`
-}
-
-type AccountHealthRisk struct {
-	Level     string `json:"level"`
-	Type      string `json:"type"`
-	Message   string `json:"message"`
-	BaseURL   string `json:"base_url,omitempty"`
-	AccountID *int64 `json:"account_id,omitempty"`
-	GroupID   *int64 `json:"group_id,omitempty"`
-	GroupName string `json:"group_name,omitempty"`
-	Count     int    `json:"count,omitempty"`
-	Threshold int    `json:"threshold,omitempty"`
+	AccountID   int64      `json:"account_id"`
+	NextProbeAt *time.Time `json:"next_probe_at,omitempty"`
 }
 
 type AccountHealthEvent struct {
-	ID               int64     `json:"id"`
-	AccountID        int64     `json:"account_id"`
-	Source           string    `json:"source"`
-	EventType        string    `json:"event_type"`
-	ScoreBefore      int       `json:"score_before"`
-	ScoreAfter       int       `json:"score_after"`
-	StatusBefore     string    `json:"status_before"`
-	StatusAfter      string    `json:"status_after"`
-	Delta            int       `json:"delta"`
-	ErrorCategory    string    `json:"error_category,omitempty"`
-	ErrorMessage     string    `json:"error_message,omitempty"`
-	LatencyMs        *int64    `json:"latency_ms,omitempty"`
-	AffectedGroupIDs []int64   `json:"affected_group_ids,omitempty"`
-	ActorUserID      *int64    `json:"actor_user_id,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID            int64     `json:"id"`
+	AccountID     int64     `json:"account_id"`
+	Source        string    `json:"source"`
+	EventType     string    `json:"event_type"`
+	ErrorCategory string    `json:"error_category,omitempty"`
+	ErrorMessage  string    `json:"error_message,omitempty"`
+	LatencyMs     *int64    `json:"latency_ms,omitempty"`
+	ActorUserID   *int64    `json:"actor_user_id,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 type AccountHealthEventList struct {
@@ -160,501 +55,256 @@ type AccountHealthEventList struct {
 	TotalPages int                  `json:"total_pages"`
 }
 
+type AccountProbePoint struct {
+	Timestamp     time.Time `json:"timestamp"`
+	LatencyMs     *int64    `json:"latency_ms,omitempty"`
+	SuccessCount  int       `json:"success_count"`
+	FailureCount  int       `json:"failure_count"`
+	ErrorCategory string    `json:"error_category,omitempty"`
+	ErrorMessage  string    `json:"error_message,omitempty"`
+}
+
+type AccountProbeTrend struct {
+	AccountID         int64               `json:"account_id"`
+	Range             string              `json:"range"`
+	From              time.Time           `json:"from"`
+	To                time.Time           `json:"to"`
+	Points            []AccountProbePoint `json:"points"`
+	Total             int                 `json:"total"`
+	SuccessCount      int                 `json:"success_count"`
+	FailureCount      int                 `json:"failure_count"`
+	SuccessRate       *float64            `json:"success_rate,omitempty"`
+	P50LatencyMs      *int64              `json:"p50_latency_ms,omitempty"`
+	P95LatencyMs      *int64              `json:"p95_latency_ms,omitempty"`
+	LastResult        string              `json:"last_result,omitempty"`
+	LastLatencyMs     *int64              `json:"last_latency_ms,omitempty"`
+	LastProbedAt      *time.Time          `json:"last_probed_at,omitempty"`
+	LastErrorCategory string              `json:"last_error_category,omitempty"`
+	LastErrorMessage  string              `json:"last_error_message,omitempty"`
+	NextProbeAt       *time.Time          `json:"next_probe_at,omitempty"`
+}
+
+type AccountProbeDetail struct {
+	AccountProbeTrend
+	HealthProbeEnabled          bool    `json:"health_probe_enabled"`
+	HealthProbeIntervalMinutes  *int    `json:"health_probe_interval_minutes,omitempty"`
+	HealthProbeModel            *string `json:"health_probe_model,omitempty"`
+	HealthyProbeEnabled         bool    `json:"healthy_probe_enabled"`
+	HealthyProbeIntervalMinutes *int    `json:"healthy_probe_interval_minutes,omitempty"`
+	HealthyProbeIntervalHours   *int    `json:"healthy_probe_interval_hours,omitempty"`
+}
+
 type AccountHealthRepository interface {
-	Get(ctx context.Context, accountID int64) (*AccountHealthState, error)
-	ListByAccountIDs(ctx context.Context, ids []int64) (map[int64]*AccountHealthState, error)
-	Upsert(ctx context.Context, state *AccountHealthState) error
-	Delete(ctx context.Context, accountID int64) error
-	ListDueForProbe(ctx context.Context, now time.Time, limit int) ([]*AccountHealthState, error)
 	ClaimDueProbe(ctx context.Context, accountID int64, now time.Time, leaseUntil time.Time) (bool, error)
+	ScheduleNextProbe(ctx context.Context, accountID int64, nextProbeAt *time.Time, now time.Time) error
+	GetNextProbeAt(ctx context.Context, accountID int64) (*time.Time, error)
 	InsertEvent(ctx context.Context, event *AccountHealthEvent) error
+	ListProbeEvents(ctx context.Context, accountIDs []int64, since time.Time) ([]AccountHealthEvent, error)
 	ListEvents(ctx context.Context, accountID int64, eventType string, params pagination.PaginationParams) (*AccountHealthEventList, error)
 	DeleteEventsBefore(ctx context.Context, before time.Time) (int64, error)
 }
 
-const (
-	AccountHealthEventSourceRealRequest     = "real_request"
-	AccountHealthEventSourceBackgroundProbe = "background_probe"
-	AccountHealthEventSourceManualProbe     = "manual_probe"
-	AccountHealthEventSourceSystem          = "system"
-
-	AccountHealthEventTypeSuccess         = "success"
-	AccountHealthEventTypeFailure         = "failure"
-	AccountHealthEventTypeIsolated        = "isolated"
-	AccountHealthEventTypeRecovering      = "recovering"
-	AccountHealthEventTypeRecovered       = "recovered"
-	AccountHealthEventTypeSettingsChanged = "settings_changed"
-)
-
-type accountHealthAccountRepository interface {
+type accountProbeAccountRepository interface {
 	GetByID(ctx context.Context, id int64) (*Account, error)
-	GetByIDs(ctx context.Context, ids []int64) ([]*Account, error)
-	List(ctx context.Context, params pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error)
-	SetTempUnschedulable(ctx context.Context, id int64, until time.Time, reason string) error
-	ClearTempUnschedulable(ctx context.Context, id int64) error
 }
 
-type accountHealthHealthyProbeCandidateRepository interface {
+type accountProbeCandidateRepository interface {
 	ListHealthyProbeCandidates(ctx context.Context, now time.Time, limit int) ([]Account, error)
 }
 
 type AccountHealthService struct {
-	repo                 AccountHealthRepository
-	accountRepo          accountHealthAccountRepository
-	now                  func() time.Time
-	probeFailureDedupeMu sync.Mutex
-	probeFailureDedupe   map[string]time.Time
+	repo        AccountHealthRepository
+	accountRepo accountProbeAccountRepository
+	now         func() time.Time
 }
 
 func NewAccountHealthService(repo AccountHealthRepository, accountRepo AccountRepository) *AccountHealthService {
 	return &AccountHealthService{repo: repo, accountRepo: accountRepo, now: time.Now}
 }
 
-func (s *AccountHealthService) Get(ctx context.Context, accountID int64) (*AccountHealthSummary, error) {
-	if s == nil || s.repo == nil {
-		return nil, nil
-	}
-	state, err := s.getOrDefault(ctx, accountID)
-	if err != nil {
-		return nil, err
-	}
-	account, err := s.accountRepo.GetByID(ctx, accountID)
-	if err != nil {
-		return nil, err
-	}
-	return s.enrichSummary(state, account), nil
-}
-
 func (s *AccountHealthService) HealthProbeModel(ctx context.Context, accountID int64) string {
-	if s == nil || s.accountRepo == nil {
-		return ""
-	}
-	account, err := s.accountRepo.GetByID(ctx, accountID)
-	if err != nil || account == nil || account.HealthProbeModel == nil {
+	account, err := s.getAccount(ctx, accountID)
+	if err != nil || account.HealthProbeModel == nil {
 		return ""
 	}
 	return strings.TrimSpace(*account.HealthProbeModel)
 }
 
-func (s *AccountHealthService) ListByAccountIDs(ctx context.Context, ids []int64) (map[int64]*AccountHealthSummary, error) {
-	out := make(map[int64]*AccountHealthSummary, len(ids))
-	if s == nil || s.repo == nil || len(ids) == 0 {
-		return out, nil
-	}
-	states, err := s.repo.ListByAccountIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	accounts, err := s.accountRepo.GetByIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	for _, account := range accounts {
-		state := states[account.ID]
-		if state == nil {
-			state = defaultAccountHealthState(account.ID, s.now())
-		}
-		out[account.ID] = s.enrichSummary(state, account)
-	}
-	return out, nil
-}
-
-func (s *AccountHealthService) RecordSuccess(ctx context.Context, accountID int64, latencyMs int64) error {
-	return s.recordSuccess(ctx, accountID, AccountHealthLatencySample{ObservedDurationMs: latencyMs}, false, AccountHealthEventSourceRealRequest, nil)
-}
-
-func (s *AccountHealthService) RecordSuccessWithLatency(ctx context.Context, accountID int64, sample AccountHealthLatencySample) error {
-	return s.recordSuccess(ctx, accountID, sample, false, AccountHealthEventSourceRealRequest, nil)
-}
-
 func (s *AccountHealthService) RecordProbeSuccess(ctx context.Context, accountID int64, latencyMs int64) error {
-	return s.recordSuccess(ctx, accountID, AccountHealthLatencySample{
-		ObservedDurationMs: latencyMs,
-		SchedulerLatencyMs: latencyMs,
-		Source:             AccountHealthLatencySourceProbe,
-	}, true, AccountHealthEventSourceBackgroundProbe, nil)
+	return s.recordProbeResult(ctx, accountID, AccountHealthEventSourceBackgroundProbe, true, latencyMs, "", "", nil, true)
 }
 
 func (s *AccountHealthService) RecordManualProbeSuccess(ctx context.Context, accountID int64, latencyMs int64, actorUserID *int64) error {
-	return s.recordSuccess(ctx, accountID, AccountHealthLatencySample{
-		ObservedDurationMs: latencyMs,
-		SchedulerLatencyMs: latencyMs,
-		Source:             AccountHealthLatencySourceProbe,
-	}, true, AccountHealthEventSourceManualProbe, actorUserID)
-}
-
-func (s *AccountHealthService) recordSuccess(ctx context.Context, accountID int64, sample AccountHealthLatencySample, probe bool, source string, actorUserID *int64) error {
-	if s == nil || s.repo == nil {
-		return nil
-	}
-	now := s.now()
-	state, err := s.getOrDefault(ctx, accountID)
-	if err != nil {
-		return err
-	}
-	before := *state
-	authRecovery := state.LastErrorCategory == "auth_error"
-	reward := accountHealthSuccessReward
-	if probe && canFastRecoverFromProbeSuccess(state) {
-		reward = accountHealthProbeRecoveryReward
-	}
-	manualAuthRecovery := s.shouldRecoverAuthErrorAfterManualProbeSuccess(ctx, accountID, &before, source)
-	state.Score = clampHealthScore(state.Score + reward)
-	state.ConsecutiveSuccesses++
-	state.ConsecutiveFailures = 0
-	state.LastSuccessAt = &now
-	state.LastCheckedAt = &now
-	if !authRecovery || (source == AccountHealthEventSourceRealRequest && before.Status != AccountHealthStatusIsolated && before.Status != AccountHealthStatusRecovering) {
-		state.LastErrorCategory = ""
-		state.LastErrorMessage = ""
-	}
-	if sample.ObservedDurationMs > 0 {
-		next := int(sample.ObservedDurationMs)
-		if state.LatencyEWMAMs != nil {
-			next = int(math.Round(float64(*state.LatencyEWMAMs)*0.7 + float64(sample.ObservedDurationMs)*0.3))
-		}
-		state.LatencyEWMAMs = &next
-	}
-	if sample.SchedulerLatencyMs > 0 {
-		rawSchedulerLatency := sample.SchedulerLatencyMs
-		boundedSchedulerLatency := rawSchedulerLatency
-		if boundedSchedulerLatency > accountHealthSchedulerLatencyCapMS {
-			boundedSchedulerLatency = accountHealthSchedulerLatencyCapMS
-		}
-		next := int(boundedSchedulerLatency)
-		if state.SchedulerLatencyEWMAMs != nil {
-			next = int(math.Round(float64(*state.SchedulerLatencyEWMAMs)*0.7 + float64(boundedSchedulerLatency)*0.3))
-		}
-		state.SchedulerLatencyEWMAMs = &next
-		state.SchedulerLatencySource = truncateAccountHealthString(strings.TrimSpace(sample.Source), 32)
-		if rawSchedulerLatency >= accountHealthHighLatencyThresholdMS {
-			state.ConsecutiveHighLatency++
-		} else {
-			state.ConsecutiveHighLatency = 0
-		}
-	}
-	if !probe && before.Status == AccountHealthStatusDegraded && state.ConsecutiveSuccesses >= accountHealthDegradedSuccessesFloor && state.Score < accountHealthDegradedSuccessFloor {
-		state.Score = accountHealthDegradedSuccessFloor
-	}
-	if manualAuthRecovery {
-		state.Status = AccountHealthStatusHealthy
-		if state.Score < accountHealthRecoveredScore {
-			state.Score = accountHealthRecoveredScore
-		}
-		state.BackoffLevel = 0
-		state.NextProbeAt = nil
-		state.IsolatedAt = nil
-		state.LastErrorCategory = ""
-		state.LastErrorMessage = ""
-		if err := s.accountRepo.ClearTempUnschedulable(ctx, accountID); err != nil {
-			return err
-		}
-	} else if state.Status == AccountHealthStatusIsolated || state.Status == AccountHealthStatusRecovering {
-		recoveryScore := accountHealthRecoveryScore
-		if probe && reward == accountHealthProbeRecoveryReward {
-			recoveryScore = accountHealthProbeRecoveryScore
-		}
-		if state.ConsecutiveSuccesses >= accountHealthRecoverySuccesses && state.Score >= recoveryScore {
-			state.Status = AccountHealthStatusHealthy
-			if probe && state.Score < accountHealthRecoveredScore {
-				state.Score = accountHealthRecoveredScore
-			}
-			state.BackoffLevel = 0
-			state.NextProbeAt = nil
-			state.IsolatedAt = nil
-			state.LastErrorCategory = ""
-			state.LastErrorMessage = ""
-			if err := s.accountRepo.ClearTempUnschedulable(ctx, accountID); err != nil {
-				return err
-			}
-		} else {
-			state.Status = AccountHealthStatusRecovering
-			state.NextProbeAt = accountHealthPtrTime(now.Add(s.nextProbeDelayForState(ctx, accountID, state)))
-		}
-	} else if state.Score < accountHealthRecoveryScore {
-		state.Status = AccountHealthStatusDegraded
-	} else {
-		state.Status = AccountHealthStatusHealthy
-	}
-	if state.Status == AccountHealthStatusHealthy {
-		if err := s.clearStaleHealthTempUnschedulable(ctx, accountID); err != nil {
-			return err
-		}
-		if err := s.syncHealthyProbeSchedule(ctx, accountID, state, now); err != nil {
-			return err
-		}
-	} else if probe && state.Status == AccountHealthStatusDegraded {
-		next := now.Add(s.nextProbeDelayForState(ctx, accountID, state))
-		state.NextProbeAt = &next
-	}
-	state.UpdatedAt = now
-	if err := s.repo.Upsert(ctx, state); err != nil {
-		return err
-	}
-	if !shouldSkipAccountHealthSuccessEvent(&before, state, source) {
-		eventType := accountHealthSuccessEventType(&before, state)
-		if manualAuthRecovery {
-			eventType = AccountHealthEventTypeRecovered
-		}
-		_ = s.insertHealthEvent(ctx, &before, state, source, eventType, "", "", sample.ObservedDurationMs, actorUserID)
-	}
-	return nil
-}
-
-func (s *AccountHealthService) RecordFailure(ctx context.Context, accountID int64, category, message string) error {
-	return s.recordFailure(ctx, accountID, category, message, AccountHealthEventSourceRealRequest, nil)
+	return s.recordProbeResult(ctx, accountID, AccountHealthEventSourceManualProbe, true, latencyMs, "", "", actorUserID, false)
 }
 
 func (s *AccountHealthService) RecordProbeFailure(ctx context.Context, accountID int64, category, message string) error {
-	return s.recordFailure(ctx, accountID, category, message, AccountHealthEventSourceBackgroundProbe, nil)
+	return s.recordProbeResult(ctx, accountID, AccountHealthEventSourceBackgroundProbe, false, 0, category, message, nil, true)
 }
 
 func (s *AccountHealthService) RecordManualProbeFailure(ctx context.Context, accountID int64, category, message string, actorUserID *int64) error {
-	return s.recordFailure(ctx, accountID, category, message, AccountHealthEventSourceManualProbe, actorUserID)
+	return s.recordProbeResult(ctx, accountID, AccountHealthEventSourceManualProbe, false, 0, category, message, actorUserID, false)
 }
 
-func (s *AccountHealthService) recordFailure(ctx context.Context, accountID int64, category, message, source string, actorUserID *int64) error {
+func (s *AccountHealthService) recordProbeResult(ctx context.Context, accountID int64, source string, success bool, latencyMs int64, category, message string, actorUserID *int64, reschedule bool) error {
+	if s == nil || s.repo == nil || accountID <= 0 {
+		return nil
+	}
+	now := s.nowTime()
+	eventType := AccountHealthEventTypeFailure
+	var latency *int64
+	if success {
+		eventType = AccountHealthEventTypeSuccess
+		if latencyMs > 0 {
+			value := latencyMs
+			latency = &value
+		}
+	}
+	eventErr := s.repo.InsertEvent(ctx, &AccountHealthEvent{
+		AccountID:     accountID,
+		Source:        source,
+		EventType:     eventType,
+		ErrorCategory: truncateAccountProbeString(category, 40),
+		ErrorMessage:  truncateAccountProbeString(redactAccountProbeMessage(message), 2000),
+		LatencyMs:     latency,
+		ActorUserID:   actorUserID,
+		CreatedAt:     now,
+	})
+	if !reschedule {
+		return eventErr
+	}
+	account, accountErr := s.getAccount(ctx, accountID)
+	if accountErr != nil {
+		if eventErr != nil {
+			return fmt.Errorf("record probe event: %v; load account for reschedule: %w", eventErr, accountErr)
+		}
+		return accountErr
+	}
+	next := nextScheduledAccountProbe(account, now)
+	scheduleErr := s.repo.ScheduleNextProbe(ctx, accountID, next, now)
+	if eventErr != nil {
+		return eventErr
+	}
+	return scheduleErr
+}
+
+func (s *AccountHealthService) ListDueForProbe(ctx context.Context, now time.Time, limit int) ([]*AccountHealthState, error) {
+	if s == nil || s.accountRepo == nil {
+		return nil, nil
+	}
+	if limit <= 0 || limit > accountHealthDefaultProbePageSize {
+		limit = accountHealthDefaultProbePageSize
+	}
+	candidateRepo, ok := s.accountRepo.(accountProbeCandidateRepository)
+	if !ok {
+		return nil, fmt.Errorf("account probe candidate repository unavailable")
+	}
+	accounts, err := candidateRepo.ListHealthyProbeCandidates(ctx, now, limit)
+	if err != nil {
+		return nil, err
+	}
+	states := make([]*AccountHealthState, 0, len(accounts))
+	for i := range accounts {
+		states = append(states, &AccountHealthState{AccountID: accounts[i].ID})
+	}
+	return states, nil
+}
+
+func (s *AccountHealthService) ClaimDueProbe(ctx context.Context, accountID int64, now, leaseUntil time.Time) (bool, error) {
+	if s == nil || s.repo == nil || accountID <= 0 || !leaseUntil.After(now) {
+		return false, nil
+	}
+	return s.repo.ClaimDueProbe(ctx, accountID, now, leaseUntil)
+}
+
+func (s *AccountHealthService) RescheduleProbe(ctx context.Context, accountID int64) error {
 	if s == nil || s.repo == nil {
 		return nil
 	}
-	if accountHealthIsModelConfigFailure(category, message) {
-		return nil
-	}
-	now := s.now()
-	category = truncateAccountHealthString(strings.TrimSpace(category), 40)
-	message = truncateAccountHealthString(redactAccountHealthMessage(message), 1000)
-	if source == AccountHealthEventSourceBackgroundProbe && s.shouldSkipDuplicateProbeFailure(accountID, category, message, now) {
-		return nil
-	}
-	state, err := s.getOrDefault(ctx, accountID)
+	now := s.nowTime()
+	account, err := s.getAccount(ctx, accountID)
 	if err != nil {
 		return err
 	}
-	before := *state
-	penalty := accountHealthFailurePenaltyFor(category, message, state.ConsecutiveFailures)
-	state.Score = clampHealthScore(state.Score - penalty)
-	state.ConsecutiveFailures++
-	state.ConsecutiveSuccesses = 0
-	state.LastFailureAt = &now
-	state.LastCheckedAt = &now
-	state.LastErrorCategory = category
-	state.LastErrorMessage = message
-	state.BackoffLevel = nextBackoffLevel(state.BackoffLevel)
-	if accountHealthFailureShouldIsolate(category, message, state) {
-		state.Status = AccountHealthStatusIsolated
-		state.IsolatedAt = &now
-	} else {
-		state.Status = AccountHealthStatusDegraded
-	}
-	nextProbe := now.Add(s.nextProbeDelayForState(ctx, accountID, state))
-	state.NextProbeAt = &nextProbe
-	if state.Status == AccountHealthStatusIsolated {
-		if err := s.accountRepo.SetTempUnschedulable(ctx, accountID, nextProbe, accountHealthIsolationReason); err != nil {
-			return err
-		}
-	} else if s.shouldSoftUnscheduleDegraded(state) {
-		if err := s.accountRepo.SetTempUnschedulable(ctx, accountID, nextProbe, accountHealthIsolationReason); err != nil {
-			return err
-		}
-	}
-	state.UpdatedAt = now
-	if err := s.repo.Upsert(ctx, state); err != nil {
-		return err
-	}
-	_ = s.insertHealthEvent(ctx, &before, state, source, accountHealthFailureEventType(&before, state), state.LastErrorCategory, state.LastErrorMessage, 0, actorUserID)
-	return nil
+	return s.repo.ScheduleNextProbe(ctx, accountID, nextScheduledAccountProbe(account, now), now)
 }
 
-func (s *AccountHealthService) shouldSkipDuplicateProbeFailure(accountID int64, category, message string, now time.Time) bool {
-	if s == nil {
-		return false
+func (s *AccountHealthService) GetProbeTrends(ctx context.Context, accountIDs []int64) ([]AccountProbeTrend, error) {
+	ids := normalizeAccountProbeIDs(accountIDs)
+	if len(ids) == 0 {
+		return []AccountProbeTrend{}, nil
 	}
-	key := accountHealthProbeFailureDedupeKey(accountID, category, message)
-	s.probeFailureDedupeMu.Lock()
-	defer s.probeFailureDedupeMu.Unlock()
-	if s.probeFailureDedupe == nil {
-		s.probeFailureDedupe = make(map[string]time.Time)
+	if len(ids) > accountProbeMaxBatchAccounts {
+		return nil, fmt.Errorf("too many account ids: maximum is %d", accountProbeMaxBatchAccounts)
 	}
-	if last, ok := s.probeFailureDedupe[key]; ok && now.Sub(last) >= 0 && now.Sub(last) < accountHealthProbeFailureDedupeWindow {
-		return true
-	}
-	for k, ts := range s.probeFailureDedupe {
-		if now.Sub(ts) > accountHealthProbeFailureDedupeWindow*6 {
-			delete(s.probeFailureDedupe, k)
-		}
-	}
-	s.probeFailureDedupe[key] = now
-	return false
-}
-
-func accountHealthProbeFailureDedupeKey(accountID int64, category, message string) string {
-	category = strings.TrimSpace(category)
-	if category == "" {
-		category = "unknown"
-	}
-	message = strings.TrimSpace(message)
-	if message == "" {
-		return strconv.FormatInt(accountID, 10) + ":" + category
-	}
-	sum := sha256.Sum256([]byte(message))
-	return strconv.FormatInt(accountID, 10) + ":" + category + ":" + hex.EncodeToString(sum[:])[:12]
-}
-
-func accountHealthFailurePenaltyFor(category, message string, consecutiveFailuresBefore int) int {
-	switch {
-	case accountHealthIsAuthFailure(category, message):
-		return accountHealthAuthFailurePenalty
-	case accountHealthIsQuotaFailure(category, message):
-		return accountHealthQuotaFailurePenalty
-	case accountHealthIsModelConfigFailure(category, message):
-		return accountHealthModelConfigPenalty
-	case category == "rate_limited":
-		return accountHealthRateLimitedPenalty
-	case category == "upstream_4xx":
-		return accountHealthUpstream4xxPenalty
-	case accountHealthIsTemporaryFailure(category, message):
-		return accountHealthTemporaryFailurePenalty(consecutiveFailuresBefore)
-	default:
-		return accountHealthTemporaryFailurePenalty(consecutiveFailuresBefore)
-	}
-}
-
-func accountHealthTemporaryFailurePenalty(consecutiveFailuresBefore int) int {
-	switch {
-	case consecutiveFailuresBefore <= 0:
-		return accountHealthTemporaryFailurePenalty1
-	case consecutiveFailuresBefore == 1:
-		return accountHealthTemporaryFailurePenalty2
-	default:
-		return accountHealthTemporaryFailurePenalty3
-	}
-}
-
-func accountHealthFailureShouldIsolate(category, message string, state *AccountHealthState) bool {
-	if state == nil {
-		return false
-	}
-	if accountHealthIsModelConfigFailure(category, message) {
-		return false
-	}
-	if accountHealthIsTemporaryFailure(category, message) {
-		return state.ConsecutiveFailures >= accountHealthIsolationFailures || state.Score < accountHealthIsolationScore
-	}
-	if accountHealthIsAuthFailure(category, message) {
-		return state.ConsecutiveFailures >= 2 || state.Score < accountHealthIsolationScore
-	}
-	return state.ConsecutiveFailures >= accountHealthIsolationFailures || state.Score < accountHealthIsolationScore
-}
-
-func accountHealthIsTemporaryFailure(category, message string) bool {
-	if accountHealthIsAuthFailure(category, message) || accountHealthIsQuotaFailure(category, message) || accountHealthIsModelConfigFailure(category, message) {
-		return false
-	}
-	switch category {
-	case "timeout", "forward_error", "network_error", "probe_failed", "upstream_5xx", "upstream_error", "empty_response":
-		return true
-	default:
-		normalized := strings.ToLower(strings.TrimSpace(message))
-		return strings.Contains(normalized, "timeout") ||
-			strings.Contains(normalized, "deadline exceeded") ||
-			strings.Contains(normalized, "connection reset") ||
-			strings.Contains(normalized, "connection refused") ||
-			strings.Contains(normalized, "empty response") ||
-			strings.Contains(normalized, "bad gateway") ||
-			strings.Contains(normalized, "temporarily unavailable")
-	}
-}
-
-func accountHealthIsAuthFailure(category, message string) bool {
-	if category == "auth_error" {
-		return true
-	}
-	normalized := strings.ToLower(strings.TrimSpace(message))
-	return strings.Contains(normalized, "invalid_api_key") ||
-		strings.Contains(normalized, "invalid api key") ||
-		strings.Contains(normalized, "unauthorized") ||
-		strings.Contains(normalized, "authentication failed") ||
-		strings.Contains(normalized, "returned 401") ||
-		strings.Contains(normalized, "returned 403")
-}
-
-func accountHealthIsQuotaFailure(category, message string) bool {
-	switch category {
-	case "quota_exceeded", "insufficient_balance", "billing_error", "payment_required":
-		return true
-	}
-	normalized := strings.ToLower(strings.TrimSpace(message))
-	return strings.Contains(normalized, "quota exceeded") ||
-		strings.Contains(normalized, "insufficient balance") ||
-		strings.Contains(normalized, "insufficient quota") ||
-		strings.Contains(normalized, "余额不足") ||
-		strings.Contains(normalized, "账户余额不足") ||
-		strings.Contains(normalized, "payment required")
-}
-
-func accountHealthIsModelConfigFailure(category, message string) bool {
-	switch category {
-	case "model_not_found", "probe_model_error", "model_unavailable":
-		return true
-	}
-	normalized := strings.ToLower(strings.TrimSpace(message))
-	return strings.Contains(normalized, "model_not_found") ||
-		strings.Contains(normalized, "model not found") ||
-		strings.Contains(normalized, "model does not exist") ||
-		strings.Contains(normalized, "model unavailable") ||
-		strings.Contains(normalized, "unknown model") ||
-		strings.Contains(normalized, "unsupported model") ||
-		strings.Contains(normalized, "model is not supported") ||
-		strings.Contains(normalized, "model mapping") ||
-		strings.Contains(normalized, "mapping does not support")
-}
-
-func (s *AccountHealthService) Reset(ctx context.Context, accountID int64) error {
-	if s == nil || s.repo == nil {
-		return nil
-	}
-	if err := s.repo.Delete(ctx, accountID); err != nil {
-		return err
-	}
-	return s.accountRepo.ClearTempUnschedulable(ctx, accountID)
-}
-
-func (s *AccountHealthService) RecordSettingsChanged(ctx context.Context, accountID int64, actorUserID *int64) error {
-	if s == nil || s.repo == nil {
-		return nil
-	}
-	now := s.now()
-	state, err := s.getOrDefault(ctx, accountID)
+	now := s.nowTime()
+	trends, err := s.buildProbeTrends(ctx, ids, "24h", now.Add(-24*time.Hour), now, 0)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	before := *state
-	if err := s.rescheduleProbeAfterSettingsChanged(ctx, accountID, state, now); err != nil {
-		return err
+	for i := range trends {
+		if len(trends[i].Points) > accountProbeSparklinePointLimit {
+			trends[i].Points = trends[i].Points[len(trends[i].Points)-accountProbeSparklinePointLimit:]
+		}
 	}
-	event := &AccountHealthEvent{
-		AccountID:        accountID,
-		Source:           AccountHealthEventSourceSystem,
-		EventType:        AccountHealthEventTypeSettingsChanged,
-		ScoreBefore:      before.Score,
-		ScoreAfter:       state.Score,
-		StatusBefore:     before.Status,
-		StatusAfter:      state.Status,
-		ActorUserID:      actorUserID,
-		CreatedAt:        now,
-		AffectedGroupIDs: s.affectedGroupIDs(ctx, accountID),
+	return trends, nil
+}
+
+func (s *AccountHealthService) GetProbeDetail(ctx context.Context, accountID int64, rangeValue string) (*AccountProbeDetail, error) {
+	if accountID <= 0 {
+		return nil, fmt.Errorf("invalid account id")
 	}
-	state.UpdatedAt = now
-	if err := s.repo.Upsert(ctx, state); err != nil {
-		return err
+	account, err := s.getAccount(ctx, accountID)
+	if err != nil {
+		return nil, err
 	}
-	_ = s.repo.InsertEvent(ctx, event)
-	return nil
+	rangeName, duration, bucket, err := parseAccountProbeRange(rangeValue)
+	if err != nil {
+		return nil, err
+	}
+	now := s.nowTime()
+	trends, err := s.buildProbeTrends(ctx, []int64{accountID}, rangeName, now.Add(-duration), now, bucket)
+	if err != nil {
+		return nil, err
+	}
+	detail := &AccountProbeDetail{
+		AccountProbeTrend:           trends[0],
+		HealthProbeEnabled:          account.HealthProbeEnabled,
+		HealthProbeIntervalMinutes:  account.HealthProbeIntervalMinutes,
+		HealthProbeModel:            account.HealthProbeModel,
+		HealthyProbeEnabled:         account.HealthyProbeEnabled,
+		HealthyProbeIntervalMinutes: account.HealthyProbeIntervalMinutes,
+		HealthyProbeIntervalHours:   account.HealthyProbeIntervalHours,
+	}
+	return detail, nil
+}
+
+func (s *AccountHealthService) buildProbeTrends(ctx context.Context, accountIDs []int64, rangeName string, from, to time.Time, bucket time.Duration) ([]AccountProbeTrend, error) {
+	events, err := s.repo.ListProbeEvents(ctx, accountIDs, from)
+	if err != nil {
+		return nil, err
+	}
+	byAccount := make(map[int64][]AccountHealthEvent, len(accountIDs))
+	for _, event := range events {
+		if event.CreatedAt.After(to) {
+			continue
+		}
+		byAccount[event.AccountID] = append(byAccount[event.AccountID], event)
+	}
+	result := make([]AccountProbeTrend, 0, len(accountIDs))
+	for _, accountID := range accountIDs {
+		trend := buildAccountProbeTrend(accountID, rangeName, from, to, byAccount[accountID], bucket)
+		if next, nextErr := s.repo.GetNextProbeAt(ctx, accountID); nextErr == nil {
+			trend.NextProbeAt = next
+		}
+		result = append(result, trend)
+	}
+	return result, nil
 }
 
 func (s *AccountHealthService) ListEvents(ctx context.Context, accountID int64, eventType string, params pagination.PaginationParams) (*AccountHealthEventList, error) {
 	if s == nil || s.repo == nil {
-		return &AccountHealthEventList{Items: []AccountHealthEvent{}, Page: params.Page, PageSize: params.PageSize}, nil
+		return &AccountHealthEventList{Items: []AccountHealthEvent{}}, nil
 	}
 	if params.Page <= 0 {
 		params.Page = 1
@@ -665,7 +315,11 @@ func (s *AccountHealthService) ListEvents(ctx context.Context, accountID int64, 
 	if params.PageSize > 100 {
 		params.PageSize = 100
 	}
-	return s.repo.ListEvents(ctx, accountID, strings.TrimSpace(eventType), params)
+	eventType = strings.TrimSpace(eventType)
+	if eventType != "" && eventType != AccountHealthEventTypeSuccess && eventType != AccountHealthEventTypeFailure {
+		return nil, fmt.Errorf("invalid probe event type")
+	}
+	return s.repo.ListEvents(ctx, accountID, eventType, params)
 }
 
 func (s *AccountHealthService) CleanupEvents(ctx context.Context, before time.Time) (int64, error) {
@@ -675,700 +329,216 @@ func (s *AccountHealthService) CleanupEvents(ctx context.Context, before time.Ti
 	return s.repo.DeleteEventsBefore(ctx, before)
 }
 
-func (s *AccountHealthService) clearStaleHealthTempUnschedulable(ctx context.Context, accountID int64) error {
+func (s *AccountHealthService) getAccount(ctx context.Context, accountID int64) (*Account, error) {
 	if s == nil || s.accountRepo == nil {
-		return nil
+		return nil, fmt.Errorf("account probe service unavailable")
 	}
 	account, err := s.accountRepo.GetByID(ctx, accountID)
-	if err != nil || account == nil {
-		return err
-	}
-	if account.TempUnschedulableUntil == nil || account.TempUnschedulableReason != accountHealthIsolationReason {
-		return nil
-	}
-	return s.accountRepo.ClearTempUnschedulable(ctx, accountID)
-}
-
-func (s *AccountHealthService) syncHealthyProbeSchedule(ctx context.Context, accountID int64, state *AccountHealthState, now time.Time) error {
-	if s == nil || s.accountRepo == nil || state == nil || state.Status != AccountHealthStatusHealthy {
-		return nil
-	}
-	account, err := s.accountRepo.GetByID(ctx, accountID)
-	if err != nil || account == nil {
-		return err
-	}
-	if account.HasActiveExternalSchedulingHold(now) {
-		next := now.Add(time.Minute)
-		state.NextProbeAt = &next
-		return nil
-	}
-	if shouldProbeHealthyAccount(account) {
-		next := now.Add(healthyProbeInterval(account))
-		state.NextProbeAt = &next
-		return nil
-	}
-	state.NextProbeAt = nil
-	return nil
-}
-
-func (s *AccountHealthService) rescheduleProbeAfterSettingsChanged(ctx context.Context, accountID int64, state *AccountHealthState, now time.Time) error {
-	if s == nil || s.accountRepo == nil || state == nil {
-		return nil
-	}
-	account, err := s.accountRepo.GetByID(ctx, accountID)
-	if err != nil || account == nil {
-		return err
-	}
-	if state.Status == AccountHealthStatusHealthy {
-		return s.syncHealthyProbeSchedule(ctx, accountID, state, now)
-	}
-	if shouldProbeUnhealthyAccount(account) {
-		next := now.Add(s.nextProbeDelayForState(ctx, accountID, state))
-		state.NextProbeAt = &next
-		return nil
-	}
-	state.NextProbeAt = nil
-	return nil
-}
-
-func (s *AccountHealthService) ListDueForProbe(ctx context.Context, now time.Time, limit int) ([]*AccountHealthState, error) {
-	if s == nil || s.repo == nil {
-		return nil, nil
-	}
-	if limit <= 0 {
-		limit = accountHealthDefaultProbePageSize
-	}
-	states, err := s.repo.ListDueForProbe(ctx, now, limit)
-	if err != nil || s.accountRepo == nil {
-		return states, err
-	}
-	states = s.appendHealthyProbeDueStates(ctx, now, states, limit)
-	if len(states) == 0 {
-		return states, nil
-	}
-	ids := make([]int64, 0, len(states))
-	for _, state := range states {
-		if state != nil {
-			ids = append(ids, state.AccountID)
-		}
-	}
-	accounts, err := s.accountRepo.GetByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
-	enabled := make(map[int64]bool, len(accounts))
-	for _, account := range accounts {
-		if account == nil {
-			continue
-		}
-		if state := findAccountHealthState(states, account.ID); state != nil && state.Status == AccountHealthStatusHealthy {
-			if shouldProbeHealthyAccount(account) {
-				enabled[account.ID] = true
+	if account == nil {
+		return nil, fmt.Errorf("account not found")
+	}
+	return account, nil
+}
+
+func (s *AccountHealthService) nowTime() time.Time {
+	if s != nil && s.now != nil {
+		return s.now()
+	}
+	return time.Now()
+}
+
+func buildAccountProbeTrend(accountID int64, rangeName string, from, to time.Time, events []AccountHealthEvent, bucket time.Duration) AccountProbeTrend {
+	trend := AccountProbeTrend{AccountID: accountID, Range: rangeName, From: from, To: to, Points: []AccountProbePoint{}}
+	latencies := make([]int64, 0, len(events))
+	for i := range events {
+		event := events[i]
+		trend.Total++
+		if event.EventType == AccountHealthEventTypeSuccess {
+			trend.SuccessCount++
+			if event.LatencyMs != nil {
+				latencies = append(latencies, *event.LatencyMs)
 			}
-			continue
+		} else {
+			trend.FailureCount++
+			trend.LastErrorCategory = event.ErrorCategory
+			trend.LastErrorMessage = event.ErrorMessage
 		}
-		if shouldProbeUnhealthyAccount(account) {
-			enabled[account.ID] = true
-		}
+		trend.LastResult = event.EventType
+		trend.LastLatencyMs = event.LatencyMs
+		createdAt := event.CreatedAt
+		trend.LastProbedAt = &createdAt
 	}
-	filtered := states[:0]
-	for _, state := range states {
-		if state != nil && enabled[state.AccountID] {
-			filtered = append(filtered, state)
-		}
+	if trend.Total > 0 {
+		rate := float64(trend.SuccessCount) * 100 / float64(trend.Total)
+		trend.SuccessRate = &rate
 	}
-	return filtered, nil
+	if len(latencies) > 0 {
+		sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+		trend.P50LatencyMs = percentileLatency(latencies, 0.50)
+		trend.P95LatencyMs = percentileLatency(latencies, 0.95)
+	}
+	trend.Points = aggregateAccountProbePoints(events, bucket)
+	return trend
 }
 
-func (s *AccountHealthService) ClaimDueProbe(ctx context.Context, accountID int64, now time.Time, leaseUntil time.Time) (bool, error) {
-	if s == nil || s.repo == nil || accountID <= 0 || !leaseUntil.After(now) {
-		return false, nil
-	}
-	return s.repo.ClaimDueProbe(ctx, accountID, now, leaseUntil)
-}
-
-func (s *AccountHealthService) appendHealthyProbeDueStates(ctx context.Context, now time.Time, states []*AccountHealthState, limit int) []*AccountHealthState {
-	if s == nil || s.accountRepo == nil || len(states) >= limit {
-		return states
-	}
-	var accounts []Account
-	if candidateRepo, ok := s.accountRepo.(accountHealthHealthyProbeCandidateRepository); ok {
-		var err error
-		accounts, err = candidateRepo.ListHealthyProbeCandidates(ctx, now, limit-len(states))
-		if err != nil || len(accounts) == 0 {
-			return states
-		}
-	} else {
-		listed, _, err := s.accountRepo.List(ctx, pagination.PaginationParams{Page: 1, PageSize: accountHealthOverviewAccountLimit})
-		if err != nil || len(listed) == 0 {
-			return states
-		}
-		accounts = listed
-	}
-	existing := make(map[int64]struct{}, len(states))
-	for _, state := range states {
-		if state != nil {
-			existing[state.AccountID] = struct{}{}
-		}
-	}
-	candidates := make([]int64, 0)
-	for i := range accounts {
-		account := accounts[i]
-		if _, ok := existing[account.ID]; ok {
-			continue
-		}
-		if !shouldProbeHealthyAccount(&account) {
-			continue
-		}
-		candidates = append(candidates, account.ID)
-	}
-	if len(candidates) == 0 {
-		return states
-	}
-	healthByID, err := s.repo.ListByAccountIDs(ctx, candidates)
-	if err != nil {
-		return states
-	}
-	for i := range accounts {
-		if len(states) >= limit {
-			break
-		}
-		account := accounts[i]
-		if _, ok := existing[account.ID]; ok {
-			continue
-		}
-		if !shouldProbeHealthyAccount(&account) {
-			continue
-		}
-		state := healthByID[account.ID]
-		if state == nil {
-			states = append(states, defaultAccountHealthState(account.ID, now))
-			existing[account.ID] = struct{}{}
-			continue
-		}
-		if state.Status != AccountHealthStatusHealthy {
-			continue
-		}
-		if healthyProbeDueAt(state, &account).After(now) {
-			continue
-		}
-		states = append(states, state)
-		existing[account.ID] = struct{}{}
-	}
-	return states
-}
-
-func findAccountHealthState(states []*AccountHealthState, accountID int64) *AccountHealthState {
-	for _, state := range states {
-		if state != nil && state.AccountID == accountID {
-			return state
-		}
-	}
-	return nil
-}
-
-func (s *AccountHealthService) Overview(ctx context.Context) (*AccountHealthOverview, error) {
-	if s == nil {
-		return &AccountHealthOverview{GeneratedAt: time.Now()}, nil
-	}
-	accounts, _, err := s.accountRepo.List(ctx, pagination.PaginationParams{Page: 1, PageSize: accountHealthOverviewAccountLimit})
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]int64, 0, len(accounts))
-	for i := range accounts {
-		ids = append(ids, accounts[i].ID)
-	}
-	healthByID, err := s.ListByAccountIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	byURL := make(map[string][]AccountHealthSummary)
-	availableByGroup := make(map[int64]int)
-	boundByGroup := make(map[int64]int)
-	groupNames := make(map[int64]string)
-	for i := range accounts {
-		summary := healthByID[accounts[i].ID]
-		if summary == nil {
-			continue
-		}
-		baseURL := summary.BaseURL
-		if baseURL == "" {
-			baseURL = "(no upstream url)"
-		}
-		byURL[baseURL] = append(byURL[baseURL], *summary)
-		if summary.Schedulable && summary.Status != AccountHealthStatusIsolated {
-			for _, gid := range summary.GroupIDs {
-				availableByGroup[gid]++
+func aggregateAccountProbePoints(events []AccountHealthEvent, bucket time.Duration) []AccountProbePoint {
+	if bucket <= 0 {
+		points := make([]AccountProbePoint, 0, len(events))
+		for _, event := range events {
+			point := AccountProbePoint{Timestamp: event.CreatedAt, ErrorCategory: event.ErrorCategory, ErrorMessage: event.ErrorMessage}
+			if event.EventType == AccountHealthEventTypeSuccess {
+				point.SuccessCount = 1
+				point.LatencyMs = event.LatencyMs
+			} else {
+				point.FailureCount = 1
 			}
+			points = append(points, point)
 		}
-		for i, gid := range summary.GroupIDs {
-			boundByGroup[gid]++
-			if i < len(summary.GroupNames) {
-				groupNames[gid] = summary.GroupNames[i]
+		return points
+	}
+	type bucketValue struct {
+		point     AccountProbePoint
+		latencies []int64
+	}
+	values := make(map[time.Time]*bucketValue)
+	order := make([]time.Time, 0)
+	for _, event := range events {
+		key := event.CreatedAt.UTC().Truncate(bucket)
+		value := values[key]
+		if value == nil {
+			value = &bucketValue{point: AccountProbePoint{Timestamp: key}}
+			values[key] = value
+			order = append(order, key)
+		}
+		if event.EventType == AccountHealthEventTypeSuccess {
+			value.point.SuccessCount++
+			if event.LatencyMs != nil {
+				value.latencies = append(value.latencies, *event.LatencyMs)
 			}
+		} else {
+			value.point.FailureCount++
+			value.point.ErrorCategory = event.ErrorCategory
+			value.point.ErrorMessage = event.ErrorMessage
 		}
 	}
-	urls := make([]AccountHealthURLOverview, 0, len(byURL))
-	var overviewRisks []AccountHealthRisk
-	for baseURL, items := range byURL {
-		sort.SliceStable(items, func(i, j int) bool { return items[i].AccountID < items[j].AccountID })
-		insufficient := make(map[int64]struct{})
-		for _, item := range items {
-			for _, gid := range item.GroupIDs {
-				if availableByGroup[gid] <= 0 {
-					insufficient[gid] = struct{}{}
-				}
-			}
+	sort.Slice(order, func(i, j int) bool { return order[i].Before(order[j]) })
+	points := make([]AccountProbePoint, 0, len(order))
+	for _, key := range order {
+		value := values[key]
+		if len(value.latencies) > 0 {
+			sort.Slice(value.latencies, func(i, j int) bool { return value.latencies[i] < value.latencies[j] })
+			value.point.LatencyMs = percentileLatency(value.latencies, 0.50)
 		}
-		ids := make([]int64, 0, len(insufficient))
-		names := make([]string, 0, len(insufficient))
-		for gid := range insufficient {
-			ids = append(ids, gid)
-		}
-		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-		for _, gid := range ids {
-			if name := groupNames[gid]; name != "" {
-				names = append(names, name)
-			}
-		}
-		risks := buildAccountHealthURLRisks(baseURL, items, availableByGroup, boundByGroup, groupNames)
-		overviewRisks = append(overviewRisks, risks...)
-		urls = append(urls, AccountHealthURLOverview{BaseURL: baseURL, Accounts: items, Risks: risks, InsufficientGroupIDs: ids, InsufficientGroupNames: names})
+		points = append(points, value.point)
 	}
-	sort.SliceStable(urls, func(i, j int) bool { return urls[i].BaseURL < urls[j].BaseURL })
-	sortAccountHealthRisks(overviewRisks)
-	return &AccountHealthOverview{GeneratedAt: s.now(), URLs: urls, Risks: overviewRisks}, nil
+	return points
 }
 
-func (s *AccountHealthService) getOrDefault(ctx context.Context, accountID int64) (*AccountHealthState, error) {
-	state, err := s.repo.Get(ctx, accountID)
-	if err != nil {
-		return nil, err
-	}
-	if state == nil {
-		return defaultAccountHealthState(accountID, s.now()), nil
-	}
-	return state, nil
-}
-
-func (s *AccountHealthService) enrichSummary(state *AccountHealthState, account *Account) *AccountHealthSummary {
-	if state == nil || account == nil {
+func percentileLatency(sorted []int64, percentile float64) *int64 {
+	if len(sorted) == 0 {
 		return nil
 	}
-	summary := &AccountHealthSummary{AccountHealthState: *state}
-	summary.AccountName = account.Name
-	summary.Platform = account.Platform
-	summary.Type = account.Type
-	summary.RateMultiplier = account.BillingRateMultiplier()
-	summary.RateMultiplierConfigured = account.RateMultiplier != nil && math.Abs(account.BillingRateMultiplier()-1) > 1e-9
-	summary.Schedulable = account.IsSchedulable()
-	summary.TempUnschedulableUntil = account.TempUnschedulableUntil
-	summary.HealthProbeEnabled = account.HealthProbeEnabled
-	summary.HealthProbeIntervalMinutes = account.HealthProbeIntervalMinutes
-	summary.HealthProbeModel = account.HealthProbeModel
-	summary.HealthyProbeEnabled = account.HealthyProbeEnabled
-	summary.HealthyProbeIntervalMinutes = account.HealthyProbeIntervalMinutes
-	summary.HealthyProbeIntervalHours = account.HealthyProbeIntervalHours
-	summary.BaseURL = accountHealthBaseURL(account)
-	summary.KeyFingerprint = accountHealthKeyFingerprint(account)
-	summary.GroupIDs = append([]int64(nil), account.GroupIDs...)
-	for _, g := range account.Groups {
-		if g != nil {
-			summary.GroupNames = append(summary.GroupNames, g.Name)
-		}
+	index := int(math.Ceil(percentile*float64(len(sorted)))) - 1
+	if index < 0 {
+		index = 0
 	}
-	if len(summary.GroupIDs) == 0 && len(account.AccountGroups) > 0 {
-		for _, ag := range account.AccountGroups {
-			summary.GroupIDs = append(summary.GroupIDs, ag.GroupID)
-			if ag.Group != nil {
-				summary.GroupNames = append(summary.GroupNames, ag.Group.Name)
-			}
-		}
+	if index >= len(sorted) {
+		index = len(sorted) - 1
 	}
-	return summary
+	value := sorted[index]
+	return &value
 }
 
-func defaultAccountHealthState(accountID int64, now time.Time) *AccountHealthState {
-	return &AccountHealthState{AccountID: accountID, Score: defaultAccountHealthScore, Status: AccountHealthStatusHealthy, CreatedAt: now, UpdatedAt: now}
+func parseAccountProbeRange(value string) (string, time.Duration, time.Duration, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "24h":
+		return "24h", 24 * time.Hour, 0, nil
+	case "7d":
+		return "7d", 7 * 24 * time.Hour, time.Hour, nil
+	case "30d":
+		return "30d", 30 * 24 * time.Hour, 6 * time.Hour, nil
+	default:
+		return "", 0, 0, fmt.Errorf("invalid probe range")
+	}
 }
 
-func AccountHealthSortValue(states map[int64]*AccountHealthSummary, accountID int64) (score int, latency int) {
-	if state := states[accountID]; state != nil {
-		latency = math.MaxInt
-		if state.SchedulerLatencyEWMAMs != nil {
-			latency = *state.SchedulerLatencyEWMAMs
-		}
-		return state.Score, latency
-	}
-	return defaultAccountHealthScore, math.MaxInt
-}
-
-func AccountHealthConsecutiveHighLatency(states map[int64]*AccountHealthSummary, accountID int64) int {
-	if state := states[accountID]; state != nil {
-		return state.ConsecutiveHighLatency
-	}
-	return 0
-}
-
-func accountHealthBaseURL(account *Account) string {
-	if account == nil {
-		return ""
-	}
-	for _, key := range []string{"base_url", "custom_base_url", "upstream_url", "api_url", "endpoint"} {
-		if value, ok := account.Credentials[key].(string); ok && strings.TrimSpace(value) != "" {
-			return strings.TrimRight(strings.TrimSpace(value), "/")
-		}
-	}
-	if value, ok := account.Extra["custom_base_url"].(string); ok && strings.TrimSpace(value) != "" {
-		return strings.TrimRight(strings.TrimSpace(value), "/")
-	}
-	return ""
-}
-
-func accountHealthKeyFingerprint(account *Account) string {
-	if account == nil {
-		return ""
-	}
-	for _, key := range []string{"api_key", "key", "access_token", "refresh_token", "session_key", "cookie"} {
-		if value, ok := account.Credentials[key].(string); ok && strings.TrimSpace(value) != "" {
-			sum := sha256.Sum256([]byte(value))
-			return hex.EncodeToString(sum[:])[:12]
-		}
-	}
-	return ""
-}
-
-func clampHealthScore(score int) int {
-	if score < 0 {
-		return 0
-	}
-	if score > 100 {
-		return 100
-	}
-	return score
-}
-
-func nextBackoffLevel(level int) int {
-	if level < 0 {
-		return 0
-	}
-	if level >= len(accountHealthBackoffSteps)-1 {
-		return len(accountHealthBackoffSteps) - 1
-	}
-	return level + 1
-}
-
-func backoffDuration(level int) time.Duration {
-	if level < 0 {
-		level = 0
-	}
-	if level >= len(accountHealthBackoffSteps) {
-		level = len(accountHealthBackoffSteps) - 1
-	}
-	return accountHealthBackoffSteps[level]
-}
-
-func (s *AccountHealthService) nextProbeDelay(ctx context.Context, accountID int64, backoffLevel int) time.Duration {
-	if delay, ok := s.configuredProbeDelay(ctx, accountID); ok {
-		return delay
-	}
-	return backoffDuration(backoffLevel)
-}
-
-func (s *AccountHealthService) nextProbeDelayForState(ctx context.Context, accountID int64, state *AccountHealthState) time.Duration {
-	if s != nil && s.accountRepo != nil {
-		account, err := s.accountRepo.GetByID(ctx, accountID)
-		if err == nil && account != nil && account.HasActiveExternalSchedulingHold(s.now()) {
-			return time.Minute
-		}
-	}
-	if state == nil {
-		return s.nextProbeDelay(ctx, accountID, 0)
-	}
-	if state.LastErrorCategory != "auth_error" && (state.Status == AccountHealthStatusIsolated || state.Status == AccountHealthStatusRecovering) {
-		if delay, ok := s.configuredProbeDelay(ctx, accountID); ok {
-			return delay
-		}
-		return 5 * time.Minute
-	}
-	return s.nextProbeDelay(ctx, accountID, state.BackoffLevel)
-}
-
-func (s *AccountHealthService) configuredProbeDelay(ctx context.Context, accountID int64) (time.Duration, bool) {
-	if s == nil || s.accountRepo == nil {
-		return 0, false
-	}
-	account, err := s.accountRepo.GetByID(ctx, accountID)
-	if err != nil || account == nil || account.HealthProbeIntervalMinutes == nil || *account.HealthProbeIntervalMinutes <= 0 {
-		return 0, false
-	}
-	return time.Duration(*account.HealthProbeIntervalMinutes) * time.Minute, true
-}
-
-func (s *AccountHealthService) shouldSoftUnscheduleDegraded(state *AccountHealthState) bool {
-	if state == nil || state.Status != AccountHealthStatusDegraded {
-		return false
-	}
-	if state.Score < accountHealthRecoveryScore {
-		return true
-	}
-	return accountHealthIsModelConfigFailure(state.LastErrorCategory, state.LastErrorMessage) && state.ConsecutiveFailures >= 2
-}
-
-func (s *AccountHealthService) insertHealthEvent(ctx context.Context, before, after *AccountHealthState, source, eventType, category, message string, latencyMs int64, actorUserID *int64) error {
-	if s == nil || s.repo == nil || before == nil || after == nil {
-		return nil
-	}
-	latency := (*int64)(nil)
-	if latencyMs > 0 {
-		latency = &latencyMs
-	}
-	event := &AccountHealthEvent{
-		AccountID:        after.AccountID,
-		Source:           source,
-		EventType:        eventType,
-		ScoreBefore:      before.Score,
-		ScoreAfter:       after.Score,
-		StatusBefore:     before.Status,
-		StatusAfter:      after.Status,
-		Delta:            after.Score - before.Score,
-		ErrorCategory:    truncateAccountHealthString(strings.TrimSpace(category), 40),
-		ErrorMessage:     truncateAccountHealthString(redactAccountHealthMessage(message), 1000),
-		LatencyMs:        latency,
-		AffectedGroupIDs: s.affectedGroupIDs(ctx, after.AccountID),
-		ActorUserID:      actorUserID,
-		CreatedAt:        s.now(),
-	}
-	return s.repo.InsertEvent(ctx, event)
-}
-
-func (s *AccountHealthService) affectedGroupIDs(ctx context.Context, accountID int64) []int64 {
-	if s == nil || s.accountRepo == nil {
-		return nil
-	}
-	account, err := s.accountRepo.GetByID(ctx, accountID)
-	if err != nil || account == nil {
-		return nil
-	}
-	ids := append([]int64(nil), account.GroupIDs...)
-	if len(ids) == 0 {
-		for _, ag := range account.AccountGroups {
-			ids = append(ids, ag.GroupID)
-		}
-	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-	return ids
-}
-
-func accountHealthSuccessEventType(before, after *AccountHealthState) string {
-	if before == nil || after == nil {
-		return AccountHealthEventTypeSuccess
-	}
-	if before.Status == AccountHealthStatusIsolated || before.Status == AccountHealthStatusRecovering {
-		if after.Status == AccountHealthStatusHealthy {
-			return AccountHealthEventTypeRecovered
-		}
-		return AccountHealthEventTypeRecovering
-	}
-	return AccountHealthEventTypeSuccess
-}
-
-func shouldSkipAccountHealthSuccessEvent(before, after *AccountHealthState, source string) bool {
-	if source != AccountHealthEventSourceRealRequest || before == nil || after == nil {
-		return false
-	}
-	return before.Score == 100 &&
-		after.Score == 100 &&
-		before.Status == after.Status &&
-		after.Status == AccountHealthStatusHealthy
-}
-
-func accountHealthFailureEventType(before, after *AccountHealthState) string {
-	if after == nil {
-		return AccountHealthEventTypeFailure
-	}
-	if after.Status == AccountHealthStatusIsolated && (before == nil || before.Status != AccountHealthStatusIsolated) {
-		return AccountHealthEventTypeIsolated
-	}
-	return AccountHealthEventTypeFailure
-}
-
-func buildAccountHealthURLRisks(baseURL string, items []AccountHealthSummary, availableByGroup, boundByGroup map[int64]int, groupNames map[int64]string) []AccountHealthRisk {
-	risks := make([]AccountHealthRisk, 0)
-	healthyLike := 0
-	for i := range items {
-		item := items[i]
-		if item.Schedulable && item.Status != AccountHealthStatusIsolated {
-			healthyLike++
-		}
-		if item.ConsecutiveFailures > 0 && item.Status != AccountHealthStatusIsolated {
-			id := item.AccountID
-			risks = append(risks, AccountHealthRisk{Level: "warning", Type: "consecutive_failures", Message: "account has recent consecutive failures", BaseURL: baseURL, AccountID: &id, Count: item.ConsecutiveFailures, Threshold: accountHealthIsolationFailures})
-		}
-		if item.HealthProbeEnabled && !item.HealthyProbeEnabled && item.Status == AccountHealthStatusHealthy {
-			id := item.AccountID
-			risks = append(risks, AccountHealthRisk{Level: "info", Type: "healthy_probe_disabled", Message: "healthy low-frequency probe disabled", BaseURL: baseURL, AccountID: &id})
-		}
-	}
-	if len(items) > 0 && healthyLike == 0 {
-		risks = append(risks, AccountHealthRisk{Level: "critical", Type: "url_all_isolated", Message: "all accounts under this upstream URL are unavailable", BaseURL: baseURL, Count: len(items)})
-	}
-	seenGroups := map[int64]struct{}{}
-	for _, item := range items {
-		for _, gid := range item.GroupIDs {
-			if _, ok := seenGroups[gid]; ok {
-				continue
-			}
-			seenGroups[gid] = struct{}{}
-			available := availableByGroup[gid]
-			bound := boundByGroup[gid]
-			name := groupNames[gid]
-			groupID := gid
-			if bound > 0 && available == 0 {
-				risks = append(risks, AccountHealthRisk{Level: "critical", Type: "group_no_available_accounts", Message: "group has no available accounts", BaseURL: baseURL, GroupID: &groupID, GroupName: name, Count: available})
-			} else if available == 1 {
-				risks = append(risks, AccountHealthRisk{Level: "warning", Type: "group_single_available_account", Message: "group has only one available account", BaseURL: baseURL, GroupID: &groupID, GroupName: name, Count: available, Threshold: 1})
-			}
-		}
-	}
-	sortAccountHealthRisks(risks)
-	return risks
-}
-
-func sortAccountHealthRisks(risks []AccountHealthRisk) {
-	priority := map[string]int{"critical": 0, "warning": 1, "info": 2}
-	sort.SliceStable(risks, func(i, j int) bool {
-		if priority[risks[i].Level] != priority[risks[j].Level] {
-			return priority[risks[i].Level] < priority[risks[j].Level]
-		}
-		if risks[i].Type != risks[j].Type {
-			return risks[i].Type < risks[j].Type
-		}
-		if risks[i].BaseURL != risks[j].BaseURL {
-			return risks[i].BaseURL < risks[j].BaseURL
-		}
-		return risks[i].Count > risks[j].Count
-	})
-}
-
-func healthyProbeInterval(account *Account) time.Duration {
-	if account != nil && account.HealthyProbeIntervalMinutes != nil && *account.HealthyProbeIntervalMinutes > 0 {
-		return time.Duration(*account.HealthyProbeIntervalMinutes) * time.Minute
-	}
-	if account != nil && account.HealthyProbeIntervalHours != nil && *account.HealthyProbeIntervalHours > 0 {
-		return time.Duration(*account.HealthyProbeIntervalHours) * time.Hour
-	}
-	return accountHealthDefaultHealthyHours * time.Hour
-}
-
-func healthyProbeDueAt(state *AccountHealthState, account *Account) time.Time {
-	base := time.Time{}
-	if state != nil {
-		if state.LastCheckedAt != nil {
-			base = *state.LastCheckedAt
-		} else if state.LastSuccessAt != nil {
-			base = *state.LastSuccessAt
-		} else if !state.UpdatedAt.IsZero() {
-			base = state.UpdatedAt
-		} else if !state.CreatedAt.IsZero() {
-			base = state.CreatedAt
-		}
-	}
-	return base.Add(healthyProbeInterval(account))
-}
-
-func shouldProbeUnhealthyAccount(account *Account) bool {
-	if account == nil {
-		return false
-	}
-	if account.HasActiveExternalSchedulingHold(time.Now()) {
-		return account.IsActive() && account.Schedulable
-	}
-	if !account.HealthProbeEnabled {
-		return false
-	}
-	if account.IsSchedulable() {
-		return true
-	}
-	return account.TempUnschedulableUntil != nil
-}
-
-func shouldProbeHealthyAccount(account *Account) bool {
-	if account == nil {
-		return false
-	}
-	if account.HasActiveExternalSchedulingHold(time.Now()) {
-		return account.IsActive() && account.Schedulable
-	}
-	if !account.HealthProbeEnabled || !account.HealthyProbeEnabled {
-		return false
-	}
-	return account.Schedulable && account.IsSchedulable()
-}
-
-func canFastRecoverFromProbeSuccess(state *AccountHealthState) bool {
-	if state == nil {
-		return false
-	}
-	if state.Status != AccountHealthStatusIsolated && state.Status != AccountHealthStatusRecovering {
-		return false
-	}
-	return state.LastErrorCategory != "auth_error"
-}
-
-func (s *AccountHealthService) shouldRecoverAuthErrorAfterManualProbeSuccess(ctx context.Context, accountID int64, before *AccountHealthState, source string) bool {
-	if s == nil || s.repo == nil || before == nil || source != AccountHealthEventSourceManualProbe {
-		return false
-	}
-	if before.LastErrorCategory != "auth_error" {
-		return false
-	}
-	successes := 1 // current manual probe success, not inserted yet
-	events, err := s.repo.ListEvents(ctx, accountID, "", pagination.PaginationParams{Page: 1, PageSize: 20})
-	if err != nil || events == nil {
-		return false
-	}
-	sort.SliceStable(events.Items, func(i, j int) bool {
-		if events.Items[i].CreatedAt.Equal(events.Items[j].CreatedAt) {
-			return events.Items[i].ID > events.Items[j].ID
-		}
-		return events.Items[i].CreatedAt.After(events.Items[j].CreatedAt)
-	})
-	for _, event := range events.Items {
-		if before.LastFailureAt != nil && !event.CreatedAt.After(*before.LastFailureAt) {
+func normalizeAccountProbeIDs(ids []int64) []int64 {
+	seen := make(map[int64]struct{}, len(ids))
+	out := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
 			continue
 		}
-		if event.EventType == AccountHealthEventTypeFailure {
-			return false
-		}
-		if event.Source != AccountHealthEventSourceManualProbe {
+		if _, ok := seen[id]; ok {
 			continue
 		}
-		switch event.EventType {
-		case AccountHealthEventTypeSuccess, AccountHealthEventTypeRecovering, AccountHealthEventTypeRecovered:
-			successes++
-		}
-		if successes >= accountHealthManualAuthRecoveries {
-			return true
-		}
+		seen[id] = struct{}{}
+		out = append(out, id)
 	}
-	return false
+	return out
 }
 
-func accountHealthPtrTime(t time.Time) *time.Time { return &t }
+func nextScheduledAccountProbe(account *Account, now time.Time) *time.Time {
+	if account == nil || account.Status != StatusActive || !account.Schedulable || !account.HealthProbeEnabled || (account.TempUnschedulableUntil != nil && account.TempUnschedulableUntil.After(now)) {
+		return nil
+	}
+	next := now.Add(accountProbeInterval(account))
+	return &next
+}
 
-func truncateAccountHealthString(value string, max int) string {
+func accountProbeInterval(account *Account) time.Duration {
+	if account != nil {
+		if account.HealthProbeIntervalMinutes != nil && *account.HealthProbeIntervalMinutes > 0 {
+			return time.Duration(*account.HealthProbeIntervalMinutes) * time.Minute
+		}
+		// Keep the previous healthy-probe cadence as a migration-free fallback.
+		if account.HealthyProbeIntervalMinutes != nil && *account.HealthyProbeIntervalMinutes > 0 {
+			return time.Duration(*account.HealthyProbeIntervalMinutes) * time.Minute
+		}
+		if account.HealthyProbeIntervalHours != nil && *account.HealthyProbeIntervalHours > 0 {
+			return time.Duration(*account.HealthyProbeIntervalHours) * time.Hour
+		}
+	}
+	return accountProbeDefaultInterval
+}
+
+func accountHealthProbeFailureCategory(message string) string {
+	normalized := strings.ToLower(strings.TrimSpace(message))
+	switch {
+	case strings.Contains(normalized, "invalid_api_key"), strings.Contains(normalized, "invalid api key"), strings.Contains(normalized, "unauthorized"), strings.Contains(normalized, "authentication failed"), strings.Contains(normalized, "returned 401"), strings.Contains(normalized, "returned 403"):
+		return "auth_error"
+	case strings.Contains(normalized, "quota exceeded"), strings.Contains(normalized, "insufficient balance"), strings.Contains(normalized, "insufficient quota"), strings.Contains(normalized, "余额不足"):
+		return "quota_exceeded"
+	case strings.Contains(normalized, "model_not_found"), strings.Contains(normalized, "model not found"), strings.Contains(normalized, "model does not exist"), strings.Contains(normalized, "model unavailable"), strings.Contains(normalized, "unknown model"), strings.Contains(normalized, "unsupported model"):
+		return "model_not_found"
+	default:
+		return "probe_failed"
+	}
+}
+
+func AccountHealthProbeFailureCategory(message string) string {
+	return accountHealthProbeFailureCategory(message)
+}
+
+func truncateAccountProbeString(value string, max int) string {
+	value = strings.TrimSpace(value)
 	if max <= 0 || len(value) <= max {
 		return value
+	}
+	for max > 0 && !utf8.RuneStart(value[max]) {
+		max--
 	}
 	return value[:max]
 }
 
-func redactAccountHealthMessage(message string) string {
+func redactAccountProbeMessage(message string) string {
 	message = strings.TrimSpace(message)
 	if message == "" {
 		return ""
 	}
+	message = accountProbeBearerTokenPattern.ReplaceAllString(message, "Bearer ***")
 	return logredact.RedactText(message, "api_key", "key", "authorization", "cookie", "token", "session_key")
 }

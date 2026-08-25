@@ -430,7 +430,6 @@ type OpenAIGatewayService struct {
 	balanceNotifyService  *BalanceNotifyService
 	settingService        *SettingService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
-	accountHealthService  *AccountHealthService
 	liveAttestation       liveattestation.Provider
 	liveAttestationCipher SecretEncryptor
 

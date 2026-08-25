@@ -24,7 +24,7 @@
             </button>
             <button @click="$emit('health-detail', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-dark-700">
               <Icon name="infoCircle" size="sm" class="text-sky-500" />
-              {{ t('admin.accounts.healthDetailSettings') }}
+              {{ t('admin.accounts.probeDetail') }}
             </button>
             <button @click="$emit('health-probe', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-dark-700">
               <Icon name="beaker" size="sm" class="text-emerald-500" />

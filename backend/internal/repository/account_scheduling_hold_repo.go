@@ -518,27 +518,23 @@ func (r *accountSchedulingHoldRepository) readHold(ctx context.Context, accountI
 
 func (r *accountSchedulingHoldRepository) readHealth(ctx context.Context, accountID int64, state *service.AccountSchedulingState, account *service.Account, holdActive bool) error {
 	var health service.AccountSchedulingHealthEvidence
-	var lastChecked, nextProbe sql.NullTime
+	var nextProbe sql.NullTime
 	err := r.db.QueryRowContext(ctx, `
-		SELECT score, status, consecutive_successes, last_checked_at, next_probe_at
+		SELECT next_probe_at
 		FROM account_health_states
 		WHERE account_id = $1
-	`, accountID).Scan(&health.Score, &health.Status, &health.ConsecutiveSuccesses, &lastChecked, &nextProbe)
+	`, accountID).Scan(&nextProbe)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
 	if err != nil {
 		return service.ErrSchedulingHoldUnavailable.WithCause(err)
 	}
-	if lastChecked.Valid {
-		value := lastChecked.Time
-		health.LastCheckedAt = &value
-	}
 	if nextProbe.Valid {
 		value := nextProbe.Time
 		health.NextProbeAt = &value
 	}
-	health.ProbeEnabled = schedulingStateProbeEnabled(account, health.Status, holdActive)
+	health.ProbeEnabled = schedulingStateProbeEnabled(account, holdActive)
 	if !health.ProbeEnabled {
 		health.NextProbeAt = nil
 	}
@@ -546,7 +542,7 @@ func (r *accountSchedulingHoldRepository) readHealth(ctx context.Context, accoun
 	return nil
 }
 
-func schedulingStateProbeEnabled(account *service.Account, healthStatus string, holdActive bool) bool {
+func schedulingStateProbeEnabled(account *service.Account, holdActive bool) bool {
 	if account == nil || !account.IsActive() || !account.Schedulable {
 		return false
 	}
@@ -556,10 +552,7 @@ func schedulingStateProbeEnabled(account *service.Account, healthStatus string, 
 	if !account.HealthProbeEnabled {
 		return false
 	}
-	if healthStatus == service.AccountHealthStatusHealthy {
-		return account.HealthyProbeEnabled && account.IsSchedulable()
-	}
-	return account.IsSchedulable() || account.TempUnschedulableUntil != nil
+	return account.HealthProbeEnabled
 }
 
 func buildAccountSchedulingState(account *service.Account, now time.Time) *service.AccountSchedulingState {

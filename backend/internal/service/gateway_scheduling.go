@@ -444,9 +444,27 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 
 			if len(routingAvailable) > 0 {
-				health := s.loadAccountHealthSummaries(ctx, accounts)
-				sortAccountWithLoadByHealthCostAndLoad(routingAvailable, health, preferOAuth, s.gatewaySchedulingConfig(ctx))
-				shuffleWithinSortGroups(routingAvailable, health, preferOAuth, s.gatewaySchedulingConfig(ctx))
+				// 排序：优先级 > 负载率 > 最后使用时间
+				sort.SliceStable(routingAvailable, func(i, j int) bool {
+					a, b := routingAvailable[i], routingAvailable[j]
+					if a.account.Priority != b.account.Priority {
+						return a.account.Priority < b.account.Priority
+					}
+					if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
+						return a.loadInfo.LoadRate < b.loadInfo.LoadRate
+					}
+					switch {
+					case a.account.LastUsedAt == nil && b.account.LastUsedAt != nil:
+						return true
+					case a.account.LastUsedAt != nil && b.account.LastUsedAt == nil:
+						return false
+					case a.account.LastUsedAt == nil && b.account.LastUsedAt == nil:
+						return false
+					default:
+						return a.account.LastUsedAt.Before(*b.account.LastUsedAt)
+					}
+				})
+				shuffleWithinSortGroups(routingAvailable)
 
 				// 4. 尝试获取槽位
 				for _, item := range routingAvailable {
@@ -690,11 +708,22 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 		}
 
-		health := s.loadAccountHealthSummaries(ctx, accounts)
-		sortAccountWithLoadByHealthCostAndLoad(available, health, preferOAuth, s.gatewaySchedulingConfig(ctx))
-		shuffleWithinSortGroups(available, health, preferOAuth, s.gatewaySchedulingConfig(ctx))
+		// 分层过滤选择：优先级 →（可选）最早重置 → 负载率 → LRU
+		for len(available) > 0 {
+			// 1. 取优先级最小的集合
+			candidates := filterByMinPriority(available)
+			// 2. （可选）use-it-or-lose-it：优先选用会话窗口最早重置的账号
+			if cfg.PreferSoonestReset {
+				candidates = filterBySoonestReset(candidates)
+			}
+			// 3. 取负载率最低的集合
+			candidates = filterByMinLoadRate(candidates)
+			// 4. LRU 选择最久未用的账号
+			selected := selectByLRU(candidates, preferOAuth)
+			if selected == nil {
+				break
+			}
 
-		for _, selected := range available {
 			result, err := s.tryAcquireAccountSlot(ctx, selected.account.ID, selected.account.Concurrency)
 			if err == nil && result.Acquired {
 				// 会话数量限制检查
@@ -707,6 +736,16 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					return s.newSelectionResult(ctx, selected.account, true, result.ReleaseFunc, nil)
 				}
 			}
+
+			// 移除已尝试的账号，重新进行分层过滤
+			selectedID := selected.account.ID
+			newAvailable := make([]accountWithLoad, 0, len(available)-1)
+			for _, acc := range available {
+				if acc.account.ID != selectedID {
+					newAvailable = append(newAvailable, acc)
+				}
+			}
+			available = newAvailable
 		}
 	}
 
@@ -765,14 +804,6 @@ func (s *GatewayService) schedulingConfig() config.GatewaySchedulingConfig {
 		LoadBatchEnabled:         true,
 		SlotCleanupInterval:      30 * time.Second,
 	}
-}
-
-func (s *GatewayService) gatewaySchedulingConfig(ctx context.Context) config.GatewaySchedulingConfig {
-	cfg := s.schedulingConfig()
-	if s != nil && s.settingService != nil {
-		return s.settingService.GatewaySchedulingConfigWithRuntimeWeights(ctx, cfg)
-	}
-	return cfg
 }
 
 func (s *GatewayService) withGroupContext(ctx context.Context, group *Group) context.Context {
@@ -1636,67 +1667,27 @@ func sortAccountsByPriorityAndLastUsed(accounts []*Account, preferOAuth bool) {
 
 // shuffleWithinSortGroups 对排序后的 accountWithLoad 切片，按 (Priority, LoadRate, LastUsedAt) 分组后组内随机打乱。
 // 防止并发请求读取同一快照时，确定性排序导致所有请求命中相同账号。
-func shuffleWithinSortGroups(accounts []accountWithLoad, health map[int64]*AccountHealthSummary, preferOAuth bool, cfg config.GatewaySchedulingConfig) {
+func shuffleWithinSortGroups(accounts []accountWithLoad) {
 	if len(accounts) <= 1 {
 		return
 	}
-	costMedian := medianAccountWithLoadBillingRateMultiplier(accounts)
 	i := 0
 	for i < len(accounts) {
 		j := i + 1
-		for j < len(accounts) && sameAccountWithLoadGroup(accounts[i], accounts[j], health, cfg, costMedian) {
+		for j < len(accounts) && sameAccountWithLoadGroup(accounts[i], accounts[j]) {
 			j++
 		}
 		if j-i > 1 {
-			shuffleAccountWithLoadRange(accounts[i:j], preferOAuth)
+			mathrand.Shuffle(j-i, func(a, b int) {
+				accounts[i+a], accounts[i+b] = accounts[i+b], accounts[i+a]
+			})
 		}
 		i = j
 	}
 }
 
-
-func shuffleAccountWithLoadRange(accounts []accountWithLoad, preferOAuth bool) {
-	if len(accounts) <= 1 {
-		return
-	}
-	if !preferOAuth {
-		mathrand.Shuffle(len(accounts), func(a, b int) {
-			accounts[a], accounts[b] = accounts[b], accounts[a]
-		})
-		return
-	}
-	oauth := make([]accountWithLoad, 0, len(accounts))
-	others := make([]accountWithLoad, 0, len(accounts))
-	for _, item := range accounts {
-		if item.account != nil && item.account.Type == AccountTypeOAuth {
-			oauth = append(oauth, item)
-		} else {
-			others = append(others, item)
-		}
-	}
-	mathrand.Shuffle(len(oauth), func(a, b int) { oauth[a], oauth[b] = oauth[b], oauth[a] })
-	mathrand.Shuffle(len(others), func(a, b int) { others[a], others[b] = others[b], others[a] })
-	copy(accounts, oauth)
-	copy(accounts[len(oauth):], others)
-}
-
-// sameAccountWithLoadGroup 判断两个 accountWithLoad 是否属于同一排序组。
-// 开启健康排序时，只允许同健康层且加权总分接近的账号组内打散，避免明显更优账号被随机冲掉。
-func sameAccountWithLoadGroup(a, b accountWithLoad, health map[int64]*AccountHealthSummary, cfg config.GatewaySchedulingConfig, costMedian float64) bool {
-	if cfg.HealthSortEnabled {
-		aScore, _ := accountHealthSortValueForScheduling(health, a.account.ID, cfg)
-		bScore, _ := accountHealthSortValueForScheduling(health, b.account.ID, cfg)
-		aHighLatency := AccountHealthConsecutiveHighLatency(health, a.account.ID)
-		bHighLatency := AccountHealthConsecutiveHighLatency(health, b.account.ID)
-		if accountScheduleTierWithHighLatency(aScore, aHighLatency, cfg) != accountScheduleTierWithHighLatency(bScore, bHighLatency, cfg) {
-			return false
-		}
-		diff := accountWithLoadScheduleWeightedScore(a, health, cfg, costMedian) - accountWithLoadScheduleWeightedScore(b, health, cfg, costMedian)
-		if diff < 0 {
-			diff = -diff
-		}
-		return diff <= accountScheduleShuffleScoreWindow
-	}
+// sameAccountWithLoadGroup 判断两个 accountWithLoad 是否属于同一排序组
+func sameAccountWithLoadGroup(a, b accountWithLoad) bool {
 	if a.account.Priority != b.account.Priority {
 		return false
 	}

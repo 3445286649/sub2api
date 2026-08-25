@@ -780,7 +780,7 @@ func ProvideAPIKeyService(
 	return svc
 }
 
-// ProvideGatewayService wires GatewayService with account health recording/filtering.
+// ProvideGatewayService wires the standard gateway scheduling path.
 func ProvideGatewayService(
 	accountRepo AccountRepository,
 	groupRepo GroupRepository,
@@ -810,14 +810,12 @@ func ProvideGatewayService(
 	compositeResolver *CompositeRouteResolver,
 	balanceNotifyService *BalanceNotifyService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
-	accountHealthService *AccountHealthService,
 ) *GatewayService {
 	svc := NewGatewayService(accountRepo, groupRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, identityService, httpUpstream, deferredService, claudeTokenProvider, sessionLimitCache, rpmCache, digestSessionStore, settingService, tlsFingerprintProfileService, channelService, resolver, compositeResolver, balanceNotifyService, userPlatformQuotaRepo)
-	svc.SetAccountHealthService(accountHealthService)
 	return svc
 }
 
-// ProvideOpenAIGatewayService wires OpenAIGatewayService with account health recording/filtering.
+// ProvideOpenAIGatewayService wires the OpenAI gateway scheduling path.
 func ProvideOpenAIGatewayService(
 	accountRepo AccountRepository,
 	usageLogRepo UsageLogRepository,
@@ -841,10 +839,8 @@ func ProvideOpenAIGatewayService(
 	balanceNotifyService *BalanceNotifyService,
 	settingService *SettingService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
-	accountHealthService *AccountHealthService,
 ) *OpenAIGatewayService {
 	svc := NewOpenAIGatewayService(accountRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, httpUpstream, deferredService, openAITokenProvider, grokTokenProvider, resolver, channelService, balanceNotifyService, settingService, userPlatformQuotaRepo)
-	svc.SetAccountHealthService(accountHealthService)
 	return svc
 }
 

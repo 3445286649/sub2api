@@ -426,8 +426,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 	accounts := admin.Group("/accounts")
 	{
 		accounts.GET("", h.Admin.Account.List)
-		accounts.GET("/health/overview", h.Admin.Account.HealthOverview)
-		accounts.POST("/health/overview/balance/refresh", h.Admin.Account.RefreshHealthOverviewBalance)
+		accounts.GET("/health/trends", h.Admin.Account.GetHealthTrends)
 		accounts.GET("/upstream-billing-probe/settings", h.Admin.Account.GetUpstreamBillingProbeSettings)
 		accounts.PUT("/upstream-billing-probe/settings", h.Admin.Account.UpdateUpstreamBillingProbeSettings)
 		accounts.POST("/upstream-billing-probe/batch", h.Admin.Account.ProbeUpstreamBillingBatch)
@@ -495,7 +494,6 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.POST("/:id/schedulable", h.Admin.Account.SetSchedulable)
 		accounts.PATCH("/:id/rate-multiplier", h.Admin.Account.UpdateRateMultiplier)
 		accounts.GET("/:id/health", h.Admin.Account.GetHealth)
-		accounts.POST("/:id/health/reset", h.Admin.Account.ResetHealth)
 		accounts.POST("/:id/health/probe", h.Admin.Account.ProbeHealth)
 		accounts.GET("/:id/health/events", h.Admin.Account.ListHealthEvents)
 		accounts.PATCH("/:id/health/probe-settings", h.Admin.Account.UpdateHealthProbeSettings)

@@ -203,9 +203,7 @@ export default {
       "rateMultiplierSaved": "上游成本倍率已保存",
       "rateMultiplierSaveFailed": "上游成本倍率保存失败",
       "rateMultiplierInvalid": "请输入不小于 0 的成本倍率",
-      "healthDetailSettings": "健康详情/设置",
-      "probeInterval": "探活间隔（分钟）",
-      "healthyProbeIntervalOption": "{hours} 小时"
+      "probeInterval": "探活间隔（分钟）"
     },
     "redeem": {
       "types": {

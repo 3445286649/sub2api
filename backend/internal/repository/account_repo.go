@@ -1103,14 +1103,6 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	return outAccounts, paginationResultFromTotal(int64(total), params), nil
 }
 
-func (r *accountRepository) ListAllWithFilters(ctx context.Context, platform, accountType, status, search string, groupID int64, privacyMode string) ([]service.Account, error) {
-	accounts, err := r.accountListFilteredQuery(platform, accountType, status, search, groupID, privacyMode).All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return r.accountsToService(ctx, accounts)
-}
-
 func (r *accountRepository) ListOpsAccountsForStats(ctx context.Context, platformFilter string, groupIDFilter *int64) ([]service.Account, error) {
 	if r == nil || r.client == nil {
 		return []service.Account{}, nil
@@ -1371,20 +1363,13 @@ func (r *accountRepository) ListHealthyProbeCandidates(ctx context.Context, now 
 			AND a.status = 'active'
 			AND a.schedulable IS TRUE
 			AND a.health_probe_enabled IS TRUE
-			AND a.healthy_probe_enabled IS TRUE
-			AND (
-				a.temp_unschedulable_until IS NULL
-				OR a.temp_unschedulable_until <= $1
-			)
+			AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $1)
 			AND (
 				ahs.account_id IS NULL
-				OR (
-					ahs.status = 'healthy'
-					AND COALESCE(ahs.last_checked_at, ahs.last_success_at, ahs.updated_at, ahs.created_at, a.updated_at, a.created_at)
-						+ (CASE WHEN a.healthy_probe_interval_minutes IS NOT NULL AND a.healthy_probe_interval_minutes > 0 THEN a.healthy_probe_interval_minutes WHEN a.healthy_probe_interval_hours IS NOT NULL AND a.healthy_probe_interval_hours > 0 THEN a.healthy_probe_interval_hours * 60 ELSE 360 END * INTERVAL '1 minute') <= $1
-				)
+				OR ahs.next_probe_at IS NULL
+				OR ahs.next_probe_at <= $1
 			)
-		ORDER BY COALESCE(ahs.last_checked_at, ahs.last_success_at, ahs.updated_at, ahs.created_at, a.updated_at, a.created_at) ASC, a.id ASC
+		ORDER BY ahs.next_probe_at ASC NULLS FIRST, a.id ASC
 		LIMIT $2
 	`, now, limit)
 	if err != nil {

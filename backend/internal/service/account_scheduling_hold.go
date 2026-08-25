@@ -83,12 +83,8 @@ type AccountSchedulingExternalHold struct {
 }
 
 type AccountSchedulingHealthEvidence struct {
-	Score                int        `json:"score"`
-	Status               string     `json:"status"`
-	ConsecutiveSuccesses int        `json:"consecutive_successes"`
-	LastCheckedAt        *time.Time `json:"last_checked_at,omitempty"`
-	NextProbeAt          *time.Time `json:"next_probe_at,omitempty"`
-	ProbeEnabled         bool       `json:"probe_enabled"`
+	NextProbeAt  *time.Time `json:"next_probe_at,omitempty"`
+	ProbeEnabled bool       `json:"probe_enabled"`
 }
 
 type AccountSchedulingState struct {

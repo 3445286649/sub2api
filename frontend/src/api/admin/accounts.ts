@@ -13,9 +13,8 @@ import type {
   WindowStats,
   ClaudeModel,
   AccountUsageStatsResponse,
-  AccountHealthSummary,
-  AccountHealthOverview,
-  AccountUpstreamBalanceSnapshot,
+  AccountProbeDetail,
+  AccountProbeTrend,
   AccountHealthEventList,
   TempUnschedulableStatus,
   AdminDataPayload,
@@ -49,7 +48,6 @@ export async function list(
     search?: string
     privacy_mode?: string
     lite?: string
-    include_scheduler_score?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
   },
@@ -85,7 +83,6 @@ export async function listWithEtag(
     search?: string
     privacy_mode?: string
     lite?: string
-    include_scheduler_score?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
   },
@@ -540,8 +537,16 @@ export async function updateRateMultiplier(id: number, rateMultiplier: number): 
   return data
 }
 
-export async function getHealth(id: number): Promise<AccountHealthSummary> {
-  const { data } = await apiClient.get<AccountHealthSummary>(`/admin/accounts/${id}/health`)
+export async function getHealth(id: number, range: '24h' | '7d' | '30d' = '24h'): Promise<AccountProbeDetail> {
+  const { data } = await apiClient.get<AccountProbeDetail>(`/admin/accounts/${id}/health`, { params: { range } })
+  return data
+}
+
+export async function getHealthTrends(accountIds: number[]): Promise<AccountProbeTrend[]> {
+  if (accountIds.length === 0) return []
+  const { data } = await apiClient.get<AccountProbeTrend[]>('/admin/accounts/health/trends', {
+    params: { account_ids: accountIds.join(',') }
+  })
   return data
 }
 
@@ -551,34 +556,14 @@ export async function updateHealthProbeSettings(
     health_probe_enabled: boolean
     health_probe_interval_minutes?: number | null
     health_probe_model?: string | null
-    healthy_probe_enabled: boolean
-    healthy_probe_interval_minutes?: number | null
-    healthy_probe_interval_hours?: number | null
   }
-): Promise<AccountHealthSummary> {
-  const { data } = await apiClient.patch<AccountHealthSummary>(`/admin/accounts/${id}/health/probe-settings`, payload)
+): Promise<AccountProbeDetail> {
+  const { data } = await apiClient.patch<AccountProbeDetail>(`/admin/accounts/${id}/health/probe-settings`, payload)
   return data
 }
 
-export async function resetHealth(id: number): Promise<AccountHealthSummary> {
-  const { data } = await apiClient.post<AccountHealthSummary>(`/admin/accounts/${id}/health/reset`)
-  return data
-}
-
-export async function probeHealth(id: number): Promise<AccountHealthSummary> {
-  const { data } = await apiClient.post<AccountHealthSummary>(`/admin/accounts/${id}/health/probe`)
-  return data
-}
-
-export async function getHealthOverview(): Promise<AccountHealthOverview> {
-  const { data } = await apiClient.get<AccountHealthOverview>('/admin/accounts/health/overview')
-  return data
-}
-
-export async function refreshHealthOverviewBalance(baseUrl: string): Promise<AccountUpstreamBalanceSnapshot> {
-  const { data } = await apiClient.post<AccountUpstreamBalanceSnapshot>('/admin/accounts/health/overview/balance/refresh', {
-    base_url: baseUrl
-  })
+export async function probeHealth(id: number): Promise<AccountProbeDetail> {
+  const { data } = await apiClient.post<AccountProbeDetail>(`/admin/accounts/${id}/health/probe`)
   return data
 }
 
@@ -1102,11 +1087,9 @@ export const accountsAPI = {
   setSchedulable,
   updateRateMultiplier,
   getHealth,
-  resetHealth,
+  getHealthTrends,
   probeHealth,
   updateHealthProbeSettings,
-  getHealthOverview,
-  refreshHealthOverviewBalance,
   getHealthEvents,
   getAvailableModels,
   syncUpstreamModels,
