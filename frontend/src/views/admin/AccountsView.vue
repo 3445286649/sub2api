@@ -299,7 +299,7 @@
           <template #cell-probe_trend="{ row }">
             <button
               type="button"
-              class="flex h-11 w-[140px] flex-col justify-center text-left"
+              class="flex h-11 w-[140px] flex-col justify-center rounded px-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-dark-800"
               :title="probeTrendTitle(row.id)"
               @click="openHealthDetail(row)"
             >
@@ -307,12 +307,18 @@
               <span v-else-if="!probeTrendsByAccount[row.id]?.total" class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.accounts.probeNoData') }}</span>
               <template v-else>
                 <span class="flex items-center justify-between gap-2 text-[11px] leading-4">
-                  <span :class="probeTrendsByAccount[row.id].failure_count > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'">
-                    {{ probeTrendsByAccount[row.id].failure_count > 0 ? t('admin.accounts.probeAbnormal') : t('admin.accounts.probeNormal') }}
+                  <span :class="probeTrendsByAccount[row.id].last_result === 'failure' ? 'text-red-600 dark:text-red-400' : probeTrendsByAccount[row.id].last_result === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'">
+                    {{ probeResultLabel(probeTrendsByAccount[row.id].last_result) }}
                   </span>
                   <span class="font-mono text-gray-500 dark:text-gray-400">{{ formatLatencyMs(probeTrendsByAccount[row.id].last_latency_ms) }}</span>
                 </span>
-                <AccountProbeSparkline :trend="probeTrendsByAccount[row.id]" :ariaLabel="probeTrendTitle(row.id)" />
+                <AccountProbeStatusGrid
+                  :trend="probeTrendsByAccount[row.id]"
+                  :ariaLabel="probeTrendTitle(row.id)"
+                  :successLabel="t('admin.accounts.probeNormal')"
+                  :failureLabel="t('admin.accounts.probeAbnormal')"
+                  :emptyLabel="t('admin.accounts.probeNoData')"
+                />
               </template>
             </button>
           </template>
@@ -679,7 +685,7 @@ import AccountStatsModal from '@/components/admin/account/AccountStatsModal.vue'
 import ScheduledTestsPanel from '@/components/admin/account/ScheduledTestsPanel.vue'
 import type { SelectOption } from '@/components/common/Select.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
-import AccountProbeSparkline from '@/components/account/AccountProbeSparkline.vue'
+import AccountProbeStatusGrid from '@/components/account/AccountProbeStatusGrid.vue'
 import AccountProbeTrendChart from '@/components/account/AccountProbeTrendChart.vue'
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vue'

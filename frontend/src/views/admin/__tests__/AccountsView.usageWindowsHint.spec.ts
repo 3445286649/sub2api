@@ -129,7 +129,7 @@ function mountView() {
         AccountTodayStatsCell: true,
         AccountGroupsCell: true,
         AccountUsageCell: true,
-        AccountProbeSparkline: true,
+        AccountProbeStatusGrid: true,
         Icon: true
       }
     }
@@ -199,9 +199,9 @@ describe('admin AccountsView usage windows hint', () => {
         from: '2026-08-24T00:00:00Z',
         to: '2026-08-25T00:00:00Z',
         points: [],
-        total: 1,
+        total: 2,
         success_count: 1,
-        failure_count: 0,
+        failure_count: 1,
         last_result: 'success'
       }])
 

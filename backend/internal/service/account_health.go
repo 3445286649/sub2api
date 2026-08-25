@@ -18,7 +18,7 @@ const (
 	accountHealthDefaultProbePageSize = 100
 	accountProbeDefaultInterval       = 6 * time.Hour
 	accountProbeMaxBatchAccounts      = 100
-	accountProbeSparklinePointLimit   = 24
+	accountProbeListPointLimit        = 10
 )
 
 var accountProbeBearerTokenPattern = regexp.MustCompile(`(?i)\bBearer\s+[^\s,;]+`)
@@ -261,8 +261,8 @@ func (s *AccountHealthService) GetProbeTrends(ctx context.Context, accountIDs []
 		return nil, err
 	}
 	for i := range trends {
-		if len(trends[i].Points) > accountProbeSparklinePointLimit {
-			trends[i].Points = trends[i].Points[len(trends[i].Points)-accountProbeSparklinePointLimit:]
+		if len(trends[i].Points) > accountProbeListPointLimit {
+			trends[i].Points = trends[i].Points[len(trends[i].Points)-accountProbeListPointLimit:]
 		}
 	}
 	return trends, nil

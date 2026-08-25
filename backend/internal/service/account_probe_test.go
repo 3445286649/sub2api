@@ -224,7 +224,7 @@ func TestAccountProbeCleanupKeepsFortyEightHourSafetyWindow(t *testing.T) {
 	require.Equal(t, now.Add(-47*time.Hour), repo.events[0].CreatedAt)
 }
 
-func TestAccountProbeTrendsLimitSparklinePointsWithoutChangingSummary(t *testing.T) {
+func TestAccountProbeTrendsLimitListPointsWithoutChangingSummary(t *testing.T) {
 	now := time.Date(2026, 8, 25, 10, 0, 0, 0, time.UTC)
 	latency := int64(250)
 	events := make([]AccountHealthEvent, 30)
@@ -243,8 +243,8 @@ func TestAccountProbeTrendsLimitSparklinePointsWithoutChangingSummary(t *testing
 	require.NoError(t, err)
 	require.Len(t, trends, 1)
 	require.Equal(t, 30, trends[0].Total)
-	require.Len(t, trends[0].Points, accountProbeSparklinePointLimit)
-	require.Equal(t, events[6].CreatedAt, trends[0].Points[0].Timestamp)
+	require.Len(t, trends[0].Points, accountProbeListPointLimit)
+	require.Equal(t, events[20].CreatedAt, trends[0].Points[0].Timestamp)
 }
 
 func TestAccountProbeFailureRedactsSensitiveErrorText(t *testing.T) {
