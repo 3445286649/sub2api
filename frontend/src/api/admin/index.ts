@@ -37,6 +37,7 @@ import acquisitionAdminAPI from './acquisition'
 import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
+import pluginsAPI from './plugins'
 
 /**
  * Unified admin API object for convenient access
@@ -75,7 +76,8 @@ export const adminAPI = {
   acquisition: acquisitionAdminAPI,
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
-  audit: auditAPI
+  audit: auditAPI,
+  plugins: pluginsAPI
 }
 
 export {
@@ -112,7 +114,8 @@ export {
   acquisitionAdminAPI,
   riskControlAPI,
   adminComplianceAPI,
-  auditAPI
+  auditAPI,
+  pluginsAPI
 }
 
 export default adminAPI
@@ -124,3 +127,9 @@ export type { ErrorPassthroughRule, CreateRuleRequest, UpdateRuleRequest } from 
 export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
 export type { TLSFingerprintProfile, CreateProfileRequest, UpdateProfileRequest } from './tlsFingerprintProfile'
 export type { ContentModerationConfig, ContentModerationLog, ModerationMode } from './riskControl'
+export type {
+  PluginInstallation,
+  PluginCompatibility,
+  PluginUISession,
+  PluginTestResult
+} from './plugins'

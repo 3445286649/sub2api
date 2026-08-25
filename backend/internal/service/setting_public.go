@@ -252,6 +252,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeySupportTicketsEnabled,
 		SettingKeyModelPlazaEnabled,
 		SettingKeyModelPlazaRequireAuth,
+		SettingKeyPluginManagementEnabled,
 		SettingKeyAffiliateEnabled,
 		SettingKeyAcquisitionEnabled,
 		SettingKeyAcquisitionLeaderboardEnabled,
@@ -405,6 +406,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		UsageRebateEnabled:            settings[SettingKeyUsageRebateEnabled] == "true",
 		ModelPlazaEnabled:             settings[SettingKeyModelPlazaEnabled] == "true",
 		ModelPlazaRequireAuth:         settings[SettingKeyModelPlazaRequireAuth] == "true",
+		PluginManagementEnabled: settings[SettingKeyPluginManagementEnabled] == "true",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
@@ -669,7 +671,8 @@ type PublicSettingsInjectionPayload struct {
 	AllowUserViewErrorRequests           bool   `json:"allow_user_view_error_requests"`
 	// ChannelMonitorShowQuota gates the user-facing quota/balance display on
 	// monitors; fail-closed (absent/false = hidden). Admin UI always shows it.
-	ChannelMonitorShowQuota bool `json:"channel_monitor_show_quota"`
+	ChannelMonitorShowQuota  bool `json:"channel_monitor_show_quota"`
+	PluginManagementEnabled bool `json:"plugin_management_enabled"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -764,6 +767,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,
+		PluginManagementEnabled:              settings.PluginManagementEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		AcquisitionEnabled:                   settings.AcquisitionEnabled,
 		AcquisitionLeaderboardEnabled:        settings.AcquisitionLeaderboardEnabled,
