@@ -221,7 +221,8 @@ type Account struct {
 	UpdatedAt               time.Time                      `json:"updated_at"`
 
 	Schedulable                 bool    `json:"schedulable"`
-	HealthProbeEnabled          bool    `json:"health_probe_enabled"`
+	HealthProbeEnabled           bool    `json:"health_probe_enabled"`
+	HealthProbeWhenUnschedulable bool    `json:"health_probe_when_unschedulable"`
 	HealthProbeIntervalMinutes  *int    `json:"health_probe_interval_minutes,omitempty"`
 	HealthProbeModel            *string `json:"health_probe_model,omitempty"`
 	HealthyProbeEnabled         bool    `json:"healthy_probe_enabled"`

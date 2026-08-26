@@ -27,7 +27,7 @@ func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID i
 		WHERE a.id = $1
 		  AND a.deleted_at IS NULL
 		  AND a.status = 'active'
-		  AND a.schedulable IS TRUE
+		  AND (a.schedulable IS TRUE OR COALESCE(a.extra ->> 'health_probe_when_unschedulable', '') = 'true')
 		  AND a.health_probe_enabled IS TRUE
 		  AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $2)
 		ON CONFLICT (account_id) DO UPDATE SET
@@ -40,7 +40,7 @@ func (r *accountHealthRepository) ClaimDueProbe(ctx context.Context, accountID i
 			WHERE a.id = account_health_states.account_id
 			  AND a.deleted_at IS NULL
 			  AND a.status = 'active'
-			  AND a.schedulable IS TRUE
+			  AND (a.schedulable IS TRUE OR COALESCE(a.extra ->> 'health_probe_when_unschedulable', '') = 'true')
 			  AND a.health_probe_enabled IS TRUE
 			  AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $2)
 		  )

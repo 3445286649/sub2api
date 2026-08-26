@@ -262,6 +262,17 @@ func TestAccountProbeFailureRedactsSensitiveErrorText(t *testing.T) {
 	require.NotContains(t, repo.events[0].ErrorMessage, "secret-value")
 }
 
+func TestAccountProbeCanScheduleWhenManuallyUnschedulable(t *testing.T) {
+	now := time.Date(2026, 8, 25, 10, 0, 0, 0, time.UTC)
+	account := &Account{
+		ID: 13, Status: StatusActive, Schedulable: false, HealthProbeEnabled: true,
+		Extra: map[string]any{AccountHealthProbeWhenUnschedulableExtraKey: true},
+	}
+	next := nextScheduledAccountProbe(account, now)
+	require.NotNil(t, next)
+	require.Equal(t, now.Add(accountProbeDefaultInterval), *next)
+}
+
 func TestTruncateAccountProbeStringKeepsValidUTF8(t *testing.T) {
 	value := truncateAccountProbeString("上游返回异常", 5)
 	require.Equal(t, "上", value)

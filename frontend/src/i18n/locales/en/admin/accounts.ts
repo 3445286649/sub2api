@@ -232,6 +232,7 @@ export default {
       probeSettingsHint: 'Controls scheduled observation and recording only; it never disables or restores accounts.',
       healthProbe: 'Manual Probe',
       probeEnabled: 'Enable Scheduled Probes',
+      probeWhenUnschedulable: 'Keep probing while scheduling is disabled',
       healthProbeModel: 'Probe Model',
       healthProbeModelAuto: 'Auto Select',
       healthProbeSyncModels: 'Sync Models',

@@ -20,6 +20,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 )
 
+const AccountHealthProbeWhenUnschedulableExtraKey = "health_probe_when_unschedulable"
+
 type Account struct {
 	ID                      int64
 	Name                    string
@@ -90,6 +92,20 @@ type Account struct {
 	headerOverrideCacheRawPtr         uintptr
 	headerOverrideCacheRawLen         int
 	headerOverrideCacheRawSig         uint64
+}
+
+// HealthProbeWhenUnschedulable reports whether background probes should continue
+// while the account is manually removed from the scheduling pool.
+func (a *Account) HealthProbeWhenUnschedulable() bool {
+	if a == nil || a.Extra == nil {
+		return false
+	}
+	v, ok := a.Extra[AccountHealthProbeWhenUnschedulableExtraKey]
+	if !ok {
+		return false
+	}
+	b, ok := v.(bool)
+	return ok && b
 }
 
 type OpenAIEndpointCapability string

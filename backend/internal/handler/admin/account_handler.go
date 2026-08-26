@@ -200,12 +200,13 @@ type UpdateAccountRateMultiplierRequest struct {
 }
 
 type UpdateHealthProbeSettingsRequest struct {
-	HealthProbeEnabled          *bool   `json:"health_probe_enabled"`
-	HealthProbeIntervalMinutes  *int    `json:"health_probe_interval_minutes"`
-	HealthProbeModel            *string `json:"health_probe_model"`
-	HealthyProbeEnabled         *bool   `json:"healthy_probe_enabled"`
-	HealthyProbeIntervalMinutes *int    `json:"healthy_probe_interval_minutes"`
-	HealthyProbeIntervalHours   *int    `json:"healthy_probe_interval_hours"`
+	HealthProbeEnabled           *bool   `json:"health_probe_enabled"`
+	HealthProbeWhenUnschedulable *bool   `json:"health_probe_when_unschedulable"`
+	HealthProbeIntervalMinutes   *int    `json:"health_probe_interval_minutes"`
+	HealthProbeModel             *string `json:"health_probe_model"`
+	HealthyProbeEnabled          *bool   `json:"healthy_probe_enabled"`
+	HealthyProbeIntervalMinutes  *int    `json:"healthy_probe_interval_minutes"`
+	HealthyProbeIntervalHours    *int    `json:"healthy_probe_interval_hours"`
 }
 
 // CheckMixedChannelRequest represents check mixed channel risk request
@@ -666,17 +667,26 @@ func (h *AccountHandler) UpdateHealthProbeSettings(c *gin.Context) {
 			}
 		}
 	}
-	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
+	updateInput := &service.UpdateAccountInput{
 		HealthProbeEnabled:          req.HealthProbeEnabled,
 		HealthProbeIntervalMinutes:  interval,
 		HealthProbeModel:            probeModel,
 		HealthyProbeEnabled:         req.HealthyProbeEnabled,
 		HealthyProbeIntervalMinutes: healthyIntervalMinutes,
 		HealthyProbeIntervalHours:   healthyInterval,
-	})
+	}
+	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, updateInput)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
+	}
+	if req.HealthProbeWhenUnschedulable != nil {
+		if err := h.adminService.UpdateAccountExtra(c.Request.Context(), accountID, map[string]any{
+			service.AccountHealthProbeWhenUnschedulableExtraKey: *req.HealthProbeWhenUnschedulable,
+		}); err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
 	}
 	if err := h.accountHealthService.RescheduleProbe(c.Request.Context(), account.ID); err != nil {
 		response.ErrorFrom(c, err)

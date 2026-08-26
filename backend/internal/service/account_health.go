@@ -86,13 +86,14 @@ type AccountProbeTrend struct {
 
 type AccountProbeDetail struct {
 	AccountProbeTrend
-	CacheStats                  AccountProbeCacheStats `json:"cache_stats"`
-	HealthProbeEnabled          bool                   `json:"health_probe_enabled"`
-	HealthProbeIntervalMinutes  *int                   `json:"health_probe_interval_minutes,omitempty"`
-	HealthProbeModel            *string                `json:"health_probe_model,omitempty"`
-	HealthyProbeEnabled         bool                   `json:"healthy_probe_enabled"`
-	HealthyProbeIntervalMinutes *int                   `json:"healthy_probe_interval_minutes,omitempty"`
-	HealthyProbeIntervalHours   *int                   `json:"healthy_probe_interval_hours,omitempty"`
+	CacheStats                   AccountProbeCacheStats `json:"cache_stats"`
+	HealthProbeEnabled           bool                   `json:"health_probe_enabled"`
+	HealthProbeWhenUnschedulable bool                   `json:"health_probe_when_unschedulable"`
+	HealthProbeIntervalMinutes   *int                   `json:"health_probe_interval_minutes,omitempty"`
+	HealthProbeModel             *string                `json:"health_probe_model,omitempty"`
+	HealthyProbeEnabled          bool                   `json:"healthy_probe_enabled"`
+	HealthyProbeIntervalMinutes  *int                   `json:"healthy_probe_interval_minutes,omitempty"`
+	HealthyProbeIntervalHours    *int                   `json:"healthy_probe_interval_hours,omitempty"`
 }
 
 type AccountProbeCacheStats struct {
@@ -298,14 +299,15 @@ func (s *AccountHealthService) GetProbeDetail(ctx context.Context, accountID int
 		}
 	}
 	detail := &AccountProbeDetail{
-		AccountProbeTrend:           trends[0],
-		CacheStats:                  cacheStats,
-		HealthProbeEnabled:          account.HealthProbeEnabled,
-		HealthProbeIntervalMinutes:  account.HealthProbeIntervalMinutes,
-		HealthProbeModel:            account.HealthProbeModel,
-		HealthyProbeEnabled:         account.HealthyProbeEnabled,
-		HealthyProbeIntervalMinutes: account.HealthyProbeIntervalMinutes,
-		HealthyProbeIntervalHours:   account.HealthyProbeIntervalHours,
+		AccountProbeTrend:            trends[0],
+		CacheStats:                   cacheStats,
+		HealthProbeEnabled:           account.HealthProbeEnabled,
+		HealthProbeWhenUnschedulable: account.HealthProbeWhenUnschedulable(),
+		HealthProbeIntervalMinutes:   account.HealthProbeIntervalMinutes,
+		HealthProbeModel:             account.HealthProbeModel,
+		HealthyProbeEnabled:          account.HealthyProbeEnabled,
+		HealthyProbeIntervalMinutes:  account.HealthyProbeIntervalMinutes,
+		HealthyProbeIntervalHours:    account.HealthyProbeIntervalHours,
 	}
 	return detail, nil
 }
@@ -500,7 +502,7 @@ func normalizeAccountProbeIDs(ids []int64) []int64 {
 }
 
 func nextScheduledAccountProbe(account *Account, now time.Time) *time.Time {
-	if account == nil || account.Status != StatusActive || !account.Schedulable || !account.HealthProbeEnabled || (account.TempUnschedulableUntil != nil && account.TempUnschedulableUntil.After(now)) {
+	if account == nil || account.Status != StatusActive || (!account.Schedulable && !account.HealthProbeWhenUnschedulable()) || !account.HealthProbeEnabled || (account.TempUnschedulableUntil != nil && account.TempUnschedulableUntil.After(now)) {
 		return nil
 	}
 	next := now.Add(accountProbeInterval(account))

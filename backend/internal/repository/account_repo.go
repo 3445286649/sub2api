@@ -1361,7 +1361,7 @@ func (r *accountRepository) ListHealthyProbeCandidates(ctx context.Context, now 
 		LEFT JOIN account_health_states ahs ON ahs.account_id = a.id
 		WHERE a.deleted_at IS NULL
 			AND a.status = 'active'
-			AND a.schedulable IS TRUE
+			AND (a.schedulable IS TRUE OR COALESCE(a.extra ->> 'health_probe_when_unschedulable', '') = 'true')
 			AND a.health_probe_enabled IS TRUE
 			AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $1)
 			AND (

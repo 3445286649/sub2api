@@ -138,6 +138,7 @@ export default {
       probeSettingsHint: '只控制定时检测和记录，不会自动关闭或恢复账号。',
       healthProbe: '手动探活',
       probeEnabled: '启用定时探活',
+      probeWhenUnschedulable: '后台自动探活（关闭调度时继续）',
       healthProbeModel: '探活模型',
       healthProbeModelAuto: '自动选择',
       healthProbeSyncModels: '同步模型',

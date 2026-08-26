@@ -565,6 +565,10 @@
               <input v-model="healthProbeSettings.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
               <span>{{ t('admin.accounts.probeEnabled') }}</span>
             </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 md:col-span-2">
+              <input v-model="healthProbeSettings.whenUnschedulable" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+              <span>{{ t('admin.accounts.probeWhenUnschedulable') }}</span>
+            </label>
             <label class="block">
               <span class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.accounts.probeIntervalCustom') }}</span>
               <input v-model="healthProbeSettings.interval" type="number" min="1" step="1" class="health-detail-control form-input w-full" :placeholder="t('admin.accounts.probeIntervalPlaceholder')" />
@@ -790,6 +794,7 @@ const healthEventsTotalPages = ref(1)
 const healthEventFilter = ref('')
 const healthProbeSettings = reactive({
   enabled: true,
+  whenUnschedulable: false,
   interval: '' as string | number,
   model: ''
 })
@@ -1523,6 +1528,7 @@ watch(healthDetailAccount, (account) => {
     probeDetail.value = null
   }
   healthProbeSettings.enabled = probeDetail.value?.health_probe_enabled ?? account?.health_probe_enabled ?? true
+  healthProbeSettings.whenUnschedulable = probeDetail.value?.health_probe_when_unschedulable ?? account?.health_probe_when_unschedulable ?? false
   const interval = probeDetail.value?.health_probe_interval_minutes
     ?? probeDetail.value?.healthy_probe_interval_minutes
     ?? (probeDetail.value?.healthy_probe_interval_hours ? probeDetail.value.healthy_probe_interval_hours * 60 : null)
@@ -1536,6 +1542,7 @@ watch(healthDetailAccount, (account) => {
 watch(probeDetail, (detail) => {
   if (!detail) return
   healthProbeSettings.enabled = detail.health_probe_enabled
+  healthProbeSettings.whenUnschedulable = detail.health_probe_when_unschedulable
   const interval = detail.health_probe_interval_minutes
     ?? detail.healthy_probe_interval_minutes
     ?? (detail.healthy_probe_interval_hours ? detail.healthy_probe_interval_hours * 60 : null)
@@ -2473,6 +2480,7 @@ const saveHealthProbeSettings = async () => {
   try {
     const detail = await adminAPI.accounts.updateHealthProbeSettings(requestAccountID, {
       health_probe_enabled: healthProbeSettings.enabled,
+      health_probe_when_unschedulable: healthProbeSettings.whenUnschedulable,
       health_probe_interval_minutes: interval && interval > 0 ? interval : null,
       health_probe_model: probeModel || null
     })

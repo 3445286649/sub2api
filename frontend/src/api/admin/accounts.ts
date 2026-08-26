@@ -554,6 +554,7 @@ export async function updateHealthProbeSettings(
   id: number,
   payload: {
     health_probe_enabled: boolean
+    health_probe_when_unschedulable: boolean
     health_probe_interval_minutes?: number | null
     health_probe_model?: string | null
   }

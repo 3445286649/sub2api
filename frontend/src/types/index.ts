@@ -1270,6 +1270,7 @@ export interface Account {
   // Rate limit & scheduling fields
   schedulable: boolean
   health_probe_enabled: boolean
+  health_probe_when_unschedulable?: boolean
   health_probe_interval_minutes?: number | null
   health_probe_model?: string | null
   healthy_probe_enabled: boolean
@@ -1391,6 +1392,7 @@ export interface AccountProbeCacheStats {
 export interface AccountProbeDetail extends AccountProbeTrend {
   cache_stats: AccountProbeCacheStats
   health_probe_enabled: boolean
+  health_probe_when_unschedulable: boolean
   health_probe_interval_minutes?: number | null
   health_probe_model?: string | null
   healthy_probe_enabled: boolean
