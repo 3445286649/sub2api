@@ -177,6 +177,73 @@ describe('admin UsageTable tooltip', () => {
     expect(wrapper.get('[data-testid="long-context-billing-marker"]').text()).toBe('x2')
   })
 
+  it('shows the historical account multiplier and account-billed cost inline', () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [{
+          ...baseImageRow,
+          request_id: 'req-account-rate-inline',
+          actual_cost: 0.2,
+          total_cost: 0.2,
+          account_rate_multiplier: 0.12,
+        }],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    const accountBilling = wrapper.get('[data-testid="account-billing-inline"]')
+    expect(accountBilling.text()).toContain('Account billed')
+    expect(accountBilling.text()).toContain('$0.024000')
+    expect(accountBilling.text()).toContain('Account rate')
+    expect(accountBilling.text()).toContain('×0.12')
+  })
+
+  it('shows cache hit rate against all prompt token buckets', () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [{
+          request_id: 'req-cache-rate-inline',
+          model: 'gpt-5.6-sol',
+          billing_mode: 'token',
+          image_count: 0,
+          input_tokens: 200,
+          output_tokens: 50,
+          cache_creation_tokens: 200,
+          cache_read_tokens: 600,
+          cache_creation_5m_tokens: 200,
+          cache_creation_1h_tokens: 0,
+          cache_ttl_overridden: false,
+          actual_cost: 0,
+          total_cost: 0,
+          rate_multiplier: 1,
+        }],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    const cacheRate = wrapper.get('[data-testid="cache-hit-rate-inline"]')
+    expect(cacheRate.text()).toContain('Cache hit rate')
+    expect(cacheRate.text()).toContain('60.00%')
+  })
+
   it('keeps the request type badge and adds a separate badge only for native compaction rows', () => {
     const DataTableStreamStub = {
       props: ['data'],

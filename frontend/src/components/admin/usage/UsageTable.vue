@@ -167,7 +167,10 @@
                   <span class="font-medium text-gray-900 dark:text-white">{{ row.output_tokens?.toLocaleString() || 0 }}</span>
                 </div>
               </div>
-              <div v-if="row.cache_read_tokens > 0 || row.cache_creation_tokens > 0" class="flex items-center gap-2">
+              <div
+                v-if="row.cache_read_tokens > 0 || row.cache_creation_tokens > 0 || cacheHitRate(row) !== null"
+                class="flex flex-wrap items-center gap-2"
+              >
                 <div v-if="row.cache_read_tokens > 0" class="inline-flex items-center gap-1">
                   <svg class="h-3.5 w-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                   <span class="font-medium text-sky-600 dark:text-sky-400">{{ formatCacheTokens(row.cache_read_tokens) }}</span>
@@ -178,6 +181,16 @@
                   <span v-if="row.cache_creation_1h_tokens > 0" class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-orange-100 text-orange-600 ring-1 ring-inset ring-orange-200 dark:bg-orange-500/20 dark:text-orange-400 dark:ring-orange-500/30">1h</span>
                   <span v-if="row.cache_ttl_overridden" :title="t('usage.cacheTtlOverriddenHint')" class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30 cursor-help">R</span>
                 </div>
+                <span
+                  v-if="cacheHitRate(row) !== null"
+                  data-testid="cache-hit-rate-inline"
+                  class="inline-flex items-center gap-1 whitespace-nowrap text-[11px] text-gray-500 dark:text-gray-400"
+                  :class="row.cache_read_tokens > 0 || row.cache_creation_tokens > 0 ? 'border-l border-gray-200 pl-2 dark:border-dark-600' : ''"
+                  :title="t('usage.cacheHitRateHint')"
+                >
+                  <span>{{ t('usage.cacheHitRate') }}</span>
+                  <span class="font-semibold tabular-nums text-sky-600 dark:text-sky-400">{{ formatCacheHitRate(row) }}</span>
+                </span>
               </div>
               <div v-if="hasImageInputTokens(row)" class="flex items-center gap-2">
                 <div class="inline-flex items-center gap-1">
@@ -225,8 +238,19 @@
                 </div>
               </div>
             </div>
-            <div v-if="showAccountBilling && row.account_rate_multiplier != null" class="mt-0.5 text-[11px] text-orange-500 dark:text-orange-400">
-              A ${{ accountBilled(row).toFixed(6) }}
+            <div
+              v-if="showAccountBilling"
+              data-testid="account-billing-inline"
+              class="mt-1 grid gap-0.5 whitespace-nowrap text-[11px] leading-tight"
+            >
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-gray-400 dark:text-gray-500">{{ t('usage.accountBilled') }}</span>
+                <span class="font-medium tabular-nums text-orange-500 dark:text-orange-400">${{ accountBilled(row).toFixed(6) }}</span>
+              </div>
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-gray-400 dark:text-gray-500">{{ t('usage.accountMultiplier') }}</span>
+                <span class="font-medium tabular-nums text-sky-600 dark:text-sky-400">×{{ formatMultiplier(row.account_rate_multiplier ?? 1) }}</span>
+              </div>
             </div>
           </div>
         </template>
@@ -565,6 +589,21 @@ function accountBilled(row: { total_cost?: number | null; account_stats_cost?: n
   const base = row.account_stats_cost != null ? row.account_stats_cost : (row.total_cost ?? 0)
   const result = base * (row.account_rate_multiplier ?? 1)
   return Number.isNaN(result) ? 0 : result
+}
+
+type CacheRateRow = Pick<AdminUsageLog, 'input_tokens' | 'cache_creation_tokens' | 'cache_read_tokens'>
+
+function cacheHitRate(row: Partial<CacheRateRow>): number | null {
+  const inputTokens = Math.max(0, Number(row.input_tokens) || 0)
+  const cacheCreationTokens = Math.max(0, Number(row.cache_creation_tokens) || 0)
+  const cacheReadTokens = Math.max(0, Number(row.cache_read_tokens) || 0)
+  const totalPromptTokens = inputTokens + cacheCreationTokens + cacheReadTokens
+  return totalPromptTokens > 0 ? cacheReadTokens / totalPromptTokens : null
+}
+
+function formatCacheHitRate(row: Partial<CacheRateRow>): string {
+  const rate = cacheHitRate(row)
+  return rate == null ? '-' : `${(rate * 100).toFixed(2)}%`
 }
 
 
