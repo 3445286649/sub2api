@@ -112,6 +112,8 @@ func (s *OpenAIGatewayService) failoverOpenAIUpstreamHTTPError(
 		upstreamDetail = truncateString(string(respBody), maxBytes)
 	}
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		ProxyID:            opsUpstreamProxyID(account),
+		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           account.Platform,
 		AccountID:          account.ID,
 		AccountName:        account.Name,
@@ -152,10 +154,11 @@ func (s *OpenAIGatewayService) openAIChatCompletionsTargetURL(account *Account) 
 // resolveCCFallbackTarget 解析两条 CC 回退路径共用的账号凭证与上游端点
 // （回退路径仅面向 APIKey 账号，凭证恒为 openai api_key）。
 func (s *OpenAIGatewayService) resolveCCFallbackTarget(account *Account) (apiKey string, targetURL string, err error) {
-	apiKey = strings.TrimSpace(account.GetOpenAIProtocolAPIKey())
 	if account.Platform == PlatformGrok {
+		apiKey = strings.TrimSpace(account.GetCredential("api_key"))
 		targetURL, err = s.grokAPIKeyChatCompletionsTargetURL(account)
 	} else {
+		apiKey = strings.TrimSpace(account.GetOpenAIProtocolAPIKey())
 		targetURL, err = s.openAIChatCompletionsTargetURL(account)
 	}
 	if apiKey == "" {
@@ -226,9 +229,10 @@ func (s *OpenAIGatewayService) sendCCUpstreamRequest(
 	// 账号级请求头覆写：放在所有内置默认头（含 Grok CLI 身份头）之后应用，
 	// 使配置值获得除共享传输层强制头之外的最高优先级。
 	account.ApplyHeaderOverrides(upstreamReq.Header)
+	applyOpenCodeSessionHeader(c, account, targetURL, upstreamReq.Header)
 
 	proxyURL := ""
-	if account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
 	resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account)

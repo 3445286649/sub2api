@@ -888,6 +888,9 @@ func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *
 		if testModelID == "" {
 			testModelID = grokDefaultResponsesModel
 		}
+		if account.Type == AccountTypeAPIKey {
+			return s.testGrokAPIKeyTextConnection(c, account, testModelID, prompt, authToken)
+		}
 		if mapped := strings.TrimSpace(account.GetMappedModel(testModelID)); mapped != "" {
 			testModelID = mapped
 		}
@@ -909,7 +912,28 @@ func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *
 	case isGrokVideoGenerationModel(testModelID):
 		return s.testGrokVideoGeneration(c, ctx, account, authToken, testModelID, resolveGrokVideoPrompt(prompt), opts)
 	default:
+		if account.Type == AccountTypeAPIKey {
+			return s.testGrokAPIKeyTextConnection(c, account, testModelID, prompt, authToken)
+		}
 		return s.testGrokResponsesConnection(c, ctx, account, authToken, testModelID)
+	}
+}
+
+func (s *AccountTestService) testGrokAPIKeyTextConnection(c *gin.Context, account *Account, modelID, prompt, authToken string) error {
+	switch account.GetGrokUpstreamProtocol() {
+	case GrokUpstreamProtocolOpenAIChatCompletions:
+		baseURL, err := validateGrokThirdPartyAPIKeyBaseURL(account.GetGrokBaseURL(), s.cfg)
+		if err != nil {
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid Grok base URL: %s", err.Error()))
+		}
+		return s.testOpenAIChatCompletionsConnection(c, account, account.GetMappedModel(modelID), prompt, baseURL, authToken)
+	case GrokUpstreamProtocolAnthropicMessages:
+		return s.testClaudeAccountConnection(c, account, modelID)
+	default:
+		if mapped := strings.TrimSpace(account.GetMappedModel(modelID)); mapped != "" {
+			modelID = mapped
+		}
+		return s.testGrokResponsesConnection(c, c.Request.Context(), account, authToken, modelID)
 	}
 }
 

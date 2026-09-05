@@ -824,7 +824,7 @@ func buildRequestBody(adapter providerAdapter, provider, apiMode, model, prompt 
 //nolint:gochecknoglobals // 静态查表，初始化后不变。
 var bodyMergeKeyDenyList = map[string]map[string]bool{
 	MonitorProviderOpenAI + ":" + MonitorAPIModeChatCompletions: {"model": true, "messages": true, "stream": true},
-	MonitorProviderOpenAI + ":" + MonitorAPIModeResponses:       {"model": true, "instructions": true, "input": true, "stream": true},
+	MonitorProviderOpenAI + ":" + MonitorAPIModeResponses:       {"model": true, "instructions": true, "input": true},
 	MonitorProviderGrok + ":" + MonitorAPIModeChatCompletions:   {"model": true, "messages": true, "stream": true},
 	MonitorProviderGrok + ":" + MonitorAPIModeResponses:         {"model": true, "instructions": true, "input": true},
 	MonitorProviderAnthropic:                                    {"model": true, "messages": true},

@@ -12,7 +12,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -115,9 +114,7 @@ func TestGrokProtocolMatrix_ChatDefaultsToResponses(t *testing.T) {
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 
-	account := &Account{ID: 9202, Name: "grok-responses-matrix", Platform: PlatformGrok, Type: AccountTypeAPIKey, Concurrency: 2, Extra: map[string]any{
-		openai_compat.ExtraKeyResponsesMode: string(openai_compat.ResponsesSupportModeForceChatCompletions),
-	}, Credentials: map[string]any{
+	account := &Account{ID: 9202, Name: "grok-responses-matrix", Platform: PlatformGrok, Type: AccountTypeAPIKey, Concurrency: 2, Credentials: map[string]any{
 		"api_key": "grok-test-key", "base_url": "https://grok-vendor.example/v1",
 	}}
 	upstream := &httpUpstreamRecorder{resp: grokChatBridgeCompletedResponse("resp_matrix", 6)}

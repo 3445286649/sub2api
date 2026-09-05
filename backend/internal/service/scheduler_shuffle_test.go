@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -93,24 +92,22 @@ func TestShuffleWithinSortGroups_NilLastUsedAt_SameGroup(t *testing.T) {
 	require.GreaterOrEqual(t, len(seen), 2, "nil LastUsedAt accounts should be shuffled")
 }
 
-func TestShuffleWithinSortGroups_PreferOAuthKeepsOAuthPartition(t *testing.T) {
+func TestShuffleWithinSortGroups_AccountTypesShareGroup(t *testing.T) {
 	accounts := []accountWithLoad{
 		{account: &Account{ID: 1, Priority: 1, Type: AccountTypeAPIKey}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
 		{account: &Account{ID: 2, Priority: 1, Type: AccountTypeOAuth}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
 		{account: &Account{ID: 3, Priority: 1, Type: AccountTypeOAuth}, loadInfo: &AccountLoadInfo{LoadRate: 10}},
 	}
 
-	seenOAuthFirst := map[int64]bool{}
+	seenFirst := map[int64]bool{}
 	for i := 0; i < 100; i++ {
 		cpy := make([]accountWithLoad, len(accounts))
 		copy(cpy, accounts)
 		shuffleWithinSortGroups(cpy)
-		require.Equal(t, AccountTypeOAuth, cpy[0].account.Type)
-		require.Equal(t, AccountTypeOAuth, cpy[1].account.Type)
-		require.Equal(t, AccountTypeAPIKey, cpy[2].account.Type)
-		seenOAuthFirst[cpy[0].account.ID] = true
+		seenFirst[cpy[0].account.ID] = true
+		require.ElementsMatch(t, []int64{1, 2, 3}, []int64{cpy[0].account.ID, cpy[1].account.ID, cpy[2].account.ID})
 	}
-	require.GreaterOrEqual(t, len(seenOAuthFirst), 2, "OAuth partition should still shuffle internally")
+	require.GreaterOrEqual(t, len(seenFirst), 2, "account type should not partition equal scheduler groups")
 }
 
 func TestShuffleWithinSortGroups_MixedGroups(t *testing.T) {

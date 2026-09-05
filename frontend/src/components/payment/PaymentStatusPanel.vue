@@ -377,7 +377,6 @@ const qrLogoIcon = computed(() => isAlipay.value ? alipayIcon : wxpayIcon)
 const walletAddress = computed(() => (props.receiveAddress || qrUrl.value).trim())
 const isMobileAlipayDeepLink = computed(() => props.mobileAlipayDeepLink === true && isAlipay.value && !!qrUrl.value)
 const showQRCode = computed(() => !!qrUrl.value && (!isMobileAlipayDeepLink.value || deepLinkFallbackVisible.value))
-const activelyVerifiable = computed(() => isWxpay.value || isUsdtBsc.value || isMobileAlipayDeepLink.value)
 const cryptoPayAmountDisplay = computed(() => {
   const amount = (props.cryptoAmount || '').trim()
   if (!amount) return ''
@@ -495,7 +494,7 @@ function saveQRCode() {
 }
 
 async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder> {
-  if (!activelyVerifiable.value) return order
+  if (!isWxpay.value && !isAlipay.value && !isUsdtBsc.value) return order
   const outTradeNo = String(order.out_trade_no || '').trim()
   if (!outTradeNo) return order
   const normalizedStatus = String(order.status || '').trim().toUpperCase()

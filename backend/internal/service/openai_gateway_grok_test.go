@@ -2392,8 +2392,9 @@ func TestForwardAsChatCompletionsForGrokAPIKeyUsesConfiguredRawEndpointWithoutOA
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,
 		Credentials: map[string]any{
-			"api_key":  "third-party-key",
-			"base_url": "https://grok.example.test/v1",
+			"api_key":                "third-party-key",
+			"base_url":               "https://grok.example.test/v1",
+			"grok_upstream_protocol": GrokUpstreamProtocolOpenAIChatCompletions,
 		},
 	}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
@@ -2424,8 +2425,9 @@ func TestForwardAsChatCompletionsForGrokAPIKeyRejectsNonStreamingResponseWithout
 		Type:        AccountTypeAPIKey,
 		Concurrency: 1,
 		Credentials: map[string]any{
-			"api_key":  "third-party-key",
-			"base_url": "https://grok.example.test/v1",
+			"api_key":                "third-party-key",
+			"base_url":               "https://grok.example.test/v1",
+			"grok_upstream_protocol": GrokUpstreamProtocolOpenAIChatCompletions,
 		},
 	}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{

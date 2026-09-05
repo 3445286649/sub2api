@@ -618,6 +618,14 @@ func (s *ChannelMonitorService) ListHistory(ctx context.Context, id int64, model
 // 按 check_mode 分派：probe（默认，现状探活）/ quota（仅查关联账号配额，
 // 零 LLM 成本）/ quota_probe（探活 + 配额快照挂主模型行）。
 func (s *ChannelMonitorService) RunCheck(ctx context.Context, id int64) ([]*CheckResult, error) {
+	runtime := s.probeRuntime(ctx)
+	if !runtime.Enabled {
+		return nil, ErrChannelMonitorDisabled
+	}
+	if !runtime.ActiveProbesAllowed() {
+		return nil, ErrChannelMonitorActiveProbesRetired
+	}
+
 	m, err := s.Get(ctx, id) // 已解密 APIKey
 	if err != nil {
 		return nil, err
