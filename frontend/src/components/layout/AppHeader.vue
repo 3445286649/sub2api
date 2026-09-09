@@ -2,7 +2,7 @@
   <header class="glass sticky top-0 z-30 border-b border-gray-200/50 dark:border-dark-700/50">
     <div class="flex h-16 items-center justify-between gap-2 px-2 sm:px-4 md:px-6">
       <!-- Left: Mobile Menu Toggle + Page Title -->
-      <div class="flex shrink-0 items-center gap-2 sm:gap-4">
+      <div class="flex min-w-0 max-w-[25%] shrink-0 items-center gap-2 sm:gap-4">
         <button
           @click="toggleMobileSidebar"
           class="btn-ghost btn-icon lg:hidden"
@@ -11,18 +11,18 @@
           <Icon name="menu" size="md" />
         </button>
 
-        <div class="hidden lg:block">
-          <h1 class="text-lg font-semibold text-gray-900 dark:text-white">
+        <div class="hidden min-w-0 lg:block">
+          <h1 class="truncate text-lg font-semibold text-gray-900 dark:text-white">
             {{ pageTitle }}
           </h1>
-          <p v-if="pageDescription" class="text-xs text-gray-500 dark:text-dark-400">
+          <p v-if="pageDescription" class="truncate text-xs text-gray-500 dark:text-dark-400">
             {{ pageDescription }}
           </p>
         </div>
       </div>
 
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
-      <div class="flex min-w-0 items-center gap-1 sm:gap-3">
+      <div class="header-controls flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-3">
         <!-- Announcement Bell -->
         <AnnouncementBell v-if="user" />
 
@@ -127,21 +127,7 @@
           </div>
         </div>
 
-        <button
-          v-for="(button, index) in headerButtons.slice(0, 3)"
-          :key="index"
-          type="button"
-          class="hidden max-w-36 items-center gap-2 rounded-lg bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 hover:bg-primary-100 dark:bg-primary-900/20 dark:text-primary-300 xl:flex"
-          :title="button.name"
-          @click="openHeaderButton(button)"
-        >
-          <Icon :name="headerButtonIcon(button.action)" size="sm" />
-          <span class="truncate">{{ button.name }}</span>
-        </button>
-
-        <button v-if="headerButtons.length > 3" type="button" class="hidden shrink-0 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-dark-800 xl:block" :title="t('headerButtons.more')" :aria-label="t('headerButtons.more')" @click.stop="toggleDropdown">
-          <Icon name="chevronDown" size="sm" />
-        </button>
+        <HeaderQuickLinks :buttons="headerButtons" @select="openHeaderButton" />
 
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
@@ -213,10 +199,6 @@
                   {{ t('nav.apiKeys') }}
                 </router-link>
 
-                <button v-for="(button, index) in headerButtons" :key="index" type="button" @click="openHeaderButton(button)" class="dropdown-item w-full">
-                  <Icon :name="headerButtonIcon(button.action)" size="sm" />
-                  <span class="truncate">{{ button.name }}</span>
-                </button>
 
                 <a
                   v-if="authStore.isAdmin"
@@ -362,6 +344,7 @@ import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import UsageHelpModal from '@/components/help/UsageHelpModal.vue'
 import DailyCheckinDialog from '@/components/daily-checkin/DailyCheckinDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
+import HeaderQuickLinks from './HeaderQuickLinks.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveRechargeStorefrontChannels } from '@/utils/rechargeStorefront'
@@ -397,9 +380,6 @@ const headerButtons = computed(() => user.value ? resolveHeaderButtons(publicSet
   return true
 }) : [])
 
-function headerButtonIcon(action: HeaderButton['action']) {
-  return ({ external: 'externalLink', recharge: 'creditCard', rebate: 'gift', help: 'questionCircle', radar: 'sparkles', support: 'chat', pixmo: 'sparkles' } as const)[action]
-}
 
 function openHeaderButton(button: HeaderButton) {
   closeDropdown()
@@ -570,6 +550,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.header-controls > :not([data-testid="header-quick-links"]) {
+  flex-shrink: 0;
+}
 .dropdown-enter-active,
 .dropdown-leave-active {
   transition: all 0.2s ease;
