@@ -178,6 +178,7 @@ func TestSettingHandler_GetPublicSettings_ExposesModelRadarEnabled(t *testing.T)
 func TestSettingHandler_GetPublicSettings_ExposesLocalNavigationSettings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	repo := &settingHandlerPublicRepoStub{values: map[string]string{
+		service.SettingKeyHeaderButtons:             `[{"action":"external","name":"Status","url":"https://status.example.com","enabled":true}]`,
 		service.SettingKeyRechargeStorefrontEnabled: "true",
 		service.SettingKeyRechargeStorefrontURL:     "https://shop.example.com/",
 		service.SettingKeySupportGroupLinkURL:       "https://support.example.com/",
@@ -195,11 +196,12 @@ func TestSettingHandler_GetPublicSettings_ExposesLocalNavigationSettings(t *test
 	var resp struct {
 		Code int `json:"code"`
 		Data struct {
-			RechargeStorefrontEnabled bool   `json:"recharge_storefront_enabled"`
-			RechargeStorefrontURL     string `json:"recharge_storefront_url"`
-			SupportGroupLinkURL       string `json:"support_group_link_url"`
-			PixmoStudioEnabled        bool   `json:"pixmo_studio_enabled"`
-			PixmoStudioURL            string `json:"pixmo_studio_url"`
+			RechargeStorefrontEnabled bool                   `json:"recharge_storefront_enabled"`
+			RechargeStorefrontURL     string                 `json:"recharge_storefront_url"`
+			SupportGroupLinkURL       string                 `json:"support_group_link_url"`
+			PixmoStudioEnabled        bool                   `json:"pixmo_studio_enabled"`
+			PixmoStudioURL            string                 `json:"pixmo_studio_url"`
+			HeaderButtons             []service.HeaderButton `json:"header_buttons"`
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &resp))
@@ -209,6 +211,7 @@ func TestSettingHandler_GetPublicSettings_ExposesLocalNavigationSettings(t *test
 	require.Equal(t, "https://support.example.com/", resp.Data.SupportGroupLinkURL)
 	require.True(t, resp.Data.PixmoStudioEnabled)
 	require.Equal(t, "https://pixmo.example.com/", resp.Data.PixmoStudioURL)
+	require.Equal(t, []service.HeaderButton{{Action: "external", Name: "Status", URL: "https://status.example.com", Enabled: true}}, resp.Data.HeaderButtons)
 }
 
 func TestSettingHandler_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {

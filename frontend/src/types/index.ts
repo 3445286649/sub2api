@@ -288,7 +288,15 @@ export interface RechargeStorefrontChannel {
   sort_order: number
 }
 
+export interface HeaderButton {
+  action: 'external' | 'recharge' | 'rebate' | 'help' | 'radar' | 'support' | 'pixmo'
+  name: string
+  url: string
+  enabled: boolean
+}
+
 export interface PublicSettings {
+  header_buttons?: HeaderButton[] | null
   registration_enabled: boolean
   email_verify_enabled: boolean
   force_email_on_third_party_signup: boolean

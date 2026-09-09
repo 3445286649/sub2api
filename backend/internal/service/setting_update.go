@@ -373,6 +373,17 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeySupportGroupQRCodeURL] = strings.TrimSpace(settings.SupportGroupQRCodeURL)
 	updates[SettingKeySupportGroupLinkURL] = strings.TrimSpace(settings.SupportGroupLinkURL)
 	updates[SettingKeySupportTicketsEnabled] = strconv.FormatBool(settings.SupportTicketsEnabled)
+	if settings.HeaderButtons != nil {
+		buttons, err := normalizeHeaderButtons(settings.HeaderButtons)
+		if err != nil {
+			return nil, infraerrors.BadRequest("INVALID_HEADER_BUTTONS", err.Error())
+		}
+		encoded, err := json.Marshal(buttons)
+		if err != nil {
+			return nil, err
+		}
+		updates[SettingKeyHeaderButtons] = string(encoded)
+	}
 	updates[SettingKeyPixmoStudioEnabled] = strconv.FormatBool(settings.PixmoStudioEnabled)
 	updates[SettingKeyPixmoStudioButtonText] = strings.TrimSpace(settings.PixmoStudioButtonText)
 	updates[SettingKeyPixmoStudioURL] = strings.TrimSpace(settings.PixmoStudioURL)

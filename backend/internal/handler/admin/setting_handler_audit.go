@@ -372,6 +372,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.PixmoStudioEnabled != after.PixmoStudioEnabled {
 		changed = append(changed, service.SettingKeyPixmoStudioEnabled)
 	}
+	if !reflect.DeepEqual(before.HeaderButtons, after.HeaderButtons) {
+		changed = append(changed, service.SettingKeyHeaderButtons)
+	}
 	if before.PixmoStudioButtonText != after.PixmoStudioButtonText {
 		changed = append(changed, service.SettingKeyPixmoStudioButtonText)
 	}

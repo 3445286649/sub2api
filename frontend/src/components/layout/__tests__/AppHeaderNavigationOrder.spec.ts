@@ -1,36 +1,21 @@
-import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-
 import { describe, expect, it } from 'vitest'
+import { resolveHeaderButtons, isHeaderButtonURLSafe } from '@/utils/headerButtons'
 
-const dir = dirname(fileURLToPath(import.meta.url))
-const headerSource = readFileSync(resolve(dir, '../AppHeader.vue'), 'utf8')
-
-describe('AppHeader desktop navigation order', () => {
-  it('keeps usage rebate directly after the recharge storefront and before usage help', () => {
-    const recharge = headerSource.indexOf('<!-- Recharge Storefront -->')
-    const usageRebate = headerSource.indexOf('<!-- Usage Rebate -->')
-    const usageHelp = headerSource.indexOf('<!-- Usage Help -->')
-    const modelRadar = headerSource.indexOf('<!-- Model Radar -->')
-
-    expect(recharge).toBeGreaterThan(-1)
-    expect(usageRebate).toBeGreaterThan(recharge)
-    expect(usageHelp).toBeGreaterThan(usageRebate)
-    expect(modelRadar).toBeGreaterThan(usageHelp)
+describe('header navigation configuration', () => {
+  it('preserves legacy order and targets until configured', () => {
+    const buttons = resolveHeaderButtons({ support_group_link_url: 'https://chat.example.com', support_group_enabled: true }, key => key)
+    expect(buttons.map(button => button.action)).toEqual(['recharge', 'rebate', 'help', 'radar', 'support', 'pixmo'])
+    expect(buttons[4]).toMatchObject({ url: 'https://chat.example.com', enabled: true })
   })
-
-  it('shows usage rebate in the user dropdown directly after the recharge storefront', () => {
-    const menuStart = headerSource.indexOf('<!-- Dropdown Menu -->')
-    const menuSource = headerSource.slice(menuStart)
-    const recharge = menuSource.indexOf('@click="openRechargeStorefrontFromMenu"')
-    const usageRebate = menuSource.indexOf('to="/usage-rebate"')
-    const usageHelp = menuSource.indexOf('@click="openUsageHelpFromMenu"')
-
-    expect(menuStart).toBeGreaterThan(-1)
-    expect(recharge).toBeGreaterThan(-1)
-    expect(usageRebate).toBeGreaterThan(recharge)
-    expect(usageHelp).toBeGreaterThan(usageRebate)
-    expect(menuSource.slice(usageRebate, usageHelp)).not.toContain('sm:hidden')
+  it('respects an empty list and custom order', () => {
+    expect(resolveHeaderButtons({ header_buttons: [] }, key => key)).toEqual([])
+    const buttons = [{ action: 'external' as const, name: 'Status', url: 'https://example.com', enabled: true }]
+    expect(resolveHeaderButtons({ header_buttons: buttons }, key => key)).toEqual(buttons)
+  })
+  it('blocks executable URLs and credentials', () => {
+    for (const url of ['javascript:alert(1)', '//example.com', 'data:text/html,x', 'https://user:pass@example.com']) {
+      expect(isHeaderButtonURLSafe(url)).toBe(false)
+    }
+    expect(isHeaderButtonURLSafe('https://example.com/path?q=1#section')).toBe(true)
   })
 })

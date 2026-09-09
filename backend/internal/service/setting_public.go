@@ -196,6 +196,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeySupportGroupDescription,
 		SettingKeySupportGroupQRCodeURL,
 		SettingKeySupportGroupLinkURL,
+		SettingKeyHeaderButtons,
 		SettingKeyPixmoStudioEnabled,
 		SettingKeyPixmoStudioButtonText,
 		SettingKeyPixmoStudioURL,
@@ -359,6 +360,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SupportGroupDescription:             strings.TrimSpace(settings[SettingKeySupportGroupDescription]),
 		SupportGroupQRCodeURL:               strings.TrimSpace(settings[SettingKeySupportGroupQRCodeURL]),
 		SupportGroupLinkURL:                 strings.TrimSpace(settings[SettingKeySupportGroupLinkURL]),
+		HeaderButtons:                       parseHeaderButtons(settings[SettingKeyHeaderButtons]),
 		PixmoStudioEnabled:                  settings[SettingKeyPixmoStudioEnabled] == "true",
 		PixmoStudioButtonText:               strings.TrimSpace(s.getStringOrDefault(settings, SettingKeyPixmoStudioButtonText, "Pixmo 生图")),
 		PixmoStudioURL:                      strings.TrimSpace(s.getStringOrDefault(settings, SettingKeyPixmoStudioURL, "https://pixmo.loucer.cn/")),
@@ -623,6 +625,7 @@ type PublicSettingsInjectionPayload struct {
 	SupportGroupQRCodeURL               string                      `json:"support_group_qr_code_url"`
 	SupportGroupLinkURL                 string                      `json:"support_group_link_url"`
 	SupportTicketsEnabled               bool                        `json:"support_tickets_enabled"`
+	HeaderButtons                       []HeaderButton              `json:"header_buttons"`
 	PixmoStudioEnabled                  bool                        `json:"pixmo_studio_enabled"`
 	PixmoStudioButtonText               string                      `json:"pixmo_studio_button_text"`
 	PixmoStudioURL                      string                      `json:"pixmo_studio_url"`
@@ -732,6 +735,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		SupportGroupQRCodeURL:               settings.SupportGroupQRCodeURL,
 		SupportGroupLinkURL:                 settings.SupportGroupLinkURL,
 		SupportTicketsEnabled:               settings.SupportTicketsEnabled,
+		HeaderButtons:                       settings.HeaderButtons,
 		PixmoStudioEnabled:                  settings.PixmoStudioEnabled,
 		PixmoStudioButtonText:               settings.PixmoStudioButtonText,
 		PixmoStudioURL:                      settings.PixmoStudioURL,

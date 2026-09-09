@@ -1025,6 +1025,7 @@ func applyLocalFeatureSettingDefaults(result *SystemSettings, settings map[strin
 	result.SupportGroupLinkURL = strings.TrimSpace(settings[SettingKeySupportGroupLinkURL])
 	result.SupportTicketsEnabled = !isFalseSettingValue(settings[SettingKeySupportTicketsEnabled])
 
+	result.HeaderButtons = parseHeaderButtons(settings[SettingKeyHeaderButtons])
 	result.PixmoStudioEnabled = settings[SettingKeyPixmoStudioEnabled] == "true"
 	result.PixmoStudioButtonText = strings.TrimSpace(settings[SettingKeyPixmoStudioButtonText])
 	if result.PixmoStudioButtonText == "" {

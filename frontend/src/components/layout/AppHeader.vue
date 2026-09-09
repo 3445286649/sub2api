@@ -127,70 +127,20 @@
           </div>
         </div>
 
-        <!-- Recharge Storefront -->
         <button
-          v-if="showRechargeStorefront"
+          v-for="(button, index) in headerButtons.slice(0, 3)"
+          :key="index"
           type="button"
-          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
-          @click="openRechargeStorefront"
+          class="hidden max-w-36 items-center gap-2 rounded-lg bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 hover:bg-primary-100 dark:bg-primary-900/20 dark:text-primary-300 xl:flex"
+          :title="button.name"
+          @click="openHeaderButton(button)"
         >
-          <Icon name="creditCard" size="sm" />
-          <span>{{ rechargeStorefrontButtonText }}</span>
+          <Icon :name="headerButtonIcon(button.action)" size="sm" />
+          <span class="truncate">{{ button.name }}</span>
         </button>
 
-        <!-- Usage Rebate -->
-        <button
-          v-if="showUsageRebate"
-          type="button"
-          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
-          @click="openUsageRebate"
-        >
-          <Icon name="gift" size="sm" />
-          <span>{{ t('nav.usageRebate') }}</span>
-        </button>
-
-        <!-- Usage Help -->
-        <button
-          v-if="showUsageHelp"
-          type="button"
-          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
-          @click="openUsageHelp"
-        >
-          <Icon name="questionCircle" size="sm" />
-          <span>{{ t('nav.usageHelp') }}</span>
-        </button>
-
-        <!-- Model Radar -->
-        <button
-          v-if="showModelRadar"
-          type="button"
-          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
-          @click="openModelRadar"
-        >
-          <Icon name="sparkles" size="sm" />
-          <span>{{ t('nav.modelRadar') }}</span>
-        </button>
-
-        <!-- Support Group -->
-        <button
-          v-if="showSupportGroup"
-          type="button"
-          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
-          @click="openSupportGroup"
-        >
-          <Icon name="chat" size="sm" />
-          <span>{{ supportGroupButtonText }}</span>
-        </button>
-
-        <!-- Pixmo Image Studio -->
-        <button
-          v-if="showPixmoStudio"
-          type="button"
-          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 hover:text-primary-800 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-200 sm:flex"
-          @click="openPixmoStudio"
-        >
-          <Icon name="sparkles" size="sm" />
-          <span>{{ pixmoStudioButtonText }}</span>
+        <button v-if="headerButtons.length > 3" type="button" class="hidden shrink-0 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-dark-800 xl:block" :title="t('headerButtons.more')" :aria-label="t('headerButtons.more')" @click.stop="toggleDropdown">
+          <Icon name="chevronDown" size="sm" />
         </button>
 
         <!-- User Dropdown -->
@@ -222,7 +172,7 @@
 
           <!-- Dropdown Menu -->
           <transition name="dropdown">
-            <div v-if="dropdownOpen" class="dropdown right-0 mt-2 w-56">
+            <div v-if="dropdownOpen" class="dropdown right-0 mt-2 max-h-[calc(100dvh-80px)] w-56 overflow-y-auto">
               <!-- User Info -->
               <div class="border-b border-gray-100 px-4 py-3 dark:border-dark-700">
                 <div class="text-sm font-medium text-gray-900 dark:text-white">
@@ -263,34 +213,9 @@
                   {{ t('nav.apiKeys') }}
                 </router-link>
 
-                <button v-if="showRechargeStorefront" type="button" @click="openRechargeStorefrontFromMenu" class="dropdown-item w-full">
-                  <Icon name="creditCard" size="sm" />
-                  {{ rechargeStorefrontButtonText }}
-                </button>
-
-                <router-link v-if="showUsageRebate" to="/usage-rebate" @click="closeDropdown" class="dropdown-item">
-                  <Icon name="gift" size="sm" />
-                  {{ t('nav.usageRebate') }}
-                </router-link>
-
-                <button v-if="showUsageHelp" type="button" @click="openUsageHelpFromMenu" class="dropdown-item w-full">
-                  <Icon name="questionCircle" size="sm" />
-                  {{ t('nav.usageHelp') }}
-                </button>
-
-                <button v-if="showModelRadar" type="button" @click="openModelRadarFromMenu" class="dropdown-item w-full">
-                  <Icon name="sparkles" size="sm" />
-                  {{ t('nav.modelRadar') }}
-                </button>
-
-                <button v-if="showSupportGroup" type="button" @click="openSupportGroupFromMenu" class="dropdown-item w-full">
-                  <Icon name="chat" size="sm" />
-                  {{ supportGroupButtonText }}
-                </button>
-
-                <button v-if="showPixmoStudio" type="button" @click="openPixmoStudioFromMenu" class="dropdown-item w-full">
-                  <Icon name="sparkles" size="sm" />
-                  {{ pixmoStudioButtonText }}
+                <button v-for="(button, index) in headerButtons" :key="index" type="button" @click="openHeaderButton(button)" class="dropdown-item w-full">
+                  <Icon :name="headerButtonIcon(button.action)" size="sm" />
+                  <span class="truncate">{{ button.name }}</span>
                 </button>
 
                 <a
@@ -440,6 +365,8 @@ import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveRechargeStorefrontChannels } from '@/utils/rechargeStorefront'
+import { resolveHeaderButtons, isHeaderButtonURLSafe } from '@/utils/headerButtons'
+import type { HeaderButton } from '@/types'
 
 const router = useRouter()
 const route = useRoute()
@@ -461,37 +388,34 @@ const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
 const publicSettings = computed(() => appStore.cachedPublicSettings)
+const headerButtons = computed(() => user.value ? resolveHeaderButtons(publicSettings.value, t).filter(button => {
+  if (!button.enabled || !button.name.trim()) return false
+  if (button.url) return isHeaderButtonURLSafe(button.url)
+  if (button.action === 'external') return false
+  if (button.action === 'recharge') return rechargeStorefrontChannels.value.length > 0
+  if (button.action === 'support') return !!supportGroupQrCodeUrl.value
+  return true
+}) : [])
+
+function headerButtonIcon(action: HeaderButton['action']) {
+  return ({ external: 'externalLink', recharge: 'creditCard', rebate: 'gift', help: 'questionCircle', radar: 'sparkles', support: 'chat', pixmo: 'sparkles' } as const)[action]
+}
+
+function openHeaderButton(button: HeaderButton) {
+  closeDropdown()
+  if (button.url) {
+    if (isHeaderButtonURLSafe(button.url)) window.open(button.url, '_blank', 'noopener,noreferrer')
+    return
+  }
+  const actions = { recharge: openRechargeStorefront, rebate: openUsageRebate, help: openUsageHelp, radar: openModelRadar, support: openSupportGroup, pixmo: openPixmoStudio, external: () => {} }
+  actions[button.action]?.()
+}
 const rechargeStorefrontChannels = computed(() => resolveRechargeStorefrontChannels(publicSettings.value))
-const rechargeStorefrontButtonText = computed(() => publicSettings.value?.recharge_storefront_button_text?.trim() || t('nav.rechargeStorefront'))
-const showRechargeStorefront = computed(() => {
-  return !!user.value
-    && publicSettings.value?.recharge_storefront_enabled === true
-    && rechargeStorefrontChannels.value.length > 0
-})
 const supportGroupQrCodeUrl = computed(() => publicSettings.value?.support_group_qr_code_url?.trim() || '')
 const supportGroupLinkUrl = computed(() => publicSettings.value?.support_group_link_url?.trim() || '')
-const supportGroupButtonText = computed(() => publicSettings.value?.support_group_button_text?.trim() || t('nav.supportGroup'))
 const supportGroupTitle = computed(() => publicSettings.value?.support_group_title?.trim() || t('nav.supportGroup'))
 const supportGroupDescription = computed(() => publicSettings.value?.support_group_description?.trim() || t('nav.supportGroupDescription'))
 const pixmoStudioUrl = computed(() => publicSettings.value?.pixmo_studio_url?.trim() || 'https://pixmo.loucer.cn/')
-const pixmoStudioButtonText = computed(() => publicSettings.value?.pixmo_studio_button_text?.trim() || t('nav.pixmoStudio'))
-const showPixmoStudio = computed(() => {
-  return !!user.value && publicSettings.value?.pixmo_studio_enabled === true && pixmoStudioUrl.value !== ''
-})
-const showUsageHelp = computed(() => {
-  return !!user.value && publicSettings.value?.usage_help_enabled === true
-})
-const showUsageRebate = computed(() => {
-  return !!user.value && publicSettings.value?.usage_rebate_enabled === true
-})
-const showModelRadar = computed(() => {
-  return !!user.value && publicSettings.value?.model_radar_enabled === true
-})
-const showSupportGroup = computed(() => {
-  return !!user.value
-    && publicSettings.value?.support_group_enabled === true
-    && (supportGroupLinkUrl.value !== '' || supportGroupQrCodeUrl.value !== '')
-})
 const availableBalance = computed(() => Number(user.value?.balance || 0))
 const frozenBalance = computed(() => Number(user.value?.frozen_balance || 0))
 const totalBalance = computed(() => availableBalance.value + frozenBalance.value)
@@ -575,10 +499,6 @@ function openSupportGroup() {
   supportGroupOpen.value = true
 }
 
-function openSupportGroupFromMenu() {
-  closeDropdown()
-  openSupportGroup()
-}
 
 function closeSupportGroup() {
   supportGroupOpen.value = false
@@ -591,10 +511,6 @@ function openRechargeStorefront() {
   }
 }
 
-function openRechargeStorefrontFromMenu() {
-  closeDropdown()
-  openRechargeStorefront()
-}
 
 function openUsageHelp() {
   usageHelpOpen.value = true
@@ -604,28 +520,16 @@ function openUsageRebate() {
   void router.push('/usage-rebate')
 }
 
-function openUsageHelpFromMenu() {
-  closeDropdown()
-  openUsageHelp()
-}
 
 function openModelRadar() {
   window.open('https://codexradar.com/#model-ratings', '_blank', 'noopener,noreferrer')
 }
 
-function openModelRadarFromMenu() {
-  closeDropdown()
-  openModelRadar()
-}
 
 function openPixmoStudio() {
   window.open(pixmoStudioUrl.value, '_blank', 'noopener,noreferrer')
 }
 
-function openPixmoStudioFromMenu() {
-  closeDropdown()
-  openPixmoStudio()
-}
 
 async function handleLogout() {
   closeDropdown()

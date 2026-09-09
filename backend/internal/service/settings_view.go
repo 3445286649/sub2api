@@ -166,6 +166,7 @@ type SystemSettings struct {
 	SupportGroupQRCodeURL        string
 	SupportGroupLinkURL          string
 	SupportTicketsEnabled        bool
+	HeaderButtons                []HeaderButton `json:"header_buttons"`
 	PixmoStudioEnabled           bool
 	PixmoStudioButtonText        string
 	PixmoStudioURL               string
@@ -382,6 +383,7 @@ type PublicSettings struct {
 	SupportGroupQRCodeURL               string
 	SupportGroupLinkURL                 string
 	SupportTicketsEnabled               bool
+	HeaderButtons                       []HeaderButton `json:"header_buttons"`
 	PixmoStudioEnabled                  bool
 	PixmoStudioButtonText               string
 	PixmoStudioURL                      string

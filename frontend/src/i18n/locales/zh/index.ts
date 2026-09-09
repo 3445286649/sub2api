@@ -1,4 +1,5 @@
 import landing from './landing'
+import headerButtons from './headerButtons'
 import common from './common'
 import dashboard from './dashboard'
 import channelMonitorV2 from './channelMonitorV2'
@@ -12,6 +13,7 @@ import backupRecharge from './backupRecharge'
 import { mergeLocaleFallback } from '../merge'
 
 const upstream = {
+  ...headerButtons,
   ...landing,
   ...common,
   ...dashboard,

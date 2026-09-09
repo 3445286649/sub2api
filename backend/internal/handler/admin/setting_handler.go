@@ -262,6 +262,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		SupportGroupDescription:                                settings.SupportGroupDescription,
 		SupportGroupQRCodeURL:                                  settings.SupportGroupQRCodeURL,
 		SupportGroupLinkURL:                                    settings.SupportGroupLinkURL,
+		HeaderButtons:                                          settings.HeaderButtons,
 		PixmoStudioEnabled:                                     settings.PixmoStudioEnabled,
 		PixmoStudioButtonText:                                  settings.PixmoStudioButtonText,
 		PixmoStudioURL:                                         settings.PixmoStudioURL,
@@ -404,7 +405,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 
-		SupportTicketsEnabled:    settings.SupportTicketsEnabled,
+		SupportTicketsEnabled:   settings.SupportTicketsEnabled,
 		PluginManagementEnabled: settings.PluginManagementEnabled,
 
 		AffiliateEnabled:              settings.AffiliateEnabled,

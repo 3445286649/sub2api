@@ -170,6 +170,7 @@ type UpdateSettingsRequest struct {
 	SupportGroupQRCodeURL         string                              `json:"support_group_qr_code_url"`
 	SupportGroupLinkURL           string                              `json:"support_group_link_url"`
 	SupportTicketsEnabled         bool                                `json:"support_tickets_enabled"`
+	HeaderButtons                 []service.HeaderButton              `json:"header_buttons"`
 	PixmoStudioEnabled            bool                                `json:"pixmo_studio_enabled"`
 	PixmoStudioButtonText         string                              `json:"pixmo_studio_button_text"`
 	PixmoStudioURL                string                              `json:"pixmo_studio_url"`
@@ -1656,6 +1657,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SupportGroupQRCodeURL:                  req.SupportGroupQRCodeURL,
 		SupportGroupLinkURL:                    req.SupportGroupLinkURL,
 		SupportTicketsEnabled:                  req.SupportTicketsEnabled,
+		HeaderButtons:                          req.HeaderButtons,
 		PixmoStudioEnabled:                     req.PixmoStudioEnabled,
 		PixmoStudioButtonText:                  req.PixmoStudioButtonText,
 		PixmoStudioURL:                         req.PixmoStudioURL,
@@ -2314,6 +2316,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SupportGroupDescription:                                updatedSettings.SupportGroupDescription,
 		SupportGroupQRCodeURL:                                  updatedSettings.SupportGroupQRCodeURL,
 		SupportGroupLinkURL:                                    updatedSettings.SupportGroupLinkURL,
+		HeaderButtons:                                          updatedSettings.HeaderButtons,
 		PixmoStudioEnabled:                                     updatedSettings.PixmoStudioEnabled,
 		PixmoStudioButtonText:                                  updatedSettings.PixmoStudioButtonText,
 		PixmoStudioURL:                                         updatedSettings.PixmoStudioURL,
@@ -2460,7 +2463,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ModelPlazaEnabled:             updatedSettings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:         updatedSettings.ModelPlazaRequireAuth,
 		ModelPlazaDescription:         updatedSettings.ModelPlazaDescription,
-		PluginManagementEnabled:      updatedSettings.PluginManagementEnabled,
+		PluginManagementEnabled:       updatedSettings.PluginManagementEnabled,
 
 		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
 		CyberSessionBlockEnabled:    updatedSettings.CyberSessionBlockEnabled,

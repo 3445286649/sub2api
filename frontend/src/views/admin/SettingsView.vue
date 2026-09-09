@@ -6529,6 +6529,9 @@
                 </p>
               </div>
 
+              <HeaderButtonsEditor v-model="form.header_buttons" />
+              <details class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                <summary class="cursor-pointer text-sm font-medium">{{ t('headerButtons.details') }}</summary>
               <!-- Recharge Storefront -->
               <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
                 <div class="mb-4 flex items-center justify-between gap-4">
@@ -6540,20 +6543,8 @@
                       {{ t("admin.settings.site.rechargeStorefront.description") }}
                     </p>
                   </div>
-                  <Toggle v-model="form.recharge_storefront_enabled" />
                 </div>
                 <div class="space-y-4">
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.site.rechargeStorefront.buttonText") }}
-                    </label>
-                    <input
-                      v-model="form.recharge_storefront_button_text"
-                      type="text"
-                      class="input"
-                      :placeholder="t('admin.settings.site.rechargeStorefront.buttonTextPlaceholder')"
-                    />
-                  </div>
                   <div class="rounded-xl border border-gray-200 dark:border-dark-700">
                     <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-dark-700">
                       <div>
@@ -6609,59 +6600,8 @@
                       {{ t("admin.settings.site.supportGroup.description") }}
                     </p>
                   </div>
-                  <Toggle v-model="form.support_group_enabled" />
                 </div>
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.site.supportGroup.buttonText") }}
-                    </label>
-                    <input
-                      v-model="form.support_group_button_text"
-                      type="text"
-                      class="input"
-                      :placeholder="t('admin.settings.site.supportGroup.buttonTextPlaceholder')"
-                    />
-                  </div>
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.site.supportGroup.dialogTitle") }}
-                    </label>
-                    <input
-                      v-model="form.support_group_title"
-                      type="text"
-                      class="input"
-                      :placeholder="t('admin.settings.site.supportGroup.dialogTitlePlaceholder')"
-                    />
-                  </div>
-                  <div class="md:col-span-2">
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.site.supportGroup.qrCodeUrl") }}
-                    </label>
-                    <input
-                      v-model="form.support_group_qr_code_url"
-                      type="url"
-                      class="input font-mono text-sm"
-                      :placeholder="t('admin.settings.site.supportGroup.qrCodeUrlPlaceholder')"
-                    />
-                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.site.supportGroup.qrCodeUrlHint") }}
-                    </p>
-                  </div>
-                  <div class="md:col-span-2">
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.site.supportGroup.linkUrl") }}
-                    </label>
-                    <input
-                      v-model="form.support_group_link_url"
-                      type="url"
-                      class="input font-mono text-sm"
-                      :placeholder="t('admin.settings.site.supportGroup.linkUrlPlaceholder')"
-                    />
-                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.site.supportGroup.linkUrlHint") }}
-                    </p>
-                  </div>
                   <div class="md:col-span-2">
                     <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       {{ t("admin.settings.site.supportGroup.dialogDescription") }}
@@ -6676,77 +6616,8 @@
                 </div>
               </div>
 
-              <!-- Pixmo Studio -->
-              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
-                <div class="mb-4 flex items-center justify-between gap-4">
-                  <div>
-                    <h3 class="text-sm font-medium text-gray-900 dark:text-white">
-                      {{ t("admin.settings.site.pixmoStudio.title") }}
-                    </h3>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.site.pixmoStudio.description") }}
-                    </p>
-                  </div>
-                  <Toggle v-model="form.pixmo_studio_enabled" />
-                </div>
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.site.pixmoStudio.buttonText") }}
-                    </label>
-                    <input
-                      v-model="form.pixmo_studio_button_text"
-                      type="text"
-                      class="input"
-                      :placeholder="t('admin.settings.site.pixmoStudio.buttonTextPlaceholder')"
-                    />
-                  </div>
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.site.pixmoStudio.url") }}
-                    </label>
-                    <input
-                      v-model="form.pixmo_studio_url"
-                      type="url"
-                      class="input font-mono text-sm"
-                      :placeholder="t('admin.settings.site.pixmoStudio.urlPlaceholder')"
-                    />
-                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.site.pixmoStudio.urlHint") }}
-                    </p>
-                  </div>
-                </div>
-              </div>
 
-              <!-- Usage Help -->
-              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
-                <div class="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 class="text-sm font-medium text-gray-900 dark:text-white">
-                      {{ t("admin.settings.site.usageHelp.title") }}
-                    </h3>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.site.usageHelp.description") }}
-                    </p>
-                  </div>
-                  <Toggle v-model="form.usage_help_enabled" />
-                </div>
-              </div>
-
-              <!-- Model Radar -->
-              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
-                <div class="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 class="text-sm font-medium text-gray-900 dark:text-white">
-                      {{ t("admin.settings.site.modelRadar.title") }}
-                    </h3>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.site.modelRadar.description") }}
-                    </p>
-                  </div>
-                  <Toggle v-model="form.model_radar_enabled" />
-                </div>
-              </div>
+              </details>
 
               <!-- Doc URL -->
               <div>
@@ -9287,6 +9158,8 @@ import type {
 import type { ProviderInstance } from "@/types/payment";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import Icon from "@/components/icons/Icon.vue";
+import HeaderButtonsEditor from '@/components/admin/settings/HeaderButtonsEditor.vue';
+import { resolveHeaderButtons, isHeaderButtonURLSafe } from '@/utils/headerButtons';
 import Select from "@/components/common/Select.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import PaymentProviderList from "@/components/payment/PaymentProviderList.vue";
@@ -9977,6 +9850,7 @@ type SettingsForm = Omit<
   | "wechat_connect_mp_enabled"
   | "wechat_connect_mobile_enabled"
 > & {
+  header_buttons: import('@/types').HeaderButton[];
   /** Form always binds a concrete boolean (SystemSettings marks this optional). */
   channel_monitor_hide_throughput: boolean;
   channel_monitor_show_quota: boolean;
@@ -10073,6 +9947,7 @@ const form = reactive<SettingsForm>({
   support_group_qr_code_url: "",
   support_group_link_url: "",
   support_tickets_enabled: true,
+  header_buttons: [] as import('@/types').HeaderButton[],
   pixmo_studio_enabled: false,
   pixmo_studio_button_text: "Pixmo 生图",
   pixmo_studio_url: "",
@@ -11338,6 +11213,7 @@ async function loadSettings() {
       }
     }
     syncCaptchaProviderSelection();
+    form.header_buttons = resolveHeaderButtons(settings, t);
     if (!form.claude_oauth_system_prompt_blocks?.trim()) {
       form.claude_oauth_system_prompt_blocks =
         defaultClaudeOAuthSystemPromptBlocks;
@@ -11572,6 +11448,27 @@ function findDuplicateDefaultSubscription(
 async function saveSettings() {
   saving.value = true;
   try {
+    for (const button of form.header_buttons) {
+      button.name = button.name.trim();
+      button.url = button.url.trim();
+      if (!button.name || [...button.name].length > 32 || (button.url && !isHeaderButtonURLSafe(button.url)) || (button.action === 'external' && !button.url)) {
+        appStore.showError(t('headerButtons.invalid'));
+        return;
+      }
+      const enabledKeys = { recharge: 'recharge_storefront_enabled', help: 'usage_help_enabled', radar: 'model_radar_enabled', support: 'support_group_enabled', pixmo: 'pixmo_studio_enabled' } as const;
+      if (button.action in enabledKeys) {
+        form[enabledKeys[button.action as keyof typeof enabledKeys]] = button.enabled;
+      }
+      if (button.action === 'recharge') form.recharge_storefront_button_text = button.name;
+      if (button.action === 'support') {
+        form.support_group_button_text = button.name;
+        form.support_group_link_url = button.url;
+      }
+      if (button.action === 'pixmo') {
+        form.pixmo_studio_button_text = button.name;
+        form.pixmo_studio_url = button.url;
+      }
+    }
     const normalizedTableDefaultPageSize = Math.floor(
       Number(form.table_default_page_size),
     );
@@ -11808,6 +11705,7 @@ async function saveSettings() {
       support_group_description: form.support_group_description,
       support_group_qr_code_url: form.support_group_qr_code_url,
       support_group_link_url: form.support_group_link_url,
+      header_buttons: form.header_buttons,
       pixmo_studio_enabled: form.pixmo_studio_enabled,
       pixmo_studio_button_text: form.pixmo_studio_button_text,
       pixmo_studio_url: form.pixmo_studio_url,

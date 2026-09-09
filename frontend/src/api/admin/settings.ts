@@ -491,6 +491,7 @@ export interface SystemSettings {
   support_group_description: string;
   support_group_qr_code_url: string;
   support_group_link_url: string;
+  header_buttons?: import('@/types').HeaderButton[] | null;
   pixmo_studio_enabled: boolean;
   pixmo_studio_button_text: string;
   pixmo_studio_url: string;
@@ -860,6 +861,7 @@ export interface UpdateSettingsRequest {
   support_group_description?: string;
   support_group_qr_code_url?: string;
   support_group_link_url?: string;
+  header_buttons?: import('@/types').HeaderButton[];
   pixmo_studio_enabled?: boolean;
   pixmo_studio_button_text?: string;
   pixmo_studio_url?: string;

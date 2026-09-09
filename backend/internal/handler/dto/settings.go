@@ -164,6 +164,7 @@ type SystemSettings struct {
 	SupportGroupDescription      string                              `json:"support_group_description"`
 	SupportGroupQRCodeURL        string                              `json:"support_group_qr_code_url"`
 	SupportGroupLinkURL          string                              `json:"support_group_link_url"`
+	HeaderButtons                []service.HeaderButton              `json:"header_buttons"`
 	PixmoStudioEnabled           bool                                `json:"pixmo_studio_enabled"`
 	PixmoStudioButtonText        string                              `json:"pixmo_studio_button_text"`
 	PixmoStudioURL               string                              `json:"pixmo_studio_url"`
@@ -417,6 +418,7 @@ type PublicSettings struct {
 	SupportGroupDescription             string                              `json:"support_group_description"`
 	SupportGroupQRCodeURL               string                              `json:"support_group_qr_code_url"`
 	SupportGroupLinkURL                 string                              `json:"support_group_link_url"`
+	HeaderButtons                       []service.HeaderButton              `json:"header_buttons"`
 	PixmoStudioEnabled                  bool                                `json:"pixmo_studio_enabled"`
 	PixmoStudioButtonText               string                              `json:"pixmo_studio_button_text"`
 	PixmoStudioURL                      string                              `json:"pixmo_studio_url"`

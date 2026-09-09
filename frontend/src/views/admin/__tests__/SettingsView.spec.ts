@@ -1126,6 +1126,27 @@ describe("admin SettingsView payment visible method controls", () => {
       }),
     );
     expect(fetchPublicSettings).toHaveBeenCalledWith(true);
+    expect(updateSettings.mock.calls.at(-1)?.[0].header_buttons).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'support', url: 'https://chat.example.com/group', enabled: true }),
+    ]));
+  });
+
+  it("saves configured header order and rejects executable link targets", async () => {
+    const buttons = [{ action: 'external', name: 'Status', url: 'https://status.example.com', enabled: true }];
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, header_buttons: buttons });
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings.mock.calls.at(-1)?.[0].header_buttons).toEqual(buttons);
+    updateSettings.mockClear();
+    const state = (wrapper.vm as any).$?.setupState;
+    state.form.header_buttons = [{ ...buttons[0], url: 'javascript:alert(1)' }];
+    await wrapper.find('form').trigger('submit.prevent');
+    await flushPromises();
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(showError).toHaveBeenCalled();
+    wrapper.unmount();
   });
 
   it("keeps balance recharge multiplier editable and submits the bonus display switch separately", async () => {
