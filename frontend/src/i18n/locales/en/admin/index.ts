@@ -9,6 +9,9 @@ import promptAudit from './promptAudit'
 import plugins from './plugins'
 
 export default {
+  modelRadar: {
+    description: 'Monitor upstream model availability',
+  },
   ...overview,
   ...channels,
   ...accounts,

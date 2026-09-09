@@ -108,6 +108,7 @@ func ProvideAdminHandlers(
 
 // ProvideAdminAccountHandler creates admin.AccountHandler with local health and upstream balance extensions wired.
 func ProvideAdminAccountHandler(
+	cfg *config.Config,
 	adminService service.AdminService,
 	oauthService *service.OAuthService,
 	openaiOAuthService *service.OpenAIOAuthService,
@@ -126,9 +127,9 @@ func ProvideAdminAccountHandler(
 	accountUpstreamBalanceService *service.AccountUpstreamBalanceService,
 	grokQuotaService *service.GrokQuotaService,
 ) *admin.AccountHandler {
-	h := admin.NewAccountHandler(adminService, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, rateLimitService, accountUsageService, accountTestService, concurrencyService, crsSyncService, sessionLimitCache, rpmCache, tokenCacheInvalidator, accountHealthService)
+	h := admin.ProvideAccountHandler(cfg, adminService, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, rateLimitService, accountUsageService, accountTestService, concurrencyService, crsSyncService, sessionLimitCache, rpmCache, tokenCacheInvalidator, grokQuotaService)
+	h.SetAccountHealthService(accountHealthService)
 	h.SetAccountUpstreamBalanceService(accountUpstreamBalanceService)
-	h.SetGrokImportProber(grokQuotaService)
 	return h
 }
 
@@ -321,7 +322,7 @@ var ProviderSet = wire.NewSet(
 	// Admin handlers
 	admin.NewDashboardHandler,
 	admin.NewUserHandler,
-	admin.NewGroupHandler,
+	admin.NewGroupHandlerWithConfig,
 	ProvideAdminAccountHandler,
 	admin.NewAccountSchedulingHoldHandler,
 	admin.NewAnnouncementHandler,

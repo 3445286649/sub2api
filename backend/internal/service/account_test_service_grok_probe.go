@@ -111,7 +111,7 @@ func (s *AccountTestService) ProbeGrokProtocols(ctx context.Context, account *Ac
 				}
 				req.Header.Set("anthropic-version", "2023-06-01")
 				req.Header.Set("anthropic-beta", claude.DefaultBetaHeader)
-				setAnthropicAPIKeyAuthHeader(req.Header, account, apiKey)
+				setAnthropicAPIKeyAuthHeader(req.Header, account, apiKey, baseURL)
 				return req, nil
 			},
 		},

@@ -9,6 +9,9 @@ import promptAudit from './promptAudit'
 import plugins from './plugins'
 
 export default {
+  modelRadar: {
+    description: '监控上游模型可用性',
+  },
   ...overview,
   ...channels,
   ...accounts,
