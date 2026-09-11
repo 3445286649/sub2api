@@ -37,6 +37,8 @@ type ChannelMonitor struct {
 	Endpoint string `json:"endpoint,omitempty"`
 	// DisplayCategory holds the value of the "display_category" field.
 	DisplayCategory string `json:"display_category,omitempty"`
+	// DisplayOrder holds the value of the "display_order" field.
+	DisplayOrder int `json:"display_order,omitempty"`
 	// AES-256-GCM encrypted API key
 	APIKeyEncrypted string `json:"-"`
 	// PrimaryModel holds the value of the "primary_model" field.
@@ -120,7 +122,7 @@ func (*ChannelMonitor) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case channelmonitor.FieldEnabled:
 			values[i] = new(sql.NullBool)
-		case channelmonitor.FieldID, channelmonitor.FieldAccountID, channelmonitor.FieldIntervalSeconds, channelmonitor.FieldJitterSeconds, channelmonitor.FieldCreatedBy, channelmonitor.FieldTemplateID:
+		case channelmonitor.FieldID, channelmonitor.FieldAccountID, channelmonitor.FieldDisplayOrder, channelmonitor.FieldIntervalSeconds, channelmonitor.FieldJitterSeconds, channelmonitor.FieldCreatedBy, channelmonitor.FieldTemplateID:
 			values[i] = new(sql.NullInt64)
 		case channelmonitor.FieldName, channelmonitor.FieldProvider, channelmonitor.FieldCheckMode, channelmonitor.FieldAPIMode, channelmonitor.FieldEndpoint, channelmonitor.FieldDisplayCategory, channelmonitor.FieldAPIKeyEncrypted, channelmonitor.FieldPrimaryModel, channelmonitor.FieldGroupName, channelmonitor.FieldBodyOverrideMode:
 			values[i] = new(sql.NullString)
@@ -201,6 +203,12 @@ func (_m *ChannelMonitor) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field display_category", values[i])
 			} else if value.Valid {
 				_m.DisplayCategory = value.String
+			}
+		case channelmonitor.FieldDisplayOrder:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field display_order", values[i])
+			} else if value.Valid {
+				_m.DisplayOrder = int(value.Int64)
 			}
 		case channelmonitor.FieldAPIKeyEncrypted:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -367,6 +375,9 @@ func (_m *ChannelMonitor) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("display_category=")
 	builder.WriteString(_m.DisplayCategory)
+	builder.WriteString(", ")
+	builder.WriteString("display_order=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DisplayOrder))
 	builder.WriteString(", ")
 	builder.WriteString("api_key_encrypted=<sensitive>")
 	builder.WriteString(", ")

@@ -181,6 +181,7 @@ func (s *ChannelMonitorService) Create(ctx context.Context, p ChannelMonitorCrea
 	}
 	m := &ChannelMonitor{
 		DisplayCategory:  strings.TrimSpace(p.DisplayCategory),
+		DisplayOrder:     p.DisplayOrder,
 		Name:             strings.TrimSpace(p.Name),
 		Provider:         p.Provider,
 		APIMode:          defaultAPIMode(p.APIMode),
@@ -249,6 +250,7 @@ func (s *ChannelMonitorService) Duplicate(
 
 	duplicate := &ChannelMonitor{
 		DisplayCategory:      source.DisplayCategory,
+		DisplayOrder:         source.DisplayOrder,
 		Name:                 duplicateChannelMonitorName(source.Name),
 		Provider:             source.Provider,
 		APIMode:              source.APIMode,
@@ -389,6 +391,9 @@ func cloneChannelMonitorJSONMap(source map[string]any) (map[string]any, error) {
 // quota_probe 两者皆需。
 func validateCreateParams(p ChannelMonitorCreateParams) error {
 	if err := validateMonitorDisplayCategory(strings.TrimSpace(p.DisplayCategory)); err != nil {
+		return err
+	}
+	if err := validateMonitorDisplayOrder(p.DisplayOrder); err != nil {
 		return err
 	}
 	if err := validateProvider(p.Provider); err != nil {
@@ -949,6 +954,12 @@ func (s *ChannelMonitorService) decryptInPlace(m *ChannelMonitor) {
 // 行数稍超过 30：这是逐字段平铺的 dispatcher，每个 if 都是 1-3 行的"非 nil 则覆盖"模式，
 // 拆分反而会增加跳转噪音、影响可读性，故保留为单函数。
 func applyMonitorUpdate(existing *ChannelMonitor, p ChannelMonitorUpdateParams) error {
+	if p.DisplayOrder != nil {
+		if err := validateMonitorDisplayOrder(*p.DisplayOrder); err != nil {
+			return err
+		}
+		existing.DisplayOrder = *p.DisplayOrder
+	}
 	if p.DisplayCategory != nil {
 		category := strings.TrimSpace(*p.DisplayCategory)
 		if err := validateMonitorDisplayCategory(category); err != nil {

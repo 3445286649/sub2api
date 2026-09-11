@@ -53,6 +53,7 @@ func (h *ChannelMonitorUserHandler) quotaVisible(c *gin.Context) bool {
 
 type channelMonitorUserListItem struct {
 	DisplayCategory        string                               `json:"display_category"`
+	DisplayOrder           int                                  `json:"display_order"`
 	ID                     int64                                `json:"id"`
 	Name                   string                               `json:"name"`
 	Provider               string                               `json:"provider"`
@@ -120,6 +121,7 @@ func userMonitorViewToItem(v *service.UserMonitorView, includeQuota bool) channe
 	}
 	item := channelMonitorUserListItem{
 		DisplayCategory:        v.DisplayCategory,
+		DisplayOrder:           v.DisplayOrder,
 		ID:                     v.ID,
 		Name:                   v.Name,
 		Provider:               v.Provider,

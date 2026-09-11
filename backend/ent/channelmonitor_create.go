@@ -127,6 +127,20 @@ func (_c *ChannelMonitorCreate) SetNillableDisplayCategory(v *string) *ChannelMo
 	return _c
 }
 
+// SetDisplayOrder sets the "display_order" field.
+func (_c *ChannelMonitorCreate) SetDisplayOrder(v int) *ChannelMonitorCreate {
+	_c.mutation.SetDisplayOrder(v)
+	return _c
+}
+
+// SetNillableDisplayOrder sets the "display_order" field if the given value is not nil.
+func (_c *ChannelMonitorCreate) SetNillableDisplayOrder(v *int) *ChannelMonitorCreate {
+	if v != nil {
+		_c.SetDisplayOrder(*v)
+	}
+	return _c
+}
+
 // SetAPIKeyEncrypted sets the "api_key_encrypted" field.
 func (_c *ChannelMonitorCreate) SetAPIKeyEncrypted(v string) *ChannelMonitorCreate {
 	_c.mutation.SetAPIKeyEncrypted(v)
@@ -357,6 +371,10 @@ func (_c *ChannelMonitorCreate) defaults() {
 		v := channelmonitor.DefaultDisplayCategory
 		_c.mutation.SetDisplayCategory(v)
 	}
+	if _, ok := _c.mutation.DisplayOrder(); !ok {
+		v := channelmonitor.DefaultDisplayOrder
+		_c.mutation.SetDisplayOrder(v)
+	}
 	if _, ok := _c.mutation.ExtraModels(); !ok {
 		v := channelmonitor.DefaultExtraModels
 		_c.mutation.SetExtraModels(v)
@@ -437,6 +455,14 @@ func (_c *ChannelMonitorCreate) check() error {
 	if v, ok := _c.mutation.DisplayCategory(); ok {
 		if err := channelmonitor.DisplayCategoryValidator(v); err != nil {
 			return &ValidationError{Name: "display_category", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.display_category": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.DisplayOrder(); !ok {
+		return &ValidationError{Name: "display_order", err: errors.New(`ent: missing required field "ChannelMonitor.display_order"`)}
+	}
+	if v, ok := _c.mutation.DisplayOrder(); ok {
+		if err := channelmonitor.DisplayOrderValidator(v); err != nil {
+			return &ValidationError{Name: "display_order", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.display_order": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.APIKeyEncrypted(); !ok {
@@ -558,6 +584,10 @@ func (_c *ChannelMonitorCreate) createSpec() (*ChannelMonitor, *sqlgraph.CreateS
 	if value, ok := _c.mutation.DisplayCategory(); ok {
 		_spec.SetField(channelmonitor.FieldDisplayCategory, field.TypeString, value)
 		_node.DisplayCategory = value
+	}
+	if value, ok := _c.mutation.DisplayOrder(); ok {
+		_spec.SetField(channelmonitor.FieldDisplayOrder, field.TypeInt, value)
+		_node.DisplayOrder = value
 	}
 	if value, ok := _c.mutation.APIKeyEncrypted(); ok {
 		_spec.SetField(channelmonitor.FieldAPIKeyEncrypted, field.TypeString, value)
@@ -813,6 +843,24 @@ func (u *ChannelMonitorUpsert) SetDisplayCategory(v string) *ChannelMonitorUpser
 // UpdateDisplayCategory sets the "display_category" field to the value that was provided on create.
 func (u *ChannelMonitorUpsert) UpdateDisplayCategory() *ChannelMonitorUpsert {
 	u.SetExcluded(channelmonitor.FieldDisplayCategory)
+	return u
+}
+
+// SetDisplayOrder sets the "display_order" field.
+func (u *ChannelMonitorUpsert) SetDisplayOrder(v int) *ChannelMonitorUpsert {
+	u.Set(channelmonitor.FieldDisplayOrder, v)
+	return u
+}
+
+// UpdateDisplayOrder sets the "display_order" field to the value that was provided on create.
+func (u *ChannelMonitorUpsert) UpdateDisplayOrder() *ChannelMonitorUpsert {
+	u.SetExcluded(channelmonitor.FieldDisplayOrder)
+	return u
+}
+
+// AddDisplayOrder adds v to the "display_order" field.
+func (u *ChannelMonitorUpsert) AddDisplayOrder(v int) *ChannelMonitorUpsert {
+	u.Add(channelmonitor.FieldDisplayOrder, v)
 	return u
 }
 
@@ -1182,6 +1230,27 @@ func (u *ChannelMonitorUpsertOne) SetDisplayCategory(v string) *ChannelMonitorUp
 func (u *ChannelMonitorUpsertOne) UpdateDisplayCategory() *ChannelMonitorUpsertOne {
 	return u.Update(func(s *ChannelMonitorUpsert) {
 		s.UpdateDisplayCategory()
+	})
+}
+
+// SetDisplayOrder sets the "display_order" field.
+func (u *ChannelMonitorUpsertOne) SetDisplayOrder(v int) *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetDisplayOrder(v)
+	})
+}
+
+// AddDisplayOrder adds v to the "display_order" field.
+func (u *ChannelMonitorUpsertOne) AddDisplayOrder(v int) *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.AddDisplayOrder(v)
+	})
+}
+
+// UpdateDisplayOrder sets the "display_order" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertOne) UpdateDisplayOrder() *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateDisplayOrder()
 	})
 }
 
@@ -1750,6 +1819,27 @@ func (u *ChannelMonitorUpsertBulk) SetDisplayCategory(v string) *ChannelMonitorU
 func (u *ChannelMonitorUpsertBulk) UpdateDisplayCategory() *ChannelMonitorUpsertBulk {
 	return u.Update(func(s *ChannelMonitorUpsert) {
 		s.UpdateDisplayCategory()
+	})
+}
+
+// SetDisplayOrder sets the "display_order" field.
+func (u *ChannelMonitorUpsertBulk) SetDisplayOrder(v int) *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetDisplayOrder(v)
+	})
+}
+
+// AddDisplayOrder adds v to the "display_order" field.
+func (u *ChannelMonitorUpsertBulk) AddDisplayOrder(v int) *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.AddDisplayOrder(v)
+	})
+}
+
+// UpdateDisplayOrder sets the "display_order" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertBulk) UpdateDisplayOrder() *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateDisplayOrder()
 	})
 }
 

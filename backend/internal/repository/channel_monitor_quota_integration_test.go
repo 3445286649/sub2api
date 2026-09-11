@@ -35,6 +35,7 @@ func TestChannelMonitorQuotaModeRoundTrip(t *testing.T) {
 	created := &service.ChannelMonitor{
 		Name:             "kimi-quota-roundtrip",
 		DisplayCategory:  "国产聚合",
+		DisplayOrder:     20,
 		Provider:         service.MonitorProviderKimi,
 		APIMode:          service.MonitorAPIModeChatCompletions,
 		Endpoint:         "",
@@ -55,6 +56,8 @@ func TestChannelMonitorQuotaModeRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, service.MonitorCheckModeQuota, loaded.CheckMode)
 	require.Equal(t, "国产聚合", loaded.DisplayCategory)
+	require.Equal(t, 20, loaded.DisplayOrder)
+	loaded.DisplayOrder = 10
 	categories, err := repo.ListDisplayCategories(ctx)
 	require.NoError(t, err)
 	require.Contains(t, categories, "国产聚合")
@@ -72,6 +75,8 @@ func TestChannelMonitorQuotaModeRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, service.MonitorCheckModeProbe, reloaded.CheckMode)
 	require.Equal(t, "智谱 GLM", reloaded.DisplayCategory)
+	require.Equal(t, 10, reloaded.DisplayOrder)
+	reloaded.DisplayOrder = 0
 	reloaded.DisplayCategory = ""
 	require.Nil(t, reloaded.AccountID)
 
@@ -83,6 +88,7 @@ func TestChannelMonitorQuotaModeRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, service.MonitorCheckModeQuotaProbe, final.CheckMode)
 	require.Empty(t, final.DisplayCategory)
+	require.Zero(t, final.DisplayOrder)
 	require.NotNil(t, final.AccountID)
 }
 

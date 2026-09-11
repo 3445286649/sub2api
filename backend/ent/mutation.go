@@ -15197,6 +15197,8 @@ type ChannelMonitorMutation struct {
 	api_mode                *string
 	endpoint                *string
 	display_category        *string
+	display_order           *int
+	adddisplay_order        *int
 	api_key_encrypted       *string
 	primary_model           *string
 	extra_models            *[]string
@@ -15681,6 +15683,62 @@ func (m *ChannelMonitorMutation) OldDisplayCategory(ctx context.Context) (v stri
 // ResetDisplayCategory resets all changes to the "display_category" field.
 func (m *ChannelMonitorMutation) ResetDisplayCategory() {
 	m.display_category = nil
+}
+
+// SetDisplayOrder sets the "display_order" field.
+func (m *ChannelMonitorMutation) SetDisplayOrder(i int) {
+	m.display_order = &i
+	m.adddisplay_order = nil
+}
+
+// DisplayOrder returns the value of the "display_order" field in the mutation.
+func (m *ChannelMonitorMutation) DisplayOrder() (r int, exists bool) {
+	v := m.display_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplayOrder returns the old "display_order" field's value of the ChannelMonitor entity.
+// If the ChannelMonitor object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorMutation) OldDisplayOrder(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplayOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplayOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplayOrder: %w", err)
+	}
+	return oldValue.DisplayOrder, nil
+}
+
+// AddDisplayOrder adds i to the "display_order" field.
+func (m *ChannelMonitorMutation) AddDisplayOrder(i int) {
+	if m.adddisplay_order != nil {
+		*m.adddisplay_order += i
+	} else {
+		m.adddisplay_order = &i
+	}
+}
+
+// AddedDisplayOrder returns the value that was added to the "display_order" field in this mutation.
+func (m *ChannelMonitorMutation) AddedDisplayOrder() (r int, exists bool) {
+	v := m.adddisplay_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDisplayOrder resets all changes to the "display_order" field.
+func (m *ChannelMonitorMutation) ResetDisplayOrder() {
+	m.display_order = nil
+	m.adddisplay_order = nil
 }
 
 // SetAPIKeyEncrypted sets the "api_key_encrypted" field.
@@ -16460,7 +16518,7 @@ func (m *ChannelMonitorMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMonitorMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 23)
 	if m.created_at != nil {
 		fields = append(fields, channelmonitor.FieldCreatedAt)
 	}
@@ -16487,6 +16545,9 @@ func (m *ChannelMonitorMutation) Fields() []string {
 	}
 	if m.display_category != nil {
 		fields = append(fields, channelmonitor.FieldDisplayCategory)
+	}
+	if m.display_order != nil {
+		fields = append(fields, channelmonitor.FieldDisplayOrder)
 	}
 	if m.api_key_encrypted != nil {
 		fields = append(fields, channelmonitor.FieldAPIKeyEncrypted)
@@ -16553,6 +16614,8 @@ func (m *ChannelMonitorMutation) Field(name string) (ent.Value, bool) {
 		return m.Endpoint()
 	case channelmonitor.FieldDisplayCategory:
 		return m.DisplayCategory()
+	case channelmonitor.FieldDisplayOrder:
+		return m.DisplayOrder()
 	case channelmonitor.FieldAPIKeyEncrypted:
 		return m.APIKeyEncrypted()
 	case channelmonitor.FieldPrimaryModel:
@@ -16606,6 +16669,8 @@ func (m *ChannelMonitorMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldEndpoint(ctx)
 	case channelmonitor.FieldDisplayCategory:
 		return m.OldDisplayCategory(ctx)
+	case channelmonitor.FieldDisplayOrder:
+		return m.OldDisplayOrder(ctx)
 	case channelmonitor.FieldAPIKeyEncrypted:
 		return m.OldAPIKeyEncrypted(ctx)
 	case channelmonitor.FieldPrimaryModel:
@@ -16703,6 +16768,13 @@ func (m *ChannelMonitorMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDisplayCategory(v)
+		return nil
+	case channelmonitor.FieldDisplayOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplayOrder(v)
 		return nil
 	case channelmonitor.FieldAPIKeyEncrypted:
 		v, ok := value.(string)
@@ -16806,6 +16878,9 @@ func (m *ChannelMonitorMutation) AddedFields() []string {
 	if m.addaccount_id != nil {
 		fields = append(fields, channelmonitor.FieldAccountID)
 	}
+	if m.adddisplay_order != nil {
+		fields = append(fields, channelmonitor.FieldDisplayOrder)
+	}
 	if m.addinterval_seconds != nil {
 		fields = append(fields, channelmonitor.FieldIntervalSeconds)
 	}
@@ -16825,6 +16900,8 @@ func (m *ChannelMonitorMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case channelmonitor.FieldAccountID:
 		return m.AddedAccountID()
+	case channelmonitor.FieldDisplayOrder:
+		return m.AddedDisplayOrder()
 	case channelmonitor.FieldIntervalSeconds:
 		return m.AddedIntervalSeconds()
 	case channelmonitor.FieldJitterSeconds:
@@ -16846,6 +16923,13 @@ func (m *ChannelMonitorMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddAccountID(v)
+		return nil
+	case channelmonitor.FieldDisplayOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDisplayOrder(v)
 		return nil
 	case channelmonitor.FieldIntervalSeconds:
 		v, ok := value.(int)
@@ -16954,6 +17038,9 @@ func (m *ChannelMonitorMutation) ResetField(name string) error {
 		return nil
 	case channelmonitor.FieldDisplayCategory:
 		m.ResetDisplayCategory()
+		return nil
+	case channelmonitor.FieldDisplayOrder:
+		m.ResetDisplayOrder()
 		return nil
 	case channelmonitor.FieldAPIKeyEncrypted:
 		m.ResetAPIKeyEncrypted()

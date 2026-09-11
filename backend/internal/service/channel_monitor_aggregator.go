@@ -234,6 +234,7 @@ func buildUserViewFromSummary(
 ) *UserMonitorView {
 	view := &UserMonitorView{
 		DisplayCategory:        m.DisplayCategory,
+		DisplayOrder:           m.DisplayOrder,
 		ID:                     m.ID,
 		Name:                   m.Name,
 		Provider:               m.Provider,

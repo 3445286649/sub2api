@@ -21,5 +21,6 @@ export function groupMonitorCategories(items: UserMonitorView[]) {
   const defaults = Object.values(MONITOR_CATEGORY_NAMES)
   const rank = (name: string) => defaults.includes(name) ? defaults.indexOf(name) : defaults.length
   return [...groups].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b, 'zh-CN'))
-    .map(([name, monitors]) => ({ name, items: monitors.sort((a, b) => a.id - b.id) }))
+    .map(([name, monitors]) => ({ name, items: monitors.sort((a, b) =>
+      (a.display_order ?? 0) - (b.display_order ?? 0) || a.id - b.id) }))
 }

@@ -149,6 +149,27 @@ func (_u *ChannelMonitorUpdate) SetNillableDisplayCategory(v *string) *ChannelMo
 	return _u
 }
 
+// SetDisplayOrder sets the "display_order" field.
+func (_u *ChannelMonitorUpdate) SetDisplayOrder(v int) *ChannelMonitorUpdate {
+	_u.mutation.ResetDisplayOrder()
+	_u.mutation.SetDisplayOrder(v)
+	return _u
+}
+
+// SetNillableDisplayOrder sets the "display_order" field if the given value is not nil.
+func (_u *ChannelMonitorUpdate) SetNillableDisplayOrder(v *int) *ChannelMonitorUpdate {
+	if v != nil {
+		_u.SetDisplayOrder(*v)
+	}
+	return _u
+}
+
+// AddDisplayOrder adds value to the "display_order" field.
+func (_u *ChannelMonitorUpdate) AddDisplayOrder(v int) *ChannelMonitorUpdate {
+	_u.mutation.AddDisplayOrder(v)
+	return _u
+}
+
 // SetAPIKeyEncrypted sets the "api_key_encrypted" field.
 func (_u *ChannelMonitorUpdate) SetAPIKeyEncrypted(v string) *ChannelMonitorUpdate {
 	_u.mutation.SetAPIKeyEncrypted(v)
@@ -528,6 +549,11 @@ func (_u *ChannelMonitorUpdate) check() error {
 			return &ValidationError{Name: "display_category", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.display_category": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DisplayOrder(); ok {
+		if err := channelmonitor.DisplayOrderValidator(v); err != nil {
+			return &ValidationError{Name: "display_order", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.display_order": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.APIKeyEncrypted(); ok {
 		if err := channelmonitor.APIKeyEncryptedValidator(v); err != nil {
 			return &ValidationError{Name: "api_key_encrypted", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.api_key_encrypted": %w`, err)}
@@ -602,6 +628,12 @@ func (_u *ChannelMonitorUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.DisplayCategory(); ok {
 		_spec.SetField(channelmonitor.FieldDisplayCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DisplayOrder(); ok {
+		_spec.SetField(channelmonitor.FieldDisplayOrder, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDisplayOrder(); ok {
+		_spec.AddField(channelmonitor.FieldDisplayOrder, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.APIKeyEncrypted(); ok {
 		_spec.SetField(channelmonitor.FieldAPIKeyEncrypted, field.TypeString, value)
@@ -915,6 +947,27 @@ func (_u *ChannelMonitorUpdateOne) SetNillableDisplayCategory(v *string) *Channe
 	if v != nil {
 		_u.SetDisplayCategory(*v)
 	}
+	return _u
+}
+
+// SetDisplayOrder sets the "display_order" field.
+func (_u *ChannelMonitorUpdateOne) SetDisplayOrder(v int) *ChannelMonitorUpdateOne {
+	_u.mutation.ResetDisplayOrder()
+	_u.mutation.SetDisplayOrder(v)
+	return _u
+}
+
+// SetNillableDisplayOrder sets the "display_order" field if the given value is not nil.
+func (_u *ChannelMonitorUpdateOne) SetNillableDisplayOrder(v *int) *ChannelMonitorUpdateOne {
+	if v != nil {
+		_u.SetDisplayOrder(*v)
+	}
+	return _u
+}
+
+// AddDisplayOrder adds value to the "display_order" field.
+func (_u *ChannelMonitorUpdateOne) AddDisplayOrder(v int) *ChannelMonitorUpdateOne {
+	_u.mutation.AddDisplayOrder(v)
 	return _u
 }
 
@@ -1310,6 +1363,11 @@ func (_u *ChannelMonitorUpdateOne) check() error {
 			return &ValidationError{Name: "display_category", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.display_category": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DisplayOrder(); ok {
+		if err := channelmonitor.DisplayOrderValidator(v); err != nil {
+			return &ValidationError{Name: "display_order", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.display_order": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.APIKeyEncrypted(); ok {
 		if err := channelmonitor.APIKeyEncryptedValidator(v); err != nil {
 			return &ValidationError{Name: "api_key_encrypted", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.api_key_encrypted": %w`, err)}
@@ -1401,6 +1459,12 @@ func (_u *ChannelMonitorUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 	}
 	if value, ok := _u.mutation.DisplayCategory(); ok {
 		_spec.SetField(channelmonitor.FieldDisplayCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DisplayOrder(); ok {
+		_spec.SetField(channelmonitor.FieldDisplayOrder, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDisplayOrder(); ok {
+		_spec.AddField(channelmonitor.FieldDisplayOrder, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.APIKeyEncrypted(); ok {
 		_spec.SetField(channelmonitor.FieldAPIKeyEncrypted, field.TypeString, value)

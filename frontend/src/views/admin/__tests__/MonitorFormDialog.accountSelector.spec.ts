@@ -112,6 +112,27 @@ function makeMonitor(overrides: Partial<ChannelMonitor> = {}): ChannelMonitor {
   }
 }
 
+describe('monitor display order', () => {
+  it('loads the saved order and explicitly submits zero when reset', async () => {
+    const wrapper = mountDialog(makeMonitor({ display_order: 20 }))
+    await flushPromises()
+    expect((wrapper.get('#monitor-display-order').element as HTMLInputElement).value).toBe('20')
+    await wrapper.get('#monitor-display-order').setValue('0')
+    await wrapper.get('#channel-monitor-form').trigger('submit')
+    await flushPromises()
+    expect(monitorUpdate).toHaveBeenCalledWith(42, expect.objectContaining({ display_order: 0 }))
+  })
+
+  it.each(['-1', '1000000', '1.5', ''])('rejects invalid order %s before saving', async (value) => {
+    const wrapper = mountDialog(makeMonitor())
+    await flushPromises()
+    await wrapper.get('#monitor-display-order').setValue(value)
+    await wrapper.get('#channel-monitor-form').trigger('submit')
+    await flushPromises()
+    expect(monitorUpdate).not.toHaveBeenCalled()
+  })
+})
+
 let unmountWrapper: (() => void) | undefined
 
 function mountDialog(monitor: ChannelMonitor | null = null) {
@@ -166,16 +187,16 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('MonitorFormDialog linked account selector', () => {
-  beforeEach(() => {
-    vi.mocked(listDisplayCategories).mockResolvedValue(['国产聚合'])
-    listTemplates.mockReset().mockResolvedValue({ items: [] })
-    accountsList.mockReset().mockResolvedValue({ items: [] })
-    accountsGetById.mockReset()
-    monitorCreate.mockReset().mockResolvedValue({})
-    monitorUpdate.mockReset().mockResolvedValue({})
-  })
+beforeEach(() => {
+  vi.mocked(listDisplayCategories).mockResolvedValue(['国产聚合'])
+  listTemplates.mockReset().mockResolvedValue({ items: [] })
+  accountsList.mockReset().mockResolvedValue({ items: [] })
+  accountsGetById.mockReset()
+  monitorCreate.mockReset().mockResolvedValue({})
+  monitorUpdate.mockReset().mockResolvedValue({})
+})
 
+describe('MonitorFormDialog linked account selector', () => {
   it('loads category suggestions and saves a trimmed category without changing protocol', async () => {
     const wrapper = mountDialog(makeMonitor({ display_category: '国产聚合' }))
     await flushPromises()
@@ -392,6 +413,7 @@ describe('MonitorFormDialog linked account selector', () => {
     expect(monitorCreate).toHaveBeenCalledWith(expect.objectContaining({
       check_mode: 'probe',
       account_id: null,
+      display_order: 0,
     }))
   })
 })

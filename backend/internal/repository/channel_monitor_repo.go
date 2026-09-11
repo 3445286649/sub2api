@@ -50,6 +50,7 @@ func (r *channelMonitorRepository) Create(ctx context.Context, m *service.Channe
 	client := clientFromContext(ctx, r.client)
 	builder := client.ChannelMonitor.Create().
 		SetDisplayCategory(m.DisplayCategory).
+		SetDisplayOrder(m.DisplayOrder).
 		SetName(m.Name).
 		SetProvider(channelmonitor.Provider(m.Provider)).
 		SetAPIMode(defaultAPIModeRepo(m.APIMode)).
@@ -123,6 +124,7 @@ func (r *channelMonitorRepository) Update(ctx context.Context, m *service.Channe
 	client := clientFromContext(ctx, r.client)
 	updater := client.ChannelMonitor.UpdateOneID(m.ID).
 		SetDisplayCategory(m.DisplayCategory).
+		SetDisplayOrder(m.DisplayOrder).
 		SetName(m.Name).
 		SetProvider(channelmonitor.Provider(m.Provider)).
 		SetAPIMode(defaultAPIModeRepo(m.APIMode)).
@@ -805,6 +807,7 @@ func entToServiceMonitor(row *dbent.ChannelMonitor) *service.ChannelMonitor {
 		APIMode:              defaultAPIModeRepo(row.APIMode),
 		Endpoint:             row.Endpoint,
 		DisplayCategory:      row.DisplayCategory,
+		DisplayOrder:         row.DisplayOrder,
 		APIKey:               row.APIKeyEncrypted, // 仍为密文，service 层负责解密
 		PrimaryModel:         row.PrimaryModel,
 		ExtraModels:          extras,

@@ -464,6 +464,8 @@ export default {
   // Shared keys for channel monitor (admin + user views)
   monitorCommon: {
     displayCategory: '展示分类',
+    displayOrder: '分类内排序',
+    invalidDisplayOrder: '排序必须为 0–999999 的整数',
     automaticCategory: '自动（跟随供应商）',
     categoryLoadError: '已有分类加载失败，仍可输入分类名称',
     allCategories: '全部',

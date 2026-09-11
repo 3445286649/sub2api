@@ -459,6 +459,8 @@ export default {
   // Shared keys for channel monitor (admin + user views)
   monitorCommon: {
     displayCategory: 'Display category',
+    displayOrder: 'Order within category',
+    invalidDisplayOrder: 'Order must be an integer between 0 and 999999',
     automaticCategory: 'Automatic (provider)',
     categoryLoadError: 'Could not load categories. You can still enter a name.',
     allCategories: 'All',

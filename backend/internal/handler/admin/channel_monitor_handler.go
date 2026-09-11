@@ -52,6 +52,7 @@ func (h *ChannelMonitorHandler) ListDisplayCategories(c *gin.Context) {
 
 type channelMonitorCreateRequest struct {
 	DisplayCategory  string            `json:"display_category" binding:"max=50"`
+	DisplayOrder     int               `json:"display_order" binding:"min=0,max=999999"`
 	Name             string            `json:"name" binding:"required,max=100"`
 	Provider         string            `json:"provider" binding:"required,oneof=openai anthropic gemini grok antigravity kimi zhipu deepseek minimax"`
 	APIMode          string            `json:"api_mode" binding:"omitempty,oneof=chat_completions responses"`
@@ -77,6 +78,7 @@ type channelMonitorCreateRequest struct {
 
 type channelMonitorUpdateRequest struct {
 	DisplayCategory  *string            `json:"display_category" binding:"omitempty,max=50"`
+	DisplayOrder     *int               `json:"display_order" binding:"omitempty,min=0,max=999999"`
 	Name             *string            `json:"name" binding:"omitempty,max=100"`
 	Provider         *string            `json:"provider" binding:"omitempty,oneof=openai anthropic gemini grok antigravity kimi zhipu deepseek minimax"`
 	APIMode          *string            `json:"api_mode" binding:"omitempty,oneof=chat_completions responses"`
@@ -101,6 +103,7 @@ type channelMonitorUpdateRequest struct {
 
 type channelMonitorResponse struct {
 	DisplayCategory        string                               `json:"display_category"`
+	DisplayOrder           int                                  `json:"display_order"`
 	ID                     int64                                `json:"id"`
 	Name                   string                               `json:"name"`
 	Provider               string                               `json:"provider"`
@@ -192,6 +195,7 @@ func channelMonitorToResponse(m *service.ChannelMonitor) *channelMonitorResponse
 		APIMode:             m.APIMode,
 		Endpoint:            m.Endpoint,
 		DisplayCategory:     m.DisplayCategory,
+		DisplayOrder:        m.DisplayOrder,
 		APIKeyMasked:        maskAPIKey(m.APIKey),
 		APIKeyDecryptFailed: m.APIKeyDecryptFailed,
 		PrimaryModel:        m.PrimaryModel,
@@ -376,6 +380,7 @@ func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 		APIMode:          req.APIMode,
 		Endpoint:         req.Endpoint,
 		DisplayCategory:  req.DisplayCategory,
+		DisplayOrder:     req.DisplayOrder,
 		APIKey:           req.APIKey,
 		PrimaryModel:     req.PrimaryModel,
 		ExtraModels:      req.ExtraModels,
@@ -473,6 +478,7 @@ func (h *ChannelMonitorHandler) Update(c *gin.Context) {
 		APIMode:          req.APIMode,
 		Endpoint:         req.Endpoint,
 		DisplayCategory:  req.DisplayCategory,
+		DisplayOrder:     req.DisplayOrder,
 		APIKey:           req.APIKey,
 		PrimaryModel:     req.PrimaryModel,
 		ExtraModels:      req.ExtraModels,

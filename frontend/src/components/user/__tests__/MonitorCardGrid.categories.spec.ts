@@ -19,6 +19,22 @@ const make = (items: UserMonitorView[]) => mount(MonitorCardGrid, {
 })
 
 describe('monitor display categories', () => {
+  it('uses saved order within a category in all and filtered views after refresh', async () => {
+    const pro = { ...item(1, 'openai'), display_order: 20 }
+    const plus = { ...item(2, 'openai'), display_order: 10 }
+    const w = make([pro, plus, { ...item(3, 'anthropic'), display_order: 10 }])
+    expect(w.findAll('section').map(s => s.attributes('aria-label'))).toEqual(['OpenAI', 'Claude'])
+    const names = () => w.find('section').findAll('button').map(b => b.text())
+    expect(names()).toEqual(['Channel 2', 'Channel 1'])
+    await w.findAll('button').find(b => b.text() === 'OpenAI (2)')!.trigger('click')
+    await w.setProps({ items: [plus, pro, item(3, 'anthropic')] })
+    expect(names()).toEqual(['Channel 2', 'Channel 1'])
+    await w.setProps({ items: [{ ...plus, display_order: 20 }, pro] })
+    expect(names()).toEqual(['Channel 1', 'Channel 2'])
+    await w.setProps({ items: [plus, item(1, 'openai')] })
+    expect(names()).toEqual(['Channel 1', 'Channel 2'])
+    w.unmount()
+  })
   it('groups legacy providers and custom labels with stable order and counts', () => {
     const w = make([item(9, 'openai', '国产聚合'), item(5, 'anthropic'), item(3, 'openai'), item(1, 'openai')])
     expect(w.findAll('section').map(s => s.attributes('aria-label'))).toEqual(['OpenAI', 'Claude', '国产聚合'])

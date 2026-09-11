@@ -122,6 +122,7 @@ func TestDuplicateChannelMonitorCopiesConfigurationAndResetsRuntimeState(t *test
 		ExtraModels:      []string{"gpt-5.4", "gpt-5.3"},
 		GroupName:        "production",
 		DisplayCategory:  "custom-category",
+		DisplayOrder:     20,
 		Enabled:          true,
 		IntervalSeconds:  90,
 		JitterSeconds:    15,
@@ -155,6 +156,7 @@ func TestDuplicateChannelMonitorCopiesConfigurationAndResetsRuntimeState(t *test
 	require.Equal(t, source.ExtraModels, duplicate.ExtraModels)
 	require.Equal(t, source.GroupName, duplicate.GroupName)
 	require.Equal(t, source.DisplayCategory, duplicate.DisplayCategory)
+	require.Equal(t, source.DisplayOrder, duplicate.DisplayOrder)
 	require.Equal(t, source.IntervalSeconds, duplicate.IntervalSeconds)
 	require.Equal(t, source.JitterSeconds, duplicate.JitterSeconds)
 	require.Equal(t, source.TemplateID, duplicate.TemplateID)

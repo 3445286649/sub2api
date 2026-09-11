@@ -19,3 +19,10 @@ func validateMonitorDisplayCategory(value string) error {
 	}
 	return nil
 }
+
+func validateMonitorDisplayOrder(value int) error {
+	if value < 0 || value > 999999 {
+		return infraerrors.BadRequest("INVALID_MONITOR_DISPLAY_ORDER", "Display order must be an integer between 0 and 999999")
+	}
+	return nil
+}

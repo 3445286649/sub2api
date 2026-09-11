@@ -62,6 +62,7 @@ func (ChannelMonitor) Fields() []ent.Field {
 			MaxLen(500).
 			Comment("Provider base origin, e.g. https://api.openai.com; empty for quota-only monitors"),
 		field.String("display_category").Default("").MaxLen(50),
+		field.Int("display_order").Default(0).Min(0).Max(999999),
 		field.String("api_key_encrypted").
 			NotEmpty().
 			Sensitive().

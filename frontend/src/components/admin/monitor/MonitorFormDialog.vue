@@ -21,6 +21,10 @@
         <p v-if="categoryLoadFailed" class="mt-1 text-xs text-amber-600 dark:text-amber-400">{{ t('monitorCommon.categoryLoadError') }}</p>
       </div>
       <div>
+        <label class="input-label" for="monitor-display-order">{{ t('monitorCommon.displayOrder') }}</label>
+        <input id="monitor-display-order" v-model.number="form.display_order" type="number" min="0" max="999999" step="1" required class="input" />
+      </div>
+      <div>
         <label class="input-label">{{ t('admin.channelMonitor.form.checkMode') }}</label>
         <div class="grid gap-3 sm:grid-cols-3" data-testid="monitor-check-mode">
           <button
@@ -343,6 +347,7 @@ const userGroupRates = ref<Record<number, number>>({})
 
 interface MonitorForm {
   display_category: string
+  display_order: number
   name: string
   provider: Provider
   api_mode: APIMode
@@ -365,6 +370,7 @@ interface MonitorForm {
 
 const form = reactive<MonitorForm>({
   display_category: '',
+  display_order: 0,
   name: '',
   provider: PROVIDER_ANTHROPIC,
   api_mode: API_MODE_CHAT_COMPLETIONS,
@@ -761,6 +767,7 @@ function resetForm() {
   form.extra_models = []
   form.group_name = ''
   form.display_category = ''
+  form.display_order = 0
   form.interval_seconds = systemDefaultInterval.value
   form.jitter_seconds = 0
   form.enabled = true
@@ -784,6 +791,7 @@ function loadFromMonitor(m: ChannelMonitor) {
   form.extra_models = [...(m.extra_models || [])]
   form.group_name = m.group_name || ''
   form.display_category = m.display_category || ''
+  form.display_order = m.display_order ?? 0
   form.interval_seconds = m.interval_seconds || systemDefaultInterval.value
   form.jitter_seconds = m.jitter_seconds || 0
   form.enabled = m.enabled
@@ -854,6 +862,7 @@ function buildPayload(): CreateParams {
     extra_models: usesProbePart.value ? form.extra_models : [],
     group_name: form.group_name.trim(),
     display_category: form.display_category.trim(),
+    display_order: form.display_order,
     enabled: form.enabled,
     interval_seconds: form.interval_seconds,
     jitter_seconds: form.jitter_seconds || 0,
@@ -866,6 +875,10 @@ function buildPayload(): CreateParams {
 
 async function handleSubmit() {
   if (submitting.value) return
+  if (!Number.isInteger(form.display_order) || form.display_order < 0 || form.display_order > 999999) {
+    appStore.showError(t('monitorCommon.invalidDisplayOrder'))
+    return
+  }
   if (Array.from(form.display_category.trim()).length > 50 || /\p{Cc}/u.test(form.display_category.trim())) {
     appStore.showError(t('monitorCommon.invalidCategory'))
     return

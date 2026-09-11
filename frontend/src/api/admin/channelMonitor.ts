@@ -71,6 +71,7 @@ export interface MonitorQuotaSnapshot {
 
 export interface ChannelMonitor {
   display_category?: string
+  display_order?: number
   id: number
   name: string
   provider: Provider
@@ -141,6 +142,7 @@ export interface ListResponse {
 
 export interface CreateParams {
   display_category?: string
+  display_order?: number
   name: string
   provider: Provider
   api_mode?: APIMode

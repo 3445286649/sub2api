@@ -25,6 +25,7 @@ export interface MonitorTimelinePoint {
 
 export interface UserMonitorView {
   display_category?: string
+  display_order?: number
   id: number
   name: string
   provider: Provider
