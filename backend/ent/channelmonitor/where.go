@@ -90,6 +90,11 @@ func Endpoint(v string) predicate.ChannelMonitor {
 	return predicate.ChannelMonitor(sql.FieldEQ(FieldEndpoint, v))
 }
 
+// DisplayCategory applies equality check predicate on the "display_category" field. It's identical to DisplayCategoryEQ.
+func DisplayCategory(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldDisplayCategory, v))
+}
+
 // APIKeyEncrypted applies equality check predicate on the "api_key_encrypted" field. It's identical to APIKeyEncryptedEQ.
 func APIKeyEncrypted(v string) predicate.ChannelMonitor {
 	return predicate.ChannelMonitor(sql.FieldEQ(FieldAPIKeyEncrypted, v))
@@ -548,6 +553,71 @@ func EndpointEqualFold(v string) predicate.ChannelMonitor {
 // EndpointContainsFold applies the ContainsFold predicate on the "endpoint" field.
 func EndpointContainsFold(v string) predicate.ChannelMonitor {
 	return predicate.ChannelMonitor(sql.FieldContainsFold(FieldEndpoint, v))
+}
+
+// DisplayCategoryEQ applies the EQ predicate on the "display_category" field.
+func DisplayCategoryEQ(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldDisplayCategory, v))
+}
+
+// DisplayCategoryNEQ applies the NEQ predicate on the "display_category" field.
+func DisplayCategoryNEQ(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNEQ(FieldDisplayCategory, v))
+}
+
+// DisplayCategoryIn applies the In predicate on the "display_category" field.
+func DisplayCategoryIn(vs ...string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldIn(FieldDisplayCategory, vs...))
+}
+
+// DisplayCategoryNotIn applies the NotIn predicate on the "display_category" field.
+func DisplayCategoryNotIn(vs ...string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNotIn(FieldDisplayCategory, vs...))
+}
+
+// DisplayCategoryGT applies the GT predicate on the "display_category" field.
+func DisplayCategoryGT(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldGT(FieldDisplayCategory, v))
+}
+
+// DisplayCategoryGTE applies the GTE predicate on the "display_category" field.
+func DisplayCategoryGTE(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldGTE(FieldDisplayCategory, v))
+}
+
+// DisplayCategoryLT applies the LT predicate on the "display_category" field.
+func DisplayCategoryLT(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldLT(FieldDisplayCategory, v))
+}
+
+// DisplayCategoryLTE applies the LTE predicate on the "display_category" field.
+func DisplayCategoryLTE(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldLTE(FieldDisplayCategory, v))
+}
+
+// DisplayCategoryContains applies the Contains predicate on the "display_category" field.
+func DisplayCategoryContains(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldContains(FieldDisplayCategory, v))
+}
+
+// DisplayCategoryHasPrefix applies the HasPrefix predicate on the "display_category" field.
+func DisplayCategoryHasPrefix(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldHasPrefix(FieldDisplayCategory, v))
+}
+
+// DisplayCategoryHasSuffix applies the HasSuffix predicate on the "display_category" field.
+func DisplayCategoryHasSuffix(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldHasSuffix(FieldDisplayCategory, v))
+}
+
+// DisplayCategoryEqualFold applies the EqualFold predicate on the "display_category" field.
+func DisplayCategoryEqualFold(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEqualFold(FieldDisplayCategory, v))
+}
+
+// DisplayCategoryContainsFold applies the ContainsFold predicate on the "display_category" field.
+func DisplayCategoryContainsFold(v string) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldContainsFold(FieldDisplayCategory, v))
 }
 
 // APIKeyEncryptedEQ applies the EQ predicate on the "api_key_encrypted" field.

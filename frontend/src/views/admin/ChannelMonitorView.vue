@@ -72,6 +72,7 @@
                 <Icon name="exclamationTriangle" size="sm" class="text-red-500" />
               </HelpTooltip>
             </div>
+            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400 [overflow-wrap:anywhere]">{{ t('monitorCommon.displayCategory') }}: {{ monitorDisplayCategory(row) }}</div>
           </template>
 
           <template #cell-provider="{ row }">
@@ -170,6 +171,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { monitorDisplayCategory } from '@/utils/monitorDisplayCategory'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'

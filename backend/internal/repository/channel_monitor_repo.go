@@ -37,9 +37,19 @@ func NewChannelMonitorRepository(client *dbent.Client, db *sql.DB) service.Chann
 
 // ---------- CRUD ----------
 
+func (r *channelMonitorRepository) ListDisplayCategories(ctx context.Context) ([]string, error) {
+	return r.client.ChannelMonitor.Query().
+		Where(channelmonitor.DisplayCategoryNEQ("")).
+		Unique(true).
+		Order(dbent.Asc(channelmonitor.FieldDisplayCategory)).
+		Select(channelmonitor.FieldDisplayCategory).
+		Strings(ctx)
+}
+
 func (r *channelMonitorRepository) Create(ctx context.Context, m *service.ChannelMonitor) error {
 	client := clientFromContext(ctx, r.client)
 	builder := client.ChannelMonitor.Create().
+		SetDisplayCategory(m.DisplayCategory).
 		SetName(m.Name).
 		SetProvider(channelmonitor.Provider(m.Provider)).
 		SetAPIMode(defaultAPIModeRepo(m.APIMode)).
@@ -112,6 +122,7 @@ func (r *channelMonitorRepository) GetByID(ctx context.Context, id int64) (*serv
 func (r *channelMonitorRepository) Update(ctx context.Context, m *service.ChannelMonitor) error {
 	client := clientFromContext(ctx, r.client)
 	updater := client.ChannelMonitor.UpdateOneID(m.ID).
+		SetDisplayCategory(m.DisplayCategory).
 		SetName(m.Name).
 		SetProvider(channelmonitor.Provider(m.Provider)).
 		SetAPIMode(defaultAPIModeRepo(m.APIMode)).
@@ -793,6 +804,7 @@ func entToServiceMonitor(row *dbent.ChannelMonitor) *service.ChannelMonitor {
 		Provider:             string(row.Provider),
 		APIMode:              defaultAPIModeRepo(row.APIMode),
 		Endpoint:             row.Endpoint,
+		DisplayCategory:      row.DisplayCategory,
 		APIKey:               row.APIKeyEncrypted, // 仍为密文，service 层负责解密
 		PrimaryModel:         row.PrimaryModel,
 		ExtraModels:          extras,

@@ -113,6 +113,20 @@ func (_c *ChannelMonitorCreate) SetEndpoint(v string) *ChannelMonitorCreate {
 	return _c
 }
 
+// SetDisplayCategory sets the "display_category" field.
+func (_c *ChannelMonitorCreate) SetDisplayCategory(v string) *ChannelMonitorCreate {
+	_c.mutation.SetDisplayCategory(v)
+	return _c
+}
+
+// SetNillableDisplayCategory sets the "display_category" field if the given value is not nil.
+func (_c *ChannelMonitorCreate) SetNillableDisplayCategory(v *string) *ChannelMonitorCreate {
+	if v != nil {
+		_c.SetDisplayCategory(*v)
+	}
+	return _c
+}
+
 // SetAPIKeyEncrypted sets the "api_key_encrypted" field.
 func (_c *ChannelMonitorCreate) SetAPIKeyEncrypted(v string) *ChannelMonitorCreate {
 	_c.mutation.SetAPIKeyEncrypted(v)
@@ -339,6 +353,10 @@ func (_c *ChannelMonitorCreate) defaults() {
 		v := channelmonitor.DefaultAPIMode
 		_c.mutation.SetAPIMode(v)
 	}
+	if _, ok := _c.mutation.DisplayCategory(); !ok {
+		v := channelmonitor.DefaultDisplayCategory
+		_c.mutation.SetDisplayCategory(v)
+	}
 	if _, ok := _c.mutation.ExtraModels(); !ok {
 		v := channelmonitor.DefaultExtraModels
 		_c.mutation.SetExtraModels(v)
@@ -411,6 +429,14 @@ func (_c *ChannelMonitorCreate) check() error {
 	if v, ok := _c.mutation.Endpoint(); ok {
 		if err := channelmonitor.EndpointValidator(v); err != nil {
 			return &ValidationError{Name: "endpoint", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.endpoint": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.DisplayCategory(); !ok {
+		return &ValidationError{Name: "display_category", err: errors.New(`ent: missing required field "ChannelMonitor.display_category"`)}
+	}
+	if v, ok := _c.mutation.DisplayCategory(); ok {
+		if err := channelmonitor.DisplayCategoryValidator(v); err != nil {
+			return &ValidationError{Name: "display_category", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.display_category": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.APIKeyEncrypted(); !ok {
@@ -528,6 +554,10 @@ func (_c *ChannelMonitorCreate) createSpec() (*ChannelMonitor, *sqlgraph.CreateS
 	if value, ok := _c.mutation.Endpoint(); ok {
 		_spec.SetField(channelmonitor.FieldEndpoint, field.TypeString, value)
 		_node.Endpoint = value
+	}
+	if value, ok := _c.mutation.DisplayCategory(); ok {
+		_spec.SetField(channelmonitor.FieldDisplayCategory, field.TypeString, value)
+		_node.DisplayCategory = value
 	}
 	if value, ok := _c.mutation.APIKeyEncrypted(); ok {
 		_spec.SetField(channelmonitor.FieldAPIKeyEncrypted, field.TypeString, value)
@@ -771,6 +801,18 @@ func (u *ChannelMonitorUpsert) SetEndpoint(v string) *ChannelMonitorUpsert {
 // UpdateEndpoint sets the "endpoint" field to the value that was provided on create.
 func (u *ChannelMonitorUpsert) UpdateEndpoint() *ChannelMonitorUpsert {
 	u.SetExcluded(channelmonitor.FieldEndpoint)
+	return u
+}
+
+// SetDisplayCategory sets the "display_category" field.
+func (u *ChannelMonitorUpsert) SetDisplayCategory(v string) *ChannelMonitorUpsert {
+	u.Set(channelmonitor.FieldDisplayCategory, v)
+	return u
+}
+
+// UpdateDisplayCategory sets the "display_category" field to the value that was provided on create.
+func (u *ChannelMonitorUpsert) UpdateDisplayCategory() *ChannelMonitorUpsert {
+	u.SetExcluded(channelmonitor.FieldDisplayCategory)
 	return u
 }
 
@@ -1126,6 +1168,20 @@ func (u *ChannelMonitorUpsertOne) SetEndpoint(v string) *ChannelMonitorUpsertOne
 func (u *ChannelMonitorUpsertOne) UpdateEndpoint() *ChannelMonitorUpsertOne {
 	return u.Update(func(s *ChannelMonitorUpsert) {
 		s.UpdateEndpoint()
+	})
+}
+
+// SetDisplayCategory sets the "display_category" field.
+func (u *ChannelMonitorUpsertOne) SetDisplayCategory(v string) *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetDisplayCategory(v)
+	})
+}
+
+// UpdateDisplayCategory sets the "display_category" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertOne) UpdateDisplayCategory() *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateDisplayCategory()
 	})
 }
 
@@ -1680,6 +1736,20 @@ func (u *ChannelMonitorUpsertBulk) SetEndpoint(v string) *ChannelMonitorUpsertBu
 func (u *ChannelMonitorUpsertBulk) UpdateEndpoint() *ChannelMonitorUpsertBulk {
 	return u.Update(func(s *ChannelMonitorUpsert) {
 		s.UpdateEndpoint()
+	})
+}
+
+// SetDisplayCategory sets the "display_category" field.
+func (u *ChannelMonitorUpsertBulk) SetDisplayCategory(v string) *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetDisplayCategory(v)
+	})
+}
+
+// UpdateDisplayCategory sets the "display_category" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertBulk) UpdateDisplayCategory() *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateDisplayCategory()
 	})
 }
 

@@ -70,6 +70,7 @@ export interface MonitorQuotaSnapshot {
 }
 
 export interface ChannelMonitor {
+  display_category?: string
   id: number
   name: string
   provider: Provider
@@ -139,6 +140,7 @@ export interface ListResponse {
 }
 
 export interface CreateParams {
+  display_category?: string
   name: string
   provider: Provider
   api_mode?: APIMode
@@ -366,6 +368,7 @@ export async function listHistory(
 }
 
 export const channelMonitorAPI = {
+  listDisplayCategories,
   list,
   get,
   create,
@@ -377,3 +380,8 @@ export const channelMonitorAPI = {
 }
 
 export default channelMonitorAPI
+
+export async function listDisplayCategories(): Promise<string[]> {
+  const { data } = await apiClient.get<{ items: string[] }>('/admin/channel-monitors/display-categories')
+  return data.items
+}

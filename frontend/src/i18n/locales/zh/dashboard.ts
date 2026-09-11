@@ -463,6 +463,12 @@ export default {
 
   // Shared keys for channel monitor (admin + user views)
   monitorCommon: {
+    displayCategory: '展示分类',
+    automaticCategory: '自动（跟随供应商）',
+    categoryLoadError: '已有分类加载失败，仍可输入分类名称',
+    allCategories: '全部',
+    categoryCount: '{count} 个渠道',
+    invalidCategory: '分类名称最多 50 个字符，不能包含控制字符',
     status: {
       operational: '正常',
       degraded: '降级',

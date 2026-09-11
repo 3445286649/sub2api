@@ -38,7 +38,20 @@ func NewChannelMonitorHandler(monitorService *service.ChannelMonitorService) *Ch
 
 // --- Request / Response ---
 
+func (h *ChannelMonitorHandler) ListDisplayCategories(c *gin.Context) {
+	items, err := h.monitorService.ListDisplayCategories(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if items == nil {
+		items = []string{}
+	}
+	response.Success(c, gin.H{"items": items})
+}
+
 type channelMonitorCreateRequest struct {
+	DisplayCategory  string            `json:"display_category" binding:"max=50"`
 	Name             string            `json:"name" binding:"required,max=100"`
 	Provider         string            `json:"provider" binding:"required,oneof=openai anthropic gemini grok antigravity kimi zhipu deepseek minimax"`
 	APIMode          string            `json:"api_mode" binding:"omitempty,oneof=chat_completions responses"`
@@ -63,6 +76,7 @@ type channelMonitorCreateRequest struct {
 }
 
 type channelMonitorUpdateRequest struct {
+	DisplayCategory  *string            `json:"display_category" binding:"omitempty,max=50"`
 	Name             *string            `json:"name" binding:"omitempty,max=100"`
 	Provider         *string            `json:"provider" binding:"omitempty,oneof=openai anthropic gemini grok antigravity kimi zhipu deepseek minimax"`
 	APIMode          *string            `json:"api_mode" binding:"omitempty,oneof=chat_completions responses"`
@@ -86,6 +100,7 @@ type channelMonitorUpdateRequest struct {
 }
 
 type channelMonitorResponse struct {
+	DisplayCategory        string                               `json:"display_category"`
 	ID                     int64                                `json:"id"`
 	Name                   string                               `json:"name"`
 	Provider               string                               `json:"provider"`
@@ -176,6 +191,7 @@ func channelMonitorToResponse(m *service.ChannelMonitor) *channelMonitorResponse
 		Provider:            m.Provider,
 		APIMode:             m.APIMode,
 		Endpoint:            m.Endpoint,
+		DisplayCategory:     m.DisplayCategory,
 		APIKeyMasked:        maskAPIKey(m.APIKey),
 		APIKeyDecryptFailed: m.APIKeyDecryptFailed,
 		PrimaryModel:        m.PrimaryModel,
@@ -359,6 +375,7 @@ func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 		Provider:         req.Provider,
 		APIMode:          req.APIMode,
 		Endpoint:         req.Endpoint,
+		DisplayCategory:  req.DisplayCategory,
 		APIKey:           req.APIKey,
 		PrimaryModel:     req.PrimaryModel,
 		ExtraModels:      req.ExtraModels,
@@ -455,6 +472,7 @@ func (h *ChannelMonitorHandler) Update(c *gin.Context) {
 		Provider:         req.Provider,
 		APIMode:          req.APIMode,
 		Endpoint:         req.Endpoint,
+		DisplayCategory:  req.DisplayCategory,
 		APIKey:           req.APIKey,
 		PrimaryModel:     req.PrimaryModel,
 		ExtraModels:      req.ExtraModels,

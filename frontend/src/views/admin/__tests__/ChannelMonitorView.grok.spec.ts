@@ -3,6 +3,10 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import MonitorFormDialog from '@/components/admin/monitor/MonitorFormDialog.vue'
+
+vi.mock('@/api/admin/channelMonitor', () => ({
+  listDisplayCategories: async () => [],
+}))
 import {
   DEFAULT_GROK_ENDPOINT,
   DEFAULT_GROK_MODEL,

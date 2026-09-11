@@ -233,6 +233,7 @@ func buildUserViewFromSummary(
 	timelineEntries []*ChannelMonitorHistoryEntry,
 ) *UserMonitorView {
 	view := &UserMonitorView{
+		DisplayCategory:        m.DisplayCategory,
 		ID:                     m.ID,
 		Name:                   m.Name,
 		Provider:               m.Provider,

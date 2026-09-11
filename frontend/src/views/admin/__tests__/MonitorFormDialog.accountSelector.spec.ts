@@ -3,7 +3,12 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ChannelMonitor } from '@/api/admin/channelMonitor'
+import { listDisplayCategories } from '@/api/admin/channelMonitor'
 import MonitorFormDialog from '@/components/admin/monitor/MonitorFormDialog.vue'
+
+vi.mock('@/api/admin/channelMonitor', () => ({
+  listDisplayCategories: vi.fn().mockResolvedValue(['国产聚合']),
+}))
 
 const {
   listTemplates,
@@ -163,11 +168,27 @@ afterEach(() => {
 
 describe('MonitorFormDialog linked account selector', () => {
   beforeEach(() => {
+    vi.mocked(listDisplayCategories).mockResolvedValue(['国产聚合'])
     listTemplates.mockReset().mockResolvedValue({ items: [] })
     accountsList.mockReset().mockResolvedValue({ items: [] })
     accountsGetById.mockReset()
     monitorCreate.mockReset().mockResolvedValue({})
     monitorUpdate.mockReset().mockResolvedValue({})
+  })
+
+  it('loads category suggestions and saves a trimmed category without changing protocol', async () => {
+    const wrapper = mountDialog(makeMonitor({ display_category: '国产聚合' }))
+    await flushPromises()
+    expect(wrapper.get('#monitor-display-category').element).toHaveProperty('value', '国产聚合')
+    expect(wrapper.findAll('datalist option').map(o => o.attributes('value'))).toContain('国产聚合')
+    await wrapper.get('#monitor-display-category').setValue('  智谱 GLM  ')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(monitorUpdate).toHaveBeenCalledWith(42, expect.objectContaining({ display_category: '智谱 GLM', provider: 'openai', endpoint: 'https://api.example.com' }))
+    await wrapper.get('#monitor-display-category').setValue('')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(monitorUpdate).toHaveBeenLastCalledWith(42, expect.objectContaining({ display_category: '' }))
   })
 
   it('loads the first page of provider accounts when quota mode is enabled', async () => {

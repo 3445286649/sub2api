@@ -34,6 +34,7 @@ func TestChannelMonitorQuotaModeRoundTrip(t *testing.T) {
 
 	created := &service.ChannelMonitor{
 		Name:             "kimi-quota-roundtrip",
+		DisplayCategory:  "国产聚合",
 		Provider:         service.MonitorProviderKimi,
 		APIMode:          service.MonitorAPIModeChatCompletions,
 		Endpoint:         "",
@@ -53,6 +54,11 @@ func TestChannelMonitorQuotaModeRoundTrip(t *testing.T) {
 	loaded, err := repo.GetByID(ctx, created.ID)
 	require.NoError(t, err)
 	require.Equal(t, service.MonitorCheckModeQuota, loaded.CheckMode)
+	require.Equal(t, "国产聚合", loaded.DisplayCategory)
+	categories, err := repo.ListDisplayCategories(ctx)
+	require.NoError(t, err)
+	require.Contains(t, categories, "国产聚合")
+	loaded.DisplayCategory = "智谱 GLM"
 	require.NotNil(t, loaded.AccountID)
 	require.Equal(t, account.ID, *loaded.AccountID)
 
@@ -65,6 +71,8 @@ func TestChannelMonitorQuotaModeRoundTrip(t *testing.T) {
 	reloaded, err := repo.GetByID(ctx, created.ID)
 	require.NoError(t, err)
 	require.Equal(t, service.MonitorCheckModeProbe, reloaded.CheckMode)
+	require.Equal(t, "智谱 GLM", reloaded.DisplayCategory)
+	reloaded.DisplayCategory = ""
 	require.Nil(t, reloaded.AccountID)
 
 	// 重新绑定账号。
@@ -74,6 +82,7 @@ func TestChannelMonitorQuotaModeRoundTrip(t *testing.T) {
 	final, err := repo.GetByID(ctx, created.ID)
 	require.NoError(t, err)
 	require.Equal(t, service.MonitorCheckModeQuotaProbe, final.CheckMode)
+	require.Empty(t, final.DisplayCategory)
 	require.NotNil(t, final.AccountID)
 }
 

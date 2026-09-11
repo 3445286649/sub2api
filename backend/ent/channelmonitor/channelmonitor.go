@@ -31,6 +31,8 @@ const (
 	FieldAPIMode = "api_mode"
 	// FieldEndpoint holds the string denoting the endpoint field in the database.
 	FieldEndpoint = "endpoint"
+	// FieldDisplayCategory holds the string denoting the display_category field in the database.
+	FieldDisplayCategory = "display_category"
 	// FieldAPIKeyEncrypted holds the string denoting the api_key_encrypted field in the database.
 	FieldAPIKeyEncrypted = "api_key_encrypted"
 	// FieldPrimaryModel holds the string denoting the primary_model field in the database.
@@ -99,6 +101,7 @@ var Columns = []string{
 	FieldAccountID,
 	FieldAPIMode,
 	FieldEndpoint,
+	FieldDisplayCategory,
 	FieldAPIKeyEncrypted,
 	FieldPrimaryModel,
 	FieldExtraModels,
@@ -143,6 +146,10 @@ var (
 	APIModeValidator func(string) error
 	// EndpointValidator is a validator for the "endpoint" field. It is called by the builders before save.
 	EndpointValidator func(string) error
+	// DefaultDisplayCategory holds the default value on creation for the "display_category" field.
+	DefaultDisplayCategory string
+	// DisplayCategoryValidator is a validator for the "display_category" field. It is called by the builders before save.
+	DisplayCategoryValidator func(string) error
 	// APIKeyEncryptedValidator is a validator for the "api_key_encrypted" field. It is called by the builders before save.
 	APIKeyEncryptedValidator func(string) error
 	// PrimaryModelValidator is a validator for the "primary_model" field. It is called by the builders before save.
@@ -245,6 +252,11 @@ func ByAPIMode(opts ...sql.OrderTermOption) OrderOption {
 // ByEndpoint orders the results by the endpoint field.
 func ByEndpoint(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEndpoint, opts...).ToFunc()
+}
+
+// ByDisplayCategory orders the results by the display_category field.
+func ByDisplayCategory(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDisplayCategory, opts...).ToFunc()
 }
 
 // ByAPIKeyEncrypted orders the results by the api_key_encrypted field.

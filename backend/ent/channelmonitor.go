@@ -35,6 +35,8 @@ type ChannelMonitor struct {
 	APIMode string `json:"api_mode,omitempty"`
 	// Provider base origin, e.g. https://api.openai.com; empty for quota-only monitors
 	Endpoint string `json:"endpoint,omitempty"`
+	// DisplayCategory holds the value of the "display_category" field.
+	DisplayCategory string `json:"display_category,omitempty"`
 	// AES-256-GCM encrypted API key
 	APIKeyEncrypted string `json:"-"`
 	// PrimaryModel holds the value of the "primary_model" field.
@@ -120,7 +122,7 @@ func (*ChannelMonitor) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case channelmonitor.FieldID, channelmonitor.FieldAccountID, channelmonitor.FieldIntervalSeconds, channelmonitor.FieldJitterSeconds, channelmonitor.FieldCreatedBy, channelmonitor.FieldTemplateID:
 			values[i] = new(sql.NullInt64)
-		case channelmonitor.FieldName, channelmonitor.FieldProvider, channelmonitor.FieldCheckMode, channelmonitor.FieldAPIMode, channelmonitor.FieldEndpoint, channelmonitor.FieldAPIKeyEncrypted, channelmonitor.FieldPrimaryModel, channelmonitor.FieldGroupName, channelmonitor.FieldBodyOverrideMode:
+		case channelmonitor.FieldName, channelmonitor.FieldProvider, channelmonitor.FieldCheckMode, channelmonitor.FieldAPIMode, channelmonitor.FieldEndpoint, channelmonitor.FieldDisplayCategory, channelmonitor.FieldAPIKeyEncrypted, channelmonitor.FieldPrimaryModel, channelmonitor.FieldGroupName, channelmonitor.FieldBodyOverrideMode:
 			values[i] = new(sql.NullString)
 		case channelmonitor.FieldCreatedAt, channelmonitor.FieldUpdatedAt, channelmonitor.FieldLastCheckedAt:
 			values[i] = new(sql.NullTime)
@@ -193,6 +195,12 @@ func (_m *ChannelMonitor) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field endpoint", values[i])
 			} else if value.Valid {
 				_m.Endpoint = value.String
+			}
+		case channelmonitor.FieldDisplayCategory:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field display_category", values[i])
+			} else if value.Valid {
+				_m.DisplayCategory = value.String
 			}
 		case channelmonitor.FieldAPIKeyEncrypted:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -356,6 +364,9 @@ func (_m *ChannelMonitor) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("endpoint=")
 	builder.WriteString(_m.Endpoint)
+	builder.WriteString(", ")
+	builder.WriteString("display_category=")
+	builder.WriteString(_m.DisplayCategory)
 	builder.WriteString(", ")
 	builder.WriteString("api_key_encrypted=<sensitive>")
 	builder.WriteString(", ")

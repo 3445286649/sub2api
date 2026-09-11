@@ -13,6 +13,14 @@
 
       <!-- 检测模式：probe（探活）/ quota（仅配额）/ quota_probe（探活+配额） -->
       <div>
+        <label class="input-label" for="monitor-display-category">{{ t('monitorCommon.displayCategory') }}</label>
+        <input id="monitor-display-category" v-model="form.display_category" list="monitor-display-categories" maxlength="50" class="input" :placeholder="t('monitorCommon.automaticCategory')" />
+        <datalist id="monitor-display-categories">
+          <option v-for="category in categoryOptions" :key="category" :value="category" />
+        </datalist>
+        <p v-if="categoryLoadFailed" class="mt-1 text-xs text-amber-600 dark:text-amber-400">{{ t('monitorCommon.categoryLoadError') }}</p>
+      </div>
+      <div>
         <label class="input-label">{{ t('admin.channelMonitor.form.checkMode') }}</label>
         <div class="grid gap-3 sm:grid-cols-3" data-testid="monitor-check-mode">
           <button
@@ -234,6 +242,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
+import { listDisplayCategories } from '@/api/admin/channelMonitor'
+import { MONITOR_CATEGORY_NAMES } from '@/utils/monitorDisplayCategory'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
@@ -309,6 +319,21 @@ const systemDefaultInterval = computed<number>(() => {
 const editing = computed<ChannelMonitor | null>(() => props.monitor)
 
 const submitting = ref(false)
+const savedCategories = ref<string[]>([])
+const categoryLoadFailed = ref(false)
+const categoryOptions = computed(() => [...new Set([
+  ...Object.values(MONITOR_CATEGORY_NAMES), ...savedCategories.value,
+  ...(form.display_category.trim() ? [form.display_category.trim()] : []),
+])])
+
+async function loadCategories() {
+  categoryLoadFailed.value = false
+  try {
+    savedCategories.value = await listDisplayCategories()
+  } catch {
+    categoryLoadFailed.value = true
+  }
+}
 
 // API key picker
 const showKeyPicker = ref(false)
@@ -317,6 +342,7 @@ const myActiveKeys = ref<ApiKey[]>([])
 const userGroupRates = ref<Record<number, number>>({})
 
 interface MonitorForm {
+  display_category: string
   name: string
   provider: Provider
   api_mode: APIMode
@@ -338,6 +364,7 @@ interface MonitorForm {
 }
 
 const form = reactive<MonitorForm>({
+  display_category: '',
   name: '',
   provider: PROVIDER_ANTHROPIC,
   api_mode: API_MODE_CHAT_COMPLETIONS,
@@ -733,6 +760,7 @@ function resetForm() {
   form.primary_model = ''
   form.extra_models = []
   form.group_name = ''
+  form.display_category = ''
   form.interval_seconds = systemDefaultInterval.value
   form.jitter_seconds = 0
   form.enabled = true
@@ -755,6 +783,7 @@ function loadFromMonitor(m: ChannelMonitor) {
   form.primary_model = m.primary_model
   form.extra_models = [...(m.extra_models || [])]
   form.group_name = m.group_name || ''
+  form.display_category = m.display_category || ''
   form.interval_seconds = m.interval_seconds || systemDefaultInterval.value
   form.jitter_seconds = m.jitter_seconds || 0
   form.enabled = m.enabled
@@ -772,6 +801,7 @@ watch(
   ([show, m]) => {
     if (!show) return
     void loadTemplates()
+    void loadCategories()
     if (m) loadFromMonitor(m)
     else resetForm()
   },
@@ -823,6 +853,7 @@ function buildPayload(): CreateParams {
     primary_model: usesProbePart.value ? form.primary_model.trim() : 'quota',
     extra_models: usesProbePart.value ? form.extra_models : [],
     group_name: form.group_name.trim(),
+    display_category: form.display_category.trim(),
     enabled: form.enabled,
     interval_seconds: form.interval_seconds,
     jitter_seconds: form.jitter_seconds || 0,
@@ -835,6 +866,10 @@ function buildPayload(): CreateParams {
 
 async function handleSubmit() {
   if (submitting.value) return
+  if (Array.from(form.display_category.trim()).length > 50 || /\p{Cc}/u.test(form.display_category.trim())) {
+    appStore.showError(t('monitorCommon.invalidCategory'))
+    return
+  }
   if (!form.name.trim()) {
     appStore.showError(t('admin.channelMonitor.nameRequired'))
     return

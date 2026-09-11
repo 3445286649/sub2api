@@ -20,6 +20,7 @@ import (
 // 入参/返回的指针类型均使用 service 包的 ChannelMonitor 模型，
 // repository 实现负责与 ent 模型互转，并保持 api_key_encrypted 字段为密文。
 type ChannelMonitorRepository interface {
+	ListDisplayCategories(ctx context.Context) ([]string, error)
 	// CRUD
 	Create(ctx context.Context, m *ChannelMonitor) error
 	GetByID(ctx context.Context, id int64) (*ChannelMonitor, error)
@@ -179,6 +180,7 @@ func (s *ChannelMonitorService) Create(ctx context.Context, p ChannelMonitorCrea
 		return nil, fmt.Errorf("encrypt api key: %w", err)
 	}
 	m := &ChannelMonitor{
+		DisplayCategory:  strings.TrimSpace(p.DisplayCategory),
 		Name:             strings.TrimSpace(p.Name),
 		Provider:         p.Provider,
 		APIMode:          defaultAPIMode(p.APIMode),
@@ -246,6 +248,7 @@ func (s *ChannelMonitorService) Duplicate(
 	}
 
 	duplicate := &ChannelMonitor{
+		DisplayCategory:      source.DisplayCategory,
 		Name:                 duplicateChannelMonitorName(source.Name),
 		Provider:             source.Provider,
 		APIMode:              source.APIMode,
@@ -385,6 +388,9 @@ func cloneChannelMonitorJSONMap(source map[string]any) (map[string]any, error) {
 // 按 check_mode 分支：probe 沿用 endpoint+api_key 必填；quota 只需关联账号；
 // quota_probe 两者皆需。
 func validateCreateParams(p ChannelMonitorCreateParams) error {
+	if err := validateMonitorDisplayCategory(strings.TrimSpace(p.DisplayCategory)); err != nil {
+		return err
+	}
 	if err := validateProvider(p.Provider); err != nil {
 		return err
 	}
@@ -943,6 +949,13 @@ func (s *ChannelMonitorService) decryptInPlace(m *ChannelMonitor) {
 // 行数稍超过 30：这是逐字段平铺的 dispatcher，每个 if 都是 1-3 行的"非 nil 则覆盖"模式，
 // 拆分反而会增加跳转噪音、影响可读性，故保留为单函数。
 func applyMonitorUpdate(existing *ChannelMonitor, p ChannelMonitorUpdateParams) error {
+	if p.DisplayCategory != nil {
+		category := strings.TrimSpace(*p.DisplayCategory)
+		if err := validateMonitorDisplayCategory(category); err != nil {
+			return err
+		}
+		existing.DisplayCategory = category
+	}
 	providerChanged := false
 	if p.Name != nil {
 		existing.Name = strings.TrimSpace(*p.Name)

@@ -458,6 +458,12 @@ export default {
 
   // Shared keys for channel monitor (admin + user views)
   monitorCommon: {
+    displayCategory: 'Display category',
+    automaticCategory: 'Automatic (provider)',
+    categoryLoadError: 'Could not load categories. You can still enter a name.',
+    allCategories: 'All',
+    categoryCount: '{count} channels',
+    invalidCategory: 'Category must be at most 50 characters without control characters',
     status: {
       operational: 'Operational',
       degraded: 'Degraded',

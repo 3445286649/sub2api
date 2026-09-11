@@ -881,6 +881,7 @@ func registerChannelMonitorRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	monitors := admin.Group("/channel-monitors")
 	{
 		monitors.GET("", h.Admin.ChannelMonitor.List)
+		monitors.GET("/display-categories", h.Admin.ChannelMonitor.ListDisplayCategories)
 		monitors.POST("", h.Admin.ChannelMonitor.Create)
 		monitors.GET("/:id", h.Admin.ChannelMonitor.Get)
 		monitors.POST("/:id/duplicate", h.Admin.ChannelMonitor.Duplicate)
