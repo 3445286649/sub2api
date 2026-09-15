@@ -662,6 +662,9 @@ func (s *ChannelMonitorService) runCheck(ctx context.Context, id int64, schedule
 			return nil, err
 		}
 		if !runtime.AllowsMonitorProbe(config) {
+			if !scheduled {
+				return nil, ErrChannelMonitorFusionDisabled
+			}
 			return nil, nil
 		}
 	}
@@ -672,6 +675,9 @@ func (s *ChannelMonitorService) runCheck(ctx context.Context, id int64, schedule
 			return nil, err
 		}
 		if !acquired {
+			if !scheduled {
+				return nil, ErrChannelMonitorProbeBusy
+			}
 			return nil, nil
 		}
 		defer release()

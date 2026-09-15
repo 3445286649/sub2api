@@ -11,6 +11,8 @@ import (
 )
 
 var ErrChannelMonitorFusionQuota = infraerrors.BadRequest("INVALID_MONITOR_FUSION", "V3 data fusion requires a probe monitor")
+var ErrChannelMonitorProbeBusy = infraerrors.Conflict("MONITOR_PROBE_BUSY", "A check is already running for this monitor")
+var ErrChannelMonitorFusionDisabled = infraerrors.Forbidden("MONITOR_FUSION_DISABLED", "Enable this monitor and data fusion before checking in V3 mode")
 
 // Probe buckets contain only public observations, never probe credentials/messages.
 type ChannelMonitorProbeBucket struct {

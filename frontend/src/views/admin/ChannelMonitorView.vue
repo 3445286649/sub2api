@@ -347,7 +347,7 @@ async function toggleFusion(row: ChannelMonitor) {
 }
 
 async function handleRunNow(row: ChannelMonitor) {
-  if (!isV1Mode.value) {
+  if (!isV1Mode.value && !isV3Mode.value) {
     appStore.showError(t('admin.channelMonitor.runFailed'))
     return
   }

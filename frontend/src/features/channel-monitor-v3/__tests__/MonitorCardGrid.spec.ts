@@ -20,12 +20,12 @@ describe('passive monitor cards', () => {
   it.each([
     [0.55, 'healthy', '100%'], [0.5501, 'warning', '65%'],
     [0.8, 'warning', '65%'], [0.8001, 'critical', '35%'],
-  ])('uses availability boundaries for error rate %s', (errorRate, state, height) => {
+  ])('uses availability boundaries for error rate %s', (errorRate, _state, height) => {
     const item = row()
     item.metrics.error_rate = errorRate as number
     item.buckets = [{ bucket_start: '2026-09-14T00:10:00Z', metrics: item.metrics, health: item.health }]
     const w = make([item])
-    expect(w.find('[data-testid="channel-status-health-badge"]').text()).toContain(`v3.${state === 'critical' ? 'critical' : 'healthy'}`)
+    expect(w.find('[data-testid="channel-status-health-badge"]').exists()).toBe(false)
     expect(w.findAll('.v3-soft-glass-bar')[2].attributes('style')).toContain(`height: ${height}`)
     w.unmount()
   })
@@ -36,7 +36,7 @@ describe('passive monitor cards', () => {
     const w = make([item])
     const article = w.find('article').element
     const bar = w.findAll('.v3-bar-hitbox')[2].element
-    expect(w.find('[data-testid="channel-status-health-badge"]').text()).toContain('v3.healthy')
+    expect(w.find('[data-testid="channel-status-health-badge"]').exists()).toBe(false)
     expect(w.findAll('article .text-lg')[1].classes()).toContain('text-emerald-600')
     expect(w.findAll('article .text-lg')[2].classes()).toContain('text-gray-900')
     await w.setProps({ rows: [{ ...item, metrics: { ...item.metrics, error_rate: .2 } }], coverage: { ...coverage, requested_start: '2026-09-14T00:05:00Z', requested_end: '2026-09-14T00:20:00Z', data_through: '2026-09-14T00:20:00Z' } })
@@ -55,7 +55,7 @@ describe('passive monitor cards', () => {
     expect(w.findAll('nav button')[0].attributes('aria-pressed')).toBe('true')
     w.unmount()
   })
-  it('uses range summaries and shows cache and error rate on hover and keyboard focus', async () => {
+  it('keeps range summaries without hover, click or focus popups', async () => {
     const item = row()
     item.buckets = [{ bucket_start: '2026-09-14T00:10:00Z', metrics: { ...item.metrics, error_rate: 0 }, health: item.health }]
     const w = make([item])
@@ -64,12 +64,10 @@ describe('passive monitor cards', () => {
     expect(bars).toHaveLength(3)
     expect(w.findAll('.v3-soft-glass-bar')[0].classes()).toContain('bg-gray-300')
     await w.findAll('.v3-bar-slot')[2].trigger('mouseenter')
-    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('50.0%')
-    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('0.00%')
-    expect(document.querySelectorAll('[role="tooltip"] dl dt')).toHaveLength(4)
+    expect(document.querySelector('[role="tooltip"]')).toBeNull()
     await w.find('.v3-timeline-bars').trigger('mouseleave')
     await bars[2].trigger('focus')
-    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('100.0%')
+    expect(document.querySelector('[role="tooltip"]')).toBeNull()
     w.unmount()
   })
   it('does not report no samples as successful or render names as HTML', () => {
@@ -80,7 +78,7 @@ describe('passive monitor cards', () => {
     const w = make([item])
     expect(w.find('img').exists()).toBe(false)
     expect(w.findAll('article .text-lg').map(node => node.text())).toEqual(['-', '-', '-'])
-    expect(w.text()).toContain('channelMonitorV2.v3.noTraffic')
+    expect(w.findAll('.is-empty')).toHaveLength(3)
     w.unmount()
   })
   it('keeps usable traffic green and distinguishes complete empty intervals', async () => {
@@ -88,33 +86,10 @@ describe('passive monitor cards', () => {
     item.health = { ...item.health, overall: 'critical' }
     item.buckets = [{ bucket_start: '2026-09-14T00:10:00Z', metrics: item.metrics, health: item.health }]
     const w = make([item])
-    expect(w.find('[data-testid="channel-status-health-badge"]').classes()).toContain('bg-emerald-100')
+    expect(w.find('[data-testid="channel-status-health-badge"]').exists()).toBe(false)
     expect(w.findAll('.v3-soft-glass-bar')[2].classes()).toContain('bg-emerald-500')
     await w.findAll('.v3-bar-hitbox')[0].trigger('click')
-    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('channelMonitorV2.v3.noTraffic')
-    expect(document.querySelector('[role="tooltip"]')?.textContent).not.toContain('100.0%')
-    w.unmount()
-  })
-  it('pins on tap, survives pointer leave, switches buckets and dismisses on repeated tap, outside or Escape', async () => {
-    const w = make([row()])
-    const bars = w.findAll('.v3-bar-hitbox')
-    await bars[0].trigger('click')
-    await w.find('.v3-timeline-bars').trigger('mouseleave')
-    expect(bars[0].attributes('aria-pressed')).toBe('true')
-    expect(document.querySelector('[role="tooltip"]')).not.toBeNull()
-    await bars[1].trigger('click')
-    expect(bars[0].attributes('aria-pressed')).toBe('false')
-    expect(bars[1].attributes('aria-pressed')).toBe('true')
-    await bars[1].trigger('click')
-    await vi.waitFor(() => expect(document.querySelector('[role="tooltip"]')).toBeNull())
-    await bars[0].trigger('click')
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
-    await w.vm.$nextTick()
-    await vi.waitFor(() => expect(document.querySelector('[role="tooltip"]')).toBeNull())
-    await bars[0].trigger('click')
-    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
-    await w.vm.$nextTick()
-    await vi.waitFor(() => expect(document.querySelector('[role="tooltip"]')).toBeNull())
+    expect(document.querySelector('[role="tooltip"]')).toBeNull()
     w.unmount()
   })
 
@@ -123,10 +98,10 @@ describe('passive monitor cards', () => {
     item.health = { ...item.health, overall: 'critical', error_rate: 'unknown' }
     item.buckets = [{ bucket_start: '2026-09-14T00:10:00Z', metrics: { ...item.metrics, error_rate: 0 }, health: item.health }]
     const w = make([item])
-    expect(w.find('[data-testid="channel-status-health-badge"]').text()).toContain('v3.healthy')
-    expect(w.findAll('.v3-soft-glass-bar')[2].attributes('style')).toContain('rgb(16, 185, 129)')
+    expect(w.find('[data-testid="channel-status-health-badge"]').exists()).toBe(false)
+    expect(w.findAll('.v3-soft-glass-bar')[2].classes()).toContain('bg-emerald-500')
     await w.findAll('.v3-bar-hitbox')[2].trigger('click')
-    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('smallSample')
+    expect(document.querySelector('[role="tooltip"]')).toBeNull()
     await w.setProps({ coverage: { ...coverage, data_through: '2026-09-14T00:05:00Z' } })
     expect(w.findAll('.v3-bar-hitbox')).toHaveLength(1)
     expect(w.find('.is-pending').exists()).toBe(false)

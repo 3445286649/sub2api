@@ -11,11 +11,6 @@
           <span v-if="userRateMultiplier != null" class="rounded-md bg-primary-50 px-1.5 py-0.5 font-mono text-[10px] font-medium text-primary-700 dark:bg-dark-700 dark:text-gray-300">{{ t('channelMonitorV2.referenceCard.userRate') }} {{ formattedUserRate }}</span>
         </div>
       </div>
-      <span
-            data-testid="channel-status-health-badge"
-            class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold"
-            :class="cardHealthStyles[state].badge"
-          >{{ t(`channelMonitorV2.v3.${row.unlinked ? 'unlinked' : state === 'unknown' ? 'noTraffic' : state}`) }}</span>
     </header>
 
     <div class="mb-7 mt-3 grid grid-cols-3 gap-2">
@@ -47,7 +42,7 @@ import { useI18n } from 'vue-i18n'
 import type { V3CardRow } from './types'
 import { formatMonitorMs, formatMonitorPercent } from '@/features/channel-monitor-v2/monitorFormat'
 import { providerGradient, useChannelMonitorFormat } from '@/composables/useChannelMonitorFormat'
-import { cardState, cardHealthStyles, metricClasses } from './cardHealth'
+import { cardState, metricClasses } from './cardHealth'
 import ProviderIcon from '@/components/user/monitor/ProviderIcon.vue'
 import ChannelMonitorV3Timeline from './ChannelMonitorV3Timeline.vue'
 
@@ -73,11 +68,6 @@ const successRate = computed(() => latestMetrics.value.traffic_state === 'traffi
 const availabilityState = computed(() => cardState({ bucket_start: '', metrics: latestMetrics.value, health: latestHealth.value }))
 const availabilityClass = computed(() => metricClasses[availabilityState.value])
 const ttft = computed(() => latestMetrics.value.traffic_state === 'traffic' ? formatMonitorMs(latestMetrics.value.ttft.p50_ms) : '-')
-const state = computed(() => {
-  const availability = availabilityState.value
-  if (availability === 'unknown' || availability === 'noTraffic') return availability
-  return availability === 'critical' ? 'critical' : 'healthy'
-})
 </script>
 
 

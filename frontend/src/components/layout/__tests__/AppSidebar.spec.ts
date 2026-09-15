@@ -66,10 +66,28 @@ describe('AppSidebar header styles', () => {
 describe('AppSidebar backup recharge navigation', () => {
   it('keeps the existing purchase links and builds a separate channel group', () => {
     expect(componentSource).toContain("{ path: '/subscriptions', label: t('nav.mySubscriptions')")
-    expect(componentSource).toContain("{ path: '/purchase', label: t('nav.buySubscription')")
+    expect(componentSource).toContain("{ path: '/purchase', label: purchaseNavLabel.value")
     expect(componentSource).toContain("path: '/backup-recharge'")
     expect(componentSource).toContain('children: resolveRechargeStorefrontChannels(appStore.cachedPublicSettings).map((channel) => ({')
     expect(componentSource).toContain('path: `/backup-recharge/${channel.id}`')
     expect(componentSource).toContain('label: channel.name')
+  })
+})
+
+describe('AppSidebar subscription feature flag', () => {
+  it('gates the My Subscriptions entry behind the subscription public-settings flag', () => {
+    expect(componentSource).toContain('const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)')
+    expect(componentSource).toMatch(/path: '\/subscriptions'[^\n]*featureFlag: flagSubscription/)
+  })
+
+  it('also hides the admin Subscription Management entry on recharge-only sites', () => {
+    expect(componentSource).toMatch(/path: '\/admin\/subscriptions'[^\n]*featureFlag: flagSubscription/)
+  })
+
+  it('derives the purchase entry label from the site billing mode', () => {
+    expect(componentSource).toContain("import { resolveSiteBillingMode } from '@/utils/siteBillingMode'")
+    expect(componentSource).toMatch(/case 'recharge_only':\s*return t\('nav\.recharge'\)/)
+    expect(componentSource).toMatch(/case 'subscription_only':\s*return t\('nav\.subscribe'\)/)
+    expect(componentSource).toMatch(/path: '\/purchase'[^\n]*label: purchaseNavLabel\.value/)
   })
 })

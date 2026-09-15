@@ -26,12 +26,10 @@ describe('V3 fusion timeline', () => {
     expect(bars[0].classes()).toContain('is-probe')
     expect(bars[1].classes()).toContain('is-empty')
     expect(bars[1].attributes('style')).toContain('height: 100%')
-    expect(w.find('[data-testid="channel-status-health-badge"]').text()).toContain('noTraffic')
+    expect(w.find('[data-testid="channel-status-health-badge"]').exists()).toBe(false)
     expect(w.findAll('article .text-lg').map(e => e.text())).toEqual(['-', '-', '-'])
     await w.findAll('.v3-bar-hitbox')[0].trigger('click')
-    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('probeSource')
-    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('primary-model')
-    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('100.0%')
+    expect(document.querySelector('[role="tooltip"]')).toBeNull()
     w.unmount()
   })
   it.each([[9, 11, 'bg-emerald-500'], [4, 16, 'bg-amber-500'], [3, 17, 'bg-red-500'], [0, 1, 'bg-red-500']])('colors probe samples %s/%s correctly', (success, failure, color) => {
@@ -80,6 +78,16 @@ describe('V3 fusion timeline', () => {
     expect(w.findAll('.v3-bar-slot')[0].element).toBe(first)
     expect(w.findAll('.v3-bar-slot')[1].element).toBe(second)
     expect(w.findAll('.v3-bar-slot')[2].attributes('style')).toContain('0ms')
+    expect(w.findAll('.is-empty')).toHaveLength(2)
+    w.unmount()
+  })
+  it('shows completed probe buckets even when passive aggregation has not caught up', () => {
+    const w = mount(MonitorCardGrid, { props: { rows: [fixture()], completedWindow: true,
+      coverage: { ...coverage, data_through: coverage.requested_start, coverage_start: coverage.requested_end } },
+      global: { stubs: { ProviderIcon: true, EmptyState: true } } })
+    expect(w.findAll('.v3-bar-slot')).toHaveLength(3)
+    expect(w.findAll('.v3-soft-glass-bar')[0].classes()).toContain('is-probe')
+    expect(w.findAll('.v3-soft-glass-bar')[0].classes()).toContain('bg-emerald-500')
     expect(w.findAll('.is-empty')).toHaveLength(2)
     w.unmount()
   })

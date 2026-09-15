@@ -2,7 +2,8 @@
 export default {
   channelMonitorV2: {
     groupUnavailable: '关联分组不可用',
-    v3: {
+  v3: {
+    lastRefreshed: '最近刷新：{time}',
       mode: 'V3 卡片监控', statisticsGroup: 'V3 统计分组', unlinked: '未关联', intervals: '近 {n} 个时间区间',
       loadFailed: '加载失败，请重试', healthy: '可用', warning: '需关注', critical: '需关注', unknown: '待统计',
       noTraffic: '样本不足', noRequests: '该区间无真实请求，且没有有效的融合探测结果', smallSample: '样本较少',

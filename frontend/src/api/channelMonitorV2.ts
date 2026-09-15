@@ -19,6 +19,7 @@ export type HealthScoreBand =
 export type MonitorMatrixGroupBy = 'platform' | 'platform_group' | 'platform_model' | 'platform_group_model'
 
 export interface MonitorFilter {
+  view?: 'v3'
   range: MonitorRange
   platforms: string[]
   groupIds: number[]
@@ -212,6 +213,7 @@ export interface MonitorUserRow {
 function params(filter: MonitorFilter) {
   return {
     range: filter.range,
+    view: filter.view,
     platform: filter.platforms.length ? filter.platforms : undefined,
     group_id: filter.groupIds.length ? filter.groupIds : undefined,
     model: filter.models.length ? filter.models : undefined,

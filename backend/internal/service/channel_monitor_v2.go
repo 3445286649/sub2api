@@ -447,6 +447,28 @@ func (s *ChannelMonitorV2Service) ParseFilter(rangeValue string, platforms, mode
 	return filter, err
 }
 
+func (s *ChannelMonitorV2Service) ParseV3Filter(rangeValue string, platforms, models []string, groupIDs []int64) (ChannelMonitorV2Filter, error) {
+	filter, err := ChannelMonitorV3Window(rangeValue, s.now())
+	filter.Platforms, filter.Models, filter.GroupIDs = normalizeStringSet(platforms), normalizeStringSet(models), normalizeInt64Set(groupIDs)
+	return filter, err
+}
+
+// V3 uses complete UTC intervals; its short window advances once per minute.
+func ChannelMonitorV3Window(rangeValue string, now time.Time) (ChannelMonitorV2Filter, error) {
+	filter, err := ChannelMonitorWindow(rangeValue, now)
+	if err != nil {
+		return filter, err
+	}
+	window := filter.End.Sub(filter.Start)
+	if filter.Range == "90m" {
+		filter.Bucket = time.Minute
+	}
+	seconds := int64(filter.Bucket.Seconds())
+	filter.End = time.Unix(now.Unix()/seconds*seconds, 0).UTC()
+	filter.Start = filter.End.Add(-window)
+	return filter, nil
+}
+
 // ChannelMonitorWindow is shared by passive metrics and V1 probe overlays.
 func ChannelMonitorWindow(rangeValue string, now time.Time) (ChannelMonitorV2Filter, error) {
 	now = now.UTC()

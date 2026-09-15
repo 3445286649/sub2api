@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -45,6 +46,31 @@ func TestChannelMonitorV2MatrixHandlerRejectsInvalidGroupBy(t *testing.T) {
 	h := NewChannelMonitorV2Handler(service.NewChannelMonitorV2Service(nil), nil)
 	h.Matrix(c)
 	require.Equal(t, http.StatusBadRequest, recorder.Code)
+}
+
+func TestChannelMonitorV3FilterKeepsMinuteResolutionAndGroupScope(t *testing.T) {
+	h := NewChannelMonitorV2Handler(service.NewChannelMonitorV2Service(nil), nil)
+	for _, tc := range []struct {
+		query  string
+		bucket time.Duration
+		valid  bool
+	}{
+		{"range=90m&view=v3&group_id=7", time.Minute, true},
+		{"range=90m&group_id=7", 5 * time.Minute, true},
+		{"range=90m&view=invalid", 0, false},
+	} {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/matrix?"+tc.query, nil)
+		filter, ok := h.parseFilter(c)
+		require.Equal(t, tc.valid, ok)
+		if ok {
+			require.Equal(t, tc.bucket, filter.Bucket)
+			require.Equal(t, []int64{7}, filter.GroupIDs)
+		} else {
+			require.Equal(t, http.StatusBadRequest, w.Code)
+		}
+	}
 }
 
 func TestChannelMonitorV2ScopeFilterUsesAvailableGroupsForOrdinaryUser(t *testing.T) {

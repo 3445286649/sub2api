@@ -42,6 +42,11 @@ func TestChannelMonitorFusionExecution(t *testing.T) {
 	require.True(t, repo.history[0].IsProbe)
 	require.Len(t, repo.history[0].ProbeTargetHash, 64)
 	require.Equal(t, 1, repo.releases)
+	results, err = svc.RunCheck(context.Background(), 1)
+	require.NoError(t, err)
+	require.Len(t, results, 1, "manual V3 check must use the same primary-model fusion path")
+	require.True(t, repo.history[len(repo.history)-1].IsProbe)
+	repo.calls, repo.history = 1, repo.history[:1]
 	repo.monitor.V3FusionEnabled = false
 	_, err = svc.RunScheduledCheck(context.Background(), 1)
 	require.NoError(t, err)
@@ -52,6 +57,8 @@ func TestChannelMonitorFusionExecution(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, results)
 	require.Len(t, repo.history, 1, "another replica's claim must prevent probing")
+	_, err = svc.RunCheck(context.Background(), 1)
+	require.ErrorIs(t, err, ErrChannelMonitorProbeBusy)
 	svc.SetRuntimeReader(channelMonitorRuntimeStub{rt: ChannelMonitorRuntime{ReadFailed: true, Enabled: true, Mode: ChannelMonitorModeV1}})
 	_, err = svc.RunScheduledCheck(context.Background(), 1)
 	require.ErrorIs(t, err, ErrChannelMonitorDisabled)
@@ -90,4 +97,19 @@ func TestChannelMonitorFusionScopeAndConfiguration(t *testing.T) {
 	require.Equal(t, oldHash, ChannelMonitorProbeTargetHash(m))
 	m.Endpoint = "https://other.example.com"
 	require.NotEqual(t, oldHash, ChannelMonitorProbeTargetHash(m))
+}
+
+func TestChannelMonitorV3MinuteWindow(t *testing.T) {
+	local := time.Date(2026, 9, 15, 20, 32, 43, 0, time.FixedZone("UTC+8", 8*3600))
+	v3, err := ChannelMonitorV3Window("90m", local)
+	require.NoError(t, err)
+	require.Equal(t, time.Minute, v3.Bucket)
+	require.Equal(t, time.Date(2026, 9, 15, 12, 32, 0, 0, time.UTC), v3.End)
+	require.Equal(t, 90*time.Minute, v3.End.Sub(v3.Start))
+	next, err := ChannelMonitorV3Window("90m", local.Add(time.Minute))
+	require.NoError(t, err)
+	require.Equal(t, v3.Start.Add(time.Minute), next.Start)
+	v2, err := ChannelMonitorWindow("90m", local)
+	require.NoError(t, err)
+	require.Equal(t, 5*time.Minute, v2.Bucket, "V2 granularity is unchanged")
 }

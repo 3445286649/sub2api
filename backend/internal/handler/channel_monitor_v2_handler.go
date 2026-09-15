@@ -226,7 +226,14 @@ func (h *ChannelMonitorV2Handler) parseFilter(c *gin.Context) (service.ChannelMo
 		response.BadRequest(c, "invalid group_id")
 		return service.ChannelMonitorV2Filter{}, false
 	}
-	filter, err := h.service.ParseFilter(c.Query("range"), queryList(c, "platform"), queryList(c, "model"), groups)
+	parse := h.service.ParseFilter
+	if view := c.Query("view"); view == "v3" {
+		parse = h.service.ParseV3Filter
+	} else if view != "" {
+		response.BadRequest(c, "invalid monitor view")
+		return service.ChannelMonitorV2Filter{}, false
+	}
+	filter, err := parse(c.Query("range"), queryList(c, "platform"), queryList(c, "model"), groups)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return service.ChannelMonitorV2Filter{}, false

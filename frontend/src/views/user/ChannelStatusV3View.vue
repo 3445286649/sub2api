@@ -5,7 +5,7 @@
         <div class="flex items-center justify-between gap-3">
           <div>
             <h1 class="text-xl font-semibold text-gray-900 dark:text-white">{{ t('nav.channelStatus') }}</h1>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ snapshot ? t('channelMonitorV2.updatedTo', { time: updatedTime }) : t('common.loading') }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ lastRefreshedAt ? t('channelMonitorV2.v3.lastRefreshed', { time: updatedTime }) : t('common.loading') }}</p>
           </div>
           <button type="button" class="btn btn-secondary btn-icon" :title="t('common.refresh')" :aria-label="t('common.refresh')" :disabled="refreshing" @click="reload(false)"><Icon name="refresh" size="sm" :class="{ 'animate-spin': refreshing }" /></button>
         </div>
@@ -18,7 +18,7 @@
       <div v-if="!matrix && refreshing" class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-busy="true">
         <div v-for="n in 6" :key="n" class="h-72 animate-pulse rounded-lg bg-gray-100 dark:bg-dark-800" />
       </div>
-      <MonitorCardGrid v-else-if="matrix" :rows="cardRows" :coverage="matrix.coverage" :rates="rates" />
+      <MonitorCardGrid v-else-if="matrix" :rows="cardRows" :coverage="matrix.coverage" :rates="rates" :completed-window="true" />
     </div>
   </AppLayout>
 </template>
@@ -61,21 +61,20 @@ const cardRows = computed<V3CardRow[]>(() => cardConfigs.value.map(card => {
 }))
 const cache = createMonitorPageCache()
 let controller: AbortController | null = null
-let refreshTimer: ReturnType<typeof setTimeout> | undefined
+let refreshTimer: ReturnType<typeof setInterval> | undefined
+const lastRefreshedAt = ref<number | null>(null)
 let identity = 0
-const updatedTime = computed(() => snapshot.value ? new Date(snapshot.value.coverage.data_through).toLocaleString(locale.value) : '')
+const updatedTime = computed(() => lastRefreshedAt.value ? new Date(lastRefreshedAt.value).toLocaleString(locale.value) : '')
 
-function schedule() {
-  clearTimeout(refreshTimer)
-  refreshTimer = setTimeout(() => { if (!document.hidden) void reload(false); else schedule() }, 60000)
+function refreshVisible() {
+  if (!document.hidden && !refreshing.value) void reload(false)
 }
 
 async function reload(useCache = true) {
   controller?.abort()
-  clearTimeout(refreshTimer)
   const request = new AbortController()
   controller = request
-  const filter = { range: range.value, platforms: [], groupIds: [], models: [] }
+  const filter = { range: range.value, view: 'v3' as const, platforms: [], groupIds: [], models: [] }
   const key = cache.key(auth.user?.id, false, filter, 'platform_group')
   refreshing.value = true
   failed.value = false
@@ -90,12 +89,11 @@ async function reload(useCache = true) {
     snapshot.value = next.snapshot
     matrix.value = next.matrix
     cardConfigs.value = configs
+    lastRefreshedAt.value = Date.now()
     if (!cached) cache.set(key, next)
-    schedule()
   } catch {
     if (request.signal.aborted || controller !== request) return
     failed.value = true
-    schedule()
   } finally {
     if (controller === request) refreshing.value = false
   }
@@ -128,11 +126,14 @@ watch([() => auth.user?.id, () => auth.isAdmin], () => {
 onMounted(() => {
   void loadRates()
   void reload()
+  refreshTimer = setInterval(refreshVisible, 60000)
+  document.addEventListener('visibilitychange', refreshVisible)
 })
 onBeforeUnmount(() => {
   identity++
   controller?.abort()
-  clearTimeout(refreshTimer)
+  clearInterval(refreshTimer)
+  document.removeEventListener('visibilitychange', refreshVisible)
   cache.clear()
 })
 </script>

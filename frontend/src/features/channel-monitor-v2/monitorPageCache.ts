@@ -8,7 +8,7 @@ export function createMonitorPageCache() {
   let version: number | undefined
   return {
     key(userId: number | undefined, admin: boolean, filter: MonitorFilter, groupBy: MonitorMatrixGroupBy) {
-      return JSON.stringify([userId, admin, filter.range, [...filter.platforms].sort(), [...filter.groupIds].sort((a, b) => a - b), [...filter.models].sort(), groupBy])
+      return JSON.stringify([userId, admin, filter.range, [...filter.platforms].sort(), [...filter.groupIds].sort((a, b) => a - b), [...filter.models].sort(), groupBy, filter.view])
     },
     get(key: string): MetricsEntry | undefined {
       const entry = entries.get(key)

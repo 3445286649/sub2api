@@ -37,8 +37,10 @@ func (r *channelMonitorRepository) TryBeginProbe(ctx context.Context, id int64, 
 		}
 		_ = conn.Close()
 	}
+	// Configured intervals have second precision. Anchor the due time to that
+	// precision so millisecond queue/DB delay cannot skip an entire timer cycle.
 	result, err := conn.ExecContext(ctx, `UPDATE channel_monitors
- SET probe_next_check_at = clock_timestamp() + make_interval(secs => GREATEST(15, interval_seconds - jitter_seconds))
+ SET probe_next_check_at = date_trunc('second', clock_timestamp()) + make_interval(secs => GREATEST(15, interval_seconds - jitter_seconds))
  WHERE id=$1 AND (NOT $2 OR (enabled AND (probe_next_check_at IS NULL OR probe_next_check_at <= clock_timestamp())))`, id, scheduled)
 	if err != nil {
 		release()

@@ -59,7 +59,7 @@ func (h *ChannelMonitorUserHandler) V3Cards(c *gin.Context) {
 		response.ErrorFrom(c, service.ErrChannelMonitorDisabled)
 		return
 	}
-	filter, err := service.ChannelMonitorWindow(c.Query("range"), time.Now())
+	filter, err := service.ChannelMonitorV3Window(c.Query("range"), time.Now())
 	if err != nil {
 		response.BadRequest(c, "invalid monitor range")
 		return

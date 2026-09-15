@@ -56,7 +56,7 @@ type channelMonitorCreateRequest struct {
 	DisplayCategory  string            `json:"display_category" binding:"max=50"`
 	DisplayOrder     int               `json:"display_order" binding:"min=0,max=999999"`
 	Name             string            `json:"name" binding:"required,max=100"`
-	Provider         string            `json:"provider" binding:"required,oneof=openai anthropic gemini grok antigravity kimi zhipu deepseek minimax"`
+	Provider         string            `json:"provider" binding:"required,oneof=openai anthropic gemini grok antigravity kimi zhipu deepseek minimax opencode_go"`
 	APIMode          string            `json:"api_mode" binding:"omitempty,oneof=chat_completions responses"`
 	Endpoint         string            `json:"endpoint" binding:"omitempty,max=500"`
 	APIKey           string            `json:"api_key" binding:"omitempty,max=2000"`
@@ -84,7 +84,7 @@ type channelMonitorUpdateRequest struct {
 	DisplayCategory  *string            `json:"display_category" binding:"omitempty,max=50"`
 	DisplayOrder     *int               `json:"display_order" binding:"omitempty,min=0,max=999999"`
 	Name             *string            `json:"name" binding:"omitempty,max=100"`
-	Provider         *string            `json:"provider" binding:"omitempty,oneof=openai anthropic gemini grok antigravity kimi zhipu deepseek minimax"`
+	Provider         *string            `json:"provider" binding:"omitempty,oneof=openai anthropic gemini grok antigravity kimi zhipu deepseek minimax opencode_go"`
 	APIMode          *string            `json:"api_mode" binding:"omitempty,oneof=chat_completions responses"`
 	Endpoint         *string            `json:"endpoint" binding:"omitempty,max=500"`
 	APIKey           *string            `json:"api_key" binding:"omitempty,max=2000"`

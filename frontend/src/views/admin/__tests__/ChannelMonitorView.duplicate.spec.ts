@@ -10,21 +10,25 @@ const {
   listMonitors,
   duplicateMonitor,
   updateMonitor,
+  runMonitor,
+  runtimeMode,
   showSuccess,
   showError,
 } = vi.hoisted(() => ({
   listMonitors: vi.fn(),
   duplicateMonitor: vi.fn(),
   updateMonitor: vi.fn(),
+  runMonitor: vi.fn(),
+  runtimeMode: { value: 'v1' },
   showSuccess: vi.fn(),
   showError: vi.fn(),
 }))
 
 
 vi.mock('@/utils/featureFlags', () => ({
-  isChannelMonitorV1Mode: () => true,
+  isChannelMonitorV1Mode: () => runtimeMode.value === 'v1',
   isChannelMonitorV2Mode: () => false,
-  getChannelMonitorMode: () => 'v1' as const,
+  getChannelMonitorMode: () => runtimeMode.value,
 }))
 
 vi.mock('@/features/channel-monitor-v2/MonitorSettingsPanel.vue', () => ({
@@ -37,7 +41,7 @@ vi.mock('@/api/admin', () => ({
       list: listMonitors,
       duplicate: duplicateMonitor,
       update: updateMonitor,
-      runNow: vi.fn(),
+      runNow: runMonitor,
       del: vi.fn(),
     },
   },
@@ -129,6 +133,8 @@ function mountView() {
 
 describe('ChannelMonitorView duplicate action', () => {
   beforeEach(() => {
+    runtimeMode.value = 'v1'
+    runMonitor.mockReset().mockResolvedValue({ results: [{ model: 'primary', status: 'operational' }] })
     localStorage.clear()
     for (const fn of [listMonitors, duplicateMonitor, updateMonitor, showSuccess, showError]) fn.mockReset()
     listMonitors.mockResolvedValue({
@@ -152,6 +158,23 @@ describe('ChannelMonitorView duplicate action', () => {
     expect(duplicateMonitor).toHaveBeenCalledWith(42)
     expect(showSuccess).toHaveBeenCalledWith('admin.channelMonitor.duplicateSuccess')
     expect(listMonitors.mock.calls.length).toBeGreaterThan(1)
+    wrapper.unmount()
+  })
+
+  it('sends immediate checks in V3 mode and surfaces coordination errors without success', async () => {
+    runtimeMode.value = 'v3'
+    const wrapper = mountView()
+    await flushPromises()
+    wrapper.findComponent(MonitorActionsCell).vm.$emit('run', monitor)
+    await flushPromises()
+    expect(runMonitor).toHaveBeenCalledWith(42)
+    expect(showSuccess).toHaveBeenCalledWith('admin.channelMonitor.runSuccess')
+    showSuccess.mockClear()
+    runMonitor.mockRejectedValueOnce({ response: { data: { message: 'A check is already running' } } })
+    wrapper.findComponent(MonitorActionsCell).vm.$emit('run', monitor)
+    await flushPromises()
+    expect(showError).toHaveBeenCalled()
+    expect(showSuccess).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

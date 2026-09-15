@@ -2,7 +2,8 @@
 export default {
   channelMonitorV2: {
     groupUnavailable: 'Linked group unavailable',
-    v3: {
+  v3: {
+    lastRefreshed: 'Last refreshed: {time}',
       mode: 'V3 monitor cards', statisticsGroup: 'V3 statistics group', unlinked: 'Not linked', intervals: 'Last {n} intervals',
       loadFailed: 'Unable to load. Please retry.', healthy: 'Available', warning: 'Needs attention', critical: 'Needs attention', unknown: 'Pending',
       noTraffic: 'Insufficient samples', noRequests: 'No real requests or valid supplemental probes in this interval', smallSample: 'Small sample',

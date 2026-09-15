@@ -29,7 +29,7 @@ import { useChannelMonitorFormat } from '@/composables/useChannelMonitorFormat'
 import { MONITOR_CATEGORY_NAMES, monitorDisplayCategory } from '@/utils/monitorDisplayCategory'
 import ChannelMonitorV3Card from './ChannelMonitorV3Card.vue'
 
-const props = defineProps<{ rows: V3CardRow[]; coverage: MonitorCoverage; rates?: Record<number, number> }>()
+const props = defineProps<{ rows: V3CardRow[]; coverage: MonitorCoverage; rates?: Record<number, number>; completedWindow?: boolean }>()
 const { t } = useI18n()
 const { providerLabel } = useChannelMonitorFormat()
 const selected = ref<string | null>(null)
@@ -54,10 +54,10 @@ const timelineLength = computed(() => {
   const step = Math.max(1, props.coverage.bucket_seconds) * 1000
   const start = Math.floor(Date.parse(props.coverage.requested_start) / step) * step
   const requestedEnd = Date.parse(props.coverage.requested_end || props.coverage.data_through)
-  const end = Math.min(requestedEnd, Date.parse(props.coverage.data_through))
+  const end = props.completedWindow ? requestedEnd : Math.min(requestedEnd, Date.parse(props.coverage.data_through))
   if (!Number.isFinite(start) || !Number.isFinite(end)) return 0
-  // End at the last aggregated interval. Do not reserve a future/pending slot;
-  // advancing coverage appends a new timestamp without replacing existing slots.
+  // V3's requested end is already the last complete interval. Passive coverage
+  // may lag behind independently; confirmed probes must still remain visible.
   return Math.min(400, Math.max(0, Math.floor((end - start) / step)))
 })
 function alignedBuckets(row: V3CardRow): CardTimelineBucket[] {
@@ -71,8 +71,8 @@ function alignedBuckets(row: V3CardRow): CardTimelineBucket[] {
     const coveredEnd = Date.parse(props.coverage.data_through)
     const outsideCoverage = !Number.isFinite(coveredStart) || !Number.isFinite(coveredEnd) || stamp < coveredStart || stamp + step > coveredEnd
     const existing = buckets.get(stamp)
-    const probe = !row.unlinked && !outsideCoverage && (!existing || existing.metrics.traffic_state === 'no_traffic') ? probes.get(stamp) : undefined
-    const incomplete = outsideCoverage || (row.metrics.traffic_state == null && !probe)
+    const probe = !row.unlinked && (!existing || existing.metrics.traffic_state !== 'traffic') ? probes.get(stamp) : undefined
+    const incomplete = !probe && (outsideCoverage || row.metrics.traffic_state == null)
     if (existing) return { ...existing, incomplete, probe, probeModel: row.probe_model, bucket_end: new Date(stamp + step).toISOString() }
     return {
       probe, probeModel: row.probe_model,

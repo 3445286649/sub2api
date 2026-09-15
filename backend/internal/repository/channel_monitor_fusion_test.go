@@ -35,6 +35,9 @@ func TestChannelMonitorFusionPostgres(t *testing.T) {
 	release, ok, err := repo.TryBeginProbe(ctx, 1, true)
 	require.NoError(t, err)
 	require.True(t, ok)
+	var wholeSecond bool
+	require.NoError(t, db.QueryRow("SELECT probe_next_check_at=date_trunc('second',probe_next_check_at) FROM channel_monitors WHERE id=1").Scan(&wholeSecond))
+	require.True(t, wholeSecond, "sub-second execution delay must not defer the next configured interval")
 	_, ok, err = repo.TryBeginProbe(ctx, 1, true)
 	require.NoError(t, err)
 	require.False(t, ok, "concurrent replica cannot enter")
@@ -78,4 +81,12 @@ func TestChannelMonitorFusionPostgres(t *testing.T) {
 	require.Equal(t, int64(2), result[1][0].SuccessCount)
 	require.Equal(t, int64(1), result[1][0].FailureCount)
 	require.True(t, stamp.Equal(result[1][0].BucketStart))
+	filter.Bucket = time.Minute
+	result, err = repo.ProbeBuckets(ctx, []*service.ChannelMonitor{m}, filter)
+	require.NoError(t, err)
+	require.Len(t, result[1], 3, "minute view must not collapse three checks into a five-minute bar")
+	for i, bucket := range result[1] {
+		require.True(t, stamp.Add(time.Duration(i+1)*time.Minute).Equal(bucket.BucketStart))
+		require.Equal(t, int64(1), bucket.SuccessCount+bucket.FailureCount)
+	}
 }
