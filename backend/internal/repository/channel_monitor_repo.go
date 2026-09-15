@@ -11,7 +11,9 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
+	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
 
@@ -37,6 +39,23 @@ func NewChannelMonitorRepository(client *dbent.Client, db *sql.DB) service.Chann
 
 // ---------- CRUD ----------
 
+func (r *channelMonitorRepository) validateV3Group(ctx context.Context, id *int64) error {
+	if id == nil {
+		return nil
+	}
+	if *id <= 0 {
+		return infraerrors.BadRequest("INVALID_V3_GROUP", "invalid V3 statistics group")
+	}
+	exists, err := clientFromContext(ctx, r.client).Group.Query().Where(group.IDEQ(*id), group.DeletedAtIsNil(), group.StatusEQ(service.StatusActive)).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return infraerrors.BadRequest("INVALID_V3_GROUP", "V3 statistics group is unavailable")
+	}
+	return nil
+}
+
 func (r *channelMonitorRepository) ListDisplayCategories(ctx context.Context) ([]string, error) {
 	return r.client.ChannelMonitor.Query().
 		Where(channelmonitor.DisplayCategoryNEQ("")).
@@ -47,10 +66,15 @@ func (r *channelMonitorRepository) ListDisplayCategories(ctx context.Context) ([
 }
 
 func (r *channelMonitorRepository) Create(ctx context.Context, m *service.ChannelMonitor) error {
+	if err := r.validateV3Group(ctx, m.V3GroupID); err != nil {
+		return err
+	}
 	client := clientFromContext(ctx, r.client)
 	builder := client.ChannelMonitor.Create().
 		SetDisplayCategory(m.DisplayCategory).
 		SetDisplayOrder(m.DisplayOrder).
+		SetNillableV3GroupID(m.V3GroupID).
+		SetV3FusionEnabled(m.V3FusionEnabled).
 		SetName(m.Name).
 		SetProvider(channelmonitor.Provider(m.Provider)).
 		SetAPIMode(defaultAPIModeRepo(m.APIMode)).
@@ -121,8 +145,12 @@ func (r *channelMonitorRepository) GetByID(ctx context.Context, id int64) (*serv
 }
 
 func (r *channelMonitorRepository) Update(ctx context.Context, m *service.ChannelMonitor) error {
+	if err := r.validateV3Group(ctx, m.V3GroupID); err != nil {
+		return err
+	}
 	client := clientFromContext(ctx, r.client)
 	updater := client.ChannelMonitor.UpdateOneID(m.ID).
+		SetV3FusionEnabled(m.V3FusionEnabled).
 		SetDisplayCategory(m.DisplayCategory).
 		SetDisplayOrder(m.DisplayOrder).
 		SetName(m.Name).
@@ -143,6 +171,11 @@ func (r *channelMonitorRepository) Update(ctx context.Context, m *service.Channe
 		updater = updater.SetTemplateID(*m.TemplateID)
 	} else {
 		updater = updater.ClearTemplateID()
+	}
+	if m.V3GroupID != nil {
+		updater.SetV3GroupID(*m.V3GroupID)
+	} else {
+		updater.ClearV3GroupID()
 	}
 	if m.AccountID != nil {
 		updater = updater.SetAccountID(*m.AccountID)
@@ -251,6 +284,8 @@ func (r *channelMonitorRepository) InsertHistoryBatch(ctx context.Context, rows 
 	bulk := make([]*dbent.ChannelMonitorHistoryCreate, 0, len(rows))
 	for _, row := range rows {
 		c := client.ChannelMonitorHistory.Create().
+			SetIsProbe(row.IsProbe).
+			SetProbeTargetHash(row.ProbeTargetHash).
 			SetMonitorID(row.MonitorID).
 			SetModel(row.Model).
 			SetStatus(channelmonitorhistory.Status(row.Status)).
@@ -709,6 +744,9 @@ const channelMonitorPruneHistorySQL = `
 WITH batch AS (
     SELECT id FROM channel_monitor_histories
     WHERE checked_at < $1
+      AND (NOT is_probe OR checked_at < CURRENT_TIMESTAMP - INTERVAL '30 days'
+        OR NOT EXISTS (SELECT 1 FROM channel_monitors m
+          WHERE m.id = channel_monitor_histories.monitor_id AND m.v3_fusion_enabled))
     ORDER BY id
     LIMIT $2
 )
@@ -808,6 +846,8 @@ func entToServiceMonitor(row *dbent.ChannelMonitor) *service.ChannelMonitor {
 		Endpoint:             row.Endpoint,
 		DisplayCategory:      row.DisplayCategory,
 		DisplayOrder:         row.DisplayOrder,
+		V3GroupID:            row.V3GroupID,
+		V3FusionEnabled:      row.V3FusionEnabled,
 		APIKey:               row.APIKeyEncrypted, // 仍为密文，service 层负责解密
 		PrimaryModel:         row.PrimaryModel,
 		ExtraModels:          extras,

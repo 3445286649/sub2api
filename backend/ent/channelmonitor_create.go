@@ -127,6 +127,48 @@ func (_c *ChannelMonitorCreate) SetNillableDisplayCategory(v *string) *ChannelMo
 	return _c
 }
 
+// SetV3GroupID sets the "v3_group_id" field.
+func (_c *ChannelMonitorCreate) SetV3GroupID(v int64) *ChannelMonitorCreate {
+	_c.mutation.SetV3GroupID(v)
+	return _c
+}
+
+// SetNillableV3GroupID sets the "v3_group_id" field if the given value is not nil.
+func (_c *ChannelMonitorCreate) SetNillableV3GroupID(v *int64) *ChannelMonitorCreate {
+	if v != nil {
+		_c.SetV3GroupID(*v)
+	}
+	return _c
+}
+
+// SetV3FusionEnabled sets the "v3_fusion_enabled" field.
+func (_c *ChannelMonitorCreate) SetV3FusionEnabled(v bool) *ChannelMonitorCreate {
+	_c.mutation.SetV3FusionEnabled(v)
+	return _c
+}
+
+// SetNillableV3FusionEnabled sets the "v3_fusion_enabled" field if the given value is not nil.
+func (_c *ChannelMonitorCreate) SetNillableV3FusionEnabled(v *bool) *ChannelMonitorCreate {
+	if v != nil {
+		_c.SetV3FusionEnabled(*v)
+	}
+	return _c
+}
+
+// SetProbeNextCheckAt sets the "probe_next_check_at" field.
+func (_c *ChannelMonitorCreate) SetProbeNextCheckAt(v time.Time) *ChannelMonitorCreate {
+	_c.mutation.SetProbeNextCheckAt(v)
+	return _c
+}
+
+// SetNillableProbeNextCheckAt sets the "probe_next_check_at" field if the given value is not nil.
+func (_c *ChannelMonitorCreate) SetNillableProbeNextCheckAt(v *time.Time) *ChannelMonitorCreate {
+	if v != nil {
+		_c.SetProbeNextCheckAt(*v)
+	}
+	return _c
+}
+
 // SetDisplayOrder sets the "display_order" field.
 func (_c *ChannelMonitorCreate) SetDisplayOrder(v int) *ChannelMonitorCreate {
 	_c.mutation.SetDisplayOrder(v)
@@ -371,6 +413,10 @@ func (_c *ChannelMonitorCreate) defaults() {
 		v := channelmonitor.DefaultDisplayCategory
 		_c.mutation.SetDisplayCategory(v)
 	}
+	if _, ok := _c.mutation.V3FusionEnabled(); !ok {
+		v := channelmonitor.DefaultV3FusionEnabled
+		_c.mutation.SetV3FusionEnabled(v)
+	}
 	if _, ok := _c.mutation.DisplayOrder(); !ok {
 		v := channelmonitor.DefaultDisplayOrder
 		_c.mutation.SetDisplayOrder(v)
@@ -456,6 +502,9 @@ func (_c *ChannelMonitorCreate) check() error {
 		if err := channelmonitor.DisplayCategoryValidator(v); err != nil {
 			return &ValidationError{Name: "display_category", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitor.display_category": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.V3FusionEnabled(); !ok {
+		return &ValidationError{Name: "v3_fusion_enabled", err: errors.New(`ent: missing required field "ChannelMonitor.v3_fusion_enabled"`)}
 	}
 	if _, ok := _c.mutation.DisplayOrder(); !ok {
 		return &ValidationError{Name: "display_order", err: errors.New(`ent: missing required field "ChannelMonitor.display_order"`)}
@@ -584,6 +633,18 @@ func (_c *ChannelMonitorCreate) createSpec() (*ChannelMonitor, *sqlgraph.CreateS
 	if value, ok := _c.mutation.DisplayCategory(); ok {
 		_spec.SetField(channelmonitor.FieldDisplayCategory, field.TypeString, value)
 		_node.DisplayCategory = value
+	}
+	if value, ok := _c.mutation.V3GroupID(); ok {
+		_spec.SetField(channelmonitor.FieldV3GroupID, field.TypeInt64, value)
+		_node.V3GroupID = &value
+	}
+	if value, ok := _c.mutation.V3FusionEnabled(); ok {
+		_spec.SetField(channelmonitor.FieldV3FusionEnabled, field.TypeBool, value)
+		_node.V3FusionEnabled = value
+	}
+	if value, ok := _c.mutation.ProbeNextCheckAt(); ok {
+		_spec.SetField(channelmonitor.FieldProbeNextCheckAt, field.TypeTime, value)
+		_node.ProbeNextCheckAt = &value
 	}
 	if value, ok := _c.mutation.DisplayOrder(); ok {
 		_spec.SetField(channelmonitor.FieldDisplayOrder, field.TypeInt, value)
@@ -843,6 +904,60 @@ func (u *ChannelMonitorUpsert) SetDisplayCategory(v string) *ChannelMonitorUpser
 // UpdateDisplayCategory sets the "display_category" field to the value that was provided on create.
 func (u *ChannelMonitorUpsert) UpdateDisplayCategory() *ChannelMonitorUpsert {
 	u.SetExcluded(channelmonitor.FieldDisplayCategory)
+	return u
+}
+
+// SetV3GroupID sets the "v3_group_id" field.
+func (u *ChannelMonitorUpsert) SetV3GroupID(v int64) *ChannelMonitorUpsert {
+	u.Set(channelmonitor.FieldV3GroupID, v)
+	return u
+}
+
+// UpdateV3GroupID sets the "v3_group_id" field to the value that was provided on create.
+func (u *ChannelMonitorUpsert) UpdateV3GroupID() *ChannelMonitorUpsert {
+	u.SetExcluded(channelmonitor.FieldV3GroupID)
+	return u
+}
+
+// AddV3GroupID adds v to the "v3_group_id" field.
+func (u *ChannelMonitorUpsert) AddV3GroupID(v int64) *ChannelMonitorUpsert {
+	u.Add(channelmonitor.FieldV3GroupID, v)
+	return u
+}
+
+// ClearV3GroupID clears the value of the "v3_group_id" field.
+func (u *ChannelMonitorUpsert) ClearV3GroupID() *ChannelMonitorUpsert {
+	u.SetNull(channelmonitor.FieldV3GroupID)
+	return u
+}
+
+// SetV3FusionEnabled sets the "v3_fusion_enabled" field.
+func (u *ChannelMonitorUpsert) SetV3FusionEnabled(v bool) *ChannelMonitorUpsert {
+	u.Set(channelmonitor.FieldV3FusionEnabled, v)
+	return u
+}
+
+// UpdateV3FusionEnabled sets the "v3_fusion_enabled" field to the value that was provided on create.
+func (u *ChannelMonitorUpsert) UpdateV3FusionEnabled() *ChannelMonitorUpsert {
+	u.SetExcluded(channelmonitor.FieldV3FusionEnabled)
+	return u
+}
+
+// SetProbeNextCheckAt sets the "probe_next_check_at" field.
+func (u *ChannelMonitorUpsert) SetProbeNextCheckAt(v time.Time) *ChannelMonitorUpsert {
+	u.Set(channelmonitor.FieldProbeNextCheckAt, v)
+	return u
+}
+
+// UpdateProbeNextCheckAt sets the "probe_next_check_at" field to the value that was provided on create.
+func (u *ChannelMonitorUpsert) UpdateProbeNextCheckAt() *ChannelMonitorUpsert {
+	u.SetExcluded(channelmonitor.FieldProbeNextCheckAt)
+	return u
+}
+
+// ClearProbeNextCheckAt clears the value of the "probe_next_check_at" field.
+func (u *ChannelMonitorUpsert) ClearProbeNextCheckAt() *ChannelMonitorUpsert {
+	u.SetNull(channelmonitor.FieldProbeNextCheckAt)
 	return u
 }
 
@@ -1230,6 +1345,69 @@ func (u *ChannelMonitorUpsertOne) SetDisplayCategory(v string) *ChannelMonitorUp
 func (u *ChannelMonitorUpsertOne) UpdateDisplayCategory() *ChannelMonitorUpsertOne {
 	return u.Update(func(s *ChannelMonitorUpsert) {
 		s.UpdateDisplayCategory()
+	})
+}
+
+// SetV3GroupID sets the "v3_group_id" field.
+func (u *ChannelMonitorUpsertOne) SetV3GroupID(v int64) *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetV3GroupID(v)
+	})
+}
+
+// AddV3GroupID adds v to the "v3_group_id" field.
+func (u *ChannelMonitorUpsertOne) AddV3GroupID(v int64) *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.AddV3GroupID(v)
+	})
+}
+
+// UpdateV3GroupID sets the "v3_group_id" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertOne) UpdateV3GroupID() *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateV3GroupID()
+	})
+}
+
+// ClearV3GroupID clears the value of the "v3_group_id" field.
+func (u *ChannelMonitorUpsertOne) ClearV3GroupID() *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.ClearV3GroupID()
+	})
+}
+
+// SetV3FusionEnabled sets the "v3_fusion_enabled" field.
+func (u *ChannelMonitorUpsertOne) SetV3FusionEnabled(v bool) *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetV3FusionEnabled(v)
+	})
+}
+
+// UpdateV3FusionEnabled sets the "v3_fusion_enabled" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertOne) UpdateV3FusionEnabled() *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateV3FusionEnabled()
+	})
+}
+
+// SetProbeNextCheckAt sets the "probe_next_check_at" field.
+func (u *ChannelMonitorUpsertOne) SetProbeNextCheckAt(v time.Time) *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetProbeNextCheckAt(v)
+	})
+}
+
+// UpdateProbeNextCheckAt sets the "probe_next_check_at" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertOne) UpdateProbeNextCheckAt() *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateProbeNextCheckAt()
+	})
+}
+
+// ClearProbeNextCheckAt clears the value of the "probe_next_check_at" field.
+func (u *ChannelMonitorUpsertOne) ClearProbeNextCheckAt() *ChannelMonitorUpsertOne {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.ClearProbeNextCheckAt()
 	})
 }
 
@@ -1819,6 +1997,69 @@ func (u *ChannelMonitorUpsertBulk) SetDisplayCategory(v string) *ChannelMonitorU
 func (u *ChannelMonitorUpsertBulk) UpdateDisplayCategory() *ChannelMonitorUpsertBulk {
 	return u.Update(func(s *ChannelMonitorUpsert) {
 		s.UpdateDisplayCategory()
+	})
+}
+
+// SetV3GroupID sets the "v3_group_id" field.
+func (u *ChannelMonitorUpsertBulk) SetV3GroupID(v int64) *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetV3GroupID(v)
+	})
+}
+
+// AddV3GroupID adds v to the "v3_group_id" field.
+func (u *ChannelMonitorUpsertBulk) AddV3GroupID(v int64) *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.AddV3GroupID(v)
+	})
+}
+
+// UpdateV3GroupID sets the "v3_group_id" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertBulk) UpdateV3GroupID() *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateV3GroupID()
+	})
+}
+
+// ClearV3GroupID clears the value of the "v3_group_id" field.
+func (u *ChannelMonitorUpsertBulk) ClearV3GroupID() *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.ClearV3GroupID()
+	})
+}
+
+// SetV3FusionEnabled sets the "v3_fusion_enabled" field.
+func (u *ChannelMonitorUpsertBulk) SetV3FusionEnabled(v bool) *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetV3FusionEnabled(v)
+	})
+}
+
+// UpdateV3FusionEnabled sets the "v3_fusion_enabled" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertBulk) UpdateV3FusionEnabled() *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateV3FusionEnabled()
+	})
+}
+
+// SetProbeNextCheckAt sets the "probe_next_check_at" field.
+func (u *ChannelMonitorUpsertBulk) SetProbeNextCheckAt(v time.Time) *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.SetProbeNextCheckAt(v)
+	})
+}
+
+// UpdateProbeNextCheckAt sets the "probe_next_check_at" field to the value that was provided on create.
+func (u *ChannelMonitorUpsertBulk) UpdateProbeNextCheckAt() *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.UpdateProbeNextCheckAt()
+	})
+}
+
+// ClearProbeNextCheckAt clears the value of the "probe_next_check_at" field.
+func (u *ChannelMonitorUpsertBulk) ClearProbeNextCheckAt() *ChannelMonitorUpsertBulk {
+	return u.Update(func(s *ChannelMonitorUpsert) {
+		s.ClearProbeNextCheckAt()
 	})
 }
 

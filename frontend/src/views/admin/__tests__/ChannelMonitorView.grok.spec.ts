@@ -7,6 +7,7 @@ import MonitorFormDialog from '@/components/admin/monitor/MonitorFormDialog.vue'
 vi.mock('@/api/admin/channelMonitor', () => ({
   listDisplayCategories: async () => [],
 }))
+vi.mock('@/api/admin/groups', () => ({ groupsAPI: { getAll: async () => [] } }))
 import {
   DEFAULT_GROK_ENDPOINT,
   DEFAULT_GROK_MODEL,

@@ -37,6 +37,12 @@ type ChannelMonitor struct {
 	Endpoint string `json:"endpoint,omitempty"`
 	// DisplayCategory holds the value of the "display_category" field.
 	DisplayCategory string `json:"display_category,omitempty"`
+	// V3GroupID holds the value of the "v3_group_id" field.
+	V3GroupID *int64 `json:"v3_group_id,omitempty"`
+	// V3FusionEnabled holds the value of the "v3_fusion_enabled" field.
+	V3FusionEnabled bool `json:"v3_fusion_enabled,omitempty"`
+	// ProbeNextCheckAt holds the value of the "probe_next_check_at" field.
+	ProbeNextCheckAt *time.Time `json:"probe_next_check_at,omitempty"`
 	// DisplayOrder holds the value of the "display_order" field.
 	DisplayOrder int `json:"display_order,omitempty"`
 	// AES-256-GCM encrypted API key
@@ -120,13 +126,13 @@ func (*ChannelMonitor) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case channelmonitor.FieldExtraModels, channelmonitor.FieldExtraHeaders, channelmonitor.FieldBodyOverride:
 			values[i] = new([]byte)
-		case channelmonitor.FieldEnabled:
+		case channelmonitor.FieldV3FusionEnabled, channelmonitor.FieldEnabled:
 			values[i] = new(sql.NullBool)
-		case channelmonitor.FieldID, channelmonitor.FieldAccountID, channelmonitor.FieldDisplayOrder, channelmonitor.FieldIntervalSeconds, channelmonitor.FieldJitterSeconds, channelmonitor.FieldCreatedBy, channelmonitor.FieldTemplateID:
+		case channelmonitor.FieldID, channelmonitor.FieldAccountID, channelmonitor.FieldV3GroupID, channelmonitor.FieldDisplayOrder, channelmonitor.FieldIntervalSeconds, channelmonitor.FieldJitterSeconds, channelmonitor.FieldCreatedBy, channelmonitor.FieldTemplateID:
 			values[i] = new(sql.NullInt64)
 		case channelmonitor.FieldName, channelmonitor.FieldProvider, channelmonitor.FieldCheckMode, channelmonitor.FieldAPIMode, channelmonitor.FieldEndpoint, channelmonitor.FieldDisplayCategory, channelmonitor.FieldAPIKeyEncrypted, channelmonitor.FieldPrimaryModel, channelmonitor.FieldGroupName, channelmonitor.FieldBodyOverrideMode:
 			values[i] = new(sql.NullString)
-		case channelmonitor.FieldCreatedAt, channelmonitor.FieldUpdatedAt, channelmonitor.FieldLastCheckedAt:
+		case channelmonitor.FieldCreatedAt, channelmonitor.FieldUpdatedAt, channelmonitor.FieldProbeNextCheckAt, channelmonitor.FieldLastCheckedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -203,6 +209,26 @@ func (_m *ChannelMonitor) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field display_category", values[i])
 			} else if value.Valid {
 				_m.DisplayCategory = value.String
+			}
+		case channelmonitor.FieldV3GroupID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field v3_group_id", values[i])
+			} else if value.Valid {
+				_m.V3GroupID = new(int64)
+				*_m.V3GroupID = value.Int64
+			}
+		case channelmonitor.FieldV3FusionEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field v3_fusion_enabled", values[i])
+			} else if value.Valid {
+				_m.V3FusionEnabled = value.Bool
+			}
+		case channelmonitor.FieldProbeNextCheckAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field probe_next_check_at", values[i])
+			} else if value.Valid {
+				_m.ProbeNextCheckAt = new(time.Time)
+				*_m.ProbeNextCheckAt = value.Time
 			}
 		case channelmonitor.FieldDisplayOrder:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -375,6 +401,19 @@ func (_m *ChannelMonitor) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("display_category=")
 	builder.WriteString(_m.DisplayCategory)
+	builder.WriteString(", ")
+	if v := _m.V3GroupID; v != nil {
+		builder.WriteString("v3_group_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("v3_fusion_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.V3FusionEnabled))
+	builder.WriteString(", ")
+	if v := _m.ProbeNextCheckAt; v != nil {
+		builder.WriteString("probe_next_check_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("display_order=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DisplayOrder))

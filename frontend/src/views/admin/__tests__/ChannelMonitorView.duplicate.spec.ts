@@ -9,11 +9,13 @@ import ChannelMonitorView from '@/views/admin/ChannelMonitorView.vue'
 const {
   listMonitors,
   duplicateMonitor,
+  updateMonitor,
   showSuccess,
   showError,
 } = vi.hoisted(() => ({
   listMonitors: vi.fn(),
   duplicateMonitor: vi.fn(),
+  updateMonitor: vi.fn(),
   showSuccess: vi.fn(),
   showError: vi.fn(),
 }))
@@ -34,7 +36,7 @@ vi.mock('@/api/admin', () => ({
     channelMonitor: {
       list: listMonitors,
       duplicate: duplicateMonitor,
-      update: vi.fn(),
+      update: updateMonitor,
       runNow: vi.fn(),
       del: vi.fn(),
     },
@@ -67,7 +69,7 @@ const DataTableStub = defineComponent({
     columns: { type: Array, default: () => [] },
     loading: { type: Boolean, default: false },
   },
-  template: '<div><div v-for="row in data" :key="row.id"><slot name="cell-actions" :row="row" /></div></div>',
+  template: '<div><div v-for="row in data" :key="row.id"><slot name="cell-actions" :row="row" /><slot name="cell-v3_fusion_enabled" :row="row" /></div></div>',
 })
 
 function makeMonitor(overrides: Partial<ChannelMonitor> = {}): ChannelMonitor {
@@ -116,7 +118,6 @@ function mountView() {
         ConfirmDialog: true,
         EmptyState: true,
         HelpTooltip: true,
-        Toggle: true,
         MonitorFormDialog: true,
         MonitorTemplateManagerDialog: true,
         MonitorRunResultDialog: true,
@@ -129,7 +130,7 @@ function mountView() {
 describe('ChannelMonitorView duplicate action', () => {
   beforeEach(() => {
     localStorage.clear()
-    for (const fn of [listMonitors, duplicateMonitor, showSuccess, showError]) fn.mockReset()
+    for (const fn of [listMonitors, duplicateMonitor, updateMonitor, showSuccess, showError]) fn.mockReset()
     listMonitors.mockResolvedValue({
       items: [monitor],
       total: 1,
@@ -151,6 +152,32 @@ describe('ChannelMonitorView duplicate action', () => {
     expect(duplicateMonitor).toHaveBeenCalledWith(42)
     expect(showSuccess).toHaveBeenCalledWith('admin.channelMonitor.duplicateSuccess')
     expect(listMonitors.mock.calls.length).toBeGreaterThan(1)
+    wrapper.unmount()
+  })
+
+  it('saves fusion independently per row, prevents duplicate saves and preserves state on failure', async () => {
+    listMonitors.mockResolvedValue({ items: [makeMonitor(), makeMonitor({ id: 43, name: 'second' }), makeMonitor({ id: 44, check_mode: 'quota' })], total: 3 })
+    let resolveSave!: () => void
+    updateMonitor.mockImplementationOnce(() => new Promise<void>(resolve => { resolveSave = resolve }))
+    const wrapper = mountView()
+    await flushPromises()
+    const switches = wrapper.findAll('button[role="switch"]')
+    expect(switches[0].attributes('aria-checked')).toBe('false')
+    expect(switches[2].attributes('disabled')).toBeDefined()
+    await switches[0].trigger('click')
+    expect(updateMonitor).toHaveBeenCalledWith(42, { v3_fusion_enabled: true })
+    expect(switches[0].attributes('disabled')).toBeDefined()
+    await switches[0].trigger('click')
+    expect(updateMonitor).toHaveBeenCalledTimes(1)
+    resolveSave()
+    await flushPromises()
+    expect(switches[0].attributes('aria-checked')).toBe('true')
+    expect(switches[1].attributes('aria-checked')).toBe('false')
+    updateMonitor.mockRejectedValueOnce(new Error('save failed'))
+    await switches[1].trigger('click')
+    await flushPromises()
+    expect(switches[1].attributes('aria-checked')).toBe('false')
+    expect(showError).toHaveBeenCalled()
     wrapper.unmount()
   })
 

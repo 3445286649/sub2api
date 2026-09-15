@@ -34,6 +34,7 @@ export interface LatencyMetric {
 }
 
 export interface MonitorMetric {
+  traffic_state?: 'traffic' | 'no_traffic'
   success_requests: number
   error_requests: number
   request_count: number

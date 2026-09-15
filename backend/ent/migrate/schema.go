@@ -636,6 +636,9 @@ var (
 		{Name: "api_mode", Type: field.TypeString, Size: 32, Default: "chat_completions"},
 		{Name: "endpoint", Type: field.TypeString, Size: 500},
 		{Name: "display_category", Type: field.TypeString, Size: 50, Default: ""},
+		{Name: "v3_group_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "v3_fusion_enabled", Type: field.TypeBool, Default: false},
+		{Name: "probe_next_check_at", Type: field.TypeTime, Nullable: true},
 		{Name: "display_order", Type: field.TypeInt, Default: 0},
 		{Name: "api_key_encrypted", Type: field.TypeString},
 		{Name: "primary_model", Type: field.TypeString, Size: 200},
@@ -659,7 +662,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "channel_monitors_channel_monitor_request_templates_request_template",
-				Columns:    []*schema.Column{ChannelMonitorsColumns[23]},
+				Columns:    []*schema.Column{ChannelMonitorsColumns[26]},
 				RefColumns: []*schema.Column{ChannelMonitorRequestTemplatesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -668,7 +671,7 @@ var (
 			{
 				Name:    "channelmonitor_enabled_last_checked_at",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorsColumns[15], ChannelMonitorsColumns[18]},
+				Columns: []*schema.Column{ChannelMonitorsColumns[18], ChannelMonitorsColumns[21]},
 			},
 			{
 				Name:    "channelmonitor_provider",
@@ -683,12 +686,12 @@ var (
 			{
 				Name:    "channelmonitor_group_name",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorsColumns[14]},
+				Columns: []*schema.Column{ChannelMonitorsColumns[17]},
 			},
 			{
 				Name:    "channelmonitor_template_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorsColumns[23]},
+				Columns: []*schema.Column{ChannelMonitorsColumns[26]},
 			},
 			{
 				Name:    "channelmonitor_account_id",
@@ -744,6 +747,8 @@ var (
 	// ChannelMonitorHistoriesColumns holds the columns for the "channel_monitor_histories" table.
 	ChannelMonitorHistoriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "is_probe", Type: field.TypeBool, Default: false},
+		{Name: "probe_target_hash", Type: field.TypeString, Size: 64, Default: ""},
 		{Name: "model", Type: field.TypeString, Size: 200},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"operational", "degraded", "failed", "error"}},
 		{Name: "latency_ms", Type: field.TypeInt, Nullable: true},
@@ -765,7 +770,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "channel_monitor_histories_channel_monitors_history",
-				Columns:    []*schema.Column{ChannelMonitorHistoriesColumns[12]},
+				Columns:    []*schema.Column{ChannelMonitorHistoriesColumns[14]},
 				RefColumns: []*schema.Column{ChannelMonitorsColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
@@ -774,17 +779,17 @@ var (
 			{
 				Name:    "channelmonitorhistory_monitor_id_model_checked_at",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorHistoriesColumns[12], ChannelMonitorHistoriesColumns[1], ChannelMonitorHistoriesColumns[11]},
+				Columns: []*schema.Column{ChannelMonitorHistoriesColumns[14], ChannelMonitorHistoriesColumns[3], ChannelMonitorHistoriesColumns[13]},
 			},
 			{
 				Name:    "channelmonitorhistory_checked_at",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorHistoriesColumns[11]},
+				Columns: []*schema.Column{ChannelMonitorHistoriesColumns[13]},
 			},
 			{
 				Name:    "channelmonitorhistory_failure_category",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorHistoriesColumns[6]},
+				Columns: []*schema.Column{ChannelMonitorHistoriesColumns[8]},
 			},
 		},
 	}

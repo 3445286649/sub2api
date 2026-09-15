@@ -95,6 +95,21 @@ func DisplayCategory(v string) predicate.ChannelMonitor {
 	return predicate.ChannelMonitor(sql.FieldEQ(FieldDisplayCategory, v))
 }
 
+// V3GroupID applies equality check predicate on the "v3_group_id" field. It's identical to V3GroupIDEQ.
+func V3GroupID(v int64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldV3GroupID, v))
+}
+
+// V3FusionEnabled applies equality check predicate on the "v3_fusion_enabled" field. It's identical to V3FusionEnabledEQ.
+func V3FusionEnabled(v bool) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldV3FusionEnabled, v))
+}
+
+// ProbeNextCheckAt applies equality check predicate on the "probe_next_check_at" field. It's identical to ProbeNextCheckAtEQ.
+func ProbeNextCheckAt(v time.Time) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldProbeNextCheckAt, v))
+}
+
 // DisplayOrder applies equality check predicate on the "display_order" field. It's identical to DisplayOrderEQ.
 func DisplayOrder(v int) predicate.ChannelMonitor {
 	return predicate.ChannelMonitor(sql.FieldEQ(FieldDisplayOrder, v))
@@ -623,6 +638,116 @@ func DisplayCategoryEqualFold(v string) predicate.ChannelMonitor {
 // DisplayCategoryContainsFold applies the ContainsFold predicate on the "display_category" field.
 func DisplayCategoryContainsFold(v string) predicate.ChannelMonitor {
 	return predicate.ChannelMonitor(sql.FieldContainsFold(FieldDisplayCategory, v))
+}
+
+// V3GroupIDEQ applies the EQ predicate on the "v3_group_id" field.
+func V3GroupIDEQ(v int64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldV3GroupID, v))
+}
+
+// V3GroupIDNEQ applies the NEQ predicate on the "v3_group_id" field.
+func V3GroupIDNEQ(v int64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNEQ(FieldV3GroupID, v))
+}
+
+// V3GroupIDIn applies the In predicate on the "v3_group_id" field.
+func V3GroupIDIn(vs ...int64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldIn(FieldV3GroupID, vs...))
+}
+
+// V3GroupIDNotIn applies the NotIn predicate on the "v3_group_id" field.
+func V3GroupIDNotIn(vs ...int64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNotIn(FieldV3GroupID, vs...))
+}
+
+// V3GroupIDGT applies the GT predicate on the "v3_group_id" field.
+func V3GroupIDGT(v int64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldGT(FieldV3GroupID, v))
+}
+
+// V3GroupIDGTE applies the GTE predicate on the "v3_group_id" field.
+func V3GroupIDGTE(v int64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldGTE(FieldV3GroupID, v))
+}
+
+// V3GroupIDLT applies the LT predicate on the "v3_group_id" field.
+func V3GroupIDLT(v int64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldLT(FieldV3GroupID, v))
+}
+
+// V3GroupIDLTE applies the LTE predicate on the "v3_group_id" field.
+func V3GroupIDLTE(v int64) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldLTE(FieldV3GroupID, v))
+}
+
+// V3GroupIDIsNil applies the IsNil predicate on the "v3_group_id" field.
+func V3GroupIDIsNil() predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldIsNull(FieldV3GroupID))
+}
+
+// V3GroupIDNotNil applies the NotNil predicate on the "v3_group_id" field.
+func V3GroupIDNotNil() predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNotNull(FieldV3GroupID))
+}
+
+// V3FusionEnabledEQ applies the EQ predicate on the "v3_fusion_enabled" field.
+func V3FusionEnabledEQ(v bool) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldV3FusionEnabled, v))
+}
+
+// V3FusionEnabledNEQ applies the NEQ predicate on the "v3_fusion_enabled" field.
+func V3FusionEnabledNEQ(v bool) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNEQ(FieldV3FusionEnabled, v))
+}
+
+// ProbeNextCheckAtEQ applies the EQ predicate on the "probe_next_check_at" field.
+func ProbeNextCheckAtEQ(v time.Time) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldEQ(FieldProbeNextCheckAt, v))
+}
+
+// ProbeNextCheckAtNEQ applies the NEQ predicate on the "probe_next_check_at" field.
+func ProbeNextCheckAtNEQ(v time.Time) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNEQ(FieldProbeNextCheckAt, v))
+}
+
+// ProbeNextCheckAtIn applies the In predicate on the "probe_next_check_at" field.
+func ProbeNextCheckAtIn(vs ...time.Time) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldIn(FieldProbeNextCheckAt, vs...))
+}
+
+// ProbeNextCheckAtNotIn applies the NotIn predicate on the "probe_next_check_at" field.
+func ProbeNextCheckAtNotIn(vs ...time.Time) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNotIn(FieldProbeNextCheckAt, vs...))
+}
+
+// ProbeNextCheckAtGT applies the GT predicate on the "probe_next_check_at" field.
+func ProbeNextCheckAtGT(v time.Time) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldGT(FieldProbeNextCheckAt, v))
+}
+
+// ProbeNextCheckAtGTE applies the GTE predicate on the "probe_next_check_at" field.
+func ProbeNextCheckAtGTE(v time.Time) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldGTE(FieldProbeNextCheckAt, v))
+}
+
+// ProbeNextCheckAtLT applies the LT predicate on the "probe_next_check_at" field.
+func ProbeNextCheckAtLT(v time.Time) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldLT(FieldProbeNextCheckAt, v))
+}
+
+// ProbeNextCheckAtLTE applies the LTE predicate on the "probe_next_check_at" field.
+func ProbeNextCheckAtLTE(v time.Time) predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldLTE(FieldProbeNextCheckAt, v))
+}
+
+// ProbeNextCheckAtIsNil applies the IsNil predicate on the "probe_next_check_at" field.
+func ProbeNextCheckAtIsNil() predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldIsNull(FieldProbeNextCheckAt))
+}
+
+// ProbeNextCheckAtNotNil applies the NotNil predicate on the "probe_next_check_at" field.
+func ProbeNextCheckAtNotNil() predicate.ChannelMonitor {
+	return predicate.ChannelMonitor(sql.FieldNotNull(FieldProbeNextCheckAt))
 }
 
 // DisplayOrderEQ applies the EQ predicate on the "display_order" field.

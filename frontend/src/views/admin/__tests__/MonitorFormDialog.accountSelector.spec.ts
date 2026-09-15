@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ChannelMonitor } from '@/api/admin/channelMonitor'
 import { listDisplayCategories } from '@/api/admin/channelMonitor'
+import { groupsAPI } from '@/api/admin/groups'
 import MonitorFormDialog from '@/components/admin/monitor/MonitorFormDialog.vue'
 
 vi.mock('@/api/admin/channelMonitor', () => ({
@@ -58,6 +59,7 @@ vi.mock('@/api/keys', () => ({
 vi.mock('@/api/groups', () => ({
   userGroupsAPI: { getUserGroupRates: vi.fn() },
 }))
+vi.mock('@/api/admin/groups', () => ({ groupsAPI: { getAll: vi.fn().mockResolvedValue([{ id: 8, name: 'V3 linked group' }]) } }))
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
@@ -188,6 +190,7 @@ afterEach(() => {
 })
 
 beforeEach(() => {
+  vi.mocked(groupsAPI.getAll).mockResolvedValue([{ id: 8, name: 'V3 linked group' }] as Awaited<ReturnType<typeof groupsAPI.getAll>>)
   vi.mocked(listDisplayCategories).mockResolvedValue(['国产聚合'])
   listTemplates.mockReset().mockResolvedValue({ items: [] })
   accountsList.mockReset().mockResolvedValue({ items: [] })
@@ -401,6 +404,19 @@ describe('MonitorFormDialog linked account selector', () => {
   })
 
   // P2-7(c)：create 绝不发 0（后端会把 0 存成 &0 触发外键违约），保持 null。
+  it('saves and clears a V3 statistics group without changing the probe configuration', async () => {
+    const wrapper = mountDialog(makeMonitor({ v3_group_id: 8 }))
+    await flushPromises()
+    expect((wrapper.get('#v3-group').element as HTMLSelectElement).value).toBe('8')
+    await wrapper.get('#channel-monitor-form').trigger('submit')
+    await flushPromises()
+    expect(monitorUpdate).toHaveBeenCalledWith(42, expect.objectContaining({ v3_group_id: 8 }))
+    await wrapper.get('#v3-group').setValue('0')
+    await wrapper.get('#channel-monitor-form').trigger('submit')
+    await flushPromises()
+    expect(monitorUpdate).toHaveBeenLastCalledWith(42, expect.objectContaining({ v3_group_id: 0 }))
+  })
+
   it('keeps account_id null when creating a probe monitor', async () => {
     const wrapper = mountDialog()
     await flushPromises()

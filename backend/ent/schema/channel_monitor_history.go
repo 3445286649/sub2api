@@ -30,6 +30,8 @@ func (ChannelMonitorHistory) Annotations() []schema.Annotation {
 func (ChannelMonitorHistory) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int64("monitor_id"),
+		field.Bool("is_probe").Default(false),
+		field.String("probe_target_hash").Default("").MaxLen(64),
 		field.String("model").
 			NotEmpty().
 			MaxLen(200),

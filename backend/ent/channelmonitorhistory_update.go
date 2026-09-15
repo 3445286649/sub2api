@@ -44,6 +44,34 @@ func (_u *ChannelMonitorHistoryUpdate) SetNillableMonitorID(v *int64) *ChannelMo
 	return _u
 }
 
+// SetIsProbe sets the "is_probe" field.
+func (_u *ChannelMonitorHistoryUpdate) SetIsProbe(v bool) *ChannelMonitorHistoryUpdate {
+	_u.mutation.SetIsProbe(v)
+	return _u
+}
+
+// SetNillableIsProbe sets the "is_probe" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdate) SetNillableIsProbe(v *bool) *ChannelMonitorHistoryUpdate {
+	if v != nil {
+		_u.SetIsProbe(*v)
+	}
+	return _u
+}
+
+// SetProbeTargetHash sets the "probe_target_hash" field.
+func (_u *ChannelMonitorHistoryUpdate) SetProbeTargetHash(v string) *ChannelMonitorHistoryUpdate {
+	_u.mutation.SetProbeTargetHash(v)
+	return _u
+}
+
+// SetNillableProbeTargetHash sets the "probe_target_hash" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdate) SetNillableProbeTargetHash(v *string) *ChannelMonitorHistoryUpdate {
+	if v != nil {
+		_u.SetProbeTargetHash(*v)
+	}
+	return _u
+}
+
 // SetModel sets the "model" field.
 func (_u *ChannelMonitorHistoryUpdate) SetModel(v string) *ChannelMonitorHistoryUpdate {
 	_u.mutation.SetModel(v)
@@ -293,6 +321,11 @@ func (_u *ChannelMonitorHistoryUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *ChannelMonitorHistoryUpdate) check() error {
+	if v, ok := _u.mutation.ProbeTargetHash(); ok {
+		if err := channelmonitorhistory.ProbeTargetHashValidator(v); err != nil {
+			return &ValidationError{Name: "probe_target_hash", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.probe_target_hash": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Model(); ok {
 		if err := channelmonitorhistory.ModelValidator(v); err != nil {
 			return &ValidationError{Name: "model", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.model": %w`, err)}
@@ -335,6 +368,12 @@ func (_u *ChannelMonitorHistoryUpdate) sqlSave(ctx context.Context) (_node int, 
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.IsProbe(); ok {
+		_spec.SetField(channelmonitorhistory.FieldIsProbe, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ProbeTargetHash(); ok {
+		_spec.SetField(channelmonitorhistory.FieldProbeTargetHash, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Model(); ok {
 		_spec.SetField(channelmonitorhistory.FieldModel, field.TypeString, value)
@@ -455,6 +494,34 @@ func (_u *ChannelMonitorHistoryUpdateOne) SetMonitorID(v int64) *ChannelMonitorH
 func (_u *ChannelMonitorHistoryUpdateOne) SetNillableMonitorID(v *int64) *ChannelMonitorHistoryUpdateOne {
 	if v != nil {
 		_u.SetMonitorID(*v)
+	}
+	return _u
+}
+
+// SetIsProbe sets the "is_probe" field.
+func (_u *ChannelMonitorHistoryUpdateOne) SetIsProbe(v bool) *ChannelMonitorHistoryUpdateOne {
+	_u.mutation.SetIsProbe(v)
+	return _u
+}
+
+// SetNillableIsProbe sets the "is_probe" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdateOne) SetNillableIsProbe(v *bool) *ChannelMonitorHistoryUpdateOne {
+	if v != nil {
+		_u.SetIsProbe(*v)
+	}
+	return _u
+}
+
+// SetProbeTargetHash sets the "probe_target_hash" field.
+func (_u *ChannelMonitorHistoryUpdateOne) SetProbeTargetHash(v string) *ChannelMonitorHistoryUpdateOne {
+	_u.mutation.SetProbeTargetHash(v)
+	return _u
+}
+
+// SetNillableProbeTargetHash sets the "probe_target_hash" field if the given value is not nil.
+func (_u *ChannelMonitorHistoryUpdateOne) SetNillableProbeTargetHash(v *string) *ChannelMonitorHistoryUpdateOne {
+	if v != nil {
+		_u.SetProbeTargetHash(*v)
 	}
 	return _u
 }
@@ -721,6 +788,11 @@ func (_u *ChannelMonitorHistoryUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *ChannelMonitorHistoryUpdateOne) check() error {
+	if v, ok := _u.mutation.ProbeTargetHash(); ok {
+		if err := channelmonitorhistory.ProbeTargetHashValidator(v); err != nil {
+			return &ValidationError{Name: "probe_target_hash", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.probe_target_hash": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Model(); ok {
 		if err := channelmonitorhistory.ModelValidator(v); err != nil {
 			return &ValidationError{Name: "model", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.model": %w`, err)}
@@ -780,6 +852,12 @@ func (_u *ChannelMonitorHistoryUpdateOne) sqlSave(ctx context.Context) (_node *C
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.IsProbe(); ok {
+		_spec.SetField(channelmonitorhistory.FieldIsProbe, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ProbeTargetHash(); ok {
+		_spec.SetField(channelmonitorhistory.FieldProbeTargetHash, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Model(); ok {
 		_spec.SetField(channelmonitorhistory.FieldModel, field.TypeString, value)

@@ -191,10 +191,14 @@ func (h *ChannelMonitorV2Handler) users(c *gin.Context, admin bool) {
 }
 
 func (h *ChannelMonitorV2Handler) scopeFilter(c *gin.Context, filter *service.ChannelMonitorV2Filter, admin bool) bool {
+	return scopeChannelMonitorGroups(c, filter, admin, h.apiKeyService)
+}
+
+func scopeChannelMonitorGroups(c *gin.Context, filter *service.ChannelMonitorV2Filter, admin bool, authorizer channelMonitorV2GroupAuthorizer) bool {
 	if admin {
 		return true
 	}
-	if h.apiKeyService == nil {
+	if authorizer == nil {
 		response.Error(c, http.StatusInternalServerError, "channel monitor group authorization unavailable")
 		return false
 	}
@@ -203,7 +207,7 @@ func (h *ChannelMonitorV2Handler) scopeFilter(c *gin.Context, filter *service.Ch
 		response.Unauthorized(c, "user not found in context")
 		return false
 	}
-	groups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID)
+	groups, err := authorizer.GetAvailableGroups(c.Request.Context(), subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return false

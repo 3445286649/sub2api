@@ -33,6 +33,12 @@ const (
 	FieldEndpoint = "endpoint"
 	// FieldDisplayCategory holds the string denoting the display_category field in the database.
 	FieldDisplayCategory = "display_category"
+	// FieldV3GroupID holds the string denoting the v3_group_id field in the database.
+	FieldV3GroupID = "v3_group_id"
+	// FieldV3FusionEnabled holds the string denoting the v3_fusion_enabled field in the database.
+	FieldV3FusionEnabled = "v3_fusion_enabled"
+	// FieldProbeNextCheckAt holds the string denoting the probe_next_check_at field in the database.
+	FieldProbeNextCheckAt = "probe_next_check_at"
 	// FieldDisplayOrder holds the string denoting the display_order field in the database.
 	FieldDisplayOrder = "display_order"
 	// FieldAPIKeyEncrypted holds the string denoting the api_key_encrypted field in the database.
@@ -104,6 +110,9 @@ var Columns = []string{
 	FieldAPIMode,
 	FieldEndpoint,
 	FieldDisplayCategory,
+	FieldV3GroupID,
+	FieldV3FusionEnabled,
+	FieldProbeNextCheckAt,
 	FieldDisplayOrder,
 	FieldAPIKeyEncrypted,
 	FieldPrimaryModel,
@@ -153,6 +162,8 @@ var (
 	DefaultDisplayCategory string
 	// DisplayCategoryValidator is a validator for the "display_category" field. It is called by the builders before save.
 	DisplayCategoryValidator func(string) error
+	// DefaultV3FusionEnabled holds the default value on creation for the "v3_fusion_enabled" field.
+	DefaultV3FusionEnabled bool
 	// DefaultDisplayOrder holds the default value on creation for the "display_order" field.
 	DefaultDisplayOrder int
 	// DisplayOrderValidator is a validator for the "display_order" field. It is called by the builders before save.
@@ -264,6 +275,21 @@ func ByEndpoint(opts ...sql.OrderTermOption) OrderOption {
 // ByDisplayCategory orders the results by the display_category field.
 func ByDisplayCategory(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDisplayCategory, opts...).ToFunc()
+}
+
+// ByV3GroupID orders the results by the v3_group_id field.
+func ByV3GroupID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldV3GroupID, opts...).ToFunc()
+}
+
+// ByV3FusionEnabled orders the results by the v3_fusion_enabled field.
+func ByV3FusionEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldV3FusionEnabled, opts...).ToFunc()
+}
+
+// ByProbeNextCheckAt orders the results by the probe_next_check_at field.
+func ByProbeNextCheckAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProbeNextCheckAt, opts...).ToFunc()
 }
 
 // ByDisplayOrder orders the results by the display_order field.

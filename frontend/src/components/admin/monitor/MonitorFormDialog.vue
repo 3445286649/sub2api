@@ -164,6 +164,14 @@
         <label class="input-label">{{ t('admin.channelMonitor.form.groupName') }}</label>
         <input v-model="form.group_name" type="text" class="input" :placeholder="t('admin.channelMonitor.form.groupNamePlaceholder')" />
       </div>
+      <div>
+        <label class="input-label" for="v3-group">{{ t('channelMonitorV2.v3.statisticsGroup') }}</label>
+        <select id="v3-group" v-model.number="form.v3_group_id" class="input">
+          <option :value="0">{{ t('channelMonitorV2.v3.unlinked') }}</option>
+          <option v-if="form.v3_group_id && !v3Groups.some(group => group.id === form.v3_group_id)" :value="form.v3_group_id" disabled>{{ t('channelMonitorV2.groupUnavailable') }} #{{ form.v3_group_id }}</option>
+          <option v-for="group in v3Groups" :key="group.id" :value="group.id">{{ group.name }}</option>
+        </select>
+      </div>
 
       <div>
         <label class="input-label">{{ t('admin.channelMonitor.form.intervalSeconds') }} <span class="text-red-500">*</span></label>
@@ -254,6 +262,7 @@ import { extractApiErrorMessage } from '@/utils/apiError'
 import { adminAPI } from '@/api/admin'
 import { keysAPI } from '@/api/keys'
 import { userGroupsAPI } from '@/api/groups'
+import { groupsAPI } from '@/api/admin/groups'
 import type {
   BodyOverrideMode,
   ChannelMonitor,
@@ -358,6 +367,7 @@ interface MonitorForm {
   primary_model: string
   extra_models: string[]
   group_name: string
+  v3_group_id: number
   interval_seconds: number
   jitter_seconds: number
   enabled: boolean
@@ -381,6 +391,7 @@ const form = reactive<MonitorForm>({
   primary_model: '',
   extra_models: [],
   group_name: '',
+  v3_group_id: 0,
   interval_seconds: systemDefaultInterval.value,
   jitter_seconds: 0,
   enabled: true,
@@ -766,6 +777,7 @@ function resetForm() {
   form.primary_model = ''
   form.extra_models = []
   form.group_name = ''
+  form.v3_group_id = 0
   form.display_category = ''
   form.display_order = 0
   form.interval_seconds = systemDefaultInterval.value
@@ -790,6 +802,7 @@ function loadFromMonitor(m: ChannelMonitor) {
   form.primary_model = m.primary_model
   form.extra_models = [...(m.extra_models || [])]
   form.group_name = m.group_name || ''
+  form.v3_group_id = m.v3_group_id || 0
   form.display_category = m.display_category || ''
   form.display_order = m.display_order ?? 0
   form.interval_seconds = m.interval_seconds || systemDefaultInterval.value
@@ -803,6 +816,11 @@ function loadFromMonitor(m: ChannelMonitor) {
 }
 
 // Re-sync form whenever the dialog is opened or the target monitor changes.
+const v3Groups = ref<Array<{ id: number; name: string }>>([])
+async function loadV3Groups() {
+  try { v3Groups.value = await groupsAPI.getAll() }
+  catch (error) { appStore.showError(extractApiErrorMessage(error, t('channelMonitorV2.v3.loadFailed'))) }
+}
 // 同时拉取模板列表（cache 过的话一次性返回）。
 watch(
   () => [props.show, props.monitor] as const,
@@ -810,6 +828,7 @@ watch(
     if (!show) return
     void loadTemplates()
     void loadCategories()
+    void loadV3Groups()
     if (m) loadFromMonitor(m)
     else resetForm()
   },
@@ -861,6 +880,7 @@ function buildPayload(): CreateParams {
     primary_model: usesProbePart.value ? form.primary_model.trim() : 'quota',
     extra_models: usesProbePart.value ? form.extra_models : [],
     group_name: form.group_name.trim(),
+    v3_group_id: form.v3_group_id || (props.monitor ? 0 : undefined),
     display_category: form.display_category.trim(),
     display_order: form.display_order,
     enabled: form.enabled,

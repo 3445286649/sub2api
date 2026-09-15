@@ -12,7 +12,7 @@
         </h1>
         <p class="page-description mt-1.5 text-xs text-gray-500 dark:text-gray-400">
           {{
-            isV1Mode
+            isV3Mode ? t('channelMonitorV2.v3.description') : isV1Mode
               ? t('channelMonitorV2.admin.descriptionV1')
               : t('channelMonitorV2.admin.descriptionV2')
           }}
@@ -41,7 +41,7 @@
               :aria-selected="adminMonitorTab === 'legacy'"
               @click="adminMonitorTab = 'legacy'"
             >
-              {{ isV1Mode ? t('channelMonitorV2.admin.tabV1Active') : t('channelMonitorV2.admin.tabV1History') }}
+              {{ isV3Mode ? t('channelMonitorV2.v3.mode') : isV1Mode ? t('channelMonitorV2.admin.tabV1Active') : t('channelMonitorV2.admin.tabV1History') }}
             </button>
           </div>
         </div>
@@ -99,6 +99,9 @@
 
           <template #cell-enabled="{ row }">
             <Toggle :modelValue="row.enabled" @update:modelValue="toggleEnabled(row)" />
+          </template>
+          <template #cell-v3_fusion_enabled="{ row }">
+            <Toggle :modelValue="!!row.v3_fusion_enabled" :disabled="fusionSaving.has(row.id) || row.check_mode === 'quota'" :aria-label="`${row.name} · ${t('channelMonitorV2.v3.fusion')}`" :title="t(row.check_mode === 'quota' ? 'channelMonitorV2.v3.fusionQuota' : 'channelMonitorV2.v3.fusionHint')" @update:modelValue="toggleFusion(row)" />
           </template>
 
           <template #cell-actions="{ row }">
@@ -201,12 +204,13 @@ import MonitorActionsCell from '@/components/admin/monitor/MonitorActionsCell.vu
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useChannelMonitorFormat } from '@/composables/useChannelMonitorFormat'
 import MonitorSettingsPanel from '@/features/channel-monitor-v2/MonitorSettingsPanel.vue'
-import { isChannelMonitorV1Mode } from '@/utils/featureFlags'
+import { isChannelMonitorV1Mode, getChannelMonitorMode } from '@/utils/featureFlags'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const isV1Mode = computed(() => isChannelMonitorV1Mode())
-const adminMonitorTab = ref<'v2' | 'legacy'>(isChannelMonitorV1Mode() ? 'legacy' : 'v2')
+const isV3Mode = computed(() => getChannelMonitorMode() === 'v3')
+const adminMonitorTab = ref<'v2' | 'legacy'>(getChannelMonitorMode() === 'v2' ? 'v2' : 'legacy')
 const {
   providerLabel,
   providerBadgeClass,
@@ -243,6 +247,7 @@ const columns = computed<Column[]>(() => [
   { key: 'availability_7d', label: t('admin.channelMonitor.columns.availability7d'), sortable: false },
   { key: 'latency', label: t('admin.channelMonitor.columns.latency'), sortable: false },
   { key: 'enabled', label: t('admin.channelMonitor.columns.enabled'), sortable: false },
+  { key: 'v3_fusion_enabled', label: t('channelMonitorV2.v3.fusion'), sortable: false },
   { key: 'actions', label: t('admin.channelMonitor.columns.actions'), sortable: false },
 ])
 
@@ -323,6 +328,21 @@ async function toggleEnabled(row: ChannelMonitor) {
     row.enabled = next
   } catch (err: unknown) {
     appStore.showError(extractApiErrorMessage(err, t('common.error')))
+  }
+}
+
+const fusionSaving = ref(new Set<number>())
+async function toggleFusion(row: ChannelMonitor) {
+  if (fusionSaving.value.has(row.id) || row.check_mode === 'quota') return
+  fusionSaving.value.add(row.id)
+  try {
+    const next = !row.v3_fusion_enabled
+    await adminAPI.channelMonitor.update(row.id, { v3_fusion_enabled: next })
+    row.v3_fusion_enabled = next
+  } catch (err: unknown) {
+    appStore.showError(extractApiErrorMessage(err, t('common.error')))
+  } finally {
+    fusionSaving.value.delete(row.id)
   }
 }
 

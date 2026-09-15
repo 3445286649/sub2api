@@ -32,6 +32,8 @@ const (
 
 // ChannelMonitor 渠道监控配置（service 层模型，不直接暴露 ent 类型）。
 type ChannelMonitor struct {
+	V3FusionEnabled bool
+	V3GroupID       *int64
 	DisplayCategory string
 	DisplayOrder    int
 	ID              int64
@@ -84,6 +86,8 @@ type ChannelMonitorListParams struct {
 
 // ChannelMonitorCreateParams 创建参数。
 type ChannelMonitorCreateParams struct {
+	V3FusionEnabled  bool
+	V3GroupID        *int64
 	DisplayCategory  string
 	DisplayOrder     int
 	Name             string
@@ -110,6 +114,8 @@ type ChannelMonitorCreateParams struct {
 
 // ChannelMonitorUpdateParams 更新参数（指针字段表示"未提供则不更新"）。
 type ChannelMonitorUpdateParams struct {
+	V3FusionEnabled *bool
+	V3GroupID       *int64 // nil preserves the association; zero clears it.
 	DisplayCategory *string
 	DisplayOrder    *int
 	Name            *string
@@ -216,6 +222,8 @@ type ModelDetail struct {
 
 // ChannelMonitorHistoryRow 历史记录入库行（service 层向 repository 提交的数据）。
 type ChannelMonitorHistoryRow struct {
+	IsProbe         bool
+	ProbeTargetHash string
 	MonitorID       int64
 	Model           string
 	Status          string

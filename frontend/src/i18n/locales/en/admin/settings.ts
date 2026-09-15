@@ -21,7 +21,7 @@ export default {
           enabled: 'Enable Channel Monitor',
           enabledHint: 'Disabling stops both the V1 scheduler and V2 aggregation; existing config and history are kept.',
           mode: 'Monitor mode',
-          modeHint: 'Default is V1 (active probes). Switch to V2 only when you want passive aggregation; only one implementation can be active at a time.',
+          modeHint: 'V1 active probes; V2 passive analysis; V3 configured cards. V2/V3 aggregate real traffic without active probes.',
           modeV2: 'V2 passive monitoring',
           modeV1: 'V1 active probes',
           modeV2Hint: 'Opt-in: aggregates health metrics from real gateway traffic without upstream probe traffic. V1 probes stop while V2 is active.',

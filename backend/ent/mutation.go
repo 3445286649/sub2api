@@ -15197,6 +15197,10 @@ type ChannelMonitorMutation struct {
 	api_mode                *string
 	endpoint                *string
 	display_category        *string
+	v3_group_id             *int64
+	addv3_group_id          *int64
+	v3_fusion_enabled       *bool
+	probe_next_check_at     *time.Time
 	display_order           *int
 	adddisplay_order        *int
 	api_key_encrypted       *string
@@ -15683,6 +15687,161 @@ func (m *ChannelMonitorMutation) OldDisplayCategory(ctx context.Context) (v stri
 // ResetDisplayCategory resets all changes to the "display_category" field.
 func (m *ChannelMonitorMutation) ResetDisplayCategory() {
 	m.display_category = nil
+}
+
+// SetV3GroupID sets the "v3_group_id" field.
+func (m *ChannelMonitorMutation) SetV3GroupID(i int64) {
+	m.v3_group_id = &i
+	m.addv3_group_id = nil
+}
+
+// V3GroupID returns the value of the "v3_group_id" field in the mutation.
+func (m *ChannelMonitorMutation) V3GroupID() (r int64, exists bool) {
+	v := m.v3_group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldV3GroupID returns the old "v3_group_id" field's value of the ChannelMonitor entity.
+// If the ChannelMonitor object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorMutation) OldV3GroupID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldV3GroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldV3GroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldV3GroupID: %w", err)
+	}
+	return oldValue.V3GroupID, nil
+}
+
+// AddV3GroupID adds i to the "v3_group_id" field.
+func (m *ChannelMonitorMutation) AddV3GroupID(i int64) {
+	if m.addv3_group_id != nil {
+		*m.addv3_group_id += i
+	} else {
+		m.addv3_group_id = &i
+	}
+}
+
+// AddedV3GroupID returns the value that was added to the "v3_group_id" field in this mutation.
+func (m *ChannelMonitorMutation) AddedV3GroupID() (r int64, exists bool) {
+	v := m.addv3_group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearV3GroupID clears the value of the "v3_group_id" field.
+func (m *ChannelMonitorMutation) ClearV3GroupID() {
+	m.v3_group_id = nil
+	m.addv3_group_id = nil
+	m.clearedFields[channelmonitor.FieldV3GroupID] = struct{}{}
+}
+
+// V3GroupIDCleared returns if the "v3_group_id" field was cleared in this mutation.
+func (m *ChannelMonitorMutation) V3GroupIDCleared() bool {
+	_, ok := m.clearedFields[channelmonitor.FieldV3GroupID]
+	return ok
+}
+
+// ResetV3GroupID resets all changes to the "v3_group_id" field.
+func (m *ChannelMonitorMutation) ResetV3GroupID() {
+	m.v3_group_id = nil
+	m.addv3_group_id = nil
+	delete(m.clearedFields, channelmonitor.FieldV3GroupID)
+}
+
+// SetV3FusionEnabled sets the "v3_fusion_enabled" field.
+func (m *ChannelMonitorMutation) SetV3FusionEnabled(b bool) {
+	m.v3_fusion_enabled = &b
+}
+
+// V3FusionEnabled returns the value of the "v3_fusion_enabled" field in the mutation.
+func (m *ChannelMonitorMutation) V3FusionEnabled() (r bool, exists bool) {
+	v := m.v3_fusion_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldV3FusionEnabled returns the old "v3_fusion_enabled" field's value of the ChannelMonitor entity.
+// If the ChannelMonitor object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorMutation) OldV3FusionEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldV3FusionEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldV3FusionEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldV3FusionEnabled: %w", err)
+	}
+	return oldValue.V3FusionEnabled, nil
+}
+
+// ResetV3FusionEnabled resets all changes to the "v3_fusion_enabled" field.
+func (m *ChannelMonitorMutation) ResetV3FusionEnabled() {
+	m.v3_fusion_enabled = nil
+}
+
+// SetProbeNextCheckAt sets the "probe_next_check_at" field.
+func (m *ChannelMonitorMutation) SetProbeNextCheckAt(t time.Time) {
+	m.probe_next_check_at = &t
+}
+
+// ProbeNextCheckAt returns the value of the "probe_next_check_at" field in the mutation.
+func (m *ChannelMonitorMutation) ProbeNextCheckAt() (r time.Time, exists bool) {
+	v := m.probe_next_check_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProbeNextCheckAt returns the old "probe_next_check_at" field's value of the ChannelMonitor entity.
+// If the ChannelMonitor object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorMutation) OldProbeNextCheckAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProbeNextCheckAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProbeNextCheckAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProbeNextCheckAt: %w", err)
+	}
+	return oldValue.ProbeNextCheckAt, nil
+}
+
+// ClearProbeNextCheckAt clears the value of the "probe_next_check_at" field.
+func (m *ChannelMonitorMutation) ClearProbeNextCheckAt() {
+	m.probe_next_check_at = nil
+	m.clearedFields[channelmonitor.FieldProbeNextCheckAt] = struct{}{}
+}
+
+// ProbeNextCheckAtCleared returns if the "probe_next_check_at" field was cleared in this mutation.
+func (m *ChannelMonitorMutation) ProbeNextCheckAtCleared() bool {
+	_, ok := m.clearedFields[channelmonitor.FieldProbeNextCheckAt]
+	return ok
+}
+
+// ResetProbeNextCheckAt resets all changes to the "probe_next_check_at" field.
+func (m *ChannelMonitorMutation) ResetProbeNextCheckAt() {
+	m.probe_next_check_at = nil
+	delete(m.clearedFields, channelmonitor.FieldProbeNextCheckAt)
 }
 
 // SetDisplayOrder sets the "display_order" field.
@@ -16518,7 +16677,7 @@ func (m *ChannelMonitorMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMonitorMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 26)
 	if m.created_at != nil {
 		fields = append(fields, channelmonitor.FieldCreatedAt)
 	}
@@ -16545,6 +16704,15 @@ func (m *ChannelMonitorMutation) Fields() []string {
 	}
 	if m.display_category != nil {
 		fields = append(fields, channelmonitor.FieldDisplayCategory)
+	}
+	if m.v3_group_id != nil {
+		fields = append(fields, channelmonitor.FieldV3GroupID)
+	}
+	if m.v3_fusion_enabled != nil {
+		fields = append(fields, channelmonitor.FieldV3FusionEnabled)
+	}
+	if m.probe_next_check_at != nil {
+		fields = append(fields, channelmonitor.FieldProbeNextCheckAt)
 	}
 	if m.display_order != nil {
 		fields = append(fields, channelmonitor.FieldDisplayOrder)
@@ -16614,6 +16782,12 @@ func (m *ChannelMonitorMutation) Field(name string) (ent.Value, bool) {
 		return m.Endpoint()
 	case channelmonitor.FieldDisplayCategory:
 		return m.DisplayCategory()
+	case channelmonitor.FieldV3GroupID:
+		return m.V3GroupID()
+	case channelmonitor.FieldV3FusionEnabled:
+		return m.V3FusionEnabled()
+	case channelmonitor.FieldProbeNextCheckAt:
+		return m.ProbeNextCheckAt()
 	case channelmonitor.FieldDisplayOrder:
 		return m.DisplayOrder()
 	case channelmonitor.FieldAPIKeyEncrypted:
@@ -16669,6 +16843,12 @@ func (m *ChannelMonitorMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldEndpoint(ctx)
 	case channelmonitor.FieldDisplayCategory:
 		return m.OldDisplayCategory(ctx)
+	case channelmonitor.FieldV3GroupID:
+		return m.OldV3GroupID(ctx)
+	case channelmonitor.FieldV3FusionEnabled:
+		return m.OldV3FusionEnabled(ctx)
+	case channelmonitor.FieldProbeNextCheckAt:
+		return m.OldProbeNextCheckAt(ctx)
 	case channelmonitor.FieldDisplayOrder:
 		return m.OldDisplayOrder(ctx)
 	case channelmonitor.FieldAPIKeyEncrypted:
@@ -16768,6 +16948,27 @@ func (m *ChannelMonitorMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDisplayCategory(v)
+		return nil
+	case channelmonitor.FieldV3GroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetV3GroupID(v)
+		return nil
+	case channelmonitor.FieldV3FusionEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetV3FusionEnabled(v)
+		return nil
+	case channelmonitor.FieldProbeNextCheckAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProbeNextCheckAt(v)
 		return nil
 	case channelmonitor.FieldDisplayOrder:
 		v, ok := value.(int)
@@ -16878,6 +17079,9 @@ func (m *ChannelMonitorMutation) AddedFields() []string {
 	if m.addaccount_id != nil {
 		fields = append(fields, channelmonitor.FieldAccountID)
 	}
+	if m.addv3_group_id != nil {
+		fields = append(fields, channelmonitor.FieldV3GroupID)
+	}
 	if m.adddisplay_order != nil {
 		fields = append(fields, channelmonitor.FieldDisplayOrder)
 	}
@@ -16900,6 +17104,8 @@ func (m *ChannelMonitorMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case channelmonitor.FieldAccountID:
 		return m.AddedAccountID()
+	case channelmonitor.FieldV3GroupID:
+		return m.AddedV3GroupID()
 	case channelmonitor.FieldDisplayOrder:
 		return m.AddedDisplayOrder()
 	case channelmonitor.FieldIntervalSeconds:
@@ -16923,6 +17129,13 @@ func (m *ChannelMonitorMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddAccountID(v)
+		return nil
+	case channelmonitor.FieldV3GroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddV3GroupID(v)
 		return nil
 	case channelmonitor.FieldDisplayOrder:
 		v, ok := value.(int)
@@ -16963,6 +17176,12 @@ func (m *ChannelMonitorMutation) ClearedFields() []string {
 	if m.FieldCleared(channelmonitor.FieldAccountID) {
 		fields = append(fields, channelmonitor.FieldAccountID)
 	}
+	if m.FieldCleared(channelmonitor.FieldV3GroupID) {
+		fields = append(fields, channelmonitor.FieldV3GroupID)
+	}
+	if m.FieldCleared(channelmonitor.FieldProbeNextCheckAt) {
+		fields = append(fields, channelmonitor.FieldProbeNextCheckAt)
+	}
 	if m.FieldCleared(channelmonitor.FieldGroupName) {
 		fields = append(fields, channelmonitor.FieldGroupName)
 	}
@@ -16991,6 +17210,12 @@ func (m *ChannelMonitorMutation) ClearField(name string) error {
 	switch name {
 	case channelmonitor.FieldAccountID:
 		m.ClearAccountID()
+		return nil
+	case channelmonitor.FieldV3GroupID:
+		m.ClearV3GroupID()
+		return nil
+	case channelmonitor.FieldProbeNextCheckAt:
+		m.ClearProbeNextCheckAt()
 		return nil
 	case channelmonitor.FieldGroupName:
 		m.ClearGroupName()
@@ -17038,6 +17263,15 @@ func (m *ChannelMonitorMutation) ResetField(name string) error {
 		return nil
 	case channelmonitor.FieldDisplayCategory:
 		m.ResetDisplayCategory()
+		return nil
+	case channelmonitor.FieldV3GroupID:
+		m.ResetV3GroupID()
+		return nil
+	case channelmonitor.FieldV3FusionEnabled:
+		m.ResetV3FusionEnabled()
+		return nil
+	case channelmonitor.FieldProbeNextCheckAt:
+		m.ResetProbeNextCheckAt()
 		return nil
 	case channelmonitor.FieldDisplayOrder:
 		m.ResetDisplayOrder()
@@ -18634,6 +18868,8 @@ type ChannelMonitorHistoryMutation struct {
 	op                 Op
 	typ                string
 	id                 *int64
+	is_probe           *bool
+	probe_target_hash  *string
 	model              *string
 	status             *channelmonitorhistory.Status
 	latency_ms         *int
@@ -18789,6 +19025,78 @@ func (m *ChannelMonitorHistoryMutation) OldMonitorID(ctx context.Context) (v int
 // ResetMonitorID resets all changes to the "monitor_id" field.
 func (m *ChannelMonitorHistoryMutation) ResetMonitorID() {
 	m.monitor = nil
+}
+
+// SetIsProbe sets the "is_probe" field.
+func (m *ChannelMonitorHistoryMutation) SetIsProbe(b bool) {
+	m.is_probe = &b
+}
+
+// IsProbe returns the value of the "is_probe" field in the mutation.
+func (m *ChannelMonitorHistoryMutation) IsProbe() (r bool, exists bool) {
+	v := m.is_probe
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsProbe returns the old "is_probe" field's value of the ChannelMonitorHistory entity.
+// If the ChannelMonitorHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorHistoryMutation) OldIsProbe(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsProbe is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsProbe requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsProbe: %w", err)
+	}
+	return oldValue.IsProbe, nil
+}
+
+// ResetIsProbe resets all changes to the "is_probe" field.
+func (m *ChannelMonitorHistoryMutation) ResetIsProbe() {
+	m.is_probe = nil
+}
+
+// SetProbeTargetHash sets the "probe_target_hash" field.
+func (m *ChannelMonitorHistoryMutation) SetProbeTargetHash(s string) {
+	m.probe_target_hash = &s
+}
+
+// ProbeTargetHash returns the value of the "probe_target_hash" field in the mutation.
+func (m *ChannelMonitorHistoryMutation) ProbeTargetHash() (r string, exists bool) {
+	v := m.probe_target_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProbeTargetHash returns the old "probe_target_hash" field's value of the ChannelMonitorHistory entity.
+// If the ChannelMonitorHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorHistoryMutation) OldProbeTargetHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProbeTargetHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProbeTargetHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProbeTargetHash: %w", err)
+	}
+	return oldValue.ProbeTargetHash, nil
+}
+
+// ResetProbeTargetHash resets all changes to the "probe_target_hash" field.
+func (m *ChannelMonitorHistoryMutation) ResetProbeTargetHash() {
+	m.probe_target_hash = nil
 }
 
 // SetModel sets the "model" field.
@@ -19396,9 +19704,15 @@ func (m *ChannelMonitorHistoryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMonitorHistoryMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 14)
 	if m.monitor != nil {
 		fields = append(fields, channelmonitorhistory.FieldMonitorID)
+	}
+	if m.is_probe != nil {
+		fields = append(fields, channelmonitorhistory.FieldIsProbe)
+	}
+	if m.probe_target_hash != nil {
+		fields = append(fields, channelmonitorhistory.FieldProbeTargetHash)
 	}
 	if m.model != nil {
 		fields = append(fields, channelmonitorhistory.FieldModel)
@@ -19443,6 +19757,10 @@ func (m *ChannelMonitorHistoryMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case channelmonitorhistory.FieldMonitorID:
 		return m.MonitorID()
+	case channelmonitorhistory.FieldIsProbe:
+		return m.IsProbe()
+	case channelmonitorhistory.FieldProbeTargetHash:
+		return m.ProbeTargetHash()
 	case channelmonitorhistory.FieldModel:
 		return m.Model()
 	case channelmonitorhistory.FieldStatus:
@@ -19476,6 +19794,10 @@ func (m *ChannelMonitorHistoryMutation) OldField(ctx context.Context, name strin
 	switch name {
 	case channelmonitorhistory.FieldMonitorID:
 		return m.OldMonitorID(ctx)
+	case channelmonitorhistory.FieldIsProbe:
+		return m.OldIsProbe(ctx)
+	case channelmonitorhistory.FieldProbeTargetHash:
+		return m.OldProbeTargetHash(ctx)
 	case channelmonitorhistory.FieldModel:
 		return m.OldModel(ctx)
 	case channelmonitorhistory.FieldStatus:
@@ -19513,6 +19835,20 @@ func (m *ChannelMonitorHistoryMutation) SetField(name string, value ent.Value) e
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetMonitorID(v)
+		return nil
+	case channelmonitorhistory.FieldIsProbe:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsProbe(v)
+		return nil
+	case channelmonitorhistory.FieldProbeTargetHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProbeTargetHash(v)
 		return nil
 	case channelmonitorhistory.FieldModel:
 		v, ok := value.(string)
@@ -19726,6 +20062,12 @@ func (m *ChannelMonitorHistoryMutation) ResetField(name string) error {
 	switch name {
 	case channelmonitorhistory.FieldMonitorID:
 		m.ResetMonitorID()
+		return nil
+	case channelmonitorhistory.FieldIsProbe:
+		m.ResetIsProbe()
+		return nil
+	case channelmonitorhistory.FieldProbeTargetHash:
+		m.ResetProbeTargetHash()
 		return nil
 	case channelmonitorhistory.FieldModel:
 		m.ResetModel()

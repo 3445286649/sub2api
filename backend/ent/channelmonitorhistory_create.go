@@ -30,6 +30,34 @@ func (_c *ChannelMonitorHistoryCreate) SetMonitorID(v int64) *ChannelMonitorHist
 	return _c
 }
 
+// SetIsProbe sets the "is_probe" field.
+func (_c *ChannelMonitorHistoryCreate) SetIsProbe(v bool) *ChannelMonitorHistoryCreate {
+	_c.mutation.SetIsProbe(v)
+	return _c
+}
+
+// SetNillableIsProbe sets the "is_probe" field if the given value is not nil.
+func (_c *ChannelMonitorHistoryCreate) SetNillableIsProbe(v *bool) *ChannelMonitorHistoryCreate {
+	if v != nil {
+		_c.SetIsProbe(*v)
+	}
+	return _c
+}
+
+// SetProbeTargetHash sets the "probe_target_hash" field.
+func (_c *ChannelMonitorHistoryCreate) SetProbeTargetHash(v string) *ChannelMonitorHistoryCreate {
+	_c.mutation.SetProbeTargetHash(v)
+	return _c
+}
+
+// SetNillableProbeTargetHash sets the "probe_target_hash" field if the given value is not nil.
+func (_c *ChannelMonitorHistoryCreate) SetNillableProbeTargetHash(v *string) *ChannelMonitorHistoryCreate {
+	if v != nil {
+		_c.SetProbeTargetHash(*v)
+	}
+	return _c
+}
+
 // SetModel sets the "model" field.
 func (_c *ChannelMonitorHistoryCreate) SetModel(v string) *ChannelMonitorHistoryCreate {
 	_c.mutation.SetModel(v)
@@ -200,6 +228,14 @@ func (_c *ChannelMonitorHistoryCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *ChannelMonitorHistoryCreate) defaults() {
+	if _, ok := _c.mutation.IsProbe(); !ok {
+		v := channelmonitorhistory.DefaultIsProbe
+		_c.mutation.SetIsProbe(v)
+	}
+	if _, ok := _c.mutation.ProbeTargetHash(); !ok {
+		v := channelmonitorhistory.DefaultProbeTargetHash
+		_c.mutation.SetProbeTargetHash(v)
+	}
 	if _, ok := _c.mutation.Message(); !ok {
 		v := channelmonitorhistory.DefaultMessage
 		_c.mutation.SetMessage(v)
@@ -226,6 +262,17 @@ func (_c *ChannelMonitorHistoryCreate) defaults() {
 func (_c *ChannelMonitorHistoryCreate) check() error {
 	if _, ok := _c.mutation.MonitorID(); !ok {
 		return &ValidationError{Name: "monitor_id", err: errors.New(`ent: missing required field "ChannelMonitorHistory.monitor_id"`)}
+	}
+	if _, ok := _c.mutation.IsProbe(); !ok {
+		return &ValidationError{Name: "is_probe", err: errors.New(`ent: missing required field "ChannelMonitorHistory.is_probe"`)}
+	}
+	if _, ok := _c.mutation.ProbeTargetHash(); !ok {
+		return &ValidationError{Name: "probe_target_hash", err: errors.New(`ent: missing required field "ChannelMonitorHistory.probe_target_hash"`)}
+	}
+	if v, ok := _c.mutation.ProbeTargetHash(); ok {
+		if err := channelmonitorhistory.ProbeTargetHashValidator(v); err != nil {
+			return &ValidationError{Name: "probe_target_hash", err: fmt.Errorf(`ent: validator failed for field "ChannelMonitorHistory.probe_target_hash": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Model(); !ok {
 		return &ValidationError{Name: "model", err: errors.New(`ent: missing required field "ChannelMonitorHistory.model"`)}
@@ -300,6 +347,14 @@ func (_c *ChannelMonitorHistoryCreate) createSpec() (*ChannelMonitorHistory, *sq
 		_spec = sqlgraph.NewCreateSpec(channelmonitorhistory.Table, sqlgraph.NewFieldSpec(channelmonitorhistory.FieldID, field.TypeInt64))
 	)
 	_spec.OnConflict = _c.conflict
+	if value, ok := _c.mutation.IsProbe(); ok {
+		_spec.SetField(channelmonitorhistory.FieldIsProbe, field.TypeBool, value)
+		_node.IsProbe = value
+	}
+	if value, ok := _c.mutation.ProbeTargetHash(); ok {
+		_spec.SetField(channelmonitorhistory.FieldProbeTargetHash, field.TypeString, value)
+		_node.ProbeTargetHash = value
+	}
 	if value, ok := _c.mutation.Model(); ok {
 		_spec.SetField(channelmonitorhistory.FieldModel, field.TypeString, value)
 		_node.Model = value
@@ -422,6 +477,30 @@ func (u *ChannelMonitorHistoryUpsert) SetMonitorID(v int64) *ChannelMonitorHisto
 // UpdateMonitorID sets the "monitor_id" field to the value that was provided on create.
 func (u *ChannelMonitorHistoryUpsert) UpdateMonitorID() *ChannelMonitorHistoryUpsert {
 	u.SetExcluded(channelmonitorhistory.FieldMonitorID)
+	return u
+}
+
+// SetIsProbe sets the "is_probe" field.
+func (u *ChannelMonitorHistoryUpsert) SetIsProbe(v bool) *ChannelMonitorHistoryUpsert {
+	u.Set(channelmonitorhistory.FieldIsProbe, v)
+	return u
+}
+
+// UpdateIsProbe sets the "is_probe" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsert) UpdateIsProbe() *ChannelMonitorHistoryUpsert {
+	u.SetExcluded(channelmonitorhistory.FieldIsProbe)
+	return u
+}
+
+// SetProbeTargetHash sets the "probe_target_hash" field.
+func (u *ChannelMonitorHistoryUpsert) SetProbeTargetHash(v string) *ChannelMonitorHistoryUpsert {
+	u.Set(channelmonitorhistory.FieldProbeTargetHash, v)
+	return u
+}
+
+// UpdateProbeTargetHash sets the "probe_target_hash" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsert) UpdateProbeTargetHash() *ChannelMonitorHistoryUpsert {
+	u.SetExcluded(channelmonitorhistory.FieldProbeTargetHash)
 	return u
 }
 
@@ -662,6 +741,34 @@ func (u *ChannelMonitorHistoryUpsertOne) SetMonitorID(v int64) *ChannelMonitorHi
 func (u *ChannelMonitorHistoryUpsertOne) UpdateMonitorID() *ChannelMonitorHistoryUpsertOne {
 	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
 		s.UpdateMonitorID()
+	})
+}
+
+// SetIsProbe sets the "is_probe" field.
+func (u *ChannelMonitorHistoryUpsertOne) SetIsProbe(v bool) *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetIsProbe(v)
+	})
+}
+
+// UpdateIsProbe sets the "is_probe" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertOne) UpdateIsProbe() *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateIsProbe()
+	})
+}
+
+// SetProbeTargetHash sets the "probe_target_hash" field.
+func (u *ChannelMonitorHistoryUpsertOne) SetProbeTargetHash(v string) *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetProbeTargetHash(v)
+	})
+}
+
+// UpdateProbeTargetHash sets the "probe_target_hash" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertOne) UpdateProbeTargetHash() *ChannelMonitorHistoryUpsertOne {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateProbeTargetHash()
 	})
 }
 
@@ -1097,6 +1204,34 @@ func (u *ChannelMonitorHistoryUpsertBulk) SetMonitorID(v int64) *ChannelMonitorH
 func (u *ChannelMonitorHistoryUpsertBulk) UpdateMonitorID() *ChannelMonitorHistoryUpsertBulk {
 	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
 		s.UpdateMonitorID()
+	})
+}
+
+// SetIsProbe sets the "is_probe" field.
+func (u *ChannelMonitorHistoryUpsertBulk) SetIsProbe(v bool) *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetIsProbe(v)
+	})
+}
+
+// UpdateIsProbe sets the "is_probe" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertBulk) UpdateIsProbe() *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateIsProbe()
+	})
+}
+
+// SetProbeTargetHash sets the "probe_target_hash" field.
+func (u *ChannelMonitorHistoryUpsertBulk) SetProbeTargetHash(v string) *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.SetProbeTargetHash(v)
+	})
+}
+
+// UpdateProbeTargetHash sets the "probe_target_hash" field to the value that was provided on create.
+func (u *ChannelMonitorHistoryUpsertBulk) UpdateProbeTargetHash() *ChannelMonitorHistoryUpsertBulk {
+	return u.Update(func(s *ChannelMonitorHistoryUpsert) {
+		s.UpdateProbeTargetHash()
 	})
 }
 

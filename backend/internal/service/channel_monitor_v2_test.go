@@ -377,6 +377,31 @@ func TestChannelMonitorV2ReadAPIsRejectDisabledConfig(t *testing.T) {
 	require.ErrorIs(t, err, ErrChannelMonitorDisabled)
 }
 
+func TestChannelMonitorV3TrafficPresenceSurvivesRedaction(t *testing.T) {
+	for _, admin := range []bool{false, true} {
+		repo := &channelMonitorV2RepoStub{
+			config: ChannelMonitorV2Config{Enabled: true},
+			matrix: &ChannelMonitorV2Matrix{Items: []ChannelMonitorV2MatrixRow{{
+				Metrics: ChannelMonitorV2Metric{RequestCount: 1, ErrorRate: 1},
+				Buckets: []ChannelMonitorV2TrendPoint{
+					{Metrics: ChannelMonitorV2Metric{RequestCount: 1, ErrorRate: 1}},
+					{Metrics: ChannelMonitorV2Metric{}},
+				},
+			}}},
+		}
+		result, err := NewChannelMonitorV2Service(repo).Matrix(context.Background(), ChannelMonitorV2Filter{}, ChannelMonitorV2GroupByPlatform, admin)
+		require.NoError(t, err)
+		require.Equal(t, "traffic", result.Items[0].Metrics.TrafficState)
+		require.Equal(t, "traffic", result.Items[0].Buckets[0].Metrics.TrafficState)
+		require.Equal(t, "no_traffic", result.Items[0].Buckets[1].Metrics.TrafficState)
+		require.Equal(t, float64(1), result.Items[0].Buckets[0].Metrics.ErrorRate)
+		if !admin {
+			require.Zero(t, result.Items[0].Metrics.RequestCount)
+			require.Zero(t, result.Items[0].Buckets[0].Metrics.RequestCount)
+		}
+	}
+}
+
 func TestNormalizeChannelMonitorV2IgnoredCategories(t *testing.T) {
 	got := normalizeChannelMonitorV2IgnoredCategories([]string{"timeout", "TIMEOUT", "not-a-real", "", "timeout", "other"})
 	require.Equal(t, []string{"other", "timeout"}, got)

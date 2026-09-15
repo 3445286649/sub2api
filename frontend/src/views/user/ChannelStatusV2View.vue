@@ -202,7 +202,7 @@
       >
         <MetricCell
           :label="t('channelMonitorV2.metrics.successRate')"
-          :value="formatPercent(1 - snapshot.metrics.error_rate)"
+          :value="snapshot.health.error_rate === 'unknown' ? '-' : formatPercent(1 - snapshot.metrics.error_rate)"
           :detail="t('channelMonitorV2.metrics.errorRateValue', { value: formatPercent(snapshot.metrics.error_rate) })"
           :state="snapshot.health.error_rate"
         />
@@ -222,7 +222,7 @@
         />
         <MetricCell
           :label="t('channelMonitorV2.metrics.cacheRate')"
-          :value="formatPercent(snapshot.metrics.cache_rate)"
+          :value="!snapshot.health.cache || snapshot.health.cache === 'unknown' ? '-' : formatPercent(snapshot.metrics.cache_rate)"
           :detail="t('channelMonitorV2.metrics.cacheDetail')"
           :state="snapshot.health.cache || snapshot.health.overall"
         />
@@ -470,6 +470,7 @@ import MetricCell from '@/features/channel-monitor-v2/MetricCell.vue'
 import MonitorRankBadge from '@/features/channel-monitor-v2/MonitorRankBadge.vue'
 import MonitorTrendChart from '@/features/channel-monitor-v2/MonitorTrendChart.vue'
 import RelayPulseMatrix from '@/features/channel-monitor-v2/RelayPulseMatrix.vue'
+import { createMonitorPageCache } from '@/features/channel-monitor-v2/monitorPageCache'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
@@ -567,7 +568,11 @@ const refreshing = ref(false)
 const expandedErrors = ref(new Set<string>())
 let controller: AbortController | null = null
 let sequence = 0
+let tabSequence = 0
 let autoRefreshTimer: number | null = null
+let countdownTimer: number | null = null
+const countdownSeconds = ref(0)
+const metricsCache = createMonitorPageCache()
 
 const hasDimensionFilter = computed(
   () => filter.value.platforms.length + filter.value.groupIds.length + filter.value.models.length > 0
@@ -698,7 +703,8 @@ function syncQuery() {
       model: filter.value.models.join(',') || undefined,
       group_by: matrixGroupBy.value,
       health_mode: healthMode.value,
-      trend_view: trendView.value === 'line' ? 'line' : undefined,
+      monitor_view: 'v2',
+      trend_view: trendView.value === 'pulse' ? undefined : trendView.value,
       tab: activeTab.value,
     },
   })
@@ -716,19 +722,34 @@ async function loadDimensions(signal?: AbortSignal, id = sequence) {
   dimensions.value = next
 }
 
-async function loadMetrics(signal?: AbortSignal, id = sequence) {
-  const [nextSnapshot, nextMatrix] = await Promise.all([
-    api.getSnapshot(filter.value, isAdmin.value, signal),
-    api.getMatrix(filter.value, matrixGroupBy.value, isAdmin.value, signal),
-  ])
-  if (id !== sequence) return
-  snapshot.value = nextSnapshot
-  matrix.value = nextMatrix
+async function loadMetrics(signal?: AbortSignal, id = sequence, allowCache = false) {
+  const key = metricsCache.key(authStore.user?.id, isAdmin.value, filter.value, matrixGroupBy.value)
+  let result = allowCache ? metricsCache.get(key) : undefined
+  if (!result) {
+    if (allowCache) {
+      snapshot.value = null
+      matrix.value = null
+      modelRows.value = []
+      errorRows.value = []
+      userRows.value = []
+      loading.value = true
+    }
+    const [nextSnapshot, nextMatrix] = await Promise.all([
+      api.getSnapshot(filter.value, isAdmin.value, signal),
+      api.getMatrix(filter.value, matrixGroupBy.value, isAdmin.value, signal),
+    ])
+    if (id !== sequence || signal?.aborted) return
+    result = { snapshot: nextSnapshot, matrix: nextMatrix }
+    metricsCache.set(key, result)
+  }
+  if (id !== sequence || signal?.aborted) return
+  snapshot.value = result.snapshot
+  matrix.value = result.matrix
   scheduleAutoRefresh()
   await loadTab(signal, id)
 }
 
-async function reload(silent = true) {
+async function reload(silent = true, allowCache = false) {
   controller?.abort()
   const request = new AbortController()
   controller = request
@@ -739,7 +760,7 @@ async function reload(silent = true) {
     // Catalog + metrics in parallel; catalog ignores dimension filters so options never shrink.
     await Promise.all([
       loadDimensions(request.signal, id),
-      loadMetrics(request.signal, id),
+      loadMetrics(request.signal, id, allowCache),
     ])
   } catch (error) {
     if ((error as { name?: string }).name !== 'CanceledError') {
@@ -755,7 +776,7 @@ async function reload(silent = true) {
 }
 
 /** When only range changes, still refresh dimensions; dimension filters only re-load metrics. */
-async function reloadMetricsOnly(silent = true) {
+async function reloadMetricsOnly(silent = true, allowCache = false) {
   controller?.abort()
   const request = new AbortController()
   controller = request
@@ -763,7 +784,7 @@ async function reloadMetricsOnly(silent = true) {
   refreshing.value = true
   if (!silent) loading.value = true
   try {
-    await loadMetrics(request.signal, id)
+    await loadMetrics(request.signal, id, allowCache)
   } catch (error) {
     if ((error as { name?: string }).name !== 'CanceledError') {
       appStore.showError(extractApiErrorMessage(error, t('channelMonitorV2.loadFailed')))
@@ -777,23 +798,29 @@ async function reloadMetricsOnly(silent = true) {
   }
 }
 async function loadTab(signal?: AbortSignal, id = sequence) {
+  const requestId = ++tabSequence
+  const tab = activeTab.value
+  const current = () => id === sequence && requestId === tabSequence && !signal?.aborted
   tabLoading.value = true
   try {
-    if (activeTab.value === 'models') {
-      modelRows.value = (await api.getModels(filter.value, isAdmin.value, signal)).items || []
-    } else if (activeTab.value === 'errors') {
-      errorRows.value = (await api.getErrors(filter.value, isAdmin.value, signal)).items || []
+    if (tab === 'models') {
+      const result = await api.getModels(filter.value, isAdmin.value, signal)
+      if (current()) modelRows.value = result.items || []
+    } else if (tab === 'errors') {
+      const result = await api.getErrors(filter.value, isAdmin.value, signal)
+      if (current()) errorRows.value = result.items || []
     } else if (showUserRanking.value) {
-      userRows.value = (await api.getUsers(filter.value, isAdmin.value, signal)).items || []
+      const result = await api.getUsers(filter.value, isAdmin.value, signal)
+      if (current()) userRows.value = result.items || []
     } else {
       userRows.value = []
     }
   } catch (error) {
     const e = error as { name?: string; code?: string }
     if (e?.name === 'AbortError' || e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return
-    appStore.showError(extractApiErrorMessage(error, t('channelMonitorV2.detailLoadFailed')))
+    if (current()) appStore.showError(extractApiErrorMessage(error, t('channelMonitorV2.detailLoadFailed')))
   } finally {
-    if (id === sequence) tabLoading.value = false
+    if (current()) tabLoading.value = false
   }
 }
 function setRange(value: MonitorRange) {
@@ -809,6 +836,7 @@ function clearDimensions() {
   }
 }
 function scheduleAutoRefresh() {
+  if (countdownTimer) window.clearInterval(countdownTimer)
   if (autoRefreshTimer) {
     window.clearInterval(autoRefreshTimer)
     autoRefreshTimer = null
@@ -817,8 +845,13 @@ function scheduleAutoRefresh() {
   const seconds = bootstrapActive.value
     ? 10
     : snapshot.value?.config?.refresh_interval_seconds || 300
+  const deadline = Date.now() + seconds * 1000
+  countdownSeconds.value = seconds
+  countdownTimer = window.setInterval(() => {
+    countdownSeconds.value = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+  }, 1000)
   autoRefreshTimer = window.setInterval(() => {
-    if (!loading.value && !refreshing.value) {
+    if (!document.hidden && !loading.value && !refreshing.value) {
       void reload(true)
     }
   }, Math.max(bootstrapActive.value ? 10 : 60, seconds) * 1000)
@@ -904,14 +937,14 @@ watch(
     syncQuery()
     const rangeChanged = filter.value.range !== lastRange
     lastRange = filter.value.range
-    if (rangeChanged) void reload(true)
-    else void reloadMetricsOnly(true)
+    if (rangeChanged) void reload(true, true)
+    else void reloadMetricsOnly(true, true)
   },
   { deep: true }
 )
 watch(matrixGroupBy, () => {
   syncQuery()
-  void reloadMetricsOnly(true)
+  void reloadMetricsOnly(true, true)
 })
 watch(healthMode, syncQuery)
 watch(trendView, syncQuery)
@@ -925,7 +958,21 @@ watch(showUserRanking, (allowed) => {
   }
 })
 onMounted(() => void reload(false))
+watch(() => [authStore.user?.id, isAdmin.value], () => {
+  metricsCache.clear()
+  controller?.abort()
+  sequence++
+  snapshot.value = null
+  matrix.value = null
+  modelRows.value = []
+  errorRows.value = []
+  userRows.value = []
+  dimensions.value = { platforms: [], groups: [], models: [] }
+  if (authStore.user) void reload(false)
+})
 onBeforeUnmount(() => {
+  if (countdownTimer) window.clearInterval(countdownTimer)
+  metricsCache.clear()
   controller?.abort()
   if (autoRefreshTimer) window.clearInterval(autoRefreshTimer)
 })

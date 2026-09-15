@@ -108,6 +108,12 @@ func (s *ChannelMonitorService) Signer() *ChannelMonitorSigner {
 	return s.signer
 }
 
+// V3Configs returns only enabled configuration objects; callers must serialize
+// an explicit public projection and never expose probe credentials.
+func (s *ChannelMonitorService) V3Configs(ctx context.Context) ([]*ChannelMonitor, error) {
+	return s.repo.ListEnabled(ctx)
+}
+
 func (s *ChannelMonitorService) SetSettingReader(reader channelMonitorSettingReader) {
 	if s == nil {
 		return
@@ -180,6 +186,8 @@ func (s *ChannelMonitorService) Create(ctx context.Context, p ChannelMonitorCrea
 		return nil, fmt.Errorf("encrypt api key: %w", err)
 	}
 	m := &ChannelMonitor{
+		V3GroupID:        p.V3GroupID,
+		V3FusionEnabled:  p.V3FusionEnabled,
 		DisplayCategory:  strings.TrimSpace(p.DisplayCategory),
 		DisplayOrder:     p.DisplayOrder,
 		Name:             strings.TrimSpace(p.Name),
@@ -251,6 +259,8 @@ func (s *ChannelMonitorService) Duplicate(
 	duplicate := &ChannelMonitor{
 		DisplayCategory:      source.DisplayCategory,
 		DisplayOrder:         source.DisplayOrder,
+		V3GroupID:            source.V3GroupID,
+		V3FusionEnabled:      false, // Duplicating a card must not opt a new target into probes.
 		Name:                 duplicateChannelMonitorName(source.Name),
 		Provider:             source.Provider,
 		APIMode:              source.APIMode,
@@ -390,6 +400,9 @@ func cloneChannelMonitorJSONMap(source map[string]any) (map[string]any, error) {
 // 按 check_mode 分支：probe 沿用 endpoint+api_key 必填；quota 只需关联账号；
 // quota_probe 两者皆需。
 func validateCreateParams(p ChannelMonitorCreateParams) error {
+	if p.V3FusionEnabled && defaultCheckMode(p.CheckMode) == MonitorCheckModeQuota {
+		return ErrChannelMonitorFusionQuota
+	}
 	if err := validateMonitorDisplayCategory(strings.TrimSpace(p.DisplayCategory)); err != nil {
 		return err
 	}
@@ -498,6 +511,9 @@ func (s *ChannelMonitorService) Update(ctx context.Context, id int64, p ChannelM
 //   - quota / quota_probe 必须关联账号
 //   - probe / quota_probe 必须持有 endpoint（探活目标）
 func validateMonitorModeFields(m *ChannelMonitor) error {
+	if m.V3FusionEnabled && defaultCheckMode(m.CheckMode) == MonitorCheckModeQuota {
+		return ErrChannelMonitorFusionQuota
+	}
 	checkMode := defaultCheckMode(m.CheckMode)
 	if monitorCheckModeUsesQuota(checkMode) && m.AccountID == nil {
 		return ErrChannelMonitorAccountRequired
@@ -623,23 +639,65 @@ func (s *ChannelMonitorService) ListHistory(ctx context.Context, id int64, model
 
 // RunCheck 同步触发对一个监控的检测：并发跑 primary + extra 模型，
 // 写历史记录并更新 last_checked_at。返回每个模型的检测结果。
-// 仅当 channel_monitor_enabled=true 且 channel_monitor_mode=v1 时真正探测；
-// mode=v2 时返回 ErrChannelMonitorActiveProbesRetired，不产生上游流量。
+// V1 uses its normal probes; V3 requires the per-monitor fusion opt-in and probes
+// only the primary model. V2 never produces upstream requests.
 //
 // 按 check_mode 分派：probe（默认，现状探活）/ quota（仅查关联账号配额，
 // 零 LLM 成本）/ quota_probe（探活 + 配额快照挂主模型行）。
 func (s *ChannelMonitorService) RunCheck(ctx context.Context, id int64) ([]*CheckResult, error) {
+	return s.runCheck(ctx, id, false)
+}
+
+func (s *ChannelMonitorService) runCheck(ctx context.Context, id int64, scheduled bool) ([]*CheckResult, error) {
 	runtime := s.probeRuntime(ctx)
-	if !runtime.Enabled {
+	if runtime.ReadFailed || !runtime.Enabled {
 		return nil, ErrChannelMonitorDisabled
 	}
-	if !runtime.ActiveProbesAllowed() {
+	if runtime.Mode != ChannelMonitorModeV1 && runtime.Mode != ChannelMonitorModeV3 {
 		return nil, ErrChannelMonitorActiveProbesRetired
+	}
+	if runtime.Mode == ChannelMonitorModeV3 {
+		config, err := s.repo.GetByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if !runtime.AllowsMonitorProbe(config) {
+			return nil, nil
+		}
+	}
+	// Hold a session advisory lock, not a transaction, throughout the bounded request.
+	if repo, ok := s.repo.(ChannelMonitorFusionRepository); ok {
+		release, acquired, err := repo.TryBeginProbe(ctx, id, scheduled)
+		if err != nil {
+			return nil, err
+		}
+		if !acquired {
+			return nil, nil
+		}
+		defer release()
+	} else if scheduled || runtime.Mode == ChannelMonitorModeV3 {
+		return nil, fmt.Errorf("monitor probe coordination unavailable")
 	}
 
 	m, err := s.Get(ctx, id) // 已解密 APIKey
 	if err != nil {
 		return nil, err
+	}
+	runtime = s.probeRuntime(ctx)
+	if runtime.ReadFailed || !runtime.Enabled {
+		return nil, ErrChannelMonitorDisabled
+	}
+	if runtime.Mode != ChannelMonitorModeV1 && runtime.Mode != ChannelMonitorModeV3 {
+		return nil, ErrChannelMonitorActiveProbesRetired
+	}
+	if runtime.Mode == ChannelMonitorModeV3 && !runtime.AllowsMonitorProbe(m) {
+		return nil, ErrChannelMonitorActiveProbesRetired
+	}
+	if scheduled && !m.Enabled {
+		return nil, nil
+	}
+	if runtime.Mode == ChannelMonitorModeV3 {
+		m.ExtraModels = nil // Fusion probes only the configured primary model.
 	}
 	checkMode := defaultCheckMode(m.CheckMode)
 	if checkMode != MonitorCheckModeQuota && m.APIKeyDecryptFailed {
@@ -700,6 +758,8 @@ func (s *ChannelMonitorService) persistCheckResults(ctx context.Context, m *Chan
 	rows := make([]*ChannelMonitorHistoryRow, 0, len(results))
 	for _, r := range results {
 		rows = append(rows, &ChannelMonitorHistoryRow{
+			IsProbe:         defaultCheckMode(m.CheckMode) != MonitorCheckModeQuota,
+			ProbeTargetHash: ChannelMonitorProbeTargetHash(m),
 			MonitorID:       m.ID,
 			Model:           r.Model,
 			Status:          r.Status,
@@ -954,6 +1014,15 @@ func (s *ChannelMonitorService) decryptInPlace(m *ChannelMonitor) {
 // 行数稍超过 30：这是逐字段平铺的 dispatcher，每个 if 都是 1-3 行的"非 nil 则覆盖"模式，
 // 拆分反而会增加跳转噪音、影响可读性，故保留为单函数。
 func applyMonitorUpdate(existing *ChannelMonitor, p ChannelMonitorUpdateParams) error {
+	if p.V3GroupID != nil {
+		existing.V3GroupID = p.V3GroupID
+		if *p.V3GroupID == 0 {
+			existing.V3GroupID = nil
+		}
+	}
+	if p.V3FusionEnabled != nil {
+		existing.V3FusionEnabled = *p.V3FusionEnabled
+	}
 	if p.DisplayOrder != nil {
 		if err := validateMonitorDisplayOrder(*p.DisplayOrder); err != nil {
 			return err

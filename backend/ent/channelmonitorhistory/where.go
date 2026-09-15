@@ -60,6 +60,16 @@ func MonitorID(v int64) predicate.ChannelMonitorHistory {
 	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldMonitorID, v))
 }
 
+// IsProbe applies equality check predicate on the "is_probe" field. It's identical to IsProbeEQ.
+func IsProbe(v bool) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldIsProbe, v))
+}
+
+// ProbeTargetHash applies equality check predicate on the "probe_target_hash" field. It's identical to ProbeTargetHashEQ.
+func ProbeTargetHash(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldProbeTargetHash, v))
+}
+
 // Model applies equality check predicate on the "model" field. It's identical to ModelEQ.
 func Model(v string) predicate.ChannelMonitorHistory {
 	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldModel, v))
@@ -123,6 +133,81 @@ func MonitorIDIn(vs ...int64) predicate.ChannelMonitorHistory {
 // MonitorIDNotIn applies the NotIn predicate on the "monitor_id" field.
 func MonitorIDNotIn(vs ...int64) predicate.ChannelMonitorHistory {
 	return predicate.ChannelMonitorHistory(sql.FieldNotIn(FieldMonitorID, vs...))
+}
+
+// IsProbeEQ applies the EQ predicate on the "is_probe" field.
+func IsProbeEQ(v bool) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldIsProbe, v))
+}
+
+// IsProbeNEQ applies the NEQ predicate on the "is_probe" field.
+func IsProbeNEQ(v bool) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNEQ(FieldIsProbe, v))
+}
+
+// ProbeTargetHashEQ applies the EQ predicate on the "probe_target_hash" field.
+func ProbeTargetHashEQ(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEQ(FieldProbeTargetHash, v))
+}
+
+// ProbeTargetHashNEQ applies the NEQ predicate on the "probe_target_hash" field.
+func ProbeTargetHashNEQ(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNEQ(FieldProbeTargetHash, v))
+}
+
+// ProbeTargetHashIn applies the In predicate on the "probe_target_hash" field.
+func ProbeTargetHashIn(vs ...string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldIn(FieldProbeTargetHash, vs...))
+}
+
+// ProbeTargetHashNotIn applies the NotIn predicate on the "probe_target_hash" field.
+func ProbeTargetHashNotIn(vs ...string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldNotIn(FieldProbeTargetHash, vs...))
+}
+
+// ProbeTargetHashGT applies the GT predicate on the "probe_target_hash" field.
+func ProbeTargetHashGT(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldGT(FieldProbeTargetHash, v))
+}
+
+// ProbeTargetHashGTE applies the GTE predicate on the "probe_target_hash" field.
+func ProbeTargetHashGTE(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldGTE(FieldProbeTargetHash, v))
+}
+
+// ProbeTargetHashLT applies the LT predicate on the "probe_target_hash" field.
+func ProbeTargetHashLT(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldLT(FieldProbeTargetHash, v))
+}
+
+// ProbeTargetHashLTE applies the LTE predicate on the "probe_target_hash" field.
+func ProbeTargetHashLTE(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldLTE(FieldProbeTargetHash, v))
+}
+
+// ProbeTargetHashContains applies the Contains predicate on the "probe_target_hash" field.
+func ProbeTargetHashContains(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldContains(FieldProbeTargetHash, v))
+}
+
+// ProbeTargetHashHasPrefix applies the HasPrefix predicate on the "probe_target_hash" field.
+func ProbeTargetHashHasPrefix(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldHasPrefix(FieldProbeTargetHash, v))
+}
+
+// ProbeTargetHashHasSuffix applies the HasSuffix predicate on the "probe_target_hash" field.
+func ProbeTargetHashHasSuffix(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldHasSuffix(FieldProbeTargetHash, v))
+}
+
+// ProbeTargetHashEqualFold applies the EqualFold predicate on the "probe_target_hash" field.
+func ProbeTargetHashEqualFold(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldEqualFold(FieldProbeTargetHash, v))
+}
+
+// ProbeTargetHashContainsFold applies the ContainsFold predicate on the "probe_target_hash" field.
+func ProbeTargetHashContainsFold(v string) predicate.ChannelMonitorHistory {
+	return predicate.ChannelMonitorHistory(sql.FieldContainsFold(FieldProbeTargetHash, v))
 }
 
 // ModelEQ applies the EQ predicate on the "model" field.

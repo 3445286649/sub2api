@@ -51,6 +51,8 @@ func (h *ChannelMonitorHandler) ListDisplayCategories(c *gin.Context) {
 }
 
 type channelMonitorCreateRequest struct {
+	V3FusionEnabled  bool              `json:"v3_fusion_enabled"`
+	V3GroupID        *int64            `json:"v3_group_id" binding:"omitempty,min=1"`
 	DisplayCategory  string            `json:"display_category" binding:"max=50"`
 	DisplayOrder     int               `json:"display_order" binding:"min=0,max=999999"`
 	Name             string            `json:"name" binding:"required,max=100"`
@@ -77,6 +79,8 @@ type channelMonitorCreateRequest struct {
 }
 
 type channelMonitorUpdateRequest struct {
+	V3FusionEnabled  *bool              `json:"v3_fusion_enabled"`
+	V3GroupID        *int64             `json:"v3_group_id" binding:"omitempty,min=0"`
 	DisplayCategory  *string            `json:"display_category" binding:"omitempty,max=50"`
 	DisplayOrder     *int               `json:"display_order" binding:"omitempty,min=0,max=999999"`
 	Name             *string            `json:"name" binding:"omitempty,max=100"`
@@ -102,6 +106,8 @@ type channelMonitorUpdateRequest struct {
 }
 
 type channelMonitorResponse struct {
+	V3FusionEnabled        bool                                 `json:"v3_fusion_enabled"`
+	V3GroupID              *int64                               `json:"v3_group_id"`
 	DisplayCategory        string                               `json:"display_category"`
 	DisplayOrder           int                                  `json:"display_order"`
 	ID                     int64                                `json:"id"`
@@ -196,6 +202,8 @@ func channelMonitorToResponse(m *service.ChannelMonitor) *channelMonitorResponse
 		Endpoint:            m.Endpoint,
 		DisplayCategory:     m.DisplayCategory,
 		DisplayOrder:        m.DisplayOrder,
+		V3GroupID:           m.V3GroupID,
+		V3FusionEnabled:     m.V3FusionEnabled,
 		APIKeyMasked:        maskAPIKey(m.APIKey),
 		APIKeyDecryptFailed: m.APIKeyDecryptFailed,
 		PrimaryModel:        m.PrimaryModel,
@@ -375,6 +383,8 @@ func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 	}
 
 	m, err := h.monitorService.Create(c.Request.Context(), service.ChannelMonitorCreateParams{
+		V3GroupID:        req.V3GroupID,
+		V3FusionEnabled:  req.V3FusionEnabled,
 		Name:             req.Name,
 		Provider:         req.Provider,
 		APIMode:          req.APIMode,
@@ -473,6 +483,8 @@ func (h *ChannelMonitorHandler) Update(c *gin.Context) {
 	}
 
 	m, err := h.monitorService.Update(c.Request.Context(), id, service.ChannelMonitorUpdateParams{
+		V3GroupID:        req.V3GroupID,
+		V3FusionEnabled:  req.V3FusionEnabled,
 		Name:             req.Name,
 		Provider:         req.Provider,
 		APIMode:          req.APIMode,

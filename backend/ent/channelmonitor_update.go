@@ -149,6 +149,67 @@ func (_u *ChannelMonitorUpdate) SetNillableDisplayCategory(v *string) *ChannelMo
 	return _u
 }
 
+// SetV3GroupID sets the "v3_group_id" field.
+func (_u *ChannelMonitorUpdate) SetV3GroupID(v int64) *ChannelMonitorUpdate {
+	_u.mutation.ResetV3GroupID()
+	_u.mutation.SetV3GroupID(v)
+	return _u
+}
+
+// SetNillableV3GroupID sets the "v3_group_id" field if the given value is not nil.
+func (_u *ChannelMonitorUpdate) SetNillableV3GroupID(v *int64) *ChannelMonitorUpdate {
+	if v != nil {
+		_u.SetV3GroupID(*v)
+	}
+	return _u
+}
+
+// AddV3GroupID adds value to the "v3_group_id" field.
+func (_u *ChannelMonitorUpdate) AddV3GroupID(v int64) *ChannelMonitorUpdate {
+	_u.mutation.AddV3GroupID(v)
+	return _u
+}
+
+// ClearV3GroupID clears the value of the "v3_group_id" field.
+func (_u *ChannelMonitorUpdate) ClearV3GroupID() *ChannelMonitorUpdate {
+	_u.mutation.ClearV3GroupID()
+	return _u
+}
+
+// SetV3FusionEnabled sets the "v3_fusion_enabled" field.
+func (_u *ChannelMonitorUpdate) SetV3FusionEnabled(v bool) *ChannelMonitorUpdate {
+	_u.mutation.SetV3FusionEnabled(v)
+	return _u
+}
+
+// SetNillableV3FusionEnabled sets the "v3_fusion_enabled" field if the given value is not nil.
+func (_u *ChannelMonitorUpdate) SetNillableV3FusionEnabled(v *bool) *ChannelMonitorUpdate {
+	if v != nil {
+		_u.SetV3FusionEnabled(*v)
+	}
+	return _u
+}
+
+// SetProbeNextCheckAt sets the "probe_next_check_at" field.
+func (_u *ChannelMonitorUpdate) SetProbeNextCheckAt(v time.Time) *ChannelMonitorUpdate {
+	_u.mutation.SetProbeNextCheckAt(v)
+	return _u
+}
+
+// SetNillableProbeNextCheckAt sets the "probe_next_check_at" field if the given value is not nil.
+func (_u *ChannelMonitorUpdate) SetNillableProbeNextCheckAt(v *time.Time) *ChannelMonitorUpdate {
+	if v != nil {
+		_u.SetProbeNextCheckAt(*v)
+	}
+	return _u
+}
+
+// ClearProbeNextCheckAt clears the value of the "probe_next_check_at" field.
+func (_u *ChannelMonitorUpdate) ClearProbeNextCheckAt() *ChannelMonitorUpdate {
+	_u.mutation.ClearProbeNextCheckAt()
+	return _u
+}
+
 // SetDisplayOrder sets the "display_order" field.
 func (_u *ChannelMonitorUpdate) SetDisplayOrder(v int) *ChannelMonitorUpdate {
 	_u.mutation.ResetDisplayOrder()
@@ -629,6 +690,24 @@ func (_u *ChannelMonitorUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if value, ok := _u.mutation.DisplayCategory(); ok {
 		_spec.SetField(channelmonitor.FieldDisplayCategory, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.V3GroupID(); ok {
+		_spec.SetField(channelmonitor.FieldV3GroupID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedV3GroupID(); ok {
+		_spec.AddField(channelmonitor.FieldV3GroupID, field.TypeInt64, value)
+	}
+	if _u.mutation.V3GroupIDCleared() {
+		_spec.ClearField(channelmonitor.FieldV3GroupID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.V3FusionEnabled(); ok {
+		_spec.SetField(channelmonitor.FieldV3FusionEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ProbeNextCheckAt(); ok {
+		_spec.SetField(channelmonitor.FieldProbeNextCheckAt, field.TypeTime, value)
+	}
+	if _u.mutation.ProbeNextCheckAtCleared() {
+		_spec.ClearField(channelmonitor.FieldProbeNextCheckAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.DisplayOrder(); ok {
 		_spec.SetField(channelmonitor.FieldDisplayOrder, field.TypeInt, value)
 	}
@@ -947,6 +1026,67 @@ func (_u *ChannelMonitorUpdateOne) SetNillableDisplayCategory(v *string) *Channe
 	if v != nil {
 		_u.SetDisplayCategory(*v)
 	}
+	return _u
+}
+
+// SetV3GroupID sets the "v3_group_id" field.
+func (_u *ChannelMonitorUpdateOne) SetV3GroupID(v int64) *ChannelMonitorUpdateOne {
+	_u.mutation.ResetV3GroupID()
+	_u.mutation.SetV3GroupID(v)
+	return _u
+}
+
+// SetNillableV3GroupID sets the "v3_group_id" field if the given value is not nil.
+func (_u *ChannelMonitorUpdateOne) SetNillableV3GroupID(v *int64) *ChannelMonitorUpdateOne {
+	if v != nil {
+		_u.SetV3GroupID(*v)
+	}
+	return _u
+}
+
+// AddV3GroupID adds value to the "v3_group_id" field.
+func (_u *ChannelMonitorUpdateOne) AddV3GroupID(v int64) *ChannelMonitorUpdateOne {
+	_u.mutation.AddV3GroupID(v)
+	return _u
+}
+
+// ClearV3GroupID clears the value of the "v3_group_id" field.
+func (_u *ChannelMonitorUpdateOne) ClearV3GroupID() *ChannelMonitorUpdateOne {
+	_u.mutation.ClearV3GroupID()
+	return _u
+}
+
+// SetV3FusionEnabled sets the "v3_fusion_enabled" field.
+func (_u *ChannelMonitorUpdateOne) SetV3FusionEnabled(v bool) *ChannelMonitorUpdateOne {
+	_u.mutation.SetV3FusionEnabled(v)
+	return _u
+}
+
+// SetNillableV3FusionEnabled sets the "v3_fusion_enabled" field if the given value is not nil.
+func (_u *ChannelMonitorUpdateOne) SetNillableV3FusionEnabled(v *bool) *ChannelMonitorUpdateOne {
+	if v != nil {
+		_u.SetV3FusionEnabled(*v)
+	}
+	return _u
+}
+
+// SetProbeNextCheckAt sets the "probe_next_check_at" field.
+func (_u *ChannelMonitorUpdateOne) SetProbeNextCheckAt(v time.Time) *ChannelMonitorUpdateOne {
+	_u.mutation.SetProbeNextCheckAt(v)
+	return _u
+}
+
+// SetNillableProbeNextCheckAt sets the "probe_next_check_at" field if the given value is not nil.
+func (_u *ChannelMonitorUpdateOne) SetNillableProbeNextCheckAt(v *time.Time) *ChannelMonitorUpdateOne {
+	if v != nil {
+		_u.SetProbeNextCheckAt(*v)
+	}
+	return _u
+}
+
+// ClearProbeNextCheckAt clears the value of the "probe_next_check_at" field.
+func (_u *ChannelMonitorUpdateOne) ClearProbeNextCheckAt() *ChannelMonitorUpdateOne {
+	_u.mutation.ClearProbeNextCheckAt()
 	return _u
 }
 
@@ -1459,6 +1599,24 @@ func (_u *ChannelMonitorUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 	}
 	if value, ok := _u.mutation.DisplayCategory(); ok {
 		_spec.SetField(channelmonitor.FieldDisplayCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.V3GroupID(); ok {
+		_spec.SetField(channelmonitor.FieldV3GroupID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedV3GroupID(); ok {
+		_spec.AddField(channelmonitor.FieldV3GroupID, field.TypeInt64, value)
+	}
+	if _u.mutation.V3GroupIDCleared() {
+		_spec.ClearField(channelmonitor.FieldV3GroupID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.V3FusionEnabled(); ok {
+		_spec.SetField(channelmonitor.FieldV3FusionEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ProbeNextCheckAt(); ok {
+		_spec.SetField(channelmonitor.FieldProbeNextCheckAt, field.TypeTime, value)
+	}
+	if _u.mutation.ProbeNextCheckAtCleared() {
+		_spec.ClearField(channelmonitor.FieldProbeNextCheckAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.DisplayOrder(); ok {
 		_spec.SetField(channelmonitor.FieldDisplayOrder, field.TypeInt, value)

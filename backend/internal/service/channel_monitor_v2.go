@@ -89,6 +89,7 @@ type ChannelMonitorV2Filter struct {
 }
 
 type ChannelMonitorV2Metric struct {
+	TrafficState             string                  `json:"traffic_state,omitempty"`
 	SuccessRequests          int64                   `json:"success_requests"`
 	ErrorRequests            int64                   `json:"error_requests"`
 	RequestCount             int64                   `json:"request_count"`
@@ -441,7 +442,14 @@ func (s *ChannelMonitorV2Service) UpdateConfig(ctx context.Context, cfg ChannelM
 }
 
 func (s *ChannelMonitorV2Service) ParseFilter(rangeValue string, platforms, models []string, groupIDs []int64) (ChannelMonitorV2Filter, error) {
-	now := s.now().UTC()
+	filter, err := ChannelMonitorWindow(rangeValue, s.now())
+	filter.Platforms, filter.Models, filter.GroupIDs = normalizeStringSet(platforms), normalizeStringSet(models), normalizeInt64Set(groupIDs)
+	return filter, err
+}
+
+// ChannelMonitorWindow is shared by passive metrics and V1 probe overlays.
+func ChannelMonitorWindow(rangeValue string, now time.Time) (ChannelMonitorV2Filter, error) {
+	now = now.UTC()
 	var window, bucket time.Duration
 	switch strings.TrimSpace(rangeValue) {
 	case "", "90m":
@@ -464,7 +472,7 @@ func (s *ChannelMonitorV2Service) ParseFilter(rangeValue string, platforms, mode
 		start = end.Add(-window)
 	}
 	return ChannelMonitorV2Filter{
-		Range: rangeValue, Platforms: normalizeStringSet(platforms), Models: normalizeStringSet(models), GroupIDs: normalizeInt64Set(groupIDs),
+		Range: rangeValue,
 		Start: start, End: end, Bucket: bucket,
 	}, nil
 }
@@ -529,6 +537,16 @@ func (s *ChannelMonitorV2Service) Matrix(ctx context.Context, filter ChannelMoni
 	if err != nil {
 		return nil, err
 	}
+	// Preserve traffic presence before public counters are redacted. Coverage is
+	// evaluated separately so incomplete intervals never imply no traffic.
+	if matrix != nil {
+		for i := range matrix.Items {
+			setChannelMonitorTrafficState(&matrix.Items[i].Metrics)
+			for j := range matrix.Items[i].Buckets {
+				setChannelMonitorTrafficState(&matrix.Items[i].Buckets[j].Metrics)
+			}
+		}
+	}
 	if !admin && matrix != nil {
 		hideTP := s.hideThroughputForViewer(ctx, admin)
 		for i := range matrix.Items {
@@ -539,6 +557,13 @@ func (s *ChannelMonitorV2Service) Matrix(ctx context.Context, filter ChannelMoni
 		}
 	}
 	return matrix, nil
+}
+
+func setChannelMonitorTrafficState(m *ChannelMonitorV2Metric) {
+	m.TrafficState = "no_traffic"
+	if m.RequestCount > 0 {
+		m.TrafficState = "traffic"
+	}
 }
 
 func ParseChannelMonitorV2GroupBy(value string) (ChannelMonitorV2GroupBy, error) {

@@ -267,7 +267,7 @@ import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
-import { getChannelMonitorMode, isChannelMonitorV2Mode } from '@/utils/featureFlags'
+import { getChannelMonitorMode } from '@/utils/featureFlags'
 import {
   getConfig,
   updateConfig,
@@ -294,11 +294,12 @@ const countedErrorCategoryCount = computed(
   () => errorCategories.length - (draft.value?.ignored_error_categories?.length || 0)
 )
 /** System settings mode must be v2 for aggregation to run; config remains editable for prep. */
-const systemModeV2 = computed(() => isChannelMonitorV2Mode())
+const systemModeV2 = computed(() => !!appStore.cachedPublicSettings?.channel_monitor_enabled && getChannelMonitorMode() !== 'v1')
 const systemModeLabel = computed(() => {
   if (!appStore.cachedPublicSettings?.channel_monitor_enabled) {
     return t('channelMonitorV2.settings.modeClosed')
   }
+  if (getChannelMonitorMode() === 'v3') return t('channelMonitorV2.v3.mode')
   return getChannelMonitorMode() === 'v1'
     ? t('channelMonitorV2.settings.modeV1')
     : t('channelMonitorV2.settings.modeV2')

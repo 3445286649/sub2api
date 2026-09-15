@@ -1,6 +1,21 @@
 /** Channel Monitor V2 (user + admin passive monitor UI) */
 export default {
   channelMonitorV2: {
+    groupUnavailable: 'Linked group unavailable',
+    v3: {
+      mode: 'V3 monitor cards', statisticsGroup: 'V3 statistics group', unlinked: 'Not linked', intervals: 'Last {n} intervals',
+      loadFailed: 'Unable to load. Please retry.', healthy: 'Available', warning: 'Needs attention', critical: 'Needs attention', unknown: 'Pending',
+      noTraffic: 'Insufficient samples', noRequests: 'No real requests or valid supplemental probes in this interval', smallSample: 'Small sample',
+      refreshFailed: 'Update failed. Previous data retained.', ttftHint: 'Median time to first token for real requests. Does not determine availability.',
+      fusion: 'Data fusion', fusionHint: 'In V3 mode, probe this primary model at its configured interval and supplement intervals without real traffic. Both the global monitor switch and this row must be enabled.',
+      description: 'V3 cards prioritize real traffic. Only monitors with data fusion enabled probe their primary model at their own intervals to supplement empty intervals.',
+      fusionQuota: 'Quota-only monitors have no model probes and cannot enable data fusion.',
+      source: 'Source', probeSource: 'V1 active probe', probeModel: 'Probe model', probeSuccess: 'Successful probes', probeFailure: 'Failed probes',
+      probeRate: 'Probe success rate', lastProbe: 'Last probe',
+    },
+    noRecord: 'No records',
+    referenceCard: { cacheRate: 'Cache rate', successRate: 'Availability', ttft: 'First token', unknown: 'Low samples', unknownGroup: 'Unknown group', userRate: 'User rate', timelineTooltip: '{time} · Availability {availability} · Cache {cache} · Error rate {error} · First token {ttft}' },
+    cards: { title: 'Cards', healthy: 'Healthy', warning: 'Warning', critical: 'Critical', unknown: 'Low samples' },
     title: 'Channel Monitor',
     updating: 'Updating data',
     updatedTo: 'Updated to {time}',

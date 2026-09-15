@@ -17,6 +17,10 @@ const (
 	FieldID = "id"
 	// FieldMonitorID holds the string denoting the monitor_id field in the database.
 	FieldMonitorID = "monitor_id"
+	// FieldIsProbe holds the string denoting the is_probe field in the database.
+	FieldIsProbe = "is_probe"
+	// FieldProbeTargetHash holds the string denoting the probe_target_hash field in the database.
+	FieldProbeTargetHash = "probe_target_hash"
 	// FieldModel holds the string denoting the model field in the database.
 	FieldModel = "model"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -56,6 +60,8 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldMonitorID,
+	FieldIsProbe,
+	FieldProbeTargetHash,
 	FieldModel,
 	FieldStatus,
 	FieldLatencyMs,
@@ -80,6 +86,12 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultIsProbe holds the default value on creation for the "is_probe" field.
+	DefaultIsProbe bool
+	// DefaultProbeTargetHash holds the default value on creation for the "probe_target_hash" field.
+	DefaultProbeTargetHash string
+	// ProbeTargetHashValidator is a validator for the "probe_target_hash" field. It is called by the builders before save.
+	ProbeTargetHashValidator func(string) error
 	// ModelValidator is a validator for the "model" field. It is called by the builders before save.
 	ModelValidator func(string) error
 	// DefaultMessage holds the default value on creation for the "message" field.
@@ -136,6 +148,16 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByMonitorID orders the results by the monitor_id field.
 func ByMonitorID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMonitorID, opts...).ToFunc()
+}
+
+// ByIsProbe orders the results by the is_probe field.
+func ByIsProbe(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsProbe, opts...).ToFunc()
+}
+
+// ByProbeTargetHash orders the results by the probe_target_hash field.
+func ByProbeTargetHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProbeTargetHash, opts...).ToFunc()
 }
 
 // ByModel orders the results by the model field.

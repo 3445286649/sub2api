@@ -1,7 +1,22 @@
 /** Channel Monitor V2 (user + admin passive monitor UI) */
 export default {
   channelMonitorV2: {
+    groupUnavailable: '关联分组不可用',
+    v3: {
+      mode: 'V3 卡片监控', statisticsGroup: 'V3 统计分组', unlinked: '未关联', intervals: '近 {n} 个时间区间',
+      loadFailed: '加载失败，请重试', healthy: '可用', warning: '需关注', critical: '需关注', unknown: '待统计',
+      noTraffic: '样本不足', noRequests: '该区间无真实请求，且没有有效的融合探测结果', smallSample: '样本较少',
+      refreshFailed: '更新失败，已保留上次数据', ttftHint: '真实请求首 Token 耗时中位数，不参与可用性状态判断',
+      fusion: '数据融合', fusionHint: '开启后，V3 模式按本配置间隔探测主模型，仅在无真实流量的区间补充结果。总监控开关和本行启用开关仍须开启。',
+      description: 'V3 卡片监控：真实流量优先；仅开启数据融合的监控项按各自间隔探测主模型，并补充无流量区间。',
+      fusionQuota: '仅配额查询没有模型探测结果，不能开启数据融合',
+      source: '数据来源', probeSource: 'V1 主动探测', probeModel: '探测模型', probeSuccess: '成功次数', probeFailure: '失败次数',
+      probeRate: '探测成功率', lastProbe: '最近探测',
+    },
     title: '渠道监控',
+    noRecord: '无记录',
+    referenceCard: { cacheRate: '缓存率', successRate: '可用率', ttft: '首 Token', unknown: '样本不足', unknownGroup: '未知分组', userRate: '用户倍率', timelineTooltip: '{time} · 可用率 {availability} · 缓存率 {cache} · 错误率 {error} · 首 Token {ttft}' },
+    cards: { title: '分类卡片', healthy: '正常', warning: '需关注', critical: '异常', unknown: '样本不足' },
     updating: '正在更新数据',
     updatedTo: '更新至 {time}',
     partialCoverage: '部分历史覆盖',

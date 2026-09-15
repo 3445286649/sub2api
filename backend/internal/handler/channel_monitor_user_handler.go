@@ -14,6 +14,7 @@ import (
 
 // ChannelMonitorUserHandler 渠道监控用户只读 handler。
 type ChannelMonitorUserHandler struct {
+	apiKeyService  channelMonitorV2GroupAuthorizer
 	monitorService *service.ChannelMonitorService
 	settingService *service.SettingService
 }
@@ -23,8 +24,10 @@ type ChannelMonitorUserHandler struct {
 func NewChannelMonitorUserHandler(
 	monitorService *service.ChannelMonitorService,
 	settingService *service.SettingService,
+	apiKeyService *service.APIKeyService,
 ) *ChannelMonitorUserHandler {
 	return &ChannelMonitorUserHandler{
+		apiKeyService:  apiKeyService,
 		monitorService: monitorService,
 		settingService: settingService,
 	}
@@ -50,6 +53,54 @@ func (h *ChannelMonitorUserHandler) quotaVisible(c *gin.Context) bool {
 }
 
 // --- Response ---
+
+func (h *ChannelMonitorUserHandler) V3Cards(c *gin.Context) {
+	if h.settingService == nil || !h.settingService.GetChannelMonitorRuntime(c.Request.Context()).PassiveAggregationAllowed() {
+		response.ErrorFrom(c, service.ErrChannelMonitorDisabled)
+		return
+	}
+	filter, err := service.ChannelMonitorWindow(c.Query("range"), time.Now())
+	if err != nil {
+		response.BadRequest(c, "invalid monitor range")
+		return
+	}
+	items, err := h.monitorService.V3Configs(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	var probes map[int64][]service.ChannelMonitorProbeBucket
+	for _, m := range items {
+		if !m.V3FusionEnabled {
+			continue
+		}
+		if !scopeChannelMonitorGroups(c, &filter, false, h.apiKeyService) {
+			return
+		}
+		probes, err = h.monitorService.V3ProbeBuckets(c.Request.Context(), items, filter)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		break
+	}
+	type card struct {
+		V3FusionEnabled bool                                `json:"v3_fusion_enabled"`
+		ProbeModel      string                              `json:"probe_model,omitempty"`
+		ProbeBuckets    []service.ChannelMonitorProbeBucket `json:"probe_buckets,omitempty"`
+		ID              int64                               `json:"id"`
+		Name            string                              `json:"name"`
+		Provider        string                              `json:"provider"`
+		DisplayCategory string                              `json:"display_category"`
+		DisplayOrder    int                                 `json:"display_order"`
+		V3GroupID       *int64                              `json:"v3_group_id"`
+	}
+	result := make([]card, 0, len(items))
+	for _, m := range items {
+		result = append(result, card{V3FusionEnabled: m.V3FusionEnabled, ProbeModel: m.PrimaryModel, ProbeBuckets: probes[m.ID], ID: m.ID, Name: m.Name, Provider: m.Provider, DisplayCategory: m.DisplayCategory, DisplayOrder: m.DisplayOrder, V3GroupID: m.V3GroupID})
+	}
+	response.Success(c, result)
+}
 
 type channelMonitorUserListItem struct {
 	DisplayCategory        string                               `json:"display_category"`

@@ -22,6 +22,10 @@ type ChannelMonitorHistory struct {
 	ID int64 `json:"id,omitempty"`
 	// MonitorID holds the value of the "monitor_id" field.
 	MonitorID int64 `json:"monitor_id,omitempty"`
+	// IsProbe holds the value of the "is_probe" field.
+	IsProbe bool `json:"is_probe,omitempty"`
+	// ProbeTargetHash holds the value of the "probe_target_hash" field.
+	ProbeTargetHash string `json:"probe_target_hash,omitempty"`
 	// Model holds the value of the "model" field.
 	Model string `json:"model,omitempty"`
 	// Status holds the value of the "status" field.
@@ -77,9 +81,11 @@ func (*ChannelMonitorHistory) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case channelmonitorhistory.FieldQuota:
 			values[i] = new([]byte)
+		case channelmonitorhistory.FieldIsProbe:
+			values[i] = new(sql.NullBool)
 		case channelmonitorhistory.FieldID, channelmonitorhistory.FieldMonitorID, channelmonitorhistory.FieldLatencyMs, channelmonitorhistory.FieldPingLatencyMs, channelmonitorhistory.FieldHTTPStatus, channelmonitorhistory.FieldAttempts:
 			values[i] = new(sql.NullInt64)
-		case channelmonitorhistory.FieldModel, channelmonitorhistory.FieldStatus, channelmonitorhistory.FieldMessage, channelmonitorhistory.FieldFailureCategory, channelmonitorhistory.FieldRequestPath:
+		case channelmonitorhistory.FieldProbeTargetHash, channelmonitorhistory.FieldModel, channelmonitorhistory.FieldStatus, channelmonitorhistory.FieldMessage, channelmonitorhistory.FieldFailureCategory, channelmonitorhistory.FieldRequestPath:
 			values[i] = new(sql.NullString)
 		case channelmonitorhistory.FieldCheckedAt:
 			values[i] = new(sql.NullTime)
@@ -109,6 +115,18 @@ func (_m *ChannelMonitorHistory) assignValues(columns []string, values []any) er
 				return fmt.Errorf("unexpected type %T for field monitor_id", values[i])
 			} else if value.Valid {
 				_m.MonitorID = value.Int64
+			}
+		case channelmonitorhistory.FieldIsProbe:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_probe", values[i])
+			} else if value.Valid {
+				_m.IsProbe = value.Bool
+			}
+		case channelmonitorhistory.FieldProbeTargetHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field probe_target_hash", values[i])
+			} else if value.Valid {
+				_m.ProbeTargetHash = value.String
 			}
 		case channelmonitorhistory.FieldModel:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -224,6 +242,12 @@ func (_m *ChannelMonitorHistory) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("monitor_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MonitorID))
+	builder.WriteString(", ")
+	builder.WriteString("is_probe=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsProbe))
+	builder.WriteString(", ")
+	builder.WriteString("probe_target_hash=")
+	builder.WriteString(_m.ProbeTargetHash)
 	builder.WriteString(", ")
 	builder.WriteString("model=")
 	builder.WriteString(_m.Model)
