@@ -18,7 +18,7 @@
               {{ tab.label }}
             </button>
           </div>
-          <Select v-if="activeOrderTab === 'payment'" v-model="currentFilter" :options="statusFilters" class="w-full sm:w-36" @change="fetchOrders" />
+          <Select v-if="activeOrderTab === 'payment'" v-model="currentFilter" :options="statusFilters" class="w-full sm:w-36" @change="handlePageChange(1)" />
           <div class="flex flex-1 items-center justify-end gap-2">
             <button @click="fetchOrders" :disabled="loading" class="btn btn-secondary" :title="t('common.refresh')">
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
