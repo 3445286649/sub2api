@@ -17,6 +17,27 @@ const row = (platform = 'openai', group_id = 1): MonitorMatrixRow => ({
 const make = (rows: MonitorMatrixRow[]) => mount(MonitorCardGrid, { props: { rows, coverage }, global: { stubs: { ProviderIcon: true, EmptyState: true } } })
 
 describe('passive monitor cards', () => {
+  it('keeps the latest 18 minutes including empty slots and replaces the oldest on refresh', async () => {
+    const item = row()
+    item.buckets = [{ bucket_start: '2026-09-14T01:28:00Z', metrics: item.metrics, health: item.health }]
+    const minuteCoverage = { ...coverage, bucket_seconds: 60, requested_end: '2026-09-14T01:30:00Z', data_through: '2026-09-14T01:30:00Z' }
+    const w = make([item])
+    await w.setProps({ coverage: minuteCoverage, completedWindow: true })
+    const slots = w.findAll('.v3-bar-slot')
+    expect(slots).toHaveLength(18)
+    expect(w.findAll('.is-empty')).toHaveLength(17)
+    expect(w.findAll('.bg-emerald-500')).toHaveLength(1)
+    expect(slots[0].attributes('aria-label')).toContain(new Date('2026-09-14T01:12:00Z').toLocaleString('en-US'))
+    const article = w.find('article').element
+    const retained = slots[1].element
+    await w.setProps({ coverage: { ...minuteCoverage, requested_start: '2026-09-14T00:01:00Z', requested_end: '2026-09-14T01:31:00Z', data_through: '2026-09-14T01:31:00Z' } })
+    expect(w.findAll('.v3-bar-slot')).toHaveLength(18)
+    expect(w.find('article').element).toBe(article)
+    expect(w.find('.v3-bar-slot').element).toBe(retained)
+    expect(w.findAll('.v3-bar-slot')[17].attributes('aria-label')).toContain(new Date('2026-09-14T01:30:00Z').toLocaleString('en-US'))
+    expect(w.findAll('.is-empty')).toHaveLength(17)
+    w.unmount()
+  })
   it.each([
     [0.55, 'healthy', '100%'], [0.5501, 'warning', '65%'],
     [0.8, 'warning', '65%'], [0.8001, 'critical', '35%'],

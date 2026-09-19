@@ -50,19 +50,22 @@ watch(sections, value => {
   if (selected.value !== null && !value.some(section => section.platform === selected.value)) selected.value = null
 })
 
-const timelineLength = computed(() => {
+const timelineWindow = computed(() => {
   const step = Math.max(1, props.coverage.bucket_seconds) * 1000
   const start = Math.floor(Date.parse(props.coverage.requested_start) / step) * step
   const requestedEnd = Date.parse(props.coverage.requested_end || props.coverage.data_through)
   const end = props.completedWindow ? requestedEnd : Math.min(requestedEnd, Date.parse(props.coverage.data_through))
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return 0
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return { length: 0, start: 0 }
   // V3's requested end is already the last complete interval. Passive coverage
   // may lag behind independently; confirmed probes must still remain visible.
-  return Math.min(400, Math.max(0, Math.floor((end - start) / step)))
+  const total = Math.max(0, Math.floor((end - start) / step))
+  const length = Math.min(18, total)
+  return { length, start: start + (total - length) * step }
 })
+const timelineLength = computed(() => timelineWindow.value.length)
 function alignedBuckets(row: V3CardRow): CardTimelineBucket[] {
   const step = Math.max(1, props.coverage.bucket_seconds) * 1000
-  const start = Math.floor(Date.parse(props.coverage.requested_start) / step) * step
+  const start = timelineWindow.value.start
   const buckets = new Map(row.buckets.map(bucket => [Date.parse(bucket.bucket_start), bucket]))
   const probes = new Map((row.probe_buckets || []).map(bucket => [Date.parse(bucket.bucket_start), bucket]))
   return Array.from({ length: timelineLength.value }, (_, index) => {

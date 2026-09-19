@@ -66,7 +66,7 @@ watch(() => displayBars.value.map(bar => bar.key), keys => {
 }
 .v3-bar-hitbox { display: flex; align-items: flex-end; width: 100%; height: 100%; min-width: 0; }
 .v3-soft-glass-bar { display: block; width: 100%; min-height: 3px; border-radius: 3px; transition: height 180ms ease, background-color 180ms ease; }
-.v3-soft-glass-bar.is-empty { opacity: 0.3; }
+.v3-soft-glass-bar.is-empty { opacity: 1; }
 .v3-soft-glass-bar.is-probe { outline: 1px solid rgba(255,255,255,0.7); outline-offset: -1px; }
 @keyframes v3-slot-enter { from { transform: translateY(2px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .v3-bar-slot { animation: none; } .v3-soft-glass-bar { transition: none; } }
