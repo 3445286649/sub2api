@@ -1,4 +1,38 @@
 export default {
+  infiniteCanvas: {
+    "title": "Infinite Canvas",
+    "description": "Configure text, image and video connections. Add multiple site keys per purpose; the first is the default.",
+    "disabled": "Infinite Canvas is disabled.",
+    "key": "Image API key",
+    "chooseKey": "Choose your site key",
+    "billing": "Billed through the selected key’s group. Projects stay in this browser and on this site. Leaving during generation may lose results; submitted requests may still be charged.",
+    "noKeys": "No usable connections. Check key status, group permissions and quota. Video currently supports Grok groups.",
+    "enter": "Enter canvas",
+    "refresh": "Refresh keys",
+    "manageKeys": "Manage API keys",
+    "usage": "View usage",
+    "connecting": "Waiting for the canvas…",
+    "notReady": "Canvas connection timed out. The app may not be deployed or is unavailable. Retry in connection settings or contact your administrator.",
+    "accessFailed": "Could not verify workspace access or your session. Refresh the page and try again.",
+    "loadFailed": "Could not load API keys. Please retry.",
+    "setupFailed": "Canvas initialization failed. Refresh the key status or ask the administrator to check the deployment.",
+    "connectionSettings": "Connection settings",
+    "switchHint": "Applying connections preserves the canvas. Running tasks keep their original key. Removing a connection does not delete its API key.",
+    "image": "Image connections",
+    "text": "Text connections",
+    "video": "Video connections (Grok)",
+    "default": "Default",
+    "setDefault": "Set as default",
+    "remove": "Remove",
+    "addConnection": "Select and add a key…",
+    "pasteKey": "Paste a site key",
+    "keyPurpose": "Connection purpose",
+    "add": "Add",
+    "ownKeysOnly": "Only keys owned by this account are accepted. Only key IDs are saved after validation.",
+    "invalidPastedKey": "No owned key matches this purpose. Refresh the list and check its group.",
+    "apply": "Apply connections"
+},
+
 
   // Subscription Progress (Header component)
   subscriptionProgress: {

@@ -375,6 +375,7 @@ type UpdateSettingsRequest struct {
 	SubscriptionEnabled *bool `json:"subscription_enabled"`
 
 	// Model Plaza feature switches + description
+	InfiniteCanvasEnabled *bool   `json:"infinite_canvas_enabled"`
 	ModelPlazaEnabled     *bool   `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth *bool   `json:"model_plaza_require_auth"`
 	ModelPlazaDescription *string `json:"model_plaza_description"`
@@ -2008,6 +2009,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.SubscriptionEnabled
 		}(),
+		InfiniteCanvasEnabled: func() bool {
+			if req.InfiniteCanvasEnabled != nil {
+				return *req.InfiniteCanvasEnabled
+			}
+			return previousSettings.InfiniteCanvasEnabled
+		}(),
 		ModelPlazaEnabled: func() bool {
 			if req.ModelPlazaEnabled != nil {
 				return *req.ModelPlazaEnabled
@@ -2488,6 +2495,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AcquisitionLeaderboardEnabled: updatedSettings.AcquisitionLeaderboardEnabled,
 		AcquisitionLotteryEnabled:     updatedSettings.AcquisitionLotteryEnabled,
 		UsageRebateEnabled:            updatedSettings.UsageRebateEnabled,
+		InfiniteCanvasEnabled:         updatedSettings.InfiniteCanvasEnabled,
 		ModelPlazaEnabled:             updatedSettings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:         updatedSettings.ModelPlazaRequireAuth,
 		ModelPlazaDescription:         updatedSettings.ModelPlazaDescription,

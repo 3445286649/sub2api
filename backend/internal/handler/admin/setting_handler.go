@@ -417,6 +417,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		AcquisitionLeaderboardEnabled: settings.AcquisitionLeaderboardEnabled,
 		AcquisitionLotteryEnabled:     settings.AcquisitionLotteryEnabled,
 		UsageRebateEnabled:            settings.UsageRebateEnabled,
+		InfiniteCanvasEnabled:         settings.InfiniteCanvasEnabled,
 		ModelPlazaEnabled:             settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:         settings.ModelPlazaRequireAuth,
 		ModelPlazaDescription:         settings.ModelPlazaDescription,

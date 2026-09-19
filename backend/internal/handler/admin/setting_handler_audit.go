@@ -652,6 +652,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.SubscriptionEnabled != after.SubscriptionEnabled {
 		changed = append(changed, "subscription_enabled")
 	}
+	if before.InfiniteCanvasEnabled != after.InfiniteCanvasEnabled {
+		changed = append(changed, "infinite_canvas_enabled")
+	}
 	if before.ModelPlazaEnabled != after.ModelPlazaEnabled {
 		changed = append(changed, "model_plaza_enabled")
 	}

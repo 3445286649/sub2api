@@ -60,6 +60,12 @@ export default {
             subscriptionOnly: 'The purchase page only offers subscription plans and the sidebar entry reads "Subscription"; balance top-up orders are rejected. Redeem codes, affiliate payouts and other balance credits are unaffected.',
           },
         },
+        infiniteCanvas: {
+          title: 'Infinite Canvas',
+          description: 'Generate and edit images using the user’s own site API key.',
+          enabled: 'Enable Infinite Canvas',
+          enabledHint: 'Off by default. Deploy the compatible canvas before enabling. Disabling hides and blocks the workspace without disabling the image API.',
+        },
         modelPlaza: {
           title: 'Model Plaza',
           description: 'A public page showcasing available models and pricing by group. Disabled by default.',

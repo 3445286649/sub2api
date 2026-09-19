@@ -347,6 +347,7 @@ type SystemSettings struct {
 	// (sidebar entries, purchase-page subscription tab, header badge, /subscriptions route).
 	SubscriptionEnabled bool `json:"subscription_enabled"`
 	// Model Plaza feature (public group/model pricing showcase)
+	InfiniteCanvasEnabled   bool   `json:"infinite_canvas_enabled"`
 	ModelPlazaEnabled       bool   `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth   bool   `json:"model_plaza_require_auth"`
 	ModelPlazaDescription   string `json:"model_plaza_description"`
@@ -481,6 +482,7 @@ type PublicSettings struct {
 	AcquisitionLeaderboardEnabled bool `json:"acquisition_leaderboard_enabled"`
 	AcquisitionLotteryEnabled     bool `json:"acquisition_lottery_enabled"`
 	UsageRebateEnabled            bool `json:"usage_rebate_enabled"`
+	InfiniteCanvasEnabled         bool `json:"infinite_canvas_enabled"`
 	ModelPlazaEnabled             bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth         bool `json:"model_plaza_require_auth"`
 	PluginManagementEnabled       bool `json:"plugin_management_enabled"`

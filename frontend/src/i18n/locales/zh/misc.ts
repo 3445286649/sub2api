@@ -1,4 +1,38 @@
 export default {
+  infiniteCanvas: {
+    "title": "无限画布",
+    "description": "分别配置文本、图片和视频连接；每类可添加多个本站 Key，首个为默认连接。",
+    "disabled": "无限画布已关闭。",
+    "key": "生图 API Key",
+    "chooseKey": "选择自己的本站 Key",
+    "billing": "按所选 Key 的分组计费。画布作品保存在当前浏览器和当前站点；生成期间离开可能丢失结果，已发出的请求仍可能计费。",
+    "noKeys": "暂无可用连接。请检查 Key 状态、分组权限和额度。视频目前支持 Grok 分组。",
+    "enter": "进入画布",
+    "refresh": "刷新 Key 列表",
+    "manageKeys": "管理 API Key",
+    "usage": "查看用量",
+    "connecting": "正在等待画布连接…",
+    "notReady": "画布连接超时，可能尚未部署或暂时不可用。请通过连接设置重试，或联系管理员。",
+    "accessFailed": "无法确认画布权限或登录状态，请刷新页面后重试。",
+    "loadFailed": "读取 API Key 失败，请重试。",
+    "setupFailed": "画布初始化失败。请刷新 Key 状态，或联系管理员检查画布部署。",
+    "connectionSettings": "连接设置",
+    "switchHint": "应用连接不会重载画布；正在执行的任务继续使用原 Key。移除连接不会删除本站 Key。",
+    "image": "图片连接",
+    "text": "文本连接",
+    "video": "视频连接（Grok）",
+    "default": "默认",
+    "setDefault": "设为默认连接",
+    "remove": "移除",
+    "addConnection": "选择并添加 Key…",
+    "pasteKey": "粘贴本站 Key",
+    "keyPurpose": "连接用途",
+    "add": "添加",
+    "ownKeysOnly": "仅支持当前账号自己的本站 Key；验证后仅保存 Key ID。",
+    "invalidPastedKey": "未找到当前账号下符合此用途的 Key，请刷新列表并核对分组。",
+    "apply": "应用连接"
+},
+
 
   // Subscription Progress (Header component)
   subscriptionProgress: {

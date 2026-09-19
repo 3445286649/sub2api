@@ -26,6 +26,7 @@ const appStore = vi.hoisted(() => ({
     payment_enabled?: boolean
     risk_control_enabled?: boolean
     subscription_enabled?: boolean
+    infinite_canvas_enabled?: boolean
     custom_menu_items?: []
   },
   fetchPublicSettings: vi.fn(),
@@ -107,6 +108,33 @@ function runGuard(meta: Record<string, unknown>, path: string) {
 }
 
 describe('feature route guard', () => {
+  it.each([false, undefined])('blocks direct canvas access when its opt-in switch is %s', async (enabled) => {
+    appStore.cachedPublicSettings = { infinite_canvas_enabled: enabled }
+    appStore.publicSettingsLoaded = true
+    const { navigation, next } = runGuard({ requiresInfiniteCanvas: true }, '/infinite-canvas/')
+    await navigation
+    expect(appStore.fetchPublicSettings).toHaveBeenCalledWith(true)
+    expect(next).toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('allows canvas access only after fresh settings confirm it is enabled', async () => {
+    appStore.fetchPublicSettings.mockImplementation(async () => {
+      appStore.cachedPublicSettings = { infinite_canvas_enabled: true }
+      appStore.publicSettingsLoaded = true
+    })
+    const { navigation, next } = runGuard({ requiresInfiniteCanvas: true }, '/infinite-canvas')
+    await navigation
+    expect(next).toHaveBeenCalledWith()
+  })
+
+  it('blocks a stale enabled canvas when settings cannot be refreshed', async () => {
+    appStore.cachedPublicSettings = { infinite_canvas_enabled: true }
+    appStore.fetchPublicSettings.mockRejectedValue(new Error('offline'))
+    const { navigation, next } = runGuard({ requiresInfiniteCanvas: true }, '/infinite-canvas')
+    await navigation
+    expect(next).toHaveBeenCalledWith('/dashboard')
+  })
+
   beforeAll(async () => {
     await import('@/router')
   })

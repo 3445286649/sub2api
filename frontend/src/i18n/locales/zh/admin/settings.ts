@@ -60,6 +60,12 @@ export default {
             subscriptionOnly: '用户端购买页只保留订阅套餐，侧边栏入口显示为「订阅」，余额充值下单会被拒绝；兑换码、返利等余额入账不受影响。',
           },
         },
+        infiniteCanvas: {
+          title: '无限画布',
+          description: '使用用户自己的本站生图 Key，在站内画布生成和编辑图片。',
+          enabled: '启用无限画布',
+          enabledHint: '默认关闭。请先部署配套画布再开启；关闭后隐藏入口并阻止进入，不影响普通生图 API。',
+        },
         modelPlaza: {
           title: '模型广场',
           description: '以分组为单位向访客展示可用模型与价格的公开页面。默认关闭。',

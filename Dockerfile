@@ -43,6 +43,8 @@ RUN --mount=type=cache,id=sub2api-pnpm-store,target=/root/.local/share/pnpm/stor
 # Copy only that subtree to keep the build dependency minimal.
 COPY frontend/ ./
 COPY docs/legal/ /app/docs/legal/
+ARG VITE_INFINITE_CANVAS_PATH=/canvas/
+ENV VITE_INFINITE_CANVAS_PATH=${VITE_INFINITE_CANVAS_PATH}
 RUN pnpm run build
 
 # -----------------------------------------------------------------------------

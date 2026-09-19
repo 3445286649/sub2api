@@ -254,6 +254,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeySupportTicketsEnabled,
 		SettingKeySubscriptionEnabled,
+		SettingKeyInfiniteCanvasEnabled,
 		SettingKeyModelPlazaEnabled,
 		SettingKeyModelPlazaRequireAuth,
 		SettingKeyPluginManagementEnabled,
@@ -411,6 +412,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		AcquisitionLeaderboardEnabled: !isFalseSettingValue(settings[SettingKeyAcquisitionLeaderboardEnabled]),
 		AcquisitionLotteryEnabled:     !isFalseSettingValue(settings[SettingKeyAcquisitionLotteryEnabled]),
 		UsageRebateEnabled:            settings[SettingKeyUsageRebateEnabled] == "true",
+		InfiniteCanvasEnabled:         settings[SettingKeyInfiniteCanvasEnabled] == "true",
 		ModelPlazaEnabled:             settings[SettingKeyModelPlazaEnabled] == "true",
 		ModelPlazaRequireAuth:         settings[SettingKeyModelPlazaRequireAuth] == "true",
 		PluginManagementEnabled:       settings[SettingKeyPluginManagementEnabled] == "true",
@@ -678,6 +680,7 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
 	ChannelMonitorHideThroughput         bool   `json:"channel_monitor_hide_throughput"`
 	AvailableChannelsEnabled             bool   `json:"available_channels_enabled"`
+	InfiniteCanvasEnabled                bool   `json:"infinite_canvas_enabled"`
 	ModelPlazaEnabled                    bool   `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth                bool   `json:"model_plaza_require_auth"`
 	AffiliateEnabled                     bool   `json:"affiliate_enabled"`
@@ -789,6 +792,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorHideUserRanking:        settings.ChannelMonitorHideUserRanking,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
 		SubscriptionEnabled:                  settings.SubscriptionEnabled,
+		InfiniteCanvasEnabled:                settings.InfiniteCanvasEnabled,
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,
 		PluginManagementEnabled:              settings.PluginManagementEnabled,

@@ -726,6 +726,21 @@ describe("admin SettingsView payment visible method controls", () => {
     adminSettingsFetch.mockResolvedValue(undefined);
   });
 
+  it.each([false, true])("loads and changes the independent canvas switch from %s", async (enabled) => {
+    getSettings.mockResolvedValueOnce({ ...baseSettingsResponse, infinite_canvas_enabled: enabled });
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.findAll("button").find(node => node.text().includes("admin.settings.tabs.features"))!.trigger("click");
+    await flushPromises();
+    const toggle = wrapper.get('input[aria-label="admin.settings.features.infiniteCanvas.enabled"]');
+    expect((toggle.element as HTMLInputElement).checked).toBe(enabled);
+    await toggle.setValue(!enabled);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings.mock.calls[0]?.[0].infinite_canvas_enabled).toBe(!enabled);
+    wrapper.unmount();
+  });
+
   it("submits the Codex ticket harvest toggle", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,

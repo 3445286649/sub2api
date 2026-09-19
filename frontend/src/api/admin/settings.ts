@@ -759,6 +759,7 @@ export interface SystemSettings {
   // Subscription feature switch (user sidebar "My Subscriptions" entry)
   subscription_enabled: boolean;
   // Model Plaza feature switches + description
+  infinite_canvas_enabled: boolean;
   model_plaza_enabled: boolean;
   model_plaza_require_auth: boolean;
   model_plaza_description: string;
@@ -1094,6 +1095,7 @@ export interface UpdateSettingsRequest {
   // Subscription feature switch
   subscription_enabled?: boolean;
   // Model Plaza feature switches + description
+  infinite_canvas_enabled?: boolean;
   model_plaza_enabled?: boolean;
   model_plaza_require_auth?: boolean;
   model_plaza_description?: string;

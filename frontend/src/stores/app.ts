@@ -390,6 +390,7 @@ export const useAppStore = defineStore('app', () => {
         support_tickets_enabled: true,
         subscription_enabled: true,
         payment_balance_disabled: false,
+        infinite_canvas_enabled: false,
         model_plaza_enabled: false,
         model_plaza_require_auth: false,
         plugin_management_enabled: false,

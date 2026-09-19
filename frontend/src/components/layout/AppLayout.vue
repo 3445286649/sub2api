@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark-950">
+  <div class="bg-gray-50 dark:bg-dark-950" :class="fullHeight ? 'h-dvh overflow-hidden' : 'min-h-screen'">
     <!-- Background Decoration -->
     <div class="pointer-events-none fixed inset-0 bg-mesh-gradient"></div>
 
@@ -8,14 +8,14 @@
 
     <!-- Main Content Area -->
     <div
-      class="relative min-h-screen transition-all duration-300"
-      :class="[sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64']"
+      class="relative transition-all duration-300"
+      :class="[sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64', fullHeight ? 'flex h-dvh flex-col overflow-hidden' : 'min-h-screen']"
     >
       <!-- Header -->
-      <AppHeader />
+      <AppHeader v-if="!hideHeader" class="shrink-0" />
 
       <!-- Main Content -->
-      <main class="p-4 md:p-6 lg:p-8">
+      <main :class="fullHeight ? 'relative min-h-0 flex-1 overflow-hidden' : 'p-4 md:p-6 lg:p-8'">
         <slot />
       </main>
     </div>
@@ -31,6 +31,8 @@ import { useOnboardingTour } from '@/composables/useOnboardingTour'
 import { useOnboardingStore } from '@/stores/onboarding'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
+
+withDefaults(defineProps<{ fullHeight?: boolean; hideHeader?: boolean }>(), { fullHeight: false, hideHeader: false })
 
 const appStore = useAppStore()
 const authStore = useAuthStore()

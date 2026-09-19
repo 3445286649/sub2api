@@ -41,6 +41,11 @@ describe('FeatureFlags.subscription', () => {
 })
 
 describe('resolveFeatureFlag', () => {
+  it('hides the canvas sidebar entry unless the switch is explicitly enabled', () => {
+    expect(resolveFeatureFlag(undefined, FeatureFlags.infiniteCanvas)).toBe(false)
+    expect(resolveFeatureFlag({ infinite_canvas_enabled: false }, FeatureFlags.infiniteCanvas)).toBe(false)
+    expect(resolveFeatureFlag({ infinite_canvas_enabled: true }, FeatureFlags.infiniteCanvas)).toBe(true)
+  })
   beforeEach(() => {
     setActivePinia(createPinia())
   })

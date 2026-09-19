@@ -216,6 +216,12 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/infinite-canvas',
+    name: 'InfiniteCanvas',
+    component: () => import('@/views/user/InfiniteCanvasView.vue'),
+    meta: { requiresAuth: true, requiresInfiniteCanvas: true, title: 'Infinite Canvas', titleKey: 'infiniteCanvas.title' }
+  },
+  {
     path: '/batch-image',
     name: 'BatchImageGuide',
     alias: '/docs/batch-image',
@@ -988,6 +994,20 @@ router.beforeEach(async (to, _from, next) => {
       query: { redirect: to.fullPath } // Save intended destination
     })
     return
+  }
+
+  // Canvas is opt-in. Recheck on entry, including when the injected settings are stale.
+  if (to.meta.requiresInfiniteCanvas) {
+    try {
+      await appStore.fetchPublicSettings(true)
+      if (appStore.cachedPublicSettings?.infinite_canvas_enabled !== true) {
+        next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+        return
+      }
+    } catch {
+      next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+      return
+    }
   }
 
   // Check admin requirement

@@ -114,6 +114,11 @@ export const FeatureFlags = {
     mode: 'opt-out',
     label: 'Subscription',
   }),
+  infiniteCanvas: defineFlag({
+    key: 'infinite_canvas_enabled',
+    mode: 'opt-in',
+    label: 'Infinite Canvas',
+  }),
   modelPlaza: defineFlag({
     key: 'model_plaza_enabled',
     mode: 'opt-in',
