@@ -430,7 +430,7 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsGeminiImageModels(t 
 			parsed, err := (&OpenAIGatewayService{}).ParseOpenAIImagesRequest(c, body)
 			require.NoError(t, err)
 			require.Equal(t, model, parsed.Model)
-			require.Equal(t, OpenAIImagesCapabilityGeminiCompat, parsed.RequiredCapability)
+			require.Equal(t, OpenAIImagesCapabilityAPIKey, parsed.RequiredCapability)
 		})
 	}
 }
@@ -460,7 +460,7 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_GeminiImageSizeHints(t *te
 	require.Equal(t, "4K", parsed.Resolution)
 	require.Equal(t, "4K", parsed.SizeTier)
 	require.Equal(t, "4K", parsed.billingInputSize())
-	require.Equal(t, OpenAIImagesCapabilityGeminiCompat, parsed.RequiredCapability)
+	require.Equal(t, OpenAIImagesCapabilityAPIKey, parsed.RequiredCapability)
 }
 
 func TestOpenAIGatewayServiceParseOpenAIImagesRequest_GeminiQualityFallback(t *testing.T) {
@@ -478,7 +478,7 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_GeminiQualityFallback(t *t
 	require.Equal(t, "2K", parsed.billingInputSize())
 }
 
-func TestOpenAIGatewayServiceParseOpenAIImagesRequest_RejectsGeminiTextAndImageEdits(t *testing.T) {
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_GeminiTextAndImageEdits(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("text model", func(t *testing.T) {
@@ -503,8 +503,8 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_RejectsGeminiTextAndImageE
 		c.Request = req
 
 		parsed, err := (&OpenAIGatewayService{}).ParseOpenAIImagesRequest(c, body)
-		require.Nil(t, parsed)
-		require.ErrorContains(t, err, `Gemini image models are only supported on /v1/images/generations`)
+		require.NoError(t, err)
+		require.Equal(t, OpenAIImagesCapabilityAPIKey, parsed.RequiredCapability)
 	})
 }
 
@@ -629,7 +629,7 @@ func TestAccountSupportsOpenAIImageCapability_OAuthSupportsNative(t *testing.T) 
 
 	require.True(t, account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityBasic))
 	require.True(t, account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityNative))
-	require.False(t, account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityGeminiCompat))
+	require.False(t, account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityAPIKey))
 }
 
 func TestAccountSupportsOpenAIImageCapability_APIKeySupportsGeminiCompat(t *testing.T) {
@@ -638,7 +638,7 @@ func TestAccountSupportsOpenAIImageCapability_APIKeySupportsGeminiCompat(t *test
 		Type:     AccountTypeAPIKey,
 	}
 
-	require.True(t, account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityGeminiCompat))
+	require.True(t, account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityAPIKey))
 }
 
 func TestAccountSupportsOpenAIImageCapability_SetupTokenSupportsNative(t *testing.T) {

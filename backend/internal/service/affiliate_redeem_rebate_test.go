@@ -64,6 +64,10 @@ func (s *affiliateRedeemRebateRepoStub) TransferQuotaToBalance(context.Context, 
 	panic("unexpected TransferQuotaToBalance call")
 }
 
+func (s *affiliateRedeemRebateRepoStub) WithdrawQuota(context.Context, int64, float64, string) (*AffiliateWithdrawResult, error) {
+	panic("unexpected WithdrawQuota call")
+}
+
 func (s *affiliateRedeemRebateRepoStub) ListInvitees(context.Context, int64, int) ([]AffiliateInvitee, error) {
 	panic("unexpected ListInvitees call")
 }

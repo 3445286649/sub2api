@@ -1798,9 +1798,6 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	if requestModel == "" {
 		requestModel = "gpt-image-2"
 	}
-	if isGeminiImageGenerationModel(requestModel) {
-		return nil, fmt.Errorf("Gemini image models require an OpenAI-compatible API key account")
-	}
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
 		return nil, err
 	}

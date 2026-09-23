@@ -223,7 +223,7 @@ export default {
     supportGroupDescription: '扫码加入售后群获取支持',
     supportGroupQrAlt: '售后群二维码',
     securityAudit: '安全审计',
-    contentModeration: '内容审核',
+    contentModeration: '内容审计',
     promptAudit: '提示词审计',
     auditLogs: '操作日志',
   },

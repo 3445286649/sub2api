@@ -417,6 +417,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_DefaultDisabledHonorsPr
 	accounts := []Account{
 		{
 			ID:          36001,
+			GroupIDs:    []int64{groupID},
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,
@@ -426,6 +427,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_DefaultDisabledHonorsPr
 		},
 		{
 			ID:          36002,
+			GroupIDs:    []int64{groupID},
 			Platform:    PlatformOpenAI,
 			Type:        AccountTypeAPIKey,
 			Status:      StatusActive,

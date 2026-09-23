@@ -231,15 +231,16 @@ type Account struct {
 	AutoPauseOnExpired      bool                              `json:"auto_pause_on_expired"`
 	CreatedAt               time.Time                         `json:"created_at"`
 	UpdatedAt               time.Time                         `json:"updated_at"`
+	OpenCodeGoUsage         *service.OpenCodeGoUsageState     `json:"opencode_go_usage,omitempty"`
 
-	Schedulable                 bool    `json:"schedulable"`
+	Schedulable                  bool    `json:"schedulable"`
 	HealthProbeEnabled           bool    `json:"health_probe_enabled"`
 	HealthProbeWhenUnschedulable bool    `json:"health_probe_when_unschedulable"`
-	HealthProbeIntervalMinutes  *int    `json:"health_probe_interval_minutes,omitempty"`
-	HealthProbeModel            *string `json:"health_probe_model,omitempty"`
-	HealthyProbeEnabled         bool    `json:"healthy_probe_enabled"`
-	HealthyProbeIntervalMinutes *int    `json:"healthy_probe_interval_minutes,omitempty"`
-	HealthyProbeIntervalHours   *int    `json:"healthy_probe_interval_hours,omitempty"`
+	HealthProbeIntervalMinutes   *int    `json:"health_probe_interval_minutes,omitempty"`
+	HealthProbeModel             *string `json:"health_probe_model,omitempty"`
+	HealthyProbeEnabled          bool    `json:"healthy_probe_enabled"`
+	HealthyProbeIntervalMinutes  *int    `json:"healthy_probe_interval_minutes,omitempty"`
+	HealthyProbeIntervalHours    *int    `json:"healthy_probe_interval_hours,omitempty"`
 
 	RateLimitedAt    *time.Time `json:"rate_limited_at"`
 	RateLimitResetAt *time.Time `json:"rate_limit_reset_at"`
@@ -351,6 +352,7 @@ type AccountListItem struct {
 	Extra             map[string]any                    `json:"extra,omitempty"`
 	OllamaCloudUsage  *service.OllamaCloudUsageState    `json:"ollama_cloud_usage,omitempty"`
 	CodexTurnTickets  []service.OpenAICodexTicketStatus `json:"codex_turn_tickets,omitempty"`
+	OpenCodeGoUsage   *service.OpenCodeGoUsageState     `json:"opencode_go_usage,omitempty"`
 
 	ProxyID                 *int64     `json:"proxy_id"`
 	ProxyFallbackOriginID   *int64     `json:"proxy_fallback_origin_id"`
