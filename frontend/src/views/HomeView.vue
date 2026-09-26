@@ -93,7 +93,8 @@
   <!-- Default Home Page -->
   <div
     v-else
-    class="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-gray-50 via-primary-50/30 to-gray-100 dark:from-dark-950 dark:via-dark-900 dark:to-dark-950"
+    data-testid="default-home"
+    class="cp-home-default relative flex min-h-screen flex-col overflow-hidden"
   >
     <!-- Background Decorations -->
     <div class="pointer-events-none absolute inset-0 overflow-hidden">
@@ -118,10 +119,11 @@
     <header class="relative z-20 px-6 py-4">
       <nav class="mx-auto flex max-w-6xl items-center justify-between">
         <!-- Logo -->
-        <div class="flex items-center">
+        <div class="flex items-center gap-3">
           <div class="h-10 w-10 overflow-hidden rounded-xl shadow-md">
             <img :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" />
           </div>
+          <span class="cp-brand-name">{{ siteName }}</span>
         </div>
 
         <!-- Nav Actions -->
@@ -206,24 +208,37 @@
         <div class="mb-12 flex flex-col items-center justify-between gap-12 lg:flex-row lg:gap-16">
           <!-- Left: Text Content -->
           <div class="flex-1 text-center lg:text-left">
-            <h1
-              class="mb-4 text-4xl font-bold text-gray-900 dark:text-white md:text-5xl lg:text-6xl"
-            >
-              {{ siteName }}
+            <div class="cp-eyebrow"><span class="cp-pulse"></span>{{ siteSubtitle }}</div>
+            <h1 class="cp-hero-title mb-4 text-4xl font-bold md:text-5xl lg:text-6xl">
+              {{ siteName }}<br /><span>{{ t('home.heroSubtitle') }}</span>
             </h1>
-            <p class="mb-8 text-lg text-gray-600 dark:text-dark-300 md:text-xl">
-              {{ siteSubtitle }}
+            <p class="cp-hero-sub mb-8 text-lg md:text-xl">
+              {{ t('home.heroDescription') }}
             </p>
 
             <!-- CTA Button -->
             <div>
               <router-link
                 :to="isAuthenticated ? dashboardPath : '/login'"
-                class="btn btn-primary px-8 py-3 text-base shadow-lg shadow-primary-500/30"
+                class="cp-primary-btn btn btn-primary px-8 py-3 text-base shadow-lg shadow-primary-500/30"
               >
                 {{ isAuthenticated ? t('home.goToDashboard') : t('home.getStarted') }}
                 <Icon name="arrowRight" size="md" class="ml-2" :stroke-width="2" />
               </router-link>
+              <a
+                v-if="docUrl"
+                :href="docUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="cp-secondary-btn"
+              >
+                {{ t('home.viewDocs') }} <Icon name="arrowRight" size="sm" />
+              </a>
+            </div>
+            <div class="cp-proof">
+              <span><Icon name="check" size="xs" />OpenAI SDK 兼容</span>
+              <span><Icon name="check" size="xs" />5 分钟接入</span>
+              <span><Icon name="check" size="xs" />按用量付费</span>
             </div>
           </div>
 
@@ -294,7 +309,7 @@
         </div>
 
         <!-- Features Grid -->
-        <div class="mb-12 grid gap-6 md:grid-cols-3">
+        <div class="mb-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <!-- Feature 1: Unified Gateway -->
           <div
             class="group rounded-2xl border border-gray-200/50 bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/10 dark:border-dark-700/50 dark:bg-dark-800/60"
@@ -305,10 +320,10 @@
               <Icon name="server" size="lg" class="text-white" />
             </div>
             <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('home.features.unifiedGateway') }}
+              {{ t('home.features.auth') }}
             </h3>
             <p class="text-sm leading-relaxed text-gray-600 dark:text-dark-400">
-              {{ t('home.features.unifiedGatewayDesc') }}
+              {{ t('home.features.authDesc') }}
             </p>
           </div>
 
@@ -334,10 +349,10 @@
               </svg>
             </div>
             <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('home.features.multiAccount') }}
+              {{ t('home.features.rate') }}
             </h3>
             <p class="text-sm leading-relaxed text-gray-600 dark:text-dark-400">
-              {{ t('home.features.multiAccountDesc') }}
+              {{ t('home.features.rateDesc') }}
             </p>
           </div>
 
@@ -363,10 +378,27 @@
               </svg>
             </div>
             <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('home.features.balanceQuota') }}
+              {{ t('home.features.cost') }}
             </h3>
             <p class="text-sm leading-relaxed text-gray-600 dark:text-dark-400">
-              {{ t('home.features.balanceQuotaDesc') }}
+              {{ t('home.features.costDesc') }}
+            </p>
+          </div>
+
+          <!-- Feature 4: Smart Routing -->
+          <div
+            class="group rounded-2xl border border-gray-200/50 bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/10 dark:border-dark-700/50 dark:bg-dark-800/60"
+          >
+            <div
+              class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 shadow-lg shadow-cyan-500/30 transition-transform group-hover:scale-110"
+            >
+              <Icon name="link" size="lg" class="text-white" />
+            </div>
+            <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('home.features.route') }}
+            </h3>
+            <p class="text-sm leading-relaxed text-gray-600 dark:text-dark-400">
+              {{ t('home.features.routeDesc') }}
             </p>
           </div>
         </div>
@@ -740,5 +772,236 @@ onMounted(() => {
     0 0 0 1px rgba(20, 184, 166, 0.2),
     0 0 40px rgba(20, 184, 166, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Code-Plan preview skin. The existing template keeps all live links and auth-aware state. */
+.cp-home-default {
+  --cp-bg: #f5f4ff;
+  --cp-surface: rgba(255, 255, 255, 0.78);
+  --cp-surface-strong: #ffffff;
+  --cp-text: #0e0c1a;
+  --cp-muted: #5d5876;
+  --cp-border: rgba(31, 23, 70, 0.12);
+  --cp-accent: #7c3aed;
+  --cp-accent-soft: #a78bfa;
+  --cp-cyan: #0e7490;
+  background:
+    radial-gradient(42% 38% at 18% 14%, rgba(124, 58, 237, 0.11), transparent 62%),
+    radial-gradient(38% 34% at 86% 10%, rgba(14, 116, 144, 0.09), transparent 62%),
+    var(--cp-bg);
+  color: var(--cp-text);
+  font-family: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  isolation: isolate;
+}
+
+:global(.dark) .cp-home-default {
+  --cp-bg: #0c0b14;
+  --cp-surface: rgba(19, 17, 31, 0.78);
+  --cp-surface-strong: #13111f;
+  --cp-text: #f0eeff;
+  --cp-muted: #9e99b8;
+  --cp-border: rgba(255, 255, 255, 0.1);
+  --cp-accent: #a78bfa;
+  --cp-accent-soft: #c4b5fd;
+  --cp-cyan: #2dd4bf;
+}
+
+.cp-home-default::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.8;
+  background-image:
+    linear-gradient(rgba(124, 58, 237, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.035) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 92% 70% at 50% 50%, #000 8%, transparent 72%);
+}
+
+.cp-home-default > .pointer-events-none {
+  opacity: 0;
+}
+
+.cp-home-default header {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: 18px 28px;
+}
+
+.cp-home-default header nav {
+  max-width: none;
+}
+
+.cp-brand-name {
+  color: var(--cp-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.cp-home-default main {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding-top: clamp(46px, 8vh, 92px);
+}
+
+.cp-home-default main > div {
+  max-width: none;
+}
+
+.cp-home-default .cp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 17px;
+  color: var(--cp-cyan);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cp-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #2dd4bf;
+  box-shadow: 0 0 0 5px rgba(45, 212, 191, 0.14);
+  animation: cp-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes cp-pulse {
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+
+.cp-hero-title {
+  color: var(--cp-text);
+  letter-spacing: -0.045em;
+  line-height: 1.08;
+}
+
+.cp-hero-title span {
+  background: linear-gradient(100deg, var(--cp-accent-soft), var(--cp-accent), var(--cp-cyan));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.cp-hero-sub {
+  max-width: 560px;
+  color: var(--cp-muted);
+  line-height: 1.75;
+}
+
+.cp-primary-btn,
+.cp-secondary-btn {
+  min-height: 44px;
+  border-radius: 11px;
+  transition: transform 0.22s ease, box-shadow 0.28s ease, border-color 0.22s ease;
+}
+
+.cp-primary-btn:hover,
+.cp-secondary-btn:hover {
+  transform: translateY(-2px);
+}
+
+.cp-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: 10px;
+  border: 1px solid var(--cp-border);
+  padding: 10px 17px;
+  color: var(--cp-text);
+  background: var(--cp-surface);
+  font-size: 14px;
+  font-weight: 650;
+  backdrop-filter: blur(12px);
+}
+
+.cp-proof {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 24px;
+  color: var(--cp-muted);
+  font-size: 11px;
+}
+
+.cp-proof span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cp-proof svg { color: #10b981; }
+
+.cp-home-default .terminal-container {
+  filter: drop-shadow(0 26px 38px rgba(76, 29, 149, 0.22));
+}
+
+.cp-home-default .terminal-window {
+  border: 1px solid rgba(167, 139, 250, 0.22);
+  border-radius: 16px;
+  background: linear-gradient(145deg, #211c38 0%, #0f1020 100%);
+}
+
+.cp-home-default .terminal-body {
+  min-height: 242px;
+  padding: 23px 25px;
+}
+
+.cp-home-default .mb-12.grid {
+  margin-top: 46px;
+}
+
+.cp-home-default .mb-12.grid > div,
+.cp-home-default .mb-16.flex > div {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+  box-shadow: 0 18px 40px -28px rgba(76, 29, 149, 0.4);
+  backdrop-filter: blur(14px);
+}
+
+.cp-home-default .mb-12.grid > div:hover,
+.cp-home-default .mb-16.flex > div:hover {
+  border-color: rgba(124, 58, 237, 0.38);
+  transform: translateY(-3px);
+}
+
+.cp-home-default footer {
+  border-color: var(--cp-border);
+}
+
+@media (max-width: 767px) {
+  .cp-home-default header { padding: 12px 16px; }
+  .cp-home-default header nav { gap: 8px; }
+  .cp-brand-name { font-size: 13px; }
+  .cp-home-default main { padding: 54px 16px 16px; }
+  .cp-home-default .hero { gap: 28px; }
+  .cp-home-default .hero-left { text-align: center; }
+  .cp-home-default .cp-eyebrow { justify-content: center; }
+  .cp-hero-title { font-size: clamp(30px, 9vw, 42px) !important; }
+  .cp-hero-sub { margin-right: auto; margin-left: auto; font-size: 13.5px; }
+  .cp-proof { justify-content: space-between; gap: 6px; }
+  .cp-proof span { font-size: 10px; }
+  .cp-secondary-btn { margin-left: 4px; padding-right: 13px; padding-left: 13px; }
+  .cp-home-default .terminal-window { width: min(100%, 420px); transform: none; }
+  .cp-home-default .terminal-body { min-height: 300px; height: 300px; overflow: hidden; font-size: 12px; }
+  .cp-home-default .mb-12.grid { margin-top: 28px; }
+  .cp-home-default .mb-12.grid > div { padding: 16px; }
+  .cp-home-default .mb-16.flex { gap: 8px; margin-bottom: 36px; }
+  .cp-home-default .mb-16.flex > div { padding: 10px 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-pulse { animation: none; }
+  .cp-primary-btn:hover, .cp-secondary-btn:hover,
+  .cp-home-default .mb-12.grid > div:hover,
+  .cp-home-default .mb-16.flex > div:hover { transform: none; }
 }
 </style>

@@ -1,17 +1,17 @@
 <template>
   <AuthLayout>
-    <div class="space-y-6">
+    <div class="cp-login-form space-y-6">
       <!-- Title -->
       <div class="text-center">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
+        <h2 class="cp-login-title text-2xl font-bold text-gray-900 dark:text-white">
           {{ t('auth.welcomeBack') }}
         </h2>
-        <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">
+        <p class="cp-login-desc mt-2 text-sm text-gray-500 dark:text-dark-400">
           {{ t('auth.signInToAccount') }}
         </p>
       </div>
       <!-- Login Form -->
-      <form @submit.prevent="handleLogin" class="space-y-5">
+      <form @submit.prevent="handleLogin" class="cp-login-form-body space-y-5">
         <!-- Email Input -->
         <div>
           <label for="email" class="input-label">
@@ -101,7 +101,7 @@
         <button
           type="submit"
           :disabled="authActionDisabled || (turnstileEnabled && !turnstileToken)"
-          class="btn btn-primary w-full"
+          class="cp-login-submit btn btn-primary w-full"
         >
           <svg
             v-if="isLoading"
@@ -743,5 +743,90 @@ function handle2FACancel(): void {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+.cp-login-title {
+  letter-spacing: -0.025em;
+}
+
+.cp-login-desc {
+  color: var(--cp-muted, #9e99b8);
+}
+
+.cp-login-form :deep(.input-label) {
+  color: var(--cp-muted, #9e99b8);
+  font-size: 12.5px;
+  letter-spacing: 0.005em;
+}
+
+.cp-login-form :deep(.input) {
+  border-color: var(--cp-border, rgba(255, 255, 255, 0.12));
+  background: var(--cp-subtle, #1a1829);
+  border-radius: 12px;
+  font-size: 13.5px;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+}
+
+.cp-login-form :deep(.input:hover) {
+  border-color: rgba(167, 139, 250, 0.38);
+}
+
+.cp-login-form :deep(.input:focus) {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18);
+}
+
+.cp-login-submit {
+  position: relative;
+  overflow: hidden;
+  min-height: 46px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #c4b5fd, #7c3aed 48%, #4c1d95);
+  color: #101014;
+  box-shadow: 0 10px 28px -12px rgba(45, 212, 191, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.3s ease, opacity 0.2s ease;
+}
+
+.cp-login-submit:hover:not(:disabled) {
+  transform: translateY(-1.5px);
+  box-shadow: 0 15px 32px -13px rgba(45, 212, 191, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.cp-login-submit::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -130%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: skewX(-18deg);
+}
+
+.cp-login-submit:hover:not(:disabled)::after {
+  animation: cp-login-sheen 0.9s ease;
+}
+
+@keyframes cp-login-sheen {
+  to { left: 150%; }
+}
+
+.cp-login-form :deep(.btn-secondary) {
+  min-height: 44px;
+  border-color: var(--cp-border, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  background: transparent;
+  color: var(--cp-text, #f0eeff);
+}
+
+.cp-login-form :deep(.btn-secondary:hover:not(:disabled)) {
+  border-color: rgba(167, 139, 250, 0.4);
+  background: rgba(124, 58, 237, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-login-submit:hover:not(:disabled) { transform: none; }
+  .cp-login-submit::after { display: none; }
 }
 </style>

@@ -55,7 +55,15 @@ export default {
       multiAccount: 'Always Reliable',
       multiAccountDesc: 'Smart routing across multiple upstream accounts with automatic failover. Say goodbye to errors.',
       balanceQuota: 'Pay What You Use',
-      balanceQuotaDesc: 'Usage-based billing with quota limits. Full visibility into team consumption.'
+      balanceQuotaDesc: 'Usage-based billing with quota limits. Full visibility into team consumption.',
+      auth: 'Unified Auth',
+      authDesc: 'Issue an independent API key for every client while keeping upstream credentials private.',
+      rate: 'Fine-grained Limits',
+      rateDesc: 'Set request limits by key, model, and time window to prevent abuse.',
+      cost: 'Accurate Billing',
+      costDesc: 'Track token usage and cost for every request with a clear audit trail.',
+      route: 'Smart Routing',
+      routeDesc: 'Choose the best account by model, latency, and quota while keeping sessions sticky.'
     },
     // Comparison section
     comparison: {

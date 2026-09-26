@@ -55,7 +55,15 @@ export default {
       multiAccount: '稳定可靠',
       multiAccountDesc: '智能调度多个上游账号，自动切换和负载均衡，告别频繁报错。',
       balanceQuota: '用多少付多少',
-      balanceQuotaDesc: '按实际使用量计费，支持设置配额上限，团队用量一目了然。'
+      balanceQuotaDesc: '按实际使用量计费，支持设置配额上限，团队用量一目了然。',
+      auth: '统一鉴权',
+      authDesc: '每个 API Key 独立签发，严格校验身份，原始订阅凭据永不外泄。',
+      rate: '精细限额',
+      rateDesc: '按 Key、模型和时段设置调用上限，超额自动拦截，杜绝滥用。',
+      cost: '精准计费',
+      costDesc: '记录每次请求的 Token 消耗与费用，账单清晰可追溯。',
+      route: '智能调度',
+      routeDesc: '按模型、延迟与配额选择最优账号，保持会话并控制并发。'
     },
     // 优势对比
     comparison: {
