@@ -480,7 +480,7 @@ describe('admin UsageView request ID column visibility', () => {
     vi.useRealTimers()
   })
 
-  it('keeps request ID hidden by default and allows enabling it from column settings', async () => {
+  it('shows cache hit rate between tokens and cost, keeps request ID hidden, and persists column toggles', async () => {
     const wrapper = mount(UsageView, {
       global: {
         stubs: {
@@ -507,11 +507,20 @@ describe('admin UsageView request ID column visibility', () => {
     await wrapper.vm.$nextTick()
 
     const usageTable = wrapper.findComponent(UsageTableStub)
+    const columnKeys = () => usageTable.props('columns').map((col: { key: string }) => col.key)
+    expect(columnKeys().slice(columnKeys().indexOf('tokens'), columnKeys().indexOf('cost') + 1))
+      .toEqual(['tokens', 'cache_hit_rate', 'cost'])
     expect(usageTable.props('columns')).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ key: 'request_id' })]),
     )
 
     await wrapper.get('button[title="admin.users.columnSettings"]').trigger('click')
+    const cacheToggle = wrapper.get('[data-testid="usage-column-toggle-cache_hit_rate"]')
+    await cacheToggle.trigger('click')
+    expect(columnKeys()).not.toContain('cache_hit_rate')
+    expect(localStorage.setItem).toHaveBeenCalledWith('usage-hidden-columns', expect.stringContaining('cache_hit_rate'))
+    await cacheToggle.trigger('click')
+    expect(columnKeys()).toContain('cache_hit_rate')
     const requestIdToggle = wrapper.findAll('button').find((button) => button.text() === 'Request ID')
     expect(requestIdToggle).toBeDefined()
     await requestIdToggle!.trigger('click')

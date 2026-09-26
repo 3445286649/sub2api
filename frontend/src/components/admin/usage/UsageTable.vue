@@ -205,6 +205,14 @@
           </div>
         </template>
 
+        <template #cell-cache_hit_rate="{ row }">
+          <span
+            v-if="formatCacheHitRate(row) !== null"
+            class="inline-flex items-center whitespace-nowrap rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+          >{{ formatCacheHitRate(row) }}%</span>
+          <span v-else class="text-sm text-gray-400 dark:text-gray-500">—</span>
+        </template>
+
         <template #cell-cost="{ row }">
           <div class="text-sm">
             <div class="flex items-center gap-1.5">
@@ -629,6 +637,16 @@ const showUpstreamEndpoint = props.showUpstreamEndpoint
 const ipGeoBatchLoading = ref(false)
 
 const showIpGeoToolbar = computed(() => props.columns.some((col) => col.key === 'ip_address'))
+
+function formatCacheHitRate(row: AdminUsageLog): string | null {
+  if (getDisplayBillingMode(row) !== BILLING_MODE_TOKEN) return null
+  const input = row.input_tokens ?? 0
+  const read = row.cache_read_tokens ?? 0
+  const write = row.cache_creation_tokens ?? 0
+  if (![input, read, write].every((value) => Number.isFinite(value) && value >= 0) || read === 0) return null
+  // 与 TokenUsageTrend 一致：缓存创建属于输入，但不算缓存命中；输出不计入分母。
+  return (read / (input + read + write) * 100).toFixed(1)
+}
 
 const hasReasoningEffortMapping = (row: AdminUsageLog): boolean => {
   const requested = row.reasoning_effort?.trim() || ''

@@ -275,6 +275,17 @@ describe('user UsageView', () => {
     expect(getAvailable).toHaveBeenCalled()
   })
 
+  it('does not add the admin cache hit rate column to user records or column settings', async () => {
+    const wrapper = mountUsageView()
+    await flushPromises()
+    const columns = wrapper.findComponent(UsageTable).vm.$attrs.columns as Array<{ key: string }>
+    expect(columns.some((col) => col.key === 'tokens')).toBe(true)
+    expect(columns.some((col) => col.key === 'cache_hit_rate')).toBe(false)
+    await wrapper.get('[data-testid="usage-column-settings"]').trigger('click')
+    expect(wrapper.find('[data-testid="usage-column-toggle-cache_hit_rate"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('includes API keys after the first page in both record filters and queries by the selected key', async () => {
     const firstPageKeys = Array.from({ length: 100 }, (_, index) => ({
       id: index + 1,

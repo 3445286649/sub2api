@@ -134,6 +134,30 @@ const baseImageRow = {
 }
 
 describe('admin UsageTable tooltip', () => {
+  it.each([
+    { input: 871, read: 111700, write: 0, expected: '99.2%' },
+    { input: 100, read: 800, write: 100, expected: '80.0%' },
+    { input: 0, read: 100, write: 0, expected: '100.0%' },
+    { input: 71, read: 0, write: 0, expected: '—' },
+    { input: 0, read: 0, write: 0, expected: '—' },
+    { input: -1, read: 100, write: 0, expected: '—' },
+    { input: 100, read: Number.NaN, write: 0, expected: '—' },
+  ])('renders cache hit rate $expected for $input/$read/$write tokens', ({ input, read, write, expected }) => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [{ ...baseImageRow, billing_mode: 'token', image_count: 0,
+          input_tokens: input, cache_read_tokens: read, cache_creation_tokens: write }],
+        columns: [{ key: 'cache_hit_rate', label: 'Cache hit rate' }],
+      },
+      global: { stubs: {
+        DataTable: { props: ['data'], template: '<div><slot name="cell-cache_hit_rate" :row="data[0]" /></div>' },
+        Icon: true, EmptyState: true, Teleport: true,
+      } },
+    })
+    expect(wrapper.text()).toBe(expected)
+    wrapper.unmount()
+  })
+
   beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       x: 0,
