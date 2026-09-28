@@ -1,34 +1,57 @@
-# 新用户 3 分钟速通
+# 快速开始
 
-目标：用最短路径完成 **充值/兑换到账 -> 创建 API Key -> 导入 CCSwitch -> 发起一次可验证请求**。
+目标：用最短的路径完成 **充值 → 创建 Key → 接入客户端 → 发出一次能验证的请求**。第一次使用，照着做大约 3 分钟。
 
-![仪表盘入口](/images/subapi/01-dashboard-overview.png)
+![仪表盘](/images/subapi/01-dashboard-overview.png)
 
-## 适用对象
+## 开始前
 
-- 第一次使用 subapi 的用户。
-- 已经拿到兑换码或准备站内充值的用户。
-- 不想先看完整文档，只想快速跑通的人。
+- 打开 CodePlan：[codeplan.codes](https://codeplan.codes) 或 [subapi.loucer.cn](https://subapi.loucer.cn)。两个地址是同一个站点，账户通用。
+- 注册并登录账户。
 
-## 3 分钟流程
+## 第一步：充值或兑换
 
-1. 确认账户有余额或有效订阅。
-2. 进入 **API 密钥** 页面创建 Key。
-3. 创建 Key 时选择可用分组。
-4. 用 Google Chrome 打开 `https://subapi.loucer.cn/keys`。
-5. 点击 **导入到 CCS**。
-6. 在 CCSwitch 里确认 `loucer_api` 显示 **使用中**。
-7. 点击 **刷新用量** 或发起一次测试请求。
+账户里要有余额或有效订阅，请求才能发出去。
 
-## 成功标志
+- **有兑换码**：左侧 **兑换**，粘贴兑换码。
+- **站内充值**：左侧 **充值/订阅**，选择金额和支付方式。
 
-- 仪表盘余额或订阅状态正常。
-- API Key 已绑定可用分组。
-- CCSwitch 中 `loucer_api` 显示 **使用中**。
-- 站内 **使用记录** 能看到调用记录。
+详细说明见 [计费、余额与使用记录](/billing)。
 
-## 下一步
+## 第二步：创建 API Key
 
-- 不会创建 Key：看 [API Key 创建与安全](/api-key)。
-- 不会导入 CCSwitch：看 [CCSwitch 接入](/ccswitch)。
-- 请求失败：看 [常见报错排查](/troubleshooting)。
+1. 左侧 **API 密钥** → **创建密钥**。
+2. 写一个名称，**选择分组**（必选）。
+3. 保存。
+
+分组不知道怎么选，见 [模型与分组怎么选](/models-and-groups)。
+
+## 第三步：接入客户端
+
+**推荐用 CCSwitch 一键导入**，Codex、Claude Code、VS Code 插件都能直接用：
+
+1. 安装 [CCSwitch](/ccswitch#_1-下载并安装)。
+2. 用 Chrome 打开 [API 密钥](https://codeplan.codes/keys)，点击 Key 右侧的 **导入到 CCS**。
+3. 在 CCSwitch 里点击 **启用**，直到 **CodePlan** 显示 **使用中**。
+4. 重新打开你的客户端。
+
+不想装 CCSwitch？看对应客户端的手动配置：[Codex](/codex) · [Claude Code](/claude-code) · [VS Code](/vscode) · [Gemini CLI](/gemini-cli) · [OpenCode](/opencode)。
+
+## 第四步：验证
+
+在客户端里发一句：
+
+```text
+用一句话回复：连接测试成功。
+```
+
+然后打开站内 [使用记录](https://codeplan.codes/usage)。
+
+::: tip 成功的标志
+**使用记录里出现了这次调用**，才说明请求真的走了 CodePlan。客户端能回复但记录里没有，见 [能回复但没有使用记录](/troubleshooting#能回复但没有使用记录)。
+:::
+
+## 遇到问题
+
+- 报错：[常见报错排查](/troubleshooting)
+- 找人：[售后与联系](/support)

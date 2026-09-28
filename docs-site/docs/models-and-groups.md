@@ -1,37 +1,49 @@
 # 模型与分组怎么选
 
 ::: info 先选客户端，再选分组
-分组决定一个 Key 可以使用哪些协议、模型和计费规则。创建 Key 时选错分组，常见结果是 `403`、`model not found` 或客户端标签缺失。
+**分组决定一个 Key 能用哪些客户端、哪些模型、按什么规则计费。** 账户有余额不代表所有分组都能用，选错分组常见的结果是 `403`、`model_not_found`，或者 **使用密钥** 弹窗里找不到你要的客户端。
 :::
 
-## 客户端与分组
+## 分组平台与客户端
 
-| 目标客户端 | 需要确认 |
+创建 Key 时选的分组属于某个平台。平台决定点击 **使用密钥** 后，弹窗里会出现哪些客户端标签：
+
+| 分组平台 | 弹窗里会出现的客户端 |
 | --- | --- |
-| Codex | 分组支持 OpenAI Responses，使用密钥弹窗有 Codex CLI 标签 |
-| Claude Code | 分组支持 Messages / Claude Code，弹窗有 Claude Code 标签 |
-| Gemini CLI | 分组支持 Gemini，弹窗有 Gemini CLI 标签 |
-| OpenCode | 选择与分组平台一致的 OpenCode 配置 |
-| 图片生成 | 分组中存在可用图片模型，并允许图片调用 |
+| OpenAI | Codex CLI、Codex CLI (WebSocket)、OpenCode；分组开启「Messages 调度」时还有 Claude Code |
+| Anthropic / Claude | Claude Code、Codex CLI、OpenCode |
+| Gemini | Gemini CLI、Codex CLI、OpenCode |
+| Antigravity | Claude Code、Gemini CLI、Codex CLI、OpenCode |
+| Grok | Grok CLI、Claude Code、Codex CLI、OpenCode |
+| DeepSeek、MiniMax、组合路由 | Claude Code、Codex CLI、OpenCode |
 
-## 创建 Key
+**反过来用这张表：** 想用哪个客户端，就选一个弹窗里会出现它的分组。
 
-1. 打开 [API 密钥](https://subapi.loucer.cn/keys)。
-2. 点击 **创建密钥**。
-3. 名称写清用途，例如 `codex-laptop`、`claude-vscode`。
-4. 选择目标分组；需要控制风险时设置额度和有效期。
-5. 创建后妥善保存完整 Key。
+::: tip 为什么我的弹窗里没有 Claude Code
+最常见的原因是 Key 绑的是 **OpenAI 分组**，而这个分组没有开启 Messages 调度。换一个 Anthropic 或 Antigravity 分组的 Key 即可。
+:::
+
+## 创建 Key 时选分组
+
+1. 打开 [API 密钥](https://codeplan.codes/keys)，点击 **创建密钥**。
+2. 名称写清用途，例如 `codex-laptop`、`claude-vscode`。
+3. 按上表选择目标分组；需要控制风险时设置额度和有效期。
+4. 保存后妥善保管完整 Key。
 
 ![创建 Key 并选择分组](/images/subapi/07-create-api-key-modal.png)
 
-## 怎么确认分组选对了
+## 确认分组选对了
 
-- 点击 **使用密钥** 后能看到目标客户端标签。
-- 复制生成配置后，客户端能发起最小测试。
-- [使用记录](https://subapi.loucer.cn/usage) 中出现正确的 Key 和模型。
+- 点击 **使用密钥**，能看到目标客户端的标签。
+- 复制生成的配置后，客户端能完成一次测试对话。
+- [使用记录](https://codeplan.codes/usage) 里出现了正确的 Key 和模型。
+
+## 用图片模型
+
+图片生成（如 [Codex 生图 Skill](/codex-imagegen2)）需要 Key 所在分组里有可用的图片模型，例如 `gpt-image-2`。不确定时，先用一个小尺寸（1K）请求试一下。
 
 ## 常见误区
 
-- 账户有余额，不代表所有分组都能用。
-- 模型显示在客户端里，不代表 Key 绑定分组支持它。
-- 修改 Key 分组后，应完全重启客户端，避免继续使用旧配置。
+- **账户有余额，不代表所有分组都能用。** 余额是账户级的，能用哪些模型由分组决定。
+- **客户端里列出了某个模型，不代表 Key 的分组支持它。** 以 **使用密钥** 弹窗生成的模型为准。
+- **改了 Key 的分组之后，要完全重启客户端**，否则会继续用旧配置。

@@ -1,166 +1,102 @@
 # Codex 接入
 
-这一页讲的是让 Codex 通过 subapi 调用模型。推荐先用 CCSwitch 导入并启用 loucer_api，确认连通后再打开 Codex。
+让 Codex CLI 和 Codex 桌面端通过 CodePlan 调用模型。有两种方式，**推荐用 CCSwitch**。
 
-## 最短路径
-
-按这个顺序做，通常 3 分钟内可以跑通：
-
-1. 在 subapi 创建 API Key，并绑定可用分组。
-2. 用 Chrome 打开 API Key 页面，点击 **导入到 CCS**。
-3. 在 CCSwitch 里点击 loucer_api 的 **启用**，确认显示 **使用中**。
-4. 点击 CCSwitch 的 **刷新用量** 测试连通。
-5. 重新打开 Codex，发送一句测试消息。
-6. 回到 subapi 的 **使用记录**，确认有新请求。
-
-## 先完成前置步骤
-
-在配置 Codex 前，先确认这三件事：
-
-1. 账户有余额或有效订阅。
-2. 已经创建 API Key，并且 Key 绑定了可用分组。
-3. CCSwitch 里 loucer_api 已经显示 **使用中**。
-
-如果还没有 Key，先看 [API Key 创建与安全](/api-key)。
-
-![API 密钥页面](/images/subapi/04-api-keys-page.png)
-
-## 1. 导入到 CCSwitch
-
-用 Google Chrome 打开：
-
-~~~text
-https://subapi.loucer.cn/keys
-~~~
-
-找到要使用的 Key，点击 **导入到 CCS**。
-
-![Chrome 导入 CCSwitch](/images/subapi/10-chrome-import-to-ccswitch.png)
-
-Chrome 弹出打开应用时选择允许。正常情况下，CCSwitch 会自动新增一条 loucer_api 配置。
-
-## 2. 启用 loucer_api
-
-回到 CCSwitch，确认 loucer_api 的地址是：
-
-~~~text
-https://subapi.loucer.cn
-~~~
-
-然后点击 **启用**，直到这条配置显示 **使用中**。
-
-![CCSwitch 确认 loucer_api 正在使用](/images/subapi/ccswitch-active-config.png)
-
-::: warning 重要
-导入成功不等于已经启用。只有显示 **使用中** 的配置才是当前生效配置。
+::: info 需要 OpenAI 分组
+Codex 使用 OpenAI Responses 协议，Key 要绑定支持它的分组。点击 **使用密钥** 能看到 **Codex CLI** 标签就说明分组没问题，见 [模型与分组怎么选](/models-and-groups)。
 :::
 
-## 3. 测试 CCSwitch 连通
+## 方式一：CCSwitch 一键导入（推荐）
 
-在 CCSwitch 里点击 **刷新用量**。
+按 [CCSwitch 接入](/ccswitch) 完成「导入 → 启用到 **使用中** → 刷新用量」，然后：
 
-如果能看到余额或用量，说明 Key、Base URL、CCSwitch 配置基本正常。
+1. **完全关闭**已经打开的 Codex 终端、Codex 桌面端或 VS Code 窗口。
+2. 重新打开 Codex，发一句测试：
 
-如果刷新失败，先检查：
+```text
+用一句话回复：Codex 连接成功。
+```
 
-- loucer_api 是否显示 **使用中**。
-- API Key 有没有复制完整。
-- Key 是否绑定了可用分组。
-- 账户余额或订阅是否有效。
+3. 到 [使用记录](https://codeplan.codes/usage) 确认出现这次调用。
 
-## 4. 打开 Codex
+## 方式二：手动写入配置文件
 
-CCSwitch 配置确认正常后，再打开 Codex。
+不用 CCSwitch 时，把站内生成的配置写进 Codex 的配置目录。
 
-建议顺序：
+### 1. 复制站内生成的配置
 
-1. 先关闭已经打开的 Codex 终端或 VS Code 窗口。
-2. 确认 CCSwitch 中 loucer_api 是 **使用中**。
-3. 重新打开终端或 VS Code。
-4. 启动 Codex。
-5. 发送一句简单测试，例如：
+打开 [API 密钥](https://codeplan.codes/keys)，在目标 Key 上点击 **使用密钥**，选择 **Codex CLI** 标签，再选你的系统。认证模式保持默认的 **兼容模式**。
 
-~~~text
-用一句话回复：你已经连接成功。
-~~~
+弹窗会生成两个文件，**直接复制弹窗里的内容**。下面是结构示意，模型名等细节以弹窗为准：
 
-如果能正常对话，并且站内 **使用记录** 出现调用记录，说明 Codex 已经走 subapi。
+::: code-group
 
-## 5. 如果 Codex 没有读取 CCSwitch
+```toml [config.toml]
+model_provider = "OpenAI"
+model = "以弹窗生成为准"
+review_model = "以弹窗生成为准"
+disable_response_storage = true
+network_access = "enabled"
 
-优先确认 Codex 是在 CCSwitch 启用后重新打开的。很多桌面客户端和 VS Code 扩展只会在启动时读取一次环境或代理配置。
+[model_providers.OpenAI]
+name = "OpenAI"
+base_url = "https://subapi.loucer.cn/v1"
+wire_api = "responses"
+requires_openai_auth = true
+```
 
-如果仍然不生效，再使用手动配置。
+```json [auth.json]
+{
+  "OPENAI_API_KEY": "sk-你的密钥"
+}
+```
 
-## 6. 手动配置方式
-
-如果你的 Codex 不读取 CCSwitch 当前配置，可以改用手动环境变量。
-
-macOS / Linux：
-
-~~~bash
-export OPENAI_API_KEY="sk-你的密钥"
-export OPENAI_BASE_URL="https://subapi.loucer.cn/v1"
-~~~
-
-Windows PowerShell 建议在系统环境变量里设置：
-
-~~~powershell
-setx OPENAI_API_KEY "sk-你的密钥"
-setx OPENAI_BASE_URL "https://subapi.loucer.cn/v1"
-~~~
-
-设置后重新打开终端，再启动 Codex。
-
-::: tip 什么时候填 /v1
-如果配置项叫 **Base URL** 或 **OpenAI Base URL**，通常填 `https://subapi.loucer.cn/v1`。
-
-如果插件说明会自动拼接 `/v1`，就填 `https://subapi.loucer.cn`。
 :::
 
-## 7. VS Code 里的 Codex 插件
+::: warning 以弹窗内容为准
+弹窗里的 `config.toml` 还带有模型目录等配置项，比上面的示意更完整。请复制弹窗原文，不要照抄示意。
+:::
 
-如果你是在 VS Code 里用 Codex 插件，按这个规则填：
+### 2. 保存到 Codex 配置目录
 
-| 字段 | 填写 |
+| 系统 | 配置目录 |
 | --- | --- |
-| Provider | OpenAI Compatible / Custom OpenAI / OpenAI 兼容 |
-| API Key | 站内创建的 sk-... |
-| Base URL | https://subapi.loucer.cn/v1 |
-| Model | 选择 Key 绑定分组支持的模型 |
+| macOS / Linux | `~/.codex/` |
+| Windows | `%userprofile%\.codex\` |
 
-下图是 VS Code Codex 插件的配置示意。不同插件字段名称可能略有差异，核心就是 Provider、API Key、Base URL、Model 这四项。
+- macOS / Linux：目录不存在时先运行 `mkdir -p ~/.codex`。
+- Windows：按 <kbd>Win</kbd> + <kbd>R</kbd>，输入 `%userprofile%\.codex` 打开目录；不存在就手动新建一个。
+
+把两个文件分别保存为 `config.toml` 和 `auth.json`。如果 `config.toml` 已经存在，**把弹窗内容放在文件开头**。
+
+### 3. 重启 Codex 并验证
+
+完全退出 Codex 再重新打开，发一句测试消息，然后到 [使用记录](https://codeplan.codes/usage) 确认有新记录。
+
+::: tip 为什么一定要重启
+Codex 只在启动时读取一次 `config.toml`。改完配置不重启，会继续用旧配置。
+:::
+
+## VS Code 里的 Codex 插件
+
+插件和 CLI 共用同一份 `~/.codex/config.toml`。按上面任意一种方式配好后，在 VS Code 里执行 **重新加载窗口**（<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> → `Reload Window`）即可。
 
 ![VS Code Codex 插件配置示意](/images/subapi/vscode-codex-settings.png)
 
-如果插件会自动追加 /v1，Base URL 改填：
+## 确认真的走了 CodePlan
 
-~~~text
-https://subapi.loucer.cn
-~~~
+以站内 [使用记录](https://codeplan.codes/usage) 为准：
 
-配置完成后重启 VS Code 或重新加载窗口，再发起一次测试请求。
-
-## 8. 怎么确认真的走了 subapi
-
-最终以站内 **使用记录** 为准：
-
-- 有记录：说明请求打到了 subapi。
-- 没记录：说明 Codex 没走 subapi，优先检查 Base URL、Provider、Key 和当前是否仍在官方账号登录模式。
-
-## 9. Codex 生图 Skill
-
-如果你想在 Codex 里直接生成图片，可以继续看 [Codex 生图 Skill 接入](/codex-imagegen2)。
-
-这个功能使用 IMAGEGEN2_API_KEY 和 IMAGEGEN2_BASE_URL 走 subapi 中转站，和普通聊天接入分开配置，适合生成海报、产品图、参考图改图。
+- **有记录**：请求已经走 CodePlan。
+- **没记录**：Codex 还在用官方账号登录，或者用的是旧配置。退出官方登录、确认配置已保存，再完全重启 Codex。
 
 ## 常见现象
 
 | 现象 | 优先检查 |
 | --- | --- |
-| Codex 能回复，但站内没有使用记录 | Codex 仍在走官方账号或其它供应商配置 |
-| CCSwitch 刷新用量失败 | loucer_api 是否启用、Key 是否完整、Key 是否绑定分组 |
-| 报 401 / invalid api key | API Key 是否复制完整，是否多了空格 |
-| 报 model not found | 当前 Key 绑定分组是否支持你选择的模型 |
+| 能回复，但使用记录里没有 | Codex 仍在用官方账号或其它供应商，见 [排查](/troubleshooting#能回复但没有使用记录) |
+| `401` / `invalid api key` | `auth.json` 里的 Key 是否完整、有没有多余空格 |
+| `model not found` | 模型名是否来自弹窗；Key 分组是否支持该模型 |
+| 改了配置不生效 | 是否完全退出并重启了 Codex |
 
-常见错误可以看 [常见报错排查](/troubleshooting)。
+更多报错见 [常见报错排查](/troubleshooting)。想在 Codex 里直接生成图片，见 [Codex 生图 Skill](/codex-imagegen2)。
