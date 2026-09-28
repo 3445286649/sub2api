@@ -180,6 +180,8 @@ type UpdateSettingsRequest struct {
 	AcquisitionLeaderboardEnabled bool                                `json:"acquisition_leaderboard_enabled"`
 	AcquisitionLotteryEnabled     bool                                `json:"acquisition_lottery_enabled"`
 	DocURL                        string                              `json:"doc_url"`
+	QualityMonitorURL             string                              `json:"quality_monitor_url"`
+	QualityMonitorGroupName       string                              `json:"quality_monitor_group_name"`
 	HomeContent                   string                              `json:"home_content"`
 	CompactHomeEnabled            bool                                `json:"compact_home_enabled"`
 	HideCcsImportButton           bool                                `json:"hide_ccs_import_button"`
@@ -1538,6 +1540,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		return
 	}
 
+	// 首页满血监测地址：服务端会去请求它，只接受公网 HTTPS 根地址
+	qualityMonitorURL, err := service.NormalizeQualityMonitorURL(req.QualityMonitorURL)
+	if err != nil {
+		response.BadRequest(c, "quality_monitor_url must be a public https URL")
+		return
+	}
+	req.QualityMonitorURL = qualityMonitorURL
+	if len([]rune(strings.TrimSpace(req.QualityMonitorGroupName))) > 64 {
+		response.BadRequest(c, "quality_monitor_group_name is too long (max 64 characters)")
+		return
+	}
+
 	settings := &service.SystemSettings{
 		// 系统全局 platform quota 默认值（整体替换语义）
 		DefaultPlatformQuotas:       req.DefaultPlatformQuotas,
@@ -1684,6 +1698,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AcquisitionLeaderboardEnabled:          req.AcquisitionLeaderboardEnabled,
 		AcquisitionLotteryEnabled:              req.AcquisitionLotteryEnabled,
 		DocURL:                                 req.DocURL,
+		QualityMonitorURL:                      req.QualityMonitorURL,
+		QualityMonitorGroupName:                req.QualityMonitorGroupName,
 		HomeContent:                            req.HomeContent,
 		CompactHomeEnabled:                     req.CompactHomeEnabled,
 		HideCcsImportButton:                    req.HideCcsImportButton,
@@ -2380,6 +2396,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		UsageHelpEnabled:                                       updatedSettings.UsageHelpEnabled,
 		ModelRadarEnabled:                                      updatedSettings.ModelRadarEnabled,
 		DocURL:                                                 updatedSettings.DocURL,
+		QualityMonitorURL:                                      updatedSettings.QualityMonitorURL,
+		QualityMonitorGroupName:                                updatedSettings.QualityMonitorGroupName,
 		HomeContent:                                            updatedSettings.HomeContent,
 		CompactHomeEnabled:                                     updatedSettings.CompactHomeEnabled,
 		HideCcsImportButton:                                    updatedSettings.HideCcsImportButton,

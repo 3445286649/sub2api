@@ -173,6 +173,8 @@ type SystemSettings struct {
 	UsageHelpEnabled             bool
 	ModelRadarEnabled            bool
 	DocURL                       string
+	QualityMonitorURL            string
+	QualityMonitorGroupName      string
 	HomeContent                  string
 	CompactHomeEnabled           bool
 	HideCcsImportButton          bool

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"html"
 	"net/http"
 	"strings"
@@ -17,6 +18,7 @@ import (
 type SettingHandler struct {
 	settingService           *service.SettingService
 	notificationEmailService *service.NotificationEmailService
+	qualityMonitorService    *service.QualityMonitorService
 	version                  string
 }
 
@@ -32,6 +34,41 @@ func NewSettingHandler(settingService *service.SettingService, version string) *
 // changing the constructor signature used by existing tests.
 func (h *SettingHandler) SetNotificationEmailService(notificationEmailService *service.NotificationEmailService) {
 	h.notificationEmailService = notificationEmailService
+}
+
+// SetQualityMonitorService attaches the homepage quality monitor without changing
+// the constructor signature used by existing tests.
+func (h *SettingHandler) SetQualityMonitorService(qualityMonitorService *service.QualityMonitorService) {
+	h.qualityMonitorService = qualityMonitorService
+}
+
+// GetQualityMonitor 获取首页「满血保障」监测数据
+// GET /api/v1/settings/quality-monitor
+//
+// 未配置时返回 enabled=false；拉取失败且无可用缓存时返回 available=false，
+// 两种情况都由前端降级为静态文案，因此统一返回 200。
+func (h *SettingHandler) GetQualityMonitor(c *gin.Context) {
+	if h.qualityMonitorService == nil {
+		response.Success(c, gin.H{"enabled": false, "available": false})
+		return
+	}
+
+	snapshot, err := h.qualityMonitorService.GetSnapshot(c.Request.Context())
+	switch {
+	case errors.Is(err, service.ErrQualityMonitorDisabled):
+		response.Success(c, gin.H{"enabled": false, "available": false})
+	case errors.Is(err, service.ErrQualityMonitorUnavailable):
+		// 只带监测站链接，不带任何数字
+		detailURL := ""
+		if snapshot != nil {
+			detailURL = snapshot.DetailURL
+		}
+		response.Success(c, gin.H{"enabled": true, "available": false, "detail_url": detailURL})
+	case err != nil:
+		response.ErrorFrom(c, err)
+	default:
+		response.Success(c, gin.H{"enabled": true, "available": true, "data": snapshot})
+	}
 }
 
 // GetPublicSettings 获取公开设置

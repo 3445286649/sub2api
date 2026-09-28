@@ -394,6 +394,8 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyAcquisitionLotteryEnabled] = strconv.FormatBool(settings.AcquisitionLotteryEnabled)
 	updates[SettingKeyUsageRebateEnabled] = strconv.FormatBool(settings.UsageRebateEnabled)
 	updates[SettingKeyDocURL] = strings.TrimSpace(settings.DocURL)
+	updates[SettingKeyQualityMonitorURL] = strings.TrimSpace(settings.QualityMonitorURL)
+	updates[SettingKeyQualityMonitorGroupName] = strings.TrimSpace(settings.QualityMonitorGroupName)
 	updates[SettingKeyHomeContent] = settings.HomeContent
 	updates[SettingKeyCompactHomeEnabled] = strconv.FormatBool(settings.CompactHomeEnabled)
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)

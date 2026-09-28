@@ -399,6 +399,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.DocURL != after.DocURL {
 		changed = append(changed, "doc_url")
 	}
+	if before.QualityMonitorURL != after.QualityMonitorURL {
+		changed = append(changed, service.SettingKeyQualityMonitorURL)
+	}
+	if before.QualityMonitorGroupName != after.QualityMonitorGroupName {
+		changed = append(changed, service.SettingKeyQualityMonitorGroupName)
+	}
 	if before.HomeContent != after.HomeContent {
 		changed = append(changed, "home_content")
 	}

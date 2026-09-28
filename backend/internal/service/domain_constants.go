@@ -419,6 +419,8 @@ const (
 	SettingKeyModelRadarEnabled           = "model_radar_enabled"           // 是否展示模型雷达入口
 	SettingKeyModelRadarConfig            = "model_radar_config"            // 模型雷达运行配置（JSON，含加密测试 Key）
 	SettingKeyDocURL                      = "doc_url"                       // 文档链接
+	SettingKeyQualityMonitorURL           = "quality_monitor_url"           // 首页满血监测：公开降智监测站根地址（HTTPS，留空关闭）
+	SettingKeyQualityMonitorGroupName     = "quality_monitor_group_name"    // 首页满血监测：展示的分组名
 	SettingKeyHomeContent                 = "home_content"                  // 首页内容（支持 Markdown/HTML，或 URL 作为 iframe src）
 	SettingKeyCompactHomeEnabled          = "compact_home_enabled"          // 是否启用内置简洁首页（推荐保持关闭；开启后首页仅保留品牌与登录入口）
 	SettingKeyHideCcsImportButton         = "hide_ccs_import_button"        // 是否隐藏 API Keys 页面的导入 CCS 按钮

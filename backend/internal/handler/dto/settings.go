@@ -172,6 +172,8 @@ type SystemSettings struct {
 	UsageHelpEnabled             bool                                `json:"usage_help_enabled"`
 	ModelRadarEnabled            bool                                `json:"model_radar_enabled"`
 	DocURL                       string                              `json:"doc_url"`
+	QualityMonitorURL            string                              `json:"quality_monitor_url"`
+	QualityMonitorGroupName      string                              `json:"quality_monitor_group_name"`
 	HomeContent                  string                              `json:"home_content"`
 	CompactHomeEnabled           bool                                `json:"compact_home_enabled"`
 	HideCcsImportButton          bool                                `json:"hide_ccs_import_button"`
