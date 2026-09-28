@@ -142,6 +142,11 @@ export default {
     empty: 'No content',
     loginAgreement: 'Login Agreement',
     adminCompliance: 'Deployment and Operation Compliance Commitment',
+    // 登录 / 注册页底部常驻的协议入口，与协议闸门无关
+    legalLinks: {
+      prefix: 'Read our',
+      separator: '·'
+    },
     loginAgreementPrompt: {
       checkboxPrefix: 'I have read and agree to ',
       documentSeparator: ', ',
@@ -233,7 +238,7 @@ export default {
     welcomeBack: 'Welcome Back',
     signInToAccount: 'Sign in to your account to continue',
     // Trust copy on auth pages: sign-in is a conversion point, not just a form
-    trustNote: 'Your key is processed locally in the browser and never stored',
+    trustNote: 'Passwords are sent over an encrypted connection and stored only as hashes',
     trustTools: 'Works with Claude Code · Codex · Gemini CLI',
     asidePoints: {
       one: 'One key for Claude, GPT and Gemini',
@@ -255,6 +260,7 @@ export default {
     dontHaveAccount: "Don't have an account?",
     alreadyHaveAccount: 'Already have an account?',
     registrationDisabled: 'Registration is currently disabled. Please contact the administrator.',
+    goToLogin: 'Go to login',
     emailLabel: 'Email',
     emailPlaceholder: 'Enter your email',
     passwordLabel: 'Password',

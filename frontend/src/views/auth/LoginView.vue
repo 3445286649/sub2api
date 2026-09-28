@@ -201,17 +201,18 @@
       </form>
     </div>
 
-    <!-- Footer -->
-    <template v-if="!backendModeEnabled && publicSettingsLoaded && registrationEnabled" #footer>
-      <p class="text-gray-500 dark:text-dark-400">
+    <!-- Footer：注册入口（可关闭）+ 常驻协议入口 -->
+    <template #footer>
+      <p
+        v-if="!backendModeEnabled && publicSettingsLoaded && registrationEnabled"
+        class="cp-login-signup"
+      >
         {{ t('auth.dontHaveAccount') }}
-        <router-link
-          to="/register"
-          class="font-medium text-primary-600 transition-colors hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300"
-        >
+        <router-link to="/register">
           {{ t('auth.signUp') }}
         </router-link>
       </p>
+      <AuthLegalLinks class="cp-login-legal" :enabled="!agreementInlineLinks" />
     </template>
   </AuthLayout>
 
@@ -237,6 +238,7 @@ import OidcOAuthSection from '@/components/auth/OidcOAuthSection.vue'
 import WechatOAuthSection from '@/components/auth/WechatOAuthSection.vue'
 import EmailOAuthButtons from '@/components/auth/EmailOAuthButtons.vue'
 import LoginAgreementPrompt from '@/components/auth/LoginAgreementPrompt.vue'
+import AuthLegalLinks from '@/components/auth/AuthLegalLinks.vue'
 import TotpLoginModal from '@/components/auth/TotpLoginModal.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/CaptchaChallenge.vue'
@@ -345,6 +347,12 @@ const errors = reactive({
 
 const validationToastMessage = computed(
   () => errors.email || errors.password || errors.turnstile || ''
+)
+
+// 勾选模式下，条款链接已内联在勾选框那一行，页脚不再重复列出
+const agreementInlineLinks = computed(
+  () => loginAgreementEnabled.value && loginAgreementMode.value === 'checkbox'
+    && loginAgreementDocuments.value.length > 0
 )
 
 const agreementGateActive = computed(
@@ -754,6 +762,26 @@ function handle2FACancel(): void {
 }
 
 /* 配色全部走全局语义 token；原先硬编码的紫色渐变按钮与全站 teal 冲突 */
+/* 页脚：注册入口保持原来的弱化样式，协议链接再淡一档 */
+.cp-login-signup,
+.cp-register-signin {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.cp-login-signup a,
+.cp-register-signin a {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.cp-login-signup a:hover,
+.cp-register-signin a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .cp-login-title {
   color: var(--text);
   letter-spacing: -0.025em;

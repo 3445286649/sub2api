@@ -8,17 +8,21 @@ import type { SiteBillingMode } from '@/utils/siteBillingMode'
  * 优先使用 titleKey 通过 i18n 翻译，fallback 到静态 routeTitle。
  */
 export function resolveDocumentTitle(routeTitle: unknown, siteName?: string, titleKey?: string): string {
-  const normalizedSiteName = typeof siteName === 'string' && siteName.trim() ? siteName.trim() : 'Sub2API'
+  const normalizedSiteName = typeof siteName === 'string' && siteName.trim() ? siteName.trim() : ''
+  // 站点名为空时（设置尚未加载或后台未填）只输出页面名，
+  // 否则会拼出 "Dashboard - " 这种带悬空分隔符的标题。
+  const withSiteName = (title: string): string =>
+    normalizedSiteName ? `${title} - ${normalizedSiteName}` : title
 
   if (typeof titleKey === 'string' && titleKey.trim()) {
     const translated = i18n.global.t(titleKey)
     if (translated && translated !== titleKey) {
-      return `${translated} - ${normalizedSiteName}`
+      return withSiteName(translated)
     }
   }
 
   if (typeof routeTitle === 'string' && routeTitle.trim()) {
-    return `${routeTitle.trim()} - ${normalizedSiteName}`
+    return withSiteName(routeTitle.trim())
   }
 
   return normalizedSiteName

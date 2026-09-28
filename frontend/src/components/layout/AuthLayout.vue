@@ -23,7 +23,7 @@
     <div class="cp-auth-layout">
       <!-- 左栏：品牌故事区（≥1024px 显示）。登录是转化点，不能只有一张表单。 -->
       <aside class="cp-auth-aside" aria-hidden="true">
-        <div class="cp-auth-aside-brand">
+        <div v-if="brandReady" class="cp-auth-aside-brand">
           <img :src="siteLogo || '/logo.svg'" alt="" class="cp-auth-aside-logo" />
           <span class="cp-auth-aside-name">{{ siteName }}</span>
         </div>
@@ -54,12 +54,17 @@
 
       <!-- 右栏：表单 -->
       <div class="cp-auth-main">
-        <div class="cp-auth-brand-block">
+        <div class="cp-auth-brand-block" :class="{ 'is-pending': !brandReady }">
           <div class="cp-auth-logo">
-            <img :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" />
+            <img
+              v-if="brandReady"
+              :src="siteLogo || '/logo.svg'"
+              alt="Logo"
+              class="h-full w-full object-contain"
+            />
           </div>
-          <h1 class="cp-auth-brand">{{ siteName }}</h1>
-          <p class="cp-auth-subtitle">{{ siteSubtitle }}</p>
+          <h1 class="cp-auth-brand">{{ brandReady ? siteName : '' }}</h1>
+          <p class="cp-auth-subtitle">{{ brandReady ? siteSubtitle : '' }}</p>
         </div>
 
         <div class="cp-auth-card">
@@ -76,7 +81,7 @@
         </div>
 
         <div class="cp-auth-copyright">
-          &copy; {{ currentYear }} {{ siteName }}. All rights reserved.
+          <template v-if="brandReady">&copy; {{ currentYear }} {{ siteName }}. All rights reserved.</template>
         </div>
       </div>
     </div>
@@ -96,9 +101,10 @@ import { useTheme } from '@/composables/useTheme'
 const { t } = useI18n()
 const appStore = useAppStore()
 
-const siteName = computed(() => appStore.siteName || 'Sub2API')
+const brandReady = computed(() => appStore.publicSettingsLoaded)
+const siteName = computed(() => appStore.siteName)
 const siteLogo = computed(() => sanitizeUrl(appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
-const siteSubtitle = computed(() => appStore.cachedPublicSettings?.site_subtitle || 'Subscription to API Conversion Platform')
+const siteSubtitle = computed(() => appStore.siteSubtitle || t('home.heroSubtitle'))
 const currentYear = computed(() => new Date().getFullYear())
 const { isDark, toggleTheme } = useTheme()
 
@@ -383,6 +389,11 @@ onUnmounted(() => {
 .cp-auth-brand-block {
   margin-bottom: 28px;
   text-align: center;
+}
+
+/* 设置未就绪时品牌块仍占位，避免加载完成后整页布局跳一下 */
+.cp-auth-brand-block.is-pending {
+  visibility: hidden;
 }
 
 .cp-auth-logo {

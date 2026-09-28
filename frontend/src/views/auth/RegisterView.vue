@@ -20,9 +20,16 @@
           <div class="flex-shrink-0">
             <Icon name="exclamationCircle" size="md" class="text-amber-500" />
           </div>
-          <p class="text-sm text-amber-700 dark:text-amber-400">
-            {{ t('auth.registrationDisabled') }}
-          </p>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm text-amber-700 dark:text-amber-400">
+              {{ t('auth.registrationDisabled') }}
+            </p>
+            <!-- 注册关闭不该是死胡同：给一条明确的出路 -->
+            <router-link to="/login" class="cp-register-disabled-link mt-3 inline-flex">
+              {{ t('auth.goToLogin') }}
+              <Icon name="arrowRight" size="xs" />
+            </router-link>
+          </div>
         </div>
       </div>
 
@@ -331,6 +338,13 @@
           :show-divider="false"
           @start="handleOAuthStart"
         />
+        <DingTalkOAuthSection
+          v-if="dingtalkOAuthEnabled"
+          :disabled="registrationActionDisabled"
+          :aff-code="formData.aff_code"
+          :show-divider="false"
+          @start="handleOAuthStart"
+        />
         <WechatOAuthSection
           v-if="wechatOAuthEnabled"
           :disabled="registrationActionDisabled"
@@ -349,17 +363,15 @@
       </div>
     </div>
 
-    <!-- Footer -->
+    <!-- Footer：已有账号入口 + 常驻协议入口 -->
     <template #footer>
-      <p class="text-gray-500 dark:text-dark-400">
+      <p class="cp-register-signin">
         {{ t('auth.alreadyHaveAccount') }}
-        <router-link
-          to="/login"
-          class="font-medium text-primary-600 transition-colors hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300"
-        >
+        <router-link to="/login">
           {{ t('auth.signIn') }}
         </router-link>
       </p>
+      <AuthLegalLinks class="cp-register-legal" :enabled="!agreementInlineLinks" />
     </template>
   </AuthLayout>
 </template>
@@ -369,7 +381,9 @@ import { computed, ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
+import AuthLegalLinks from '@/components/auth/AuthLegalLinks.vue'
 import LinuxDoOAuthSection from '@/components/auth/LinuxDoOAuthSection.vue'
+import DingTalkOAuthSection from '@/components/auth/DingTalkOAuthSection.vue'
 import OidcOAuthSection from '@/components/auth/OidcOAuthSection.vue'
 import WechatOAuthSection from '@/components/auth/WechatOAuthSection.vue'
 import EmailOAuthButtons from '@/components/auth/EmailOAuthButtons.vue'
@@ -440,9 +454,10 @@ const aliyunCaptchaEnabled = ref<boolean>(false)
 const aliyunCaptchaSceneId = ref<string>('')
 const aliyunCaptchaPrefix = ref<string>('')
 const aliyunCaptchaRegion = ref<string>('cn')
-const siteName = ref<string>('Sub2API')
+const siteName = computed(() => appStore.siteName)
 const linuxdoOAuthEnabled = ref<boolean>(false)
 const wechatOAuthEnabled = ref<boolean>(false)
+const dingtalkOAuthEnabled = ref<boolean>(false)
 const oidcOAuthEnabled = ref<boolean>(false)
 const oidcOAuthProviderName = ref<string>('OIDC')
 const githubOAuthEnabled = ref<boolean>(false)
@@ -528,10 +543,17 @@ const validationToastMessage = computed(() =>
 const showOAuthLogin = computed(
   () =>
     linuxdoOAuthEnabled.value ||
+    dingtalkOAuthEnabled.value ||
     wechatOAuthEnabled.value ||
     oidcOAuthEnabled.value ||
     githubOAuthEnabled.value ||
     googleOAuthEnabled.value
+)
+
+// 勾选模式下，条款链接已内联在勾选框那一行，页脚不再重复列出
+const agreementInlineLinks = computed(
+  () => loginAgreementEnabled.value && loginAgreementMode.value === 'checkbox'
+    && loginAgreementDocuments.value.length > 0
 )
 
 const agreementGateActive = computed(
@@ -577,9 +599,9 @@ onMounted(async () => {
     aliyunCaptchaSceneId.value = settings.aliyun_captcha_scene_id || ''
     aliyunCaptchaPrefix.value = settings.aliyun_captcha_prefix || ''
     aliyunCaptchaRegion.value = settings.aliyun_captcha_region || 'cn'
-    siteName.value = settings.site_name || 'Sub2API'
     linuxdoOAuthEnabled.value = settings.linuxdo_oauth_enabled
     wechatOAuthEnabled.value = isWeChatWebOAuthEnabled(settings)
+    dingtalkOAuthEnabled.value = settings.dingtalk_oauth_enabled === true
     oidcOAuthEnabled.value = settings.oidc_oauth_enabled
     oidcOAuthProviderName.value = settings.oidc_oauth_provider_name || 'OIDC'
     githubOAuthEnabled.value = settings.github_oauth_enabled
@@ -1126,5 +1148,34 @@ function buildRegistrationErrorMessage(error: unknown, fallback: string): string
 .fade-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+.cp-register-signin {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.cp-register-signin a {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.cp-register-signin a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cp-register-disabled-link {
+  align-items: center;
+  gap: 5px;
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.cp-register-disabled-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 </style>

@@ -8,6 +8,7 @@ const { appStore, authStore } = vi.hoisted(() => ({
     cachedPublicSettings: {} as Record<string, unknown>,
     siteName: 'Fallback site',
     siteLogo: '',
+    siteSubtitle: 'Test subtitle',
     docUrl: '',
     publicSettingsLoaded: true,
     fetchPublicSettings: vi.fn(),
@@ -106,7 +107,8 @@ describe('HomeView compact mode', () => {
   it('treats whitespace-only custom content as empty and selects compact mode', () => {
     const wrapper = mountHome({ compact_home_enabled: true, home_content: ' \n\t ' })
 
-    expect(wrapper.get('[data-testid="compact-home"]').text()).toContain('Test site')
+    // 品牌统一读全局 store，设置对象里的 site_name 不再作为页面标题来源
+    expect(wrapper.get('[data-testid="compact-home"]').text()).toContain('Fallback site')
   })
 
   it.each([undefined, false])('selects the default home when compact mode is %s', (enabled) => {

@@ -142,6 +142,11 @@ export default {
     empty: '暂无正文内容',
     loginAgreement: '登录条款',
     adminCompliance: '部署与运营合规承诺',
+    // 登录 / 注册页底部常驻的协议入口，与协议闸门无关
+    legalLinks: {
+      prefix: '阅读我们的',
+      separator: '·'
+    },
     loginAgreementPrompt: {
       checkboxPrefix: '我已阅读并同意',
       documentSeparator: '、',
@@ -233,7 +238,7 @@ export default {
     welcomeBack: '欢迎回来',
     signInToAccount: '登录您的账户以继续',
     // 登录/注册页信任小字：登录是转化点，不能只有表单
-    trustNote: '您的密钥仅在浏览器本地处理，不会被存储',
+    trustNote: '密码经加密传输，服务端以哈希方式存储，不保存明文',
     trustTools: '支持 Claude Code · Codex · Gemini CLI',
     asidePoints: {
       one: '一个密钥，畅用 Claude、GPT、Gemini',
@@ -255,6 +260,7 @@ export default {
     dontHaveAccount: '还没有账户？',
     alreadyHaveAccount: '已有账户？',
     registrationDisabled: '注册功能暂时关闭，请联系管理员。',
+    goToLogin: '前往登录',
     emailLabel: '邮箱',
     emailPlaceholder: '请输入邮箱',
     passwordLabel: '密码',

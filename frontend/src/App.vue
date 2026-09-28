@@ -31,16 +31,9 @@ function updateDocumentTitle() {
   })
 }
 
-// Watch for site settings changes and update favicon/title
-watch(
-  () => appStore.siteLogo,
-  (newLogo) => {
-    if (newLogo) {
-      updateFavicon(newLogo)
-    }
-  },
-  { immediate: true }
-)
+// 站点设置变化时同步标签图标与标题。
+// 这里不跳过空值：后台清空 Logo 后要能回退到默认图标，否则旧图标会一直留在标签页上。
+watch(() => appStore.siteLogo, updateFavicon, { immediate: true })
 
 watch(
   [

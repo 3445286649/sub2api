@@ -14,6 +14,12 @@ import {
 } from '@/api/admin/system'
 import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
 
+/**
+ * 后端在站点副标题未配置时会返回这个历史默认值。
+ * 它只有英文且措辞已过时，这里视为「未配置」，由前端 i18n 提供当前默认文案。
+ */
+const STOCK_SITE_SUBTITLE = 'Subscription to API Conversion Platform'
+
 export const useAppStore = defineStore('app', () => {
   // ==================== State ====================
 
@@ -26,8 +32,10 @@ export const useAppStore = defineStore('app', () => {
   // Public settings cache state
   const publicSettingsLoaded = ref<boolean>(false)
   const publicSettingsLoading = ref<boolean>(false)
-  const siteName = ref<string>('Sub2API')
+  // 品牌默认留空：设置就绪前由 brandReady 控制占位，避免先闪一下默认品牌
+  const siteName = ref<string>('')
   const siteLogo = ref<string>('')
+  const siteSubtitle = ref<string>('')
   const siteVersion = ref<string>('')
   const contactInfo = ref<string>('')
   const apiBaseUrl = ref<string>('')
@@ -294,8 +302,10 @@ export const useAppStore = defineStore('app', () => {
       window.__APP_CONFIG__ = { ...config }
     }
     cachedPublicSettings.value = config
-    siteName.value = config.site_name || 'Sub2API'
+    siteName.value = config.site_name || ''
     siteLogo.value = config.site_logo || ''
+    const subtitle = (config.site_subtitle || '').trim()
+    siteSubtitle.value = subtitle === STOCK_SITE_SUBTITLE ? '' : subtitle
     siteVersion.value = config.version || ''
     contactInfo.value = config.contact_info || ''
     apiBaseUrl.value = config.api_base_url || ''
@@ -440,6 +450,7 @@ export const useAppStore = defineStore('app', () => {
    */
   function clearPublicSettingsCache(): void {
     publicSettingsLoaded.value = false
+    siteSubtitle.value = ''
     cachedPublicSettings.value = null
   }
 
@@ -470,6 +481,7 @@ export const useAppStore = defineStore('app', () => {
     publicSettingsLoaded,
     siteName,
     siteLogo,
+    siteSubtitle,
     siteVersion,
     contactInfo,
     apiBaseUrl,

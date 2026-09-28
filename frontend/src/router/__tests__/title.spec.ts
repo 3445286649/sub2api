@@ -20,9 +20,10 @@ describe('resolveDocumentTitle', () => {
     expect(resolveDocumentTitle(undefined, 'My Site')).toBe('My Site')
   })
 
-  it('站点名为空时，回退默认站点名', () => {
-    expect(resolveDocumentTitle('Dashboard', '')).toBe('Dashboard - Sub2API')
-    expect(resolveDocumentTitle(undefined, '   ')).toBe('Sub2API')
+  // 品牌名不再写死：站点设置未加载时宁可只给路由标题，也不显示上游项目名
+  it('站点名为空时，只保留路由标题', () => {
+    expect(resolveDocumentTitle('Dashboard', '')).toBe('Dashboard')
+    expect(resolveDocumentTitle(undefined, '   ')).toBe('')
   })
 
   it('站点名变更时仅影响后续路由标题计算', () => {

@@ -22,11 +22,12 @@
       <nav class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div class="flex min-w-0 flex-1 items-center gap-3">
           <img
+            v-if="brandReady"
             :src="siteLogo || '/logo.svg'"
             alt="Logo"
             class="h-9 w-9 shrink-0 rounded-lg object-contain"
           />
-          <span class="min-w-0 truncate text-base font-semibold">{{ siteName }}</span>
+          <span v-if="brandReady" class="min-w-0 truncate text-base font-semibold">{{ siteName }}</span>
         </div>
         <div class="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2">
           <LocaleSwitcher />
@@ -71,12 +72,15 @@
       <div class="cp-compact-body">
         <div class="cp-compact-intro">
           <img
+            v-if="brandReady"
             :src="siteLogo || '/logo.svg'"
             alt="Logo"
             class="mx-auto mb-6 h-20 w-20 rounded-2xl object-contain"
           />
-          <h1 class="cp-compact-title [overflow-wrap:anywhere]">{{ siteName }}</h1>
-          <p class="cp-compact-sub whitespace-pre-wrap [overflow-wrap:anywhere]">{{ siteSubtitle }}</p>
+          <h1 class="cp-compact-title [overflow-wrap:anywhere]">{{ brandReady ? siteName : '' }}</h1>
+          <p class="cp-compact-sub whitespace-pre-wrap [overflow-wrap:anywhere]">
+            {{ brandReady ? siteSubtitle : '' }}
+          </p>
           <router-link
             :to="isAuthenticated ? dashboardPath : '/login'"
             class="cp-compact-cta"
@@ -93,12 +97,11 @@
     </main>
 
     <footer class="cp-compact-footer px-4 py-5 sm:px-6">
-      <span>&copy; {{ currentYear }} {{ siteName }}</span>
+      <span v-if="brandReady">&copy; {{ currentYear }} {{ siteName }}</span>
       <span class="cp-compact-footer-links">
         <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer">
           {{ t('home.docs') }}
         </a>
-        <a :href="githubUrl" target="_blank" rel="noopener noreferrer">GitHub</a>
       </span>
     </footer>
   </div>
@@ -114,8 +117,13 @@
       <span class="cp-topbar-progress" :style="{ transform: `scaleX(${pageProgress})` }"></span>
       <nav class="cp-topbar-inner">
         <a href="#top" class="cp-topbar-brand" @click.prevent="scrollToId('top')">
-          <img :src="siteLogo || '/logo.svg'" alt="Logo" class="cp-topbar-logo" />
-          <span class="cp-brand-name">{{ siteName }}</span>
+          <img
+            v-if="brandReady"
+            :src="siteLogo || '/logo.svg'"
+            alt="Logo"
+            class="cp-topbar-logo"
+          />
+          <span v-if="brandReady" class="cp-brand-name">{{ siteName }}</span>
         </a>
 
         <!-- 章节锚点（桌面） -->
@@ -166,6 +174,9 @@
             <Icon v-else name="moon" size="md" />
           </button>
 
+          <router-link v-if="!isAuthenticated && registrationEnabled" to="/register" class="cp-topbar-signup">
+            {{ t('home.signUp') }}
+          </router-link>
           <router-link v-if="isAuthenticated" :to="dashboardPath" class="cp-topbar-cta">
             <span class="cp-topbar-avatar">{{ userInitial }}</span>
             {{ t('home.dashboard') }}
@@ -182,15 +193,16 @@
       <section id="top" class="cp-chapter cp-hero">
         <div class="cp-hero-grid">
           <div class="cp-hero-left">
-            <div class="cp-eyebrow"><span class="cp-pulse"></span>{{ siteSubtitle }}</div>
+            <div class="cp-eyebrow"><span class="cp-pulse"></span>{{ t('home.eyebrow') }}</div>
             <h1 class="cp-hero-title">
-              {{ siteName }}<br /><span>{{ t('home.heroSubtitle') }}</span>
+              <span class="cp-hero-name">{{ brandReady ? siteName : '' }}</span>
+              <span class="cp-hero-claim">{{ siteSubtitle }}</span>
             </h1>
             <p class="cp-hero-sub">{{ t('home.heroDescription') }}</p>
 
             <div class="cp-hero-cta">
-              <router-link :to="primaryTo" class="cp-btn cp-btn-primary">
-                {{ isAuthenticated ? t('home.goToDashboard') : t('home.getStarted') }}
+              <router-link :to="entryTo" class="cp-btn cp-btn-primary">
+                {{ entryLabel }}
                 <Icon name="arrowRight" size="sm" :stroke-width="2" />
               </router-link>
               <!-- 配了文档地址就外链；没配则滚到「开始使用」，按钮永远有用 -->
@@ -350,10 +362,15 @@
       <div class="cp-footer-inner">
         <div class="cp-footer-brand">
           <div class="cp-footer-logo-row">
-            <img :src="siteLogo || '/logo.svg'" alt="Logo" class="cp-topbar-logo" />
-            <span class="cp-brand-name">{{ siteName }}</span>
+            <img
+              v-if="brandReady"
+              :src="siteLogo || '/logo.svg'"
+              alt="Logo"
+              class="cp-topbar-logo"
+            />
+            <span v-if="brandReady" class="cp-brand-name">{{ siteName }}</span>
           </div>
-          <p>{{ t('home.heroSubtitle') }}</p>
+          <p>{{ siteSubtitle }}</p>
         </div>
 
         <div class="cp-footer-col">
@@ -369,7 +386,6 @@
           <h4>{{ t('home.footer.resources') }}</h4>
           <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer">{{ t('home.docs') }}</a>
           <a href="#start" @click.prevent="scrollToId('start')">{{ t('home.start.guide') }}</a>
-          <a :href="githubUrl" target="_blank" rel="noopener noreferrer">GitHub</a>
         </div>
 
         <div v-if="legalDocuments.length" class="cp-footer-col">
@@ -381,7 +397,9 @@
       </div>
 
       <div class="cp-footer-bottom">
-        <span>&copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}</span>
+        <span v-if="brandReady">
+          &copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}
+        </span>
         <span v-if="contactInfo" class="cp-footer-contact">{{ t('home.footer.contact') }}: {{ contactInfo }}</span>
       </div>
     </footer>
@@ -402,6 +420,7 @@ import ModelIcon from '@/components/common/ModelIcon.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
+import { selectLegalDocuments } from '@/utils/legalDocuments'
 import { useTheme } from '@/composables/useTheme'
 import { vReveal } from '@/directives/reveal'
 
@@ -412,15 +431,16 @@ const authStore = useAuthStore()
 const appStore = useAppStore()
 
 // Site settings - directly from appStore (already initialized from injected config)
-const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || 'Sub2API')
+const brandReady = computed(() => appStore.publicSettingsLoaded)
+const siteName = computed(() => appStore.siteName)
 const siteLogo = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
-const siteSubtitle = computed(() => appStore.cachedPublicSettings?.site_subtitle || 'AI API Gateway Platform')
+const siteSubtitle = computed(() => appStore.siteSubtitle || t('home.heroSubtitle'))
 const docUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''))
 const apiBaseUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.api_base_url || ''))
 const contactInfo = computed(() => (appStore.cachedPublicSettings?.contact_info || '').trim())
 /** 登录协议里配置的文档（用户协议 / 隐私政策等），由 /legal/:id 公开展示 */
 const legalDocuments = computed(() =>
-  (appStore.cachedPublicSettings?.login_agreement_documents ?? []).filter((doc) => doc.id && doc.title),
+  selectLegalDocuments(appStore.cachedPublicSettings?.login_agreement_documents),
 )
 const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
 const hasHomeContent = computed(() => homeContent.value.trim().length > 0)
@@ -433,8 +453,6 @@ const isHomeContentUrl = computed(() => {
   return content.startsWith('http://') || content.startsWith('https://')
 })
 
-// GitHub URL
-const githubUrl = 'https://github.com/Wei-Shaw/sub2api'
 
 // Auth state
 const isAuthenticated = computed(() => authStore.isAuthenticated)
@@ -447,6 +465,18 @@ const showModelPlazaEntry = computed(
 const isAdmin = computed(() => authStore.isAdmin)
 const dashboardPath = computed(() => isAdmin.value ? '/admin/dashboard' : '/dashboard')
 const primaryTo = computed(() => (isAuthenticated.value ? dashboardPath.value : '/login'))
+/**
+ * Hero 主按钮的落点：开放注册且未登录时直接进注册页（少一次跳转），
+ * 其余情况维持原行为，避免把「立即开始」变成注册关闭后的死路。
+ */
+const registrationEnabled = computed(() => appStore.cachedPublicSettings?.registration_enabled === true)
+const entryTo = computed(() =>
+  isAuthenticated.value ? dashboardPath.value : registrationEnabled.value ? '/register' : '/login',
+)
+const entryLabel = computed(() => {
+  if (isAuthenticated.value) return t('home.goToDashboard')
+  return registrationEnabled.value ? t('home.getStarted') : t('home.login')
+})
 const userInitial = computed(() => {
   const user = authStore.user
   if (!user || !user.email) return ''
@@ -1001,7 +1031,13 @@ onUnmounted(() => {
   line-height: 1.08;
 }
 
-.cp-hero-title span {
+.cp-hero-name,
+.cp-hero-claim {
+  display: block;
+}
+
+/* 站点名保持实色，渐变留给副标题那一行，形成「品牌 + 主张」的层次 */
+.cp-hero-claim {
   background: linear-gradient(100deg, var(--brand-soft), var(--brand) 45%, var(--brand-2));
   background-size: 220% 100%;
   background-clip: text;
@@ -1821,7 +1857,7 @@ onUnmounted(() => {
 @media (prefers-reduced-motion: reduce) {
   .cp-pulse::after,
   .cp-proof-dot::after,
-  .cp-hero-title span,
+  .cp-hero-claim,
   .cp-marquee-track,
   .cp-scroll-hint svg {
     animation: none !important;
@@ -1832,5 +1868,17 @@ onUnmounted(() => {
   .cp-topbar-cta:hover {
     transform: none;
   }
+}
+
+/* 顶栏注册入口：紧邻登录按钮，视觉上弱化一级 */
+.cp-topbar-signup {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.cp-topbar-signup:hover {
+  color: var(--text);
 }
 </style>
