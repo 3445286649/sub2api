@@ -1,8 +1,12 @@
-# Sub2API 余额悬浮窗使用教程
+# 余额悬浮窗
 
-Sub2API Balance Float 是一款桌面余额悬浮窗。连接时只需输入自己的 Sub2API API Key，无需填写接口地址。
+**Sub2API Balance Float** 是一款桌面余额悬浮窗，可以查看 CodePlan 账户的余额和消费。连接时只需输入你的 CodePlan API Key，无需填写接口地址。
 
-它常驻桌面，以悬浮球显示可用余额；单击后可查看今日消费与请求次数、本月消费、近 7 日消费，并可快速打开 Sub2API 主站。
+它常驻桌面，以悬浮球显示可用余额；单击后可查看今日消费与请求次数、本月消费、近 7 日消费，并可快速打开 CodePlan 主站。
+
+::: info 软件名称
+安装包和软件界面里显示的是 **Sub2API Balance Float**，这是软件本身的名字，和 CodePlan 账户完全兼容。
+:::
 
 ::: tip 适用版本
 本文适用于 **v0.1.0**，支持 Windows 10/11、Intel Mac 与 Apple Silicon。
@@ -30,15 +34,15 @@ Sub2API Balance Float 是一款桌面余额悬浮窗。连接时只需输入自�
 - **本月消费**
 - **近 7 日消费**
 - 当前 API Key Profile 与同步状态
-- **主站直达**：点击面板右下角的 **主站** 按钮，在默认浏览器打开 Sub2API
+- **主站直达**：点击面板右下角的 **主站** 按钮，在默认浏览器打开 CodePlan
 
-本工具展示的是 Sub2API 余额与消费统计，**不是 5 小时限额或周限额工具**。
+本工具展示的是 CodePlan 账户的余额与消费统计，**不是 5 小时限额或周限额工具**。
 
 ## 使用前准备
 
-1. 已有可登录的 Sub2API 账户。
+1. 已有可登录的 CodePlan 账户。
 2. 账户中有一个已启用的 API Key。
-3. 没有 Key 时，先打开 [API 密钥页面](https://subapi.loucer.cn/keys) 创建。
+3. 没有 Key 时，先打开 [API 密钥页面](https://codeplan.codes/keys) 创建。
 
 ::: danger 保护 API Key
 不要把完整 API Key 发到聊天、工单或截图中。
@@ -72,7 +76,7 @@ Sub2API Balance Float 是一款桌面余额悬浮窗。连接时只需输入自�
 5. 点击 **验证并保存**，等待验证完成。
 6. 验证成功后会自动进入余额面板，并将该 Profile 设为当前账号。
 
-API Key 只发送到预置的 Sub2API 余额查询端点。完整 Key 保存到 Windows Credential Manager 或 macOS Keychain，不写入普通配置文件或日志，界面也不会回显完整 Key。
+API Key 只发送到预置的 CodePlan 余额查询端点。完整 Key 保存到 Windows Credential Manager 或 macOS Keychain，不写入普通配置文件或日志，界面也不会回显完整 Key。
 
 ![连接第一个 API Key](/images/balance-float/02-connect-api-key.png)
 
@@ -135,7 +139,7 @@ v0.1.0 官方文件：
 | 文件 | SHA-256 |
 | --- | --- |
 | Windows NSIS | `0346CBC7963C3AB545BD7D7086F95E7848E8EE37B217A556110BE97100866980` |
-| Windows MSI | `3D68F2CFCD87553239EE64A5E8E8E619B77D3B6182E44C8AAFF1FE4A26CD4B` |
+| Windows MSI | `3D68F2CFCD87553239EE64A5E8E8E8E619B77D3B6182E44C8AAFF1FE4A26CD4B` |
 | Windows 便携版 | `4DA7A70ACF66DB92FFD2F055E994FAAF3931DB0B6CC899CF81C1EAABC3A6C523` |
 | macOS Universal | `821FB098BF418C19C028D7B7B8C5E5765965AF3EE7356974339178880E5E88D0` |
 
@@ -147,7 +151,7 @@ v0.1.0 官方文件：
 
 ### 为什么没有 5 小时或周限额？
 
-本工具适配 Sub2API 余额查询，只展示可用余额和消费统计。
+本工具只展示 CodePlan 账户的可用余额和消费统计。
 
 ### 更换 Key 后需要新建 Profile 吗？
 
@@ -159,8 +163,8 @@ v0.1.0 官方文件：
 
 ## 相关入口
 
-- [Sub2API 主站](https://subapi.loucer.cn)
-- [API 密钥页面](https://subapi.loucer.cn/keys)
+- [CodePlan 主站](https://codeplan.codes)
+- [API 密钥页面](https://codeplan.codes/keys)
 - [API Key 创建与安全](/api-key)
 - [计费、余额与使用记录](/billing)
 - [常见报错排查](/troubleshooting)
