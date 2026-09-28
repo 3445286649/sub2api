@@ -53,7 +53,9 @@ function mountHome(settings: Record<string, unknown> = {}) {
         // 纯装饰动画组件，自带定时器与 matchMedia 依赖；
         // 这些用例验证的是首页分支选择与链接目标，不涉及动画本身。
         RequestJourney: { template: '<div data-testid="request-journey" />' },
-        ArchitectureFlow: { template: '<div data-testid="architecture-flow" />' },
+        HowItWorks: { template: '<div data-testid="how-it-works" />' },
+        QuickStart: { template: '<div data-testid="quick-start" />' },
+        QualityMonitor: { template: '<div data-testid="quality-monitor" />' },
       },
     },
   })

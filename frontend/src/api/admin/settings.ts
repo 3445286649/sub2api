@@ -500,6 +500,8 @@ export interface SystemSettings {
   usage_help_enabled: boolean;
   model_radar_enabled: boolean;
   doc_url: string;
+  quality_monitor_url: string;
+  quality_monitor_group_name: string;
   home_content: string;
   compact_home_enabled: boolean;
   hide_ccs_import_button: boolean;
@@ -880,6 +882,8 @@ export interface UpdateSettingsRequest {
   usage_help_enabled?: boolean;
   model_radar_enabled?: boolean;
   doc_url?: string;
+  quality_monitor_url?: string;
+  quality_monitor_group_name?: string;
   home_content?: string;
   compact_home_enabled?: boolean;
   hide_ccs_import_button?: boolean;

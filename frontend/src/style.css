@@ -846,3 +846,49 @@
     scroll-behavior: auto !important;
   }
 }
+
+/*
+ * v-reveal 入场（src/directives/reveal.ts）。
+ * 用 animation + backwards 填充：播放前保持隐藏，播完回落到元素自身样式，
+ * 不会与元素已有的 transform / hover 过渡冲突。
+ */
+.cp-reveal:not(.is-revealed) {
+  opacity: 0;
+}
+
+.cp-reveal.is-revealed {
+  animation: cp-reveal-in 0.62s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--reveal-i, 0) * 70ms);
+}
+
+@keyframes cp-reveal-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0);
+  }
+}
+
+/*
+ * 首页滚动体验。HomeView 挂载时给 <html> 加 .cp-home-scroll，卸载时移除，
+ * 其他页面不受影响。
+ *
+ * 轻吸附（proximity）只在桌面大屏开启：只有停在章节边界附近时才对齐，
+ * 章节内部照常自由滚动。要关掉吸附，删掉下面这条 @media 规则即可。
+ */
+html.cp-home-scroll {
+  scroll-behavior: smooth;
+  /* 锚点跳转时给固定顶栏留出位置 */
+  scroll-padding-top: 72px;
+}
+
+@media (min-width: 1024px) and (min-height: 720px) and (prefers-reduced-motion: no-preference) {
+  html.cp-home-scroll {
+    scroll-snap-type: y proximity;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.cp-home-scroll {
+    scroll-behavior: auto;
+  }
+}

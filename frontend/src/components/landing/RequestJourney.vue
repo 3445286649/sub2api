@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="rootEl"
     class="rj-root"
     :class="{ 'rj-is-compact': compact }"
     aria-hidden="true"
@@ -60,7 +61,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useInView } from '@/composables/useInView'
 import { useI18n } from 'vue-i18n'
 
 interface Props {
@@ -318,6 +320,25 @@ function applyMotionPreference(): void {
   }
 }
 
+// 滚出视口或切到后台标签页时暂停，回来后从当前场景重新播放，避免后台空转
+const rootEl = ref<HTMLElement | null>(null)
+const inView = useInView(rootEl)
+const pageVisible = ref(true)
+const active = computed(() => inView.value && pageVisible.value)
+
+function handleVisibilityChange(): void {
+  pageVisible.value = document.visibilityState !== 'hidden'
+}
+
+watch(active, (isActive) => {
+  if (staticMode.value) return
+  if (isActive) {
+    runScene(sceneIndex.value)
+  } else {
+    clearTimers()
+  }
+})
+
 onMounted(() => {
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -331,11 +352,13 @@ onMounted(() => {
 
   // 用户在会话中切换系统「减少动画」时同步停下
   motionQuery?.addEventListener?.('change', applyMotionPreference)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
   clearTimers()
   motionQuery?.removeEventListener?.('change', applyMotionPreference)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 

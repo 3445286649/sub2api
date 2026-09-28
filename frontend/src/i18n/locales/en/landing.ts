@@ -10,7 +10,8 @@ export default {
     proof: {
       sdk: 'OpenAI SDK compatible',
       setup: 'Set up in 5 minutes',
-      billing: 'Pay as you go'
+      billing: 'Pay as you go',
+      quality: 'Full-strength models · publicly monitored'
     },
     // Compact home
     compact: {
@@ -73,11 +74,7 @@ export default {
       cost: 'Accurate Billing',
       costDesc: 'Track token usage and cost for every request with a clear audit trail.',
       route: 'A Pool That Never Drops',
-      routeDesc: 'Automatic load balancing across accounts. On a 429 or timeout, requests fail over to a backup — clients never notice.',
-      sticky: 'Session Affinity',
-      stickyDesc: 'The same session returns to the same account, so cached context hits — the same conversation costs less.',
-      compat: 'Works With Your Tools',
-      compatDesc: 'Compatible with Claude Code, Codex, Gemini CLI and the OpenAI SDK. Change your Base URL and go.'
+      routeDesc: 'Automatic load balancing across accounts. On a 429 or timeout, requests fail over to a backup — clients never notice.'
     },
     // Comparison section
     comparison: {
@@ -112,6 +109,11 @@ export default {
           feature: 'Usage Control',
           official: 'Not available',
           us: 'Quotas & detailed analytics'
+        },
+        quality: {
+          feature: 'Model Quality',
+          official: 'Many relays may swap or downgrade models, with no way to check',
+          us: 'Full-strength models, publicly tested on a schedule'
         }
       }
     },
@@ -123,12 +125,11 @@ export default {
       claude: 'Claude',
       gemini: 'Gemini',
       antigravity: 'Antigravity',
-      more: 'More'
+      more: 'More',
+      viewAll: 'View all models'
     },
-    // Architecture flow: one diagram for the whole request path
+    // Node labels on the How-it-works stage (HowItWorks)
     architecture: {
-      title: 'One Request, Four Gateway Layers',
-      subtitle: 'From your client to the upstream model, every hop has a clear job',
       client: {
         title: 'Your Client',
         desc: 'Claude Code / Codex / Gemini CLI / OpenAI SDK'
@@ -136,25 +137,17 @@ export default {
       gateway: {
         title: 'Gateway',
         auth: 'Auth',
-        authDesc: 'API Key check',
         limit: 'Rate limit',
-        limitDesc: 'Concurrency & RPM',
         route: 'Smart routing',
-        routeDesc: 'Pick best account',
-        bill: 'Metering',
-        billDesc: 'Token-level billing'
+        bill: 'Metering'
       },
       pool: {
-        title: 'Account Pool',
-        desc: 'Multiple OAuth / API Key accounts with auto balancing and failover',
-        healthy: 'Healthy',
-        standby: 'Standby'
+        title: 'Account Pool'
       },
       upstream: {
         title: 'Upstream Models',
         desc: 'Anthropic · OpenAI · Gemini · Antigravity'
-      },
-      receipt: 'Client receives 200 OK'
+      }
     },
     // Request journey animation (Hero right / login aside / compact home)
     journey: {
@@ -203,13 +196,123 @@ export default {
       }
     },
     // CTA section
+    // Top bar section anchors
+    nav: {
+      how: 'How it works',
+      compare: 'Compare',
+      models: 'Models',
+      quality: 'Quality',
+      start: 'Get started'
+    },
+    scrollHint: 'Scroll',
+    // How it works (pinned walkthrough on desktop / timeline on small screens)
+    how: {
+      title: 'One request, five steps',
+      subtitle: 'You send the request. The gateway handles the rest.',
+      steps: {
+        auth: {
+          title: 'Unified auth',
+          desc: 'Every API key is issued and verified independently. Your subscription credentials never leak.',
+          detail: 'sk-••••a3f9 → verified · 12ms'
+        },
+        limit: {
+          title: 'Fine-grained limits',
+          desc: 'Cap usage per key, model and time window. Overages are blocked automatically.',
+          detail: 'concurrency 3/10 · daily quota OK · 8ms'
+        },
+        route: {
+          title: 'Smart routing',
+          desc: 'Picks the lowest-latency account from the pool and keeps each session on the same account for cheaper cache hits.',
+          detail: '128 accounts available → #047 selected · session bound'
+        },
+        failover: {
+          title: 'Automatic failover',
+          desc: 'On upstream 429s or timeouts it switches to a standby account and retries. Your client never notices.',
+          detail: '#012 → 429 · switched to #089 → 200 OK · +140ms'
+        },
+        billing: {
+          title: 'Per-request billing',
+          desc: 'Tokens and cost for every request are recorded in real time and can be audited one by one.',
+          detail: '1,842 tokens · $0.0271 · recorded'
+        }
+      }
+    },
+    // Quality guarantee: public model-quality monitor
+    quality: {
+      live: 'Live monitoring',
+      title: 'Full-strength models. No silent downgrades.',
+      subtitle: 'The full-strength group is tested automatically on a schedule. Every result is public, and you can run the tests yourself.',
+      interval: 'Tested every {minutes} min',
+      passRate: 'valid pass rate',
+      tests: {
+        logic: 'Reasoning test',
+        creative: 'Generation test'
+      },
+      legend: {
+        passed: 'Passed',
+        failed: 'Possible downgrade',
+        error: 'API error (not counted)'
+      },
+      barLabel: '{name}: {passed} passed, {failed} possible downgrades, {errored} API errors',
+      updatedAt: 'Last test: {time}',
+      staleAt: 'Sync failed, showing data from {time}',
+      justNow: 'just now',
+      minutesAgo: '{n} min ago',
+      hoursAgo: '{n} h ago',
+      viewAll: 'View full monitor',
+      unavailable: 'Monitor data is temporarily unavailable. Check the monitor site for the latest results.',
+      methods: {
+        logic: {
+          title: 'Reasoning test',
+          desc: 'A fixed reasoning puzzle that downgraded models tend to get wrong. A wrong answer fails the run.'
+        },
+        creative: {
+          title: 'Generation test',
+          desc: 'The model draws a pelican riding a bicycle, and an AI grader reviews the result.'
+        },
+        self: {
+          title: 'Test it yourself',
+          desc: 'Plug in your own endpoint and key to run the same tests. Only you can see the result.',
+          action: 'Run a test'
+        }
+      }
+    },
+    // Final page: get started
+    start: {
+      title: 'Get started in 3 steps',
+      subtitle: 'No code changes. Just point to a new URL.',
+      guide: 'Setup guide',
+      usage: 'Check key usage',
+      copy: 'Copy',
+      copied: 'Copied',
+      keyPlaceholder: 'YOUR_API_KEY',
+      steps: {
+        register: {
+          title: 'Create an account',
+          desc: 'Sign up with email in seconds'
+        },
+        key: {
+          title: 'Create an API key',
+          desc: 'One click in the dashboard'
+        },
+        baseUrl: {
+          title: 'Swap the Base URL',
+          desc: 'Copy the config below'
+        }
+      }
+    },
     cta: {
       title: 'Ready to Get Started?',
       description: 'Sign up now and get free trial credits to experience seamless AI access',
       button: 'Sign Up Free'
     },
     footer: {
-      allRightsReserved: 'All rights reserved.'
+      allRightsReserved: 'All rights reserved.',
+      product: 'Product',
+      resources: 'Resources',
+      legal: 'Legal',
+      keyUsage: 'Key usage',
+      contact: 'Contact'
     }
   },
 

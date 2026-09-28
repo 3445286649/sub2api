@@ -10,7 +10,8 @@ export default {
     proof: {
       sdk: 'OpenAI SDK 兼容',
       setup: '5 分钟接入',
-      billing: '按用量付费'
+      billing: '按用量付费',
+      quality: '满血不降智 · 公开监测'
     },
     // 紧凑首页
     compact: {
@@ -73,11 +74,7 @@ export default {
       cost: '精准计费',
       costDesc: '记录每次请求的 Token 消耗与费用，账单清晰可追溯。',
       route: '永不掉线的账号池',
-      routeDesc: '多账号自动负载均衡，上游 429 或超时自动切换备用账号，客户端完全无感。',
-      sticky: '会话保持',
-      stickyDesc: '同一会话自动回到同一账号，上下文缓存命中，同样的对话花更少的钱。',
-      compat: '工具即插即用',
-      compatDesc: '兼容 Claude Code、Codex、Gemini CLI 与 OpenAI SDK，改一个 Base URL 就能用。'
+      routeDesc: '多账号自动负载均衡，上游 429 或超时自动切换备用账号，客户端完全无感。'
     },
     // 优势对比
     comparison: {
@@ -112,6 +109,11 @@ export default {
           feature: '用量控制',
           official: '无法限制',
           us: '可设配额、查明细'
+        },
+        quality: {
+          feature: '模型质量',
+          official: '常见中转可能偷换、降智，无从验证',
+          us: '满血直连，定时公开检测'
         }
       }
     },
@@ -123,12 +125,11 @@ export default {
       claude: 'Claude',
       gemini: 'Gemini',
       antigravity: 'Antigravity',
-      more: '更多'
+      more: '更多',
+      viewAll: '查看全部模型'
     },
-    // 架构流：一张图讲清请求怎么穿过网关
+    // 工作原理舞台里的节点名（HowItWorks）
     architecture: {
-      title: '一次请求，穿越四层网关',
-      subtitle: '从你的客户端到上游模型，每一跳都有明确职责',
       client: {
         title: '你的客户端',
         desc: 'Claude Code / Codex / Gemini CLI / OpenAI SDK'
@@ -136,25 +137,17 @@ export default {
       gateway: {
         title: '网关层',
         auth: '鉴权',
-        authDesc: 'API Key 校验',
         limit: '限流',
-        limitDesc: '并发与速率',
         route: '智能调度',
-        routeDesc: '选最优账号',
-        bill: '计量计费',
-        billDesc: 'Token 级记账'
+        bill: '计量计费'
       },
       pool: {
-        title: '账号池',
-        desc: 'OAuth / API Key 多账号，自动负载均衡与故障转移',
-        healthy: '健康',
-        standby: '备用'
+        title: '账号池'
       },
       upstream: {
         title: '上游模型',
         desc: 'Anthropic · OpenAI · Gemini · Antigravity'
-      },
-      receipt: '客户端收到 200 OK'
+      }
     },
     // 「请求旅程」动画（Hero 右侧 / 登录页左栏 / 紧凑首页）
     journey: {
@@ -202,6 +195,111 @@ export default {
         latency: 'P95 延迟'
       }
     },
+    // 顶栏章节锚点
+    nav: {
+      how: '工作原理',
+      compare: '对比',
+      models: '模型',
+      quality: '满血保障',
+      start: '开始使用'
+    },
+    scrollHint: '向下滚动',
+    // 工作原理（桌面钉屏演示 / 窄屏时间线）
+    how: {
+      title: '一次请求，经过五道处理',
+      subtitle: '你只管发请求，剩下的交给网关',
+      steps: {
+        auth: {
+          title: '统一鉴权',
+          desc: '每个 API Key 独立签发、严格校验，原始订阅凭据永不外泄。',
+          detail: 'sk-••••a3f9 → 校验通过 · 12ms'
+        },
+        limit: {
+          title: '精细限额',
+          desc: '按 Key、模型和时段设置上限，超额自动拦截，杜绝滥用。',
+          detail: '并发 3/10 · 今日额度充足 · 8ms'
+        },
+        route: {
+          title: '智能调度',
+          desc: '从账号池挑选延迟最低的账号；同一会话自动回到同一账号，缓存命中更省钱。',
+          detail: '账号池 128 可用 → 选中 #047 · 会话已绑定'
+        },
+        failover: {
+          title: '故障转移',
+          desc: '上游 429 或超时时自动切换备用账号并重试，客户端完全无感。',
+          detail: '#012 → 429 · 自动切换 #089 → 200 OK · +140ms'
+        },
+        billing: {
+          title: '逐笔计费',
+          desc: '每次请求的 Token 与费用实时入账，随时可查、逐笔可核验。',
+          detail: '1,842 tokens · $0.0271 · 已入账'
+        }
+      }
+    },
+    // 满血保障：公开降智监测
+    quality: {
+      live: '实时监测中',
+      title: '满血模型，不降智',
+      subtitle: '满血分组定时自动检测，每一次结果都公开可查，也欢迎你亲自来测',
+      interval: '每 {minutes} 分钟检测一次',
+      passRate: '有效通过率',
+      tests: {
+        logic: '逻辑测试',
+        creative: '生成测试'
+      },
+      legend: {
+        passed: '通过',
+        failed: '疑似降智',
+        error: '接口异常（不计入）'
+      },
+      barLabel: '{name}：通过 {passed} 次，疑似降智 {failed} 次，接口异常 {errored} 次',
+      updatedAt: '最近一次检测：{time}',
+      staleAt: '同步暂时失败，显示的是 {time} 的数据',
+      justNow: '刚刚',
+      minutesAgo: '{n} 分钟前',
+      hoursAgo: '{n} 小时前',
+      viewAll: '查看完整监测',
+      unavailable: '监测数据暂时无法同步，可前往监测站查看最新结果。',
+      methods: {
+        logic: {
+          title: '逻辑测试',
+          desc: '固定的推理题，降智模型很容易答错，答错即判不通过。'
+        },
+        creative: {
+          title: '生成测试',
+          desc: '让模型画一只骑自行车的鹈鹕，再由 AI 评估作品质量。'
+        },
+        self: {
+          title: '自己来测',
+          desc: '填入你自己的接口和 Key，用同一套题跑一遍，结果只有你能看到。',
+          action: '去检测'
+        }
+      }
+    },
+    // 最后一页：开始使用
+    start: {
+      title: '现在开始，3 步接入',
+      subtitle: '不用改代码，换个地址就能用',
+      guide: '接入指南',
+      usage: '查询 Key 用量',
+      copy: '复制',
+      copied: '已复制',
+      keyPlaceholder: 'YOUR_API_KEY',
+      steps: {
+        register: {
+          title: '注册账号',
+          desc: '邮箱注册，即刻开通'
+        },
+        key: {
+          title: '创建 API Key',
+          desc: '在控制台一键生成'
+        },
+        baseUrl: {
+          title: '替换 Base URL',
+          desc: '复制下方配置即可'
+        }
+      }
+    },
     // CTA 区块
     cta: {
       title: '准备好开始了吗？',
@@ -209,7 +307,12 @@ export default {
       button: '免费注册'
     },
     footer: {
-      allRightsReserved: '保留所有权利。'
+      allRightsReserved: '保留所有权利。',
+      product: '产品',
+      resources: '资源',
+      legal: '条款',
+      keyUsage: '用量查询',
+      contact: '联系方式'
     }
   },
 

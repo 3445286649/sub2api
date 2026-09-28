@@ -6811,6 +6811,43 @@
                 </p>
               </div>
 
+              <!-- 首页满血监测 -->
+              <div class="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.site.qualityMonitorUrl") }}
+                  </label>
+                  <input
+                    v-model="form.quality_monitor_url"
+                    type="url"
+                    class="input font-mono text-sm"
+                    :placeholder="t('admin.settings.site.qualityMonitorUrlPlaceholder')"
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.site.qualityMonitorUrlHint") }}
+                  </p>
+                </div>
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.site.qualityMonitorGroupName") }}
+                  </label>
+                  <input
+                    v-model="form.quality_monitor_group_name"
+                    type="text"
+                    maxlength="64"
+                    class="input text-sm"
+                    :placeholder="t('admin.settings.site.qualityMonitorGroupNamePlaceholder')"
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.site.qualityMonitorGroupNameHint") }}
+                  </p>
+                </div>
+              </div>
+
               <!-- Site Logo Upload -->
               <div>
                 <label
@@ -10202,6 +10239,8 @@ const form = reactive<SettingsForm>({
   usage_help_enabled: false,
   model_radar_enabled: false,
   doc_url: "",
+  quality_monitor_url: "",
+  quality_monitor_group_name: "",
   home_content: "",
   compact_home_enabled: false,
   backend_mode_enabled: false,
@@ -12011,6 +12050,8 @@ async function saveSettings() {
       usage_help_enabled: form.usage_help_enabled,
       model_radar_enabled: form.model_radar_enabled,
       doc_url: form.doc_url,
+      quality_monitor_url: form.quality_monitor_url.trim(),
+      quality_monitor_group_name: form.quality_monitor_group_name.trim(),
       home_content: form.home_content,
       compact_home_enabled: form.compact_home_enabled,
       backend_mode_enabled: form.backend_mode_enabled,

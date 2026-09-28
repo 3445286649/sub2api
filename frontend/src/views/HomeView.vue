@@ -103,225 +103,203 @@
     </footer>
   </div>
 
-  <!-- Default Home Page -->
+  <!-- Default Home Page：5 章叙事——是什么 → 跟我有关 → 凭什么 → 比谁强 → 怎么用 -->
   <div
     v-else
     data-testid="default-home"
-    class="cp-home-default relative flex min-h-screen flex-col overflow-hidden"
+    class="cp-home-default relative flex min-h-screen flex-col overflow-x-clip"
   >
-    <!-- Header -->
-    <header class="relative z-20 px-6 py-4">
-      <nav class="mx-auto flex max-w-6xl items-center justify-between">
-        <!-- Logo -->
-        <div class="flex items-center gap-3">
-          <div class="h-10 w-10 overflow-hidden rounded-xl shadow-md">
-            <img :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" />
-          </div>
+    <!-- 顶栏：固定；滚动后毛玻璃 + 底边线；顶部一条阅读进度 -->
+    <header class="cp-topbar" :class="{ 'is-scrolled': scrolled }">
+      <span class="cp-topbar-progress" :style="{ transform: `scaleX(${pageProgress})` }"></span>
+      <nav class="cp-topbar-inner">
+        <a href="#top" class="cp-topbar-brand" @click.prevent="scrollToId('top')">
+          <img :src="siteLogo || '/logo.svg'" alt="Logo" class="cp-topbar-logo" />
           <span class="cp-brand-name">{{ siteName }}</span>
+        </a>
+
+        <!-- 章节锚点（桌面） -->
+        <div class="cp-topbar-anchors">
+          <a
+            v-for="anchor in anchors"
+            :key="anchor.id"
+            :href="`#${anchor.id}`"
+            :class="{ 'is-active': activeSection === anchor.id }"
+            @click.prevent="scrollToId(anchor.id)"
+          >
+            {{ anchor.label }}
+          </a>
         </div>
 
-        <!-- Nav Actions -->
-        <div class="flex items-center gap-3">
-          <!-- Language Switcher -->
+        <div class="cp-topbar-actions">
           <LocaleSwitcher />
 
-          <!-- Doc Link -->
           <a
             v-if="docUrl"
             :href="docUrl"
             target="_blank"
             rel="noopener noreferrer"
-            class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
+            class="cp-icon-btn"
             :title="t('home.viewDocs')"
           >
             <Icon name="book" size="md" />
           </a>
 
-          <!-- Model Plaza Link -->
           <router-link
             v-if="showModelPlazaEntry"
             to="/model-plaza"
-            class="inline-flex items-center gap-1.5 rounded-lg p-2 text-sm text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
+            class="cp-icon-btn"
             :title="t('nav.modelPlaza')"
           >
             <Icon name="grid" size="md" />
             <span class="hidden sm:inline">{{ t('nav.modelPlaza') }}</span>
           </router-link>
 
-          <!-- Theme Toggle -->
           <button
-            @click="toggleTheme"
-            class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
+            type="button"
+            class="cp-icon-btn"
             :title="isDark ? t('home.switchToLight') : t('home.switchToDark')"
+            :aria-label="isDark ? t('home.switchToLight') : t('home.switchToDark')"
+            @click="toggleTheme"
           >
             <Icon v-if="isDark" name="sun" size="md" />
             <Icon v-else name="moon" size="md" />
           </button>
 
-          <!-- Login / Dashboard Button -->
-          <router-link
-            v-if="isAuthenticated"
-            :to="dashboardPath"
-            class="inline-flex items-center gap-1.5 rounded-full bg-gray-900 py-1 pl-1 pr-2.5 transition-colors hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700"
-          >
-            <span
-              class="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-[10px] font-semibold text-white"
-            >
-              {{ userInitial }}
-            </span>
-            <span class="text-xs font-medium text-white">{{ t('home.dashboard') }}</span>
-            <svg
-              class="h-3 w-3 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25"
-              />
-            </svg>
+          <router-link v-if="isAuthenticated" :to="dashboardPath" class="cp-topbar-cta">
+            <span class="cp-topbar-avatar">{{ userInitial }}</span>
+            {{ t('home.dashboard') }}
           </router-link>
-          <router-link
-            v-else
-            to="/login"
-            class="inline-flex items-center rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700"
-          >
+          <router-link v-else to="/login" class="cp-topbar-cta">
             {{ t('home.login') }}
           </router-link>
         </div>
       </nav>
     </header>
 
-    <!-- Main Content -->
-    <main class="relative z-10 flex-1 px-6 py-16">
-      <div class="mx-auto max-w-6xl">
-        <!-- ========== 1. Hero ========== -->
-        <section class="cp-section cp-hero">
-          <div class="cp-hero-grid">
-            <!-- Left: Text Content -->
-            <div class="cp-hero-left">
-              <div class="cp-eyebrow"><span class="cp-pulse"></span>{{ siteSubtitle }}</div>
-              <h1 class="cp-hero-title">
-                {{ siteName }}<br /><span>{{ t('home.heroSubtitle') }}</span>
-              </h1>
-              <p class="cp-hero-sub">
-                {{ t('home.heroDescription') }}
-              </p>
+    <main class="cp-main">
+      <!-- ========== ① Hero：这是什么 ========== -->
+      <section id="top" class="cp-chapter cp-hero">
+        <div class="cp-hero-grid">
+          <div class="cp-hero-left">
+            <div class="cp-eyebrow"><span class="cp-pulse"></span>{{ siteSubtitle }}</div>
+            <h1 class="cp-hero-title">
+              {{ siteName }}<br /><span>{{ t('home.heroSubtitle') }}</span>
+            </h1>
+            <p class="cp-hero-sub">{{ t('home.heroDescription') }}</p>
 
-              <!-- CTA Button -->
-              <div class="cp-hero-cta">
-                <router-link
-                  :to="isAuthenticated ? dashboardPath : '/login'"
-                  class="cp-primary-btn btn btn-primary"
-                >
-                  {{ isAuthenticated ? t('home.goToDashboard') : t('home.getStarted') }}
-                  <Icon name="arrowRight" size="md" class="ml-2" :stroke-width="2" />
-                </router-link>
-                <a
-                  v-if="docUrl"
-                  :href="docUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="cp-secondary-btn"
-                >
-                  {{ t('home.viewDocs') }} <Icon name="arrowRight" size="sm" />
-                </a>
-              </div>
-
-              <div class="cp-proof">
-                <span><Icon name="check" size="xs" />{{ t('home.proof.sdk') }}</span>
-                <span><Icon name="check" size="xs" />{{ t('home.proof.setup') }}</span>
-                <span><Icon name="check" size="xs" />{{ t('home.proof.billing') }}</span>
-              </div>
+            <div class="cp-hero-cta">
+              <router-link :to="primaryTo" class="cp-btn cp-btn-primary">
+                {{ isAuthenticated ? t('home.goToDashboard') : t('home.getStarted') }}
+                <Icon name="arrowRight" size="sm" :stroke-width="2" />
+              </router-link>
+              <!-- 配了文档地址就外链；没配则滚到「开始使用」，按钮永远有用 -->
+              <a
+                v-if="docUrl"
+                :href="docUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="cp-btn cp-btn-ghost"
+              >
+                {{ t('home.viewDocs') }}
+                <Icon name="externalLink" size="sm" />
+              </a>
+              <a v-else href="#start" class="cp-btn cp-btn-ghost" @click.prevent="scrollToId('start')">
+                {{ t('home.start.guide') }}
+                <Icon name="arrowDown" size="sm" />
+              </a>
             </div>
 
-            <!-- Right: Request Journey Animation -->
-            <div class="cp-hero-right">
-              <RequestJourney class="w-full max-w-[520px]" />
+            <div class="cp-proof">
+              <span><Icon name="check" size="xs" />{{ t('home.proof.sdk') }}</span>
+              <span><Icon name="check" size="xs" />{{ t('home.proof.setup') }}</span>
+              <span><Icon name="check" size="xs" />{{ t('home.proof.billing') }}</span>
+              <a
+                v-if="qualityEnabled"
+                href="#quality"
+                class="cp-proof-quality"
+                @click.prevent="scrollToId('quality')"
+              >
+                <span class="cp-proof-dot"></span>{{ t('home.proof.quality') }}
+              </a>
             </div>
           </div>
-        </section>
 
-        <!-- ========== 2. Pain Points ========== -->
-        <section class="cp-section cp-pain">
-          <header class="cp-section-head">
-            <h2 class="cp-section-title">{{ t('home.painPoints.title') }}</h2>
-          </header>
-          <div class="cp-pain-grid">
-            <article
-              v-for="(item, index) in painPoints"
-              :key="item.key"
-              class="cp-card cp-pain-card"
-              :style="{ '--cp-stagger': `${index * 0.08}s` }"
-            >
-              <span class="cp-pain-icon"><Icon :name="item.icon" size="md" /></span>
-              <h3 class="cp-card-title">{{ item.title }}</h3>
-              <p class="cp-card-desc">{{ item.desc }}</p>
-            </article>
+          <div class="cp-hero-right">
+            <RequestJourney class="w-full max-w-[520px]" />
           </div>
-        </section>
+        </div>
 
-        <!-- ========== 3. Architecture Flow ========== -->
-        <section class="cp-section">
-          <ArchitectureFlow />
-        </section>
+        <a
+          href="#pain"
+          class="cp-scroll-hint"
+          :class="{ 'is-hidden': scrolled }"
+          @click.prevent="scrollToId('pain')"
+        >
+          <span>{{ t('home.scrollHint') }}</span>
+          <Icon name="chevronDown" size="sm" />
+        </a>
+      </section>
 
-        <!-- ========== 4. Capabilities ========== -->
-        <section class="cp-section cp-capabilities">
-          <header class="cp-section-head">
-            <h2 class="cp-section-title">{{ t('home.solutions.title') }}</h2>
-            <p class="cp-section-sub">{{ t('home.solutions.subtitle') }}</p>
-          </header>
-          <div class="cp-feature-grid">
-            <article
-              v-for="(feature, index) in capabilities"
-              :key="feature.key"
-              class="cp-card cp-feature-card"
-              :style="{ '--cp-stagger': `${index * 0.06}s` }"
-            >
-              <span class="cp-feature-icon"><Icon :name="feature.icon" size="lg" /></span>
-              <h3 class="cp-card-title">{{ feature.title }}</h3>
-              <p class="cp-card-desc">{{ feature.desc }}</p>
-            </article>
+      <!-- ========== ② 痛点：跟我有关吗 ========== -->
+      <section id="pain" class="cp-chapter">
+        <header class="cp-chapter-head">
+          <h2 class="cp-chapter-title">{{ t('home.painPoints.title') }}</h2>
+        </header>
+        <div class="cp-pain-grid">
+          <article
+            v-for="(item, index) in painPoints"
+            :key="item.key"
+            v-reveal="index"
+            class="cp-card cp-pain-card"
+          >
+            <span class="cp-pain-icon"><Icon :name="item.icon" size="md" /></span>
+            <h3 class="cp-card-title">{{ item.title }}</h3>
+            <p class="cp-card-desc">{{ item.desc }}</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ========== ③ 工作原理：凭什么（桌面钉屏演示） ========== -->
+      <HowItWorks class="cp-chapter" />
+
+      <!-- ========== ③½ 满血保障：质量没打折（后台未配置监测地址时整章不渲染） ========== -->
+      <QualityMonitor class="cp-chapter" @loaded="qualityEnabled = $event" />
+
+      <!-- ========== ④ 为什么选我们：对比 + 支持的模型 ========== -->
+      <section id="compare" class="cp-chapter">
+        <header class="cp-chapter-head">
+          <h2 class="cp-chapter-title">{{ t('home.comparison.title') }}</h2>
+        </header>
+        <div v-reveal class="cp-compare-wrap">
+          <table class="cp-compare">
+            <thead>
+              <tr>
+                <th scope="col">{{ t('home.comparison.headers.feature') }}</th>
+                <th scope="col">{{ t('home.comparison.headers.official') }}</th>
+                <th scope="col" class="cp-compare-us">{{ t('home.comparison.headers.us') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in comparisonRows" :key="row.key">
+                <th scope="row">{{ row.feature }}</th>
+                <td class="cp-compare-official">{{ row.official }}</td>
+                <td class="cp-compare-us">
+                  <Icon name="check" size="xs" class="cp-compare-check" />{{ row.us }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="models" class="cp-models">
+          <div class="cp-models-head">
+            <h3 class="cp-models-title">{{ t('home.providers.title') }}</h3>
+            <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="cp-models-link">
+              {{ t('home.providers.viewAll') }}
+              <Icon name="arrowRight" size="xs" />
+            </router-link>
           </div>
-        </section>
-
-        <!-- ========== 5. Comparison ========== -->
-        <section class="cp-section cp-comparison">
-          <header class="cp-section-head">
-            <h2 class="cp-section-title">{{ t('home.comparison.title') }}</h2>
-          </header>
-          <div class="cp-compare-wrap">
-            <table class="cp-compare">
-              <thead>
-                <tr>
-                  <th scope="col">{{ t('home.comparison.headers.feature') }}</th>
-                  <th scope="col">{{ t('home.comparison.headers.official') }}</th>
-                  <th scope="col" class="cp-compare-us">
-                    {{ t('home.comparison.headers.us') }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in comparisonRows" :key="row.key">
-                  <th scope="row">{{ row.feature }}</th>
-                  <td class="cp-compare-official">{{ row.official }}</td>
-                  <td class="cp-compare-us">{{ row.us }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- ========== 6. Providers ========== -->
-        <section class="cp-section cp-providers">
-          <header class="cp-section-head">
-            <h2 class="cp-section-title">{{ t('home.providers.title') }}</h2>
-            <p class="cp-section-sub">{{ t('home.providers.description') }}</p>
-          </header>
 
           <!-- 走马灯：内层复制一份实现无缝循环，hover 暂停 -->
           <div class="cp-marquee">
@@ -354,69 +332,78 @@
               </template>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <!-- ========== 7. Final CTA ========== -->
-        <section class="cp-section cp-cta">
-          <h2 class="cp-cta-title">{{ t('home.cta.title') }}</h2>
-          <p class="cp-cta-desc">{{ t('home.cta.description') }}</p>
-          <router-link
-            :to="isAuthenticated ? dashboardPath : '/login'"
-            class="cp-primary-btn btn btn-primary cp-cta-btn"
-          >
-            {{ isAuthenticated ? t('home.goToDashboard') : t('home.cta.button') }}
-            <Icon name="arrowRight" size="md" class="ml-2" :stroke-width="2" />
-          </router-link>
-        </section>
-      </div>
+      <!-- ========== ⑤ 开始使用：怎么用起来 ========== -->
+      <QuickStart
+        class="cp-chapter cp-chapter-last"
+        :api-base-url="apiBaseUrl"
+        :doc-url="docUrl"
+        :primary-to="primaryTo"
+        :primary-label="isAuthenticated ? t('home.goToDashboard') : t('home.cta.button')"
+      />
     </main>
 
-
-    <!-- Footer -->
-    <footer class="relative z-10 border-t border-gray-200/50 px-6 py-8 dark:border-dark-800/50">
-      <div
-        class="mx-auto flex max-w-6xl flex-col items-center justify-center gap-4 text-center sm:flex-row sm:text-left"
-      >
-        <p class="text-sm text-gray-500 dark:text-dark-400">
-          &copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}
-        </p>
-        <div class="flex items-center gap-4">
-          <a
-            v-if="docUrl"
-            :href="docUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
-          >
-            {{ t('home.docs') }}
-          </a>
-          <a
-            :href="githubUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
-          >
-            GitHub
-          </a>
+    <!-- 页脚：每一项都来自站点设置，没配就不显示 -->
+    <footer class="cp-footer">
+      <div class="cp-footer-inner">
+        <div class="cp-footer-brand">
+          <div class="cp-footer-logo-row">
+            <img :src="siteLogo || '/logo.svg'" alt="Logo" class="cp-topbar-logo" />
+            <span class="cp-brand-name">{{ siteName }}</span>
+          </div>
+          <p>{{ t('home.heroSubtitle') }}</p>
         </div>
+
+        <div class="cp-footer-col">
+          <h4>{{ t('home.footer.product') }}</h4>
+          <router-link v-if="showModelPlazaEntry" to="/model-plaza">{{ t('nav.modelPlaza') }}</router-link>
+          <router-link to="/key-usage">{{ t('home.footer.keyUsage') }}</router-link>
+          <router-link :to="primaryTo">
+            {{ isAuthenticated ? t('home.dashboard') : t('home.login') }}
+          </router-link>
+        </div>
+
+        <div class="cp-footer-col">
+          <h4>{{ t('home.footer.resources') }}</h4>
+          <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer">{{ t('home.docs') }}</a>
+          <a href="#start" @click.prevent="scrollToId('start')">{{ t('home.start.guide') }}</a>
+          <a :href="githubUrl" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+
+        <div v-if="legalDocuments.length" class="cp-footer-col">
+          <h4>{{ t('home.footer.legal') }}</h4>
+          <router-link v-for="doc in legalDocuments" :key="doc.id" :to="`/legal/${doc.id}`">
+            {{ doc.title }}
+          </router-link>
+        </div>
+      </div>
+
+      <div class="cp-footer-bottom">
+        <span>&copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}</span>
+        <span v-if="contactInfo" class="cp-footer-contact">{{ t('home.footer.contact') }}: {{ contactInfo }}</span>
       </div>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
 import RequestJourney from '@/components/landing/RequestJourney.vue'
-import ArchitectureFlow from '@/components/landing/ArchitectureFlow.vue'
+import HowItWorks from '@/components/landing/HowItWorks.vue'
+import QuickStart from '@/components/landing/QuickStart.vue'
+import QualityMonitor from '@/components/landing/QualityMonitor.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { useTheme } from '@/composables/useTheme'
+import { vReveal } from '@/directives/reveal'
 
 const { t } = useI18n()
 const { isDark, toggleTheme } = useTheme()
@@ -429,6 +416,12 @@ const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appS
 const siteLogo = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
 const siteSubtitle = computed(() => appStore.cachedPublicSettings?.site_subtitle || 'AI API Gateway Platform')
 const docUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''))
+const apiBaseUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.api_base_url || ''))
+const contactInfo = computed(() => (appStore.cachedPublicSettings?.contact_info || '').trim())
+/** 登录协议里配置的文档（用户协议 / 隐私政策等），由 /legal/:id 公开展示 */
+const legalDocuments = computed(() =>
+  (appStore.cachedPublicSettings?.login_agreement_documents ?? []).filter((doc) => doc.id && doc.title),
+)
 const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
 const hasHomeContent = computed(() => homeContent.value.trim().length > 0)
 const compactHomeEnabled = computed(() => appStore.cachedPublicSettings?.compact_home_enabled === true)
@@ -453,6 +446,7 @@ const showModelPlazaEntry = computed(
 )
 const isAdmin = computed(() => authStore.isAdmin)
 const dashboardPath = computed(() => isAdmin.value ? '/admin/dashboard' : '/dashboard')
+const primaryTo = computed(() => (isAuthenticated.value ? dashboardPath.value : '/login'))
 const userInitial = computed(() => {
   const user = authStore.user
   if (!user || !user.email) return ''
@@ -497,46 +491,6 @@ const painPoints = computed<Array<{ key: string; icon: IconName; title: string; 
   },
 ])
 
-/** 4. 能力网格：从「管理员视角」改为「用户收益视角」 */
-const capabilities = computed<Array<{ key: string; icon: IconName; title: string; desc: string }>>(() => [
-  {
-    key: 'auth',
-    icon: 'shield',
-    title: t('home.features.auth'),
-    desc: t('home.features.authDesc'),
-  },
-  {
-    key: 'route',
-    icon: 'server',
-    title: t('home.features.route'),
-    desc: t('home.features.routeDesc'),
-  },
-  {
-    key: 'sticky',
-    icon: 'link',
-    title: t('home.features.sticky'),
-    desc: t('home.features.stickyDesc'),
-  },
-  {
-    key: 'rate',
-    icon: 'bolt',
-    title: t('home.features.rate'),
-    desc: t('home.features.rateDesc'),
-  },
-  {
-    key: 'cost',
-    icon: 'calculator',
-    title: t('home.features.cost'),
-    desc: t('home.features.costDesc'),
-  },
-  {
-    key: 'compat',
-    icon: 'terminal',
-    title: t('home.features.compat'),
-    desc: t('home.features.compatDesc'),
-  },
-])
-
 /** 5. 对比表 */
 const comparisonRows = computed(() => [
   {
@@ -569,6 +523,17 @@ const comparisonRows = computed(() => [
     official: t('home.comparison.items.control.official'),
     us: t('home.comparison.items.control.us'),
   },
+  // 只有真的接入了公开监测才能这么说
+  ...(qualityEnabled.value
+    ? [
+        {
+          key: 'quality',
+          feature: t('home.comparison.items.quality.feature'),
+          official: t('home.comparison.items.quality.official'),
+          us: t('home.comparison.items.quality.us'),
+        },
+      ]
+    : []),
 ])
 
 /**
@@ -670,6 +635,70 @@ const providers = computed<
   },
 ])
 
+// ==================== 滚动体验 ====================
+
+/** 顶栏锚点。id 与各章节 section 的 id 对应 */
+const anchors = computed(() => [
+  { id: 'how', label: t('home.nav.how') },
+  ...(qualityEnabled.value ? [{ id: 'quality', label: t('home.nav.quality') }] : []),
+  { id: 'compare', label: t('home.nav.compare') },
+  { id: 'models', label: t('home.nav.models') },
+  { id: 'start', label: t('home.nav.start') },
+])
+
+/** 满血监测是否已配置；由 QualityMonitor 加载完成后回传 */
+const qualityEnabled = ref(false)
+const scrolled = ref(false)
+const pageProgress = ref(0)
+const activeSection = ref('')
+let scrollFrame = 0
+let sectionObserver: IntersectionObserver | null = null
+
+function updateScrollState(): void {
+  scrollFrame = 0
+  const doc = document.documentElement
+  const max = doc.scrollHeight - window.innerHeight
+  scrolled.value = window.scrollY > 12
+  pageProgress.value = max > 0 ? Math.min(window.scrollY / max, 1) : 0
+}
+
+function handleScroll(): void {
+  if (scrollFrame) return
+  scrollFrame = requestAnimationFrame(updateScrollState)
+}
+
+function scrollToId(id: string): void {
+  const el = document.getElementById(id)
+  if (!el) return
+  // scroll-padding-top 已为固定顶栏留出空间（style.css 的 html.cp-home-scroll）
+  el.scrollIntoView({ block: 'start' })
+}
+
+/** 用一条贴近视口上部的观察线判断「当前所在章节」，驱动锚点高亮 */
+function observeSections(): void {
+  if (typeof IntersectionObserver === 'undefined') return
+  sectionObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) activeSection.value = entry.target.id
+      })
+    },
+    { rootMargin: '-35% 0px -60% 0px' },
+  )
+  ;['top', 'pain', 'how', 'quality', 'compare', 'start'].forEach((id) => {
+    const el = document.getElementById(id)
+    if (el) sectionObserver?.observe(el)
+  })
+}
+
+// 满血章节异步出现，挂载时的观察器还看不到它，出现后补挂
+watch(qualityEnabled, async (enabled) => {
+  if (!enabled) return
+  await nextTick()
+  const el = document.getElementById('quality')
+  if (el) sectionObserver?.observe(el)
+})
+
 onMounted(() => {
   // Check auth state
   authStore.checkAuth()
@@ -678,6 +707,20 @@ onMounted(() => {
   if (!appStore.publicSettingsLoaded) {
     appStore.fetchPublicSettings()
   }
+
+  // 平滑滚动 / 锚点偏移 / 桌面轻吸附只作用于首页，离开时移除
+  document.documentElement.classList.add('cp-home-scroll')
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  updateScrollState()
+  observeSections()
+})
+
+onUnmounted(() => {
+  document.documentElement.classList.remove('cp-home-scroll')
+  window.removeEventListener('scroll', handleScroll)
+  if (scrollFrame) cancelAnimationFrame(scrollFrame)
+  sectionObserver?.disconnect()
+  sectionObserver = null
 })
 </script>
 
@@ -686,99 +729,225 @@ onMounted(() => {
  * 首页皮肤
  *
  * 配色统一走全局语义 token（src/style.css 的 :root / .dark），
- * 不再在本文件里写 :global(.dark) 覆盖——那是「割裂」的根源。
- *
- * 选择器一律使用语义类名（.cp-section / .cp-card / ...），
- * 不再用 .mb-12.grid 这类布局工具类当选择器：模板动一个 div 皮肤就失效。
+ * 选择器一律使用语义类名，不用布局工具类当选择器。
+ * 入场动画由 v-reveal 指令统一处理（样式在 style.css 的 .cp-reveal）。
  * ============================================================ */
 
 .cp-home-default {
-  --cp-bg: var(--surface-2);
-  --cp-surface: var(--surface);
-  --cp-text: var(--text);
-  --cp-muted: var(--muted);
-  --cp-border: var(--border);
-  --cp-accent: var(--brand);
-  --cp-accent-soft: var(--brand-soft);
-  --cp-cyan: var(--brand);
   background:
-    radial-gradient(42% 38% at 18% 14%, var(--glow-brand), transparent 62%),
-    radial-gradient(38% 34% at 86% 10%, var(--glow-brand-2), transparent 62%),
-    var(--cp-bg);
-  color: var(--cp-text);
+    radial-gradient(42% 38% at 18% 6%, var(--glow-brand), transparent 62%),
+    radial-gradient(38% 34% at 86% 4%, var(--glow-brand-2), transparent 62%),
+    var(--surface-2);
+  color: var(--text);
   font-family: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   isolation: isolate;
 }
 
-/* 背景网格：靠 mask 做中心聚焦，边缘自然淡出 */
+/* 背景网格：只铺在首屏区域，靠 mask 淡出 */
 .cp-home-default::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: 0 0 auto;
   z-index: -1;
+  height: 110vh;
   pointer-events: none;
   opacity: 0.8;
   background-image:
     linear-gradient(color-mix(in srgb, var(--brand) 4%, transparent) 1px, transparent 1px),
     linear-gradient(90deg, color-mix(in srgb, var(--brand) 4%, transparent) 1px, transparent 1px);
   background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 92% 70% at 50% 50%, #000 8%, transparent 72%);
-}
-
-/* ---------- 顶栏 ---------- */
-.cp-home-default header {
-  width: min(100%, 1180px);
-  margin: 0 auto;
-  padding: 18px 28px;
-}
-
-.cp-home-default header nav {
-  max-width: none;
+  mask-image: radial-gradient(ellipse 92% 70% at 50% 40%, #000 8%, transparent 72%);
 }
 
 .cp-brand-name {
-  color: var(--cp-text);
+  color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
-/* ---------- 主体 ---------- */
-.cp-home-default main {
+/* ============================================================
+ * 顶栏
+ * ============================================================ */
+.cp-topbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 40;
+  border-bottom: 1px solid transparent;
+  transition: background 0.3s ease, border-color 0.3s ease, backdrop-filter 0.3s ease;
+}
+
+.cp-topbar.is-scrolled {
+  border-bottom-color: var(--border);
+  background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+  backdrop-filter: blur(18px) saturate(150%);
+}
+
+.cp-topbar-progress {
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand-soft), var(--brand), var(--brand-2));
+  transform-origin: left;
+  pointer-events: none;
+}
+
+.cp-topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(100%, 1180px);
+  height: 64px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+.cp-topbar-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.cp-topbar-logo {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+.cp-topbar-anchors {
+  display: none;
+  gap: 2px;
+}
+
+.cp-topbar-anchors a {
+  position: relative;
+  padding: 7px 12px;
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 550;
+  white-space: nowrap;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.cp-topbar-anchors a:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--brand) 8%, transparent);
+}
+
+.cp-topbar-anchors a.is-active {
+  color: var(--brand);
+}
+
+.cp-topbar-anchors a.is-active::after {
+  content: '';
+  position: absolute;
+  inset: auto 12px 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand);
+}
+
+.cp-topbar-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.cp-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 13.5px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.cp-icon-btn:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--brand) 9%, transparent);
+}
+
+.cp-topbar-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: 4px;
+  padding: 7px 15px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #042f2e;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: transform 0.2s ease, box-shadow 0.25s ease;
+}
+
+.cp-topbar-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--brand) 70%, transparent);
+}
+
+.cp-topbar-avatar {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, #fff 45%, transparent);
+  font-size: 10.5px;
+}
+
+/* ============================================================
+ * 章节
+ * ============================================================ */
+.cp-main {
   width: min(100%, 1180px);
   margin: 0 auto;
-  padding-top: clamp(40px, 7vh, 80px);
+  padding: 0 28px;
 }
 
-.cp-home-default main > div {
-  max-width: none;
+.cp-chapter {
+  padding: 96px 0;
+  scroll-snap-align: start;
 }
 
-.cp-section {
-  margin-bottom: 72px;
+.cp-chapter-last {
+  padding-bottom: 120px;
 }
 
-.cp-section-head {
-  margin-bottom: 28px;
+.cp-chapter-head {
+  margin-bottom: 32px;
   text-align: center;
 }
 
-.cp-section-title {
+.cp-chapter-title {
   margin: 0;
-  color: var(--cp-text);
-  font-size: 26px;
+  color: var(--text);
+  font-size: clamp(24px, 3vw, 34px);
   font-weight: 750;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 
-.cp-section-sub {
-  margin: 8px 0 0;
-  color: var(--cp-muted);
-  font-size: 14px;
+/* ---------- ① Hero ---------- */
+.cp-hero {
+  position: relative;
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 96px;
 }
 
-/* ---------- 1. Hero ---------- */
 .cp-hero-grid {
   display: flex;
   flex-direction: column;
@@ -788,226 +957,275 @@ onMounted(() => {
 
 .cp-hero-left {
   flex: 1;
+  min-width: 0;
   text-align: center;
 }
 
 .cp-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 17px;
-  color: var(--cp-cyan);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  gap: 9px;
+  margin-bottom: 18px;
+  padding: 5px 13px 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand) 7%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 550;
 }
 
 .cp-pulse {
+  position: relative;
   width: 7px;
   height: 7px;
   border-radius: 999px;
   background: var(--brand);
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand) 16%, transparent);
-  animation: cp-pulse 1.8s ease-in-out infinite;
+}
+
+.cp-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--brand);
+  animation: cp-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
 .cp-hero-title {
-  margin: 0 0 16px;
-  color: var(--cp-text);
-  font-size: clamp(32px, 6vw, 56px);
-  font-weight: 750;
+  margin: 0 0 18px;
+  color: var(--text);
+  font-size: clamp(34px, 5.2vw, 60px);
+  font-weight: 780;
   letter-spacing: -0.045em;
   line-height: 1.08;
 }
 
 .cp-hero-title span {
-  background: linear-gradient(100deg, var(--cp-accent-soft), var(--cp-accent), var(--brand-2));
+  background: linear-gradient(100deg, var(--brand-soft), var(--brand) 45%, var(--brand-2));
+  background-size: 220% 100%;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
+  animation: cp-grad 10s ease-in-out infinite alternate;
 }
 
 .cp-hero-sub {
-  max-width: 560px;
+  max-width: 540px;
   margin: 0 auto;
-  color: var(--cp-muted);
+  color: var(--muted);
   font-size: 16px;
   line-height: 1.75;
 }
 
 .cp-hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
   margin-top: 32px;
 }
 
-.cp-hero-right {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  width: 100%;
-}
-
-.cp-primary-btn,
-.cp-secondary-btn {
-  min-height: 44px;
-  border-radius: 11px;
+.cp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 650;
+  white-space: nowrap;
   transition: transform 0.22s ease, box-shadow 0.28s ease, border-color 0.22s ease;
 }
 
-.cp-primary-btn {
-  padding: 12px 30px;
-  font-size: 15px;
-  box-shadow: 0 12px 28px -12px color-mix(in srgb, var(--brand) 55%, transparent);
-}
-
-.cp-primary-btn:hover {
+.cp-btn:hover {
   transform: translateY(-2px);
 }
 
-.cp-secondary-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-left: 10px;
-  padding: 11px 18px;
-  border: 1px solid var(--cp-border);
-  border-radius: 11px;
-  color: var(--cp-text);
-  background: var(--cp-surface);
-  font-size: 14px;
-  font-weight: 650;
-  backdrop-filter: blur(12px);
+.cp-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
-.cp-secondary-btn:hover {
-  border-color: color-mix(in srgb, var(--brand) 42%, var(--cp-border));
-  transform: translateY(-2px);
+.cp-btn-primary {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--brand-soft), var(--brand));
+  color: #042f2e;
+  box-shadow: 0 12px 28px -12px color-mix(in srgb, var(--brand) 60%, transparent);
+}
+
+/* 悬停高光从左扫到右 */
+.cp-btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 -130%;
+  width: 60%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  transform: skewX(-18deg);
+}
+
+.cp-btn-primary:hover::after {
+  animation: cp-sheen 0.9s ease;
+}
+
+.cp-btn-ghost {
+  border: 1px solid var(--border-strong);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--text);
+  backdrop-filter: blur(10px);
+}
+
+.cp-btn-ghost:hover {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--border));
 }
 
 .cp-proof {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 16px;
-  margin-top: 24px;
-  color: var(--cp-muted);
-  font-size: 12px;
+  gap: 10px 20px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12.5px;
 }
 
 .cp-proof span {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .cp-proof svg {
   color: var(--accent-ok);
 }
 
+.cp-proof-quality {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent-ok);
+  font-weight: 650;
+}
+
+.cp-proof-quality:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cp-proof-dot {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent-ok);
+}
+
+.cp-proof-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: cp-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.cp-hero-right {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.cp-scroll-hint {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+  transition: opacity 0.4s ease;
+}
+
+.cp-scroll-hint svg {
+  color: var(--brand);
+  animation: cp-bob 2s ease-in-out infinite;
+}
+
+.cp-scroll-hint.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ---------- 通用卡片 ---------- */
 .cp-card {
-  border: 1px solid var(--cp-border);
+  border: 1px solid var(--border);
   border-radius: 16px;
-  background: var(--cp-surface);
+  background: var(--surface);
   box-shadow: var(--shadow-card);
   transition: border-color 0.28s ease, transform 0.28s ease, box-shadow 0.28s ease;
-  /* 交错入场：由父级传入 --cp-stagger */
-  animation: cp-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: var(--cp-stagger, 0s);
 }
 
 .cp-card:hover {
-  border-color: color-mix(in srgb, var(--brand) 38%, var(--cp-border));
+  border-color: color-mix(in srgb, var(--brand) 38%, var(--border));
   transform: translateY(-3px);
   box-shadow: var(--shadow-float);
 }
 
 .cp-card-title {
   margin: 0 0 8px;
-  color: var(--cp-text);
+  color: var(--text);
   font-size: 15.5px;
   font-weight: 700;
 }
 
 .cp-card-desc {
   margin: 0;
-  color: var(--cp-muted);
+  color: var(--muted);
   font-size: 13px;
   line-height: 1.7;
 }
 
-/* ---------- 2. 痛点 ---------- */
-/* 4 张卡：宽屏 4 列、中屏 2 列，不用 auto-fit 以免排成 3+1 */
+/* ---------- ② 痛点 ---------- */
 .cp-pain-grid {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-@media (max-width: 1023px) {
-  .cp-pain-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 .cp-pain-card {
-  padding: 20px;
+  padding: 22px;
 }
 
 .cp-pain-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  margin-bottom: 14px;
-  border-radius: 11px;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 16px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--accent-warn) 14%, transparent);
   color: var(--accent-warn);
 }
 
-/* ---------- 4. 能力网格 ---------- */
-/* 6 张卡：桌面固定 3 列（两行排满），避免 auto-fit 在宽屏排成 4+2 留出空洞 */
-.cp-feature-grid {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-@media (max-width: 1023px) {
-  .cp-feature-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.cp-feature-card {
-  padding: 22px;
-}
-
-.cp-feature-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  margin-bottom: 16px;
-  border-radius: 13px;
-  background: color-mix(in srgb, var(--brand) 13%, transparent);
-  color: var(--brand);
-  transition: transform 0.28s ease;
-}
-
-.cp-feature-card:hover .cp-feature-icon {
-  transform: scale(1.08);
-}
-
-/* ---------- 5. 对比表 ---------- */
+/* ---------- ④ 对比 + 模型 ---------- */
 .cp-compare-wrap {
   overflow-x: auto;
-  border: 1px solid var(--cp-border);
+  border: 1px solid var(--border);
   border-radius: 16px;
-  background: var(--cp-surface);
+  background: var(--surface);
   box-shadow: var(--shadow-card);
 }
 
@@ -1015,18 +1233,18 @@ onMounted(() => {
   width: 100%;
   min-width: 520px;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .cp-compare th,
 .cp-compare td {
-  padding: 14px 18px;
+  padding: 15px 20px;
   text-align: left;
-  border-bottom: 1px solid var(--cp-border);
+  border-bottom: 1px solid var(--border);
 }
 
 .cp-compare thead th {
-  color: var(--cp-muted);
+  color: var(--muted);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1035,7 +1253,7 @@ onMounted(() => {
 }
 
 .cp-compare tbody th {
-  color: var(--cp-text);
+  color: var(--text);
   font-weight: 650;
   white-space: nowrap;
 }
@@ -1046,7 +1264,7 @@ onMounted(() => {
 }
 
 .cp-compare-official {
-  color: var(--cp-muted);
+  color: var(--muted);
 }
 
 /* 本平台列高亮：整列淡色底 + 品牌色文字 */
@@ -1056,13 +1274,50 @@ onMounted(() => {
   background: color-mix(in srgb, var(--brand) 7%, transparent);
 }
 
-/* 表头那格要略强一点，避免和表体糊在一起 */
 .cp-compare thead .cp-compare-us {
-  color: var(--brand);
-  background: color-mix(in srgb, var(--brand) 11%, transparent);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
 }
 
-/* ---------- 6. 供应商走马灯 ---------- */
+.cp-compare-check {
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+.cp-models {
+  margin-top: 56px;
+}
+
+.cp-models-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.cp-models-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.cp-models-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--brand);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.cp-models-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .cp-marquee {
   position: relative;
   overflow: hidden;
@@ -1083,18 +1338,18 @@ onMounted(() => {
 
 .cp-provider {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 10px;
-  flex: 0 0 auto;
   padding: 12px 18px;
-  border: 1px solid var(--cp-border);
+  border: 1px solid var(--border);
   border-radius: 13px;
-  background: var(--cp-surface);
+  background: var(--surface);
   transition: border-color 0.25s ease;
 }
 
 .cp-provider:hover {
-  border-color: color-mix(in srgb, var(--brand) 34%, var(--cp-border));
+  border-color: color-mix(in srgb, var(--brand) 34%, var(--border));
 }
 
 .cp-provider.is-soon {
@@ -1107,8 +1362,8 @@ onMounted(() => {
   justify-content: center;
   width: 22px;
   height: 22px;
-  /* 单色化：统一跟随文本色，彻底消除原先四种渐变色的冲突 */
-  color: var(--cp-muted);
+  /* 单色化：统一跟随文本色，消除各家品牌色的冲突 */
+  color: var(--muted);
   transition: color 0.25s ease;
 }
 
@@ -1116,10 +1371,7 @@ onMounted(() => {
   color: var(--brand);
 }
 
-/*
- * ModelIcon 在每个 <path> 上写死了品牌色 fill（GPT 为纯黑 #000，深色模式下不可见）。
- * 首页要求单色统一，这里在作用域内覆盖为 currentColor，不改共享组件。
- */
+/* ModelIcon 在 path 上写死了 fill，深色下 GPT 会看不见；首页内统一改为跟随 currentColor */
 .cp-provider-logo :deep(svg path) {
   fill: currentColor;
 }
@@ -1132,13 +1384,13 @@ onMounted(() => {
   height: 22px;
   border-radius: 7px;
   background: var(--surface-3);
-  color: var(--cp-muted);
+  color: var(--muted);
   font-size: 12px;
   font-weight: 700;
 }
 
 .cp-provider-name {
-  color: var(--cp-text);
+  color: var(--text);
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
@@ -1159,48 +1411,79 @@ onMounted(() => {
 
 .cp-provider-tag.is-soon {
   background: var(--surface-3);
-  color: var(--cp-muted);
+  color: var(--muted);
 }
 
-/* ---------- 7. 收尾 CTA ---------- */
-.cp-cta {
-  padding: 46px 28px;
-  border: 1px solid var(--cp-border);
-  border-radius: 22px;
-  background: var(--cp-surface);
-  box-shadow: var(--shadow-card);
-  text-align: center;
-  /* 渐变描边缓慢流动 */
-  background-image: linear-gradient(
-    130deg,
-    color-mix(in srgb, var(--brand) 7%, var(--cp-surface)),
-    var(--cp-surface) 45%,
-    color-mix(in srgb, var(--brand-2) 7%, var(--cp-surface))
-  );
+/* ============================================================
+ * 页脚
+ * ============================================================ */
+.cp-footer {
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
 }
 
-.cp-cta-title {
-  margin: 0 0 10px;
-  color: var(--cp-text);
-  font-size: 24px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
+.cp-footer-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  gap: 32px;
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: 48px 28px 32px;
 }
 
-.cp-cta-desc {
-  margin: 0 0 26px;
-  color: var(--cp-muted);
-  font-size: 14px;
+.cp-footer-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.cp-cta-btn {
-  padding: 12px 30px;
-  font-size: 15px;
+.cp-footer-brand p {
+  max-width: 280px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
 }
 
-/* ---------- 页脚 ---------- */
-.cp-home-default footer {
-  border-color: var(--cp-border);
+.cp-footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cp-footer-col h4 {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cp-footer-col a {
+  width: fit-content;
+  color: var(--muted);
+  font-size: 13px;
+  transition: color 0.2s ease;
+}
+
+.cp-footer-col a:hover {
+  color: var(--brand);
+}
+
+.cp-footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 20px;
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: 18px 28px 26px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.cp-footer-contact {
+  overflow-wrap: anywhere;
 }
 
 /* ============================================================
@@ -1365,14 +1648,30 @@ onMounted(() => {
   }
 }
 
-/* ---------- 动画 ---------- */
+
+/* ============================================================
+ * 动画
+ * ============================================================ */
 @keyframes cp-pulse {
   50% { opacity: 0.35; transform: scale(0.75); }
 }
 
-@keyframes cp-rise {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes cp-ping {
+  0% { opacity: 0.8; transform: scale(1); }
+  75%, 100% { opacity: 0; transform: scale(3.2); }
+}
+
+@keyframes cp-grad {
+  to { background-position: 100% 50%; }
+}
+
+@keyframes cp-sheen {
+  to { left: 150%; }
+}
+
+@keyframes cp-bob {
+  0%, 100% { opacity: 0.5; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(4px); }
 }
 
 @keyframes cp-marquee {
@@ -1381,11 +1680,16 @@ onMounted(() => {
   to { transform: translateX(-50%); }
 }
 
-/* ---------- 响应式 ---------- */
+/* ============================================================
+ * 响应式
+ * ============================================================ */
 @media (min-width: 1024px) {
+  .cp-topbar-anchors {
+    display: flex;
+  }
+
   .cp-hero-grid {
     flex-direction: row;
-    align-items: center;
     justify-content: space-between;
     gap: 56px;
   }
@@ -1398,6 +1702,7 @@ onMounted(() => {
     margin-left: 0;
   }
 
+  .cp-hero-cta,
   .cp-proof {
     justify-content: flex-start;
   }
@@ -1408,25 +1713,66 @@ onMounted(() => {
   }
 }
 
+/* 滚动提示只在够高的桌面屏上出现，矮屏会压到 Hero 内容 */
+@media (min-width: 1024px) and (min-height: 760px) {
+  .cp-scroll-hint {
+    display: flex;
+  }
+}
+
+@media (max-width: 1023px) {
+  .cp-pain-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cp-footer-inner {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cp-footer-brand {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 767px) {
-  .cp-home-default header {
-    padding: 12px 16px;
+  .cp-topbar-inner {
+    height: 58px;
+    padding: 0 14px;
+    gap: 8px;
+  }
+
+  .cp-topbar-logo {
+    width: 30px;
+    height: 30px;
   }
 
   .cp-brand-name {
     font-size: 13px;
   }
 
-  .cp-home-default main {
-    padding: 40px 16px 16px;
+  .cp-topbar-actions {
+    gap: 2px;
   }
 
-  .cp-section {
-    margin-bottom: 52px;
+  .cp-topbar-cta {
+    padding: 6px 12px;
   }
 
-  .cp-section-title {
-    font-size: 21px;
+  .cp-main {
+    padding: 0 16px;
+  }
+
+  .cp-chapter {
+    padding: 64px 0;
+  }
+
+  .cp-chapter-last {
+    padding-bottom: 72px;
+  }
+
+  .cp-hero {
+    min-height: auto;
+    padding-top: 100px;
   }
 
   .cp-hero-title {
@@ -1434,50 +1780,56 @@ onMounted(() => {
   }
 
   .cp-hero-sub {
-    font-size: 14px;
+    font-size: 14.5px;
   }
 
-  .cp-secondary-btn {
-    margin-top: 10px;
-    margin-left: 0;
+  .cp-btn {
+    padding: 11px 18px;
+    font-size: 14px;
   }
 
   .cp-proof {
     gap: 8px 14px;
-    font-size: 11px;
+    font-size: 11.5px;
   }
 
-  .cp-pain-grid,
-  .cp-feature-grid {
+  .cp-pain-grid {
     grid-template-columns: 1fr;
-  }
-
-  .cp-cta {
-    padding: 32px 20px;
   }
 
   .cp-compare th,
   .cp-compare td {
     padding: 11px 13px;
   }
+
+  .cp-models {
+    margin-top: 44px;
+  }
+
+  .cp-footer-inner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    padding: 36px 16px 24px;
+  }
+
+  .cp-footer-bottom {
+    padding: 16px 16px 22px;
+  }
 }
 
-/* 兜底：即使全局 reduce-motion 规则被局部覆盖，也保证卡片可见 */
+/* 兜底：即使全局 reduce-motion 规则被局部覆盖，也不留动画 */
 @media (prefers-reduced-motion: reduce) {
-  .cp-pulse,
+  .cp-pulse::after,
+  .cp-proof-dot::after,
+  .cp-hero-title span,
   .cp-marquee-track,
-  .cp-card {
+  .cp-scroll-hint svg {
     animation: none !important;
   }
 
-  .cp-card {
-    opacity: 1;
-    transform: none;
-  }
-
-  .cp-primary-btn:hover,
-  .cp-secondary-btn:hover,
-  .cp-card:hover {
+  .cp-btn:hover,
+  .cp-card:hover,
+  .cp-topbar-cta:hover {
     transform: none;
   }
 }
