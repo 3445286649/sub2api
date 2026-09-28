@@ -20,3 +20,6 @@ backend/migrations/*.sql text eol=lf
 
 # Dockerfile
 Dockerfile text eol=lf
+
+# 文档（含文档站 Markdown）
+*.md text eol=lf

@@ -8,16 +8,16 @@
 
 | 功能 | 入口 | 用途 |
 | --- | --- | --- |
-| API 密钥 | [API 密钥](https://subapi.loucer.cn/keys) | 创建 Key、选择分组、导入 CC Switch |
-| 使用记录 | [使用记录](https://subapi.loucer.cn/usage) | 确认请求是否经过 subapi，并核对模型与费用 |
-| 渠道状态 | [渠道状态](https://subapi.loucer.cn/monitor) | 查看渠道探测状态，不代表某个 Key 一定有模型权限 |
-| 充值与订单 | [充值/订阅](https://subapi.loucer.cn/purchase) / [订单](https://subapi.loucer.cn/orders) | 充值、支付及订单状态查询 |
-| 兑换码 | [兑换](https://subapi.loucer.cn/redeem) | 兑换余额、订阅或其它权益 |
-| 拉新活动 | [拉新活动](https://subapi.loucer.cn/acquisition) | 活动、排行榜和抽奖，以当期页面为准 |
-| 邀请返利 | [邀请返利](https://subapi.loucer.cn/affiliate) | 查看邀请码、邀请记录和返利 |
+| API 密钥 | [API 密钥](https://codeplan.codes/keys) | 创建 Key、选择分组、导入 CCSwitch |
+| 使用记录 | [使用记录](https://codeplan.codes/usage) | 确认请求是否经过 CodePlan，并核对模型与费用 |
+| 渠道状态 | [渠道状态](https://codeplan.codes/monitor) | 查看渠道探测状态，不代表某个 Key 一定有模型权限 |
+| 充值与订单 | [充值/订阅](https://codeplan.codes/purchase) / [订单](https://codeplan.codes/orders) | 充值、支付及订单状态查询 |
+| 兑换码 | [兑换](https://codeplan.codes/redeem) | 兑换余额、订阅或其它权益 |
+| 拉新活动 | [拉新活动](https://codeplan.codes/acquisition) | 活动、排行榜和抽奖，以当期页面为准 |
+| 邀请返利 | [邀请返利](https://codeplan.codes/affiliate) | 查看邀请码、邀请记录和返利 |
 | 模型雷达 | 登录后右上角 **模型雷达** | 参考模型推荐与状态，仍需确认 Key 分组支持 |
 | 充值商城 | 登录后右上角 **充值商城** | 主商城不可用时可选择备用商城 |
-| 售后群 | 本文档首页 **售后群** | 扫码加入一群或二群 |
+| 售后群 | [售后与联系](/support) | 扫码加入一群或二群 |
 
 ## 功能之间的区别
 
