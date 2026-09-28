@@ -232,6 +232,14 @@ export default {
   auth: {
     welcomeBack: '欢迎回来',
     signInToAccount: '登录您的账户以继续',
+    // 登录/注册页信任小字：登录是转化点，不能只有表单
+    trustNote: '您的密钥仅在浏览器本地处理，不会被存储',
+    trustTools: '支持 Claude Code · Codex · Gemini CLI',
+    asidePoints: {
+      one: '一个密钥，畅用 Claude、GPT、Gemini',
+      two: '多账号池自动切换，服务不中断',
+      three: '按实际用量计费，账单逐笔可查'
+    },
     signIn: '登录',
     signingIn: '登录中...',
     passkeySignIn: '使用 Passkey 登录',

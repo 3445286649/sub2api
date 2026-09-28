@@ -6,6 +6,16 @@ export default {
   // Home Page
   home: {
     viewOnGithub: 'View on GitHub',
+    // Hero trust row (previously hardcoded Chinese in the template)
+    proof: {
+      sdk: 'OpenAI SDK compatible',
+      setup: 'Set up in 5 minutes',
+      billing: 'Pay as you go'
+    },
+    // Compact home
+    compact: {
+      trust: 'Works with Claude Code · Codex · Gemini CLI'
+    },
     viewDocs: 'View Documentation',
     docs: 'Docs',
     switchToLight: 'Switch to Light Mode',
@@ -62,8 +72,12 @@ export default {
       rateDesc: 'Set request limits by key, model, and time window to prevent abuse.',
       cost: 'Accurate Billing',
       costDesc: 'Track token usage and cost for every request with a clear audit trail.',
-      route: 'Smart Routing',
-      routeDesc: 'Choose the best account by model, latency, and quota while keeping sessions sticky.'
+      route: 'A Pool That Never Drops',
+      routeDesc: 'Automatic load balancing across accounts. On a 429 or timeout, requests fail over to a backup — clients never notice.',
+      sticky: 'Session Affinity',
+      stickyDesc: 'The same session returns to the same account, so cached context hits — the same conversation costs less.',
+      compat: 'Works With Your Tools',
+      compatDesc: 'Compatible with Claude Code, Codex, Gemini CLI and the OpenAI SDK. Change your Base URL and go.'
     },
     // Comparison section
     comparison: {
@@ -110,6 +124,83 @@ export default {
       gemini: 'Gemini',
       antigravity: 'Antigravity',
       more: 'More'
+    },
+    // Architecture flow: one diagram for the whole request path
+    architecture: {
+      title: 'One Request, Four Gateway Layers',
+      subtitle: 'From your client to the upstream model, every hop has a clear job',
+      client: {
+        title: 'Your Client',
+        desc: 'Claude Code / Codex / Gemini CLI / OpenAI SDK'
+      },
+      gateway: {
+        title: 'Gateway',
+        auth: 'Auth',
+        authDesc: 'API Key check',
+        limit: 'Rate limit',
+        limitDesc: 'Concurrency & RPM',
+        route: 'Smart routing',
+        routeDesc: 'Pick best account',
+        bill: 'Metering',
+        billDesc: 'Token-level billing'
+      },
+      pool: {
+        title: 'Account Pool',
+        desc: 'Multiple OAuth / API Key accounts with auto balancing and failover',
+        healthy: 'Healthy',
+        standby: 'Standby'
+      },
+      upstream: {
+        title: 'Upstream Models',
+        desc: 'Anthropic · OpenAI · Gemini · Antigravity'
+      },
+      receipt: 'Client receives 200 OK'
+    },
+    // Request journey animation (Hero right / login aside / compact home)
+    journey: {
+      title: 'Request Journey',
+      live: 'Live',
+      labels: {
+        auth: 'Auth',
+        quota: 'Quota',
+        route: 'Route',
+        session: 'Session',
+        upstream: 'Upstream',
+        retry: 'Retry'
+      },
+      scenes: {
+        normal: {
+          auth: 'API Key verified',
+          quota: 'Concurrency 3/10 · quota available',
+          route: 'Pool of 128 → picked #047 (lowest latency)',
+          upstream: 'claude-opus-4 → 200 OK',
+          total: '1,842 tokens',
+          cost: '$0.0271',
+          bound: 'session pinned'
+        },
+        sticky: {
+          session: 'Sticky session hit → reusing account #047',
+          upstream: '200 OK (context reused)',
+          cacheLabel: 'Cache read',
+          cacheValue: '12,480 tokens',
+          savedLabel: 'Cost reduced',
+          savedValue: '78%'
+        },
+        failover: {
+          route: 'Pool → picked #012',
+          upstreamFail: '429 Too Many Requests',
+          retry: 'Auto-switched to backup #089',
+          upstreamOk: '200 OK',
+          transparent: 'Client unaware',
+          switches: '1 switch total',
+          overhead: '+140ms elapsed'
+        }
+      },
+      rail: {
+        pool: 'Accounts available',
+        success: 'Success rate',
+        latency: 'P95 latency'
+      }
     },
     // CTA section
     cta: {

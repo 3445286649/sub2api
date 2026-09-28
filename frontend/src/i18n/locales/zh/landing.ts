@@ -6,6 +6,16 @@ export default {
   // Home Page
   home: {
     viewOnGithub: '在 GitHub 上查看',
+    // Hero 下方信任条（原为模板内硬编码中文，英文界面会露出中文）
+    proof: {
+      sdk: 'OpenAI SDK 兼容',
+      setup: '5 分钟接入',
+      billing: '按用量付费'
+    },
+    // 紧凑首页
+    compact: {
+      trust: '支持 Claude Code · Codex · Gemini CLI'
+    },
     viewDocs: '查看文档',
     docs: '文档',
     switchToLight: '切换到浅色模式',
@@ -62,8 +72,12 @@ export default {
       rateDesc: '按 Key、模型和时段设置调用上限，超额自动拦截，杜绝滥用。',
       cost: '精准计费',
       costDesc: '记录每次请求的 Token 消耗与费用，账单清晰可追溯。',
-      route: '智能调度',
-      routeDesc: '按模型、延迟与配额选择最优账号，保持会话并控制并发。'
+      route: '永不掉线的账号池',
+      routeDesc: '多账号自动负载均衡，上游 429 或超时自动切换备用账号，客户端完全无感。',
+      sticky: '会话保持',
+      stickyDesc: '同一会话自动回到同一账号，上下文缓存命中，同样的对话花更少的钱。',
+      compat: '工具即插即用',
+      compatDesc: '兼容 Claude Code、Codex、Gemini CLI 与 OpenAI SDK，改一个 Base URL 就能用。'
     },
     // 优势对比
     comparison: {
@@ -110,6 +124,83 @@ export default {
       gemini: 'Gemini',
       antigravity: 'Antigravity',
       more: '更多'
+    },
+    // 架构流：一张图讲清请求怎么穿过网关
+    architecture: {
+      title: '一次请求，穿越四层网关',
+      subtitle: '从你的客户端到上游模型，每一跳都有明确职责',
+      client: {
+        title: '你的客户端',
+        desc: 'Claude Code / Codex / Gemini CLI / OpenAI SDK'
+      },
+      gateway: {
+        title: '网关层',
+        auth: '鉴权',
+        authDesc: 'API Key 校验',
+        limit: '限流',
+        limitDesc: '并发与速率',
+        route: '智能调度',
+        routeDesc: '选最优账号',
+        bill: '计量计费',
+        billDesc: 'Token 级记账'
+      },
+      pool: {
+        title: '账号池',
+        desc: 'OAuth / API Key 多账号，自动负载均衡与故障转移',
+        healthy: '健康',
+        standby: '备用'
+      },
+      upstream: {
+        title: '上游模型',
+        desc: 'Anthropic · OpenAI · Gemini · Antigravity'
+      },
+      receipt: '客户端收到 200 OK'
+    },
+    // 「请求旅程」动画（Hero 右侧 / 登录页左栏 / 紧凑首页）
+    journey: {
+      title: '请求旅程',
+      live: '实时',
+      labels: {
+        auth: '鉴权',
+        quota: '限额',
+        route: '调度',
+        session: '会话',
+        upstream: '上游',
+        retry: '重试'
+      },
+      scenes: {
+        normal: {
+          auth: 'API Key 校验通过',
+          quota: '并发 3/10 · 额度充足',
+          route: '账号池 128 可用 → 选中 #047（延迟最低）',
+          upstream: 'claude-opus-4 → 200 OK',
+          total: '1,842 tokens',
+          cost: '$0.0271',
+          bound: '会话已绑定'
+        },
+        sticky: {
+          session: '命中粘性会话 → 沿用账号 #047',
+          upstream: '200 OK（上下文已复用）',
+          cacheLabel: '缓存读取',
+          cacheValue: '12,480 tokens',
+          savedLabel: '费用降低',
+          savedValue: '78%'
+        },
+        failover: {
+          route: '账号池 → 选中 #012',
+          upstreamFail: '429 Too Many Requests',
+          retry: '自动切换备用账号 #089',
+          upstreamOk: '200 OK',
+          transparent: '客户端无感',
+          switches: '累计切换 1 次',
+          overhead: '耗时 +140ms'
+        }
+      },
+      rail: {
+        pool: '账号池可用',
+        success: '请求成功率',
+        latency: 'P95 延迟'
+      }
     },
     // CTA 区块
     cta: {

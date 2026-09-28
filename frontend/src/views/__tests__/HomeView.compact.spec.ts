@@ -50,6 +50,10 @@ function mountHome(settings: Record<string, unknown> = {}) {
         RouterLink: RouterLinkStub,
         LocaleSwitcher: { template: '<div data-testid="locale-switcher" />' },
         Icon: { template: '<span data-testid="icon" />' },
+        // 纯装饰动画组件，自带定时器与 matchMedia 依赖；
+        // 这些用例验证的是首页分支选择与链接目标，不涉及动画本身。
+        RequestJourney: { template: '<div data-testid="request-journey" />' },
+        ArchitectureFlow: { template: '<div data-testid="architecture-flow" />' },
       },
     },
   })
@@ -108,7 +112,7 @@ describe('HomeView compact mode', () => {
     const wrapper = mountHome(settings)
 
     expect(wrapper.find('[data-testid="compact-home"]').exists()).toBe(false)
-    expect(wrapper.find('.terminal-container').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="request-journey"]').exists()).toBe(true)
   })
 
   it('links unauthenticated visitors to login', () => {

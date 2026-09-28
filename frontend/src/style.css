@@ -21,6 +21,60 @@
     @apply min-h-screen;
   }
 
+  /* ============ 语义 token ============
+   * 首页 / 紧凑首页 / 登录页 / 控制台共用同一套变量，避免每个页面各写一份
+   * :global(.dark) 覆盖导致的深浅色漂移。
+   *
+   * 配色：Teal 主色 + 紫色作「上游通道」语义色 + 绿色专用于状态。
+   * 深色页面底为中性冷黑（#0f1720），保证青色发光干净、不偏紫。
+   */
+  :root {
+    /* 品牌 */
+    --brand: #0d9488;
+    --brand-2: #7c3aed;
+    --brand-soft: #5eead4;
+    --accent-ok: #059669;
+    --accent-warn: #d97706;
+    --accent-danger: #dc2626;
+
+    /* 面 */
+    --surface: #ffffff;
+    --surface-2: #f5f7f8;
+    --surface-3: #eef1f3;
+    --border: rgba(15, 23, 42, 0.09);
+    --border-strong: rgba(15, 23, 42, 0.16);
+    --text: #0f172a;
+    --muted: #5b6875;
+
+    /* 光晕与投影 */
+    --glow-brand: rgba(13, 148, 136, 0.14);
+    --glow-brand-2: rgba(124, 58, 237, 0.12);
+    --shadow-card: 0 18px 40px -28px rgba(15, 23, 42, 0.35);
+    --shadow-float: 0 40px 88px -32px rgba(15, 23, 42, 0.28);
+  }
+
+  .dark {
+    --brand: #2dd4bf;
+    --brand-2: #a78bfa;
+    --brand-soft: #99f6e4;
+    --accent-ok: #34d399;
+    --accent-warn: #fbbf24;
+    --accent-danger: #f87171;
+
+    --surface: #131c25;
+    --surface-2: #0f1720;
+    --surface-3: #1b2531;
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --text: #eef2f6;
+    --muted: #94a3b8;
+
+    --glow-brand: rgba(45, 212, 191, 0.18);
+    --glow-brand-2: rgba(167, 139, 250, 0.14);
+    --shadow-card: 0 18px 40px -28px rgba(0, 0, 0, 0.7);
+    --shadow-float: 0 40px 88px -32px rgba(0, 0, 0, 0.75);
+  }
+
   /* 自定义滚动条 - 仅针对 Firefox，避免 Chrome 取消 webkit 的全局定制 */
   @supports (-moz-appearance:none) {
     * {
@@ -774,5 +828,21 @@
 
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ============ 动效偏好兜底 ============
+ * 落在 @layer 之外，确保优先级高于各组件 scoped 样式里的动画声明。
+ * 用户开启系统「减少动画」后，首页 / 紧凑首页 / 登录页 / 控制台统一退化为静态终态，
+ * 而不是每个组件各自补一条 @media。
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

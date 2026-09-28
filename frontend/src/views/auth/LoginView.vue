@@ -11,7 +11,12 @@
         </p>
       </div>
       <!-- Login Form -->
-      <form @submit.prevent="handleLogin" class="cp-login-form-body space-y-5">
+      <form
+        @submit.prevent="handleLogin"
+        class="cp-login-form-body space-y-5"
+        :class="{ 'is-shaking': isShaking }"
+        @animationend="isShaking = false"
+      >
         <!-- Email Input -->
         <div>
           <label for="email" class="input-label">
@@ -264,6 +269,8 @@ const appStore = useAppStore()
 // ==================== State ====================
 
 const isLoading = ref<boolean>(false)
+/** 登录失败时触发一次表单抖动；animationend 后自动复位 */
+const isShaking = ref<boolean>(false)
 const passkeyLoading = ref<boolean>(false)
 const errorMessage = ref<string>('')
 const showPassword = ref<boolean>(false)
@@ -607,6 +614,7 @@ async function handleLogin(): Promise<void> {
     await router.push(redirectTo)
   } catch (error: unknown) {
     errorMessage.value = extractI18nErrorMessage(error, t, 'auth.errors', t('auth.loginFailed'))
+    isShaking.value = true
 
     // Also show error toast
     appStore.showError(errorMessage.value)
@@ -745,35 +753,50 @@ function handle2FACancel(): void {
   transform: translateY(-8px);
 }
 
+/* 配色全部走全局语义 token；原先硬编码的紫色渐变按钮与全站 teal 冲突 */
 .cp-login-title {
+  color: var(--text);
   letter-spacing: -0.025em;
 }
 
 .cp-login-desc {
-  color: var(--cp-muted, #9e99b8);
+  color: var(--muted);
 }
 
 .cp-login-form :deep(.input-label) {
-  color: var(--cp-muted, #9e99b8);
+  color: var(--muted);
   font-size: 12.5px;
   letter-spacing: 0.005em;
+  transition: color 0.2s ease;
+}
+
+/* 聚焦时标签与左侧图标同步变品牌色 */
+.cp-login-form :deep(div:focus-within > .input-label),
+.cp-login-form :deep(div:focus-within > .relative svg) {
+  color: var(--brand);
+}
+
+.cp-login-form :deep(.relative svg) {
+  transition: color 0.2s ease;
 }
 
 .cp-login-form :deep(.input) {
-  border-color: var(--cp-border, rgba(255, 255, 255, 0.12));
-  background: var(--cp-subtle, #1a1829);
+  border-color: var(--border);
+  background: var(--surface-3);
   border-radius: 12px;
+  color: var(--text);
   font-size: 13.5px;
   transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
 }
 
 .cp-login-form :deep(.input:hover) {
-  border-color: rgba(167, 139, 250, 0.38);
+  border-color: color-mix(in srgb, var(--brand) 38%, var(--border));
 }
 
 .cp-login-form :deep(.input:focus) {
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18);
+  border-color: var(--brand);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent);
 }
 
 .cp-login-submit {
@@ -782,17 +805,26 @@ function handle2FACancel(): void {
   min-height: 46px;
   border: 0;
   border-radius: 12px;
-  background: linear-gradient(135deg, #c4b5fd, #7c3aed 48%, #4c1d95);
-  color: #101014;
-  box-shadow: 0 10px 28px -12px rgba(45, 212, 191, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  background: linear-gradient(135deg, var(--brand-soft), var(--brand) 55%);
+  color: #fff;
+  box-shadow:
+    0 10px 28px -12px color-mix(in srgb, var(--brand) 80%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
   transition: transform 0.2s ease, box-shadow 0.3s ease, opacity 0.2s ease;
+}
+
+:global(.dark) .cp-login-submit {
+  color: #042f2e;
 }
 
 .cp-login-submit:hover:not(:disabled) {
   transform: translateY(-1.5px);
-  box-shadow: 0 15px 32px -13px rgba(45, 212, 191, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 15px 32px -13px color-mix(in srgb, var(--brand) 90%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
+/* 悬停时一道高光从左扫到右 */
 .cp-login-submit::after {
   content: '';
   position: absolute;
@@ -808,25 +840,38 @@ function handle2FACancel(): void {
   animation: cp-login-sheen 0.9s ease;
 }
 
-@keyframes cp-login-sheen {
-  to { left: 150%; }
+/* 登录失败时表单整体抖动一次 */
+.cp-login-form-body.is-shaking {
+  animation: cp-login-shake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
 .cp-login-form :deep(.btn-secondary) {
   min-height: 44px;
-  border-color: var(--cp-border, rgba(255, 255, 255, 0.12));
+  border-color: var(--border);
   border-radius: 12px;
   background: transparent;
-  color: var(--cp-text, #f0eeff);
+  color: var(--text);
 }
 
 .cp-login-form :deep(.btn-secondary:hover:not(:disabled)) {
-  border-color: rgba(167, 139, 250, 0.4);
-  background: rgba(124, 58, 237, 0.1);
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--border));
+  background: color-mix(in srgb, var(--brand) 8%, transparent);
+}
+
+@keyframes cp-login-sheen {
+  to { left: 150%; }
+}
+
+@keyframes cp-login-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .cp-login-submit:hover:not(:disabled) { transform: none; }
   .cp-login-submit::after { display: none; }
+  .cp-login-form-body.is-shaking { animation: none; }
 }
 </style>

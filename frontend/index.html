@@ -4,6 +4,24 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      首屏主题防闪：必须在 CSS 加载前打上 dark 类。
+      逻辑与 src/composables/useTheme.ts 的 initTheme() 保持一致（显式选择优先，否则跟随系统）。
+      改这里时务必同步改 useTheme.ts，否则会出现「首屏一种颜色、挂载后另一种颜色」。
+    -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('theme')
+          var dark =
+            saved === 'dark' ||
+            (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.classList.toggle('dark', dark)
+        } catch (e) {
+          /* 存储不可用时保持默认浅色 */
+        }
+      })()
+    </script>
     <title>Sub2API - AI API Gateway</title>
   </head>
   <body>

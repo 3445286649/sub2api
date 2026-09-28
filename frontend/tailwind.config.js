@@ -5,6 +5,13 @@ export default {
   theme: {
     extend: {
       colors: {
+        // 语义 token（定义在 src/style.css 的 :root / .dark 下）
+        // 首页 / 紧凑首页 / 登录页 / 控制台共用，避免各页各写一套深浅色覆盖。
+        brand: 'var(--brand)',
+        'brand-2': 'var(--brand-2)',
+        surface: 'var(--surface)',
+        'surface-2': 'var(--surface-2)',
+        'surface-3': 'var(--surface-3)',
         // 主色调 - Teal/Cyan 青色系
         primary: {
           50: '#f0fdfa',

@@ -232,6 +232,14 @@ export default {
   auth: {
     welcomeBack: 'Welcome Back',
     signInToAccount: 'Sign in to your account to continue',
+    // Trust copy on auth pages: sign-in is a conversion point, not just a form
+    trustNote: 'Your key is processed locally in the browser and never stored',
+    trustTools: 'Works with Claude Code · Codex · Gemini CLI',
+    asidePoints: {
+      one: 'One key for Claude, GPT and Gemini',
+      two: 'A multi-account pool fails over automatically',
+      three: 'Usage-based billing with a per-request audit trail'
+    },
     signIn: 'Sign In',
     signingIn: 'Signing in...',
     passkeySignIn: 'Sign in with a passkey',
