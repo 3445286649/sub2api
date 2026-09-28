@@ -52,7 +52,8 @@ func TestAccountSchedulingHoldLifecycleIntegration(t *testing.T) {
 	require.NoError(t, err, "renewing an active hold must not consume additional capacity")
 
 	healthRepo := NewAccountHealthRepository(integrationDB)
-	due, err := healthRepo.ListDueForProbe(ctx, renewNow, 200)
+	healthService := service.NewAccountHealthService(healthRepo, accountRepo)
+	due, err := healthService.ListDueForProbe(ctx, renewNow, 200)
 	require.NoError(t, err)
 	require.Contains(t, accountHealthStateIDs(due), target.ID)
 
