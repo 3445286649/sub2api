@@ -6,10 +6,16 @@
       </div>
       <template v-else>
         <!-- Tab Switcher (hide during payment and subscription confirm) -->
-        <div v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan" class="flex space-x-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-800">
+        <div v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan" class="relative flex rounded-xl bg-gray-100 p-1 dark:bg-dark-800">
+          <!-- 滑动底块：用 transform 移动，比每格切底色更能看清移动方向 -->
+          <span
+            class="cp-tab-indicator pointer-events-none absolute inset-y-1 left-1 rounded-lg bg-white shadow transition-transform duration-300 ease-out dark:bg-dark-700"
+            :style="tabIndicatorStyle"
+            aria-hidden="true"
+          />
           <button v-for="tab in tabs" :key="tab.key"
-            class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
-            :class="activeTab === tab.key ? 'bg-white text-gray-900 shadow dark:bg-dark-700 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
+            class="relative z-10 flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
+            :class="activeTab === tab.key ? 'text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
             @click="activeTab = tab.key">{{ tab.label }}</button>
         </div>
         <!-- Payment in progress (shared by recharge and subscription) -->
@@ -888,6 +894,20 @@ const canSubmit = computed(() =>
     && amountFitsMethod(validAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
 )
+
+// 标签滑块：按标签数量平分宽度，用 translateX 移到选中项，避免逐格重排
+const activeTabIndex = computed(() => {
+  const index = tabs.value.findIndex((tab) => tab.key === activeTab.value)
+  return index === -1 ? 0 : index
+})
+
+const tabIndicatorStyle = computed(() => {
+  const count = tabs.value.length || 1
+  return {
+    width: `calc((100% - 0.5rem) / ${count})`,
+    transform: `translateX(calc(${activeTabIndex.value} * 100%))`,
+  }
+})
 
 // 充值账户条：没设用户名的账号回退到邮箱，避免出现空行和「?」头像
 const accountPrimaryName = computed(() => {

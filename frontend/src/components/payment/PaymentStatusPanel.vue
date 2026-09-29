@@ -6,8 +6,10 @@
     <template v-if="outcome === 'success'">
       <div class="card p-6">
         <div class="flex flex-col items-center space-y-4 py-4">
-          <div class="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-            <Icon name="check" size="lg" class="text-green-500" />
+          <div class="cp-success-badge flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+            <svg class="h-8 w-8 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path class="cp-success-check" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
           </div>
           <p class="text-lg font-bold text-gray-900 dark:text-white">{{ props.orderType === 'subscription' ? t('payment.result.subscriptionSuccess') : t('payment.result.success') }}</p>
           <div v-if="paidOrder" class="w-full rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
@@ -603,3 +605,51 @@ onMounted(() => {
 })
 onUnmounted(() => cleanup())
 </script>
+
+<style scoped>
+/* ============ 支付成功：圆圈弹入 + 对勾描边画出 ============ */
+/* 成功页是用户刚付完钱看到的一屏，动效只做一次、不循环，总时长约 700ms */
+.cp-success-badge {
+  animation: cp-badge-in 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes cp-badge-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 用 dasharray 把描边「画」出来：路径长度约 30，取 32 留出余量 */
+.cp-success-check {
+  stroke-dasharray: 32;
+  stroke-dashoffset: 32;
+  animation: cp-check-draw 400ms ease-out 260ms both;
+}
+
+@keyframes cp-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* 系统开启「减少动态效果」时不做动画，直接呈现最终状态 */
+@media (prefers-reduced-motion: reduce) {
+  .cp-success-badge,
+  .cp-success-check {
+    animation: none;
+  }
+
+  .cp-success-check {
+    stroke-dashoffset: 0;
+  }
+}
+</style>
