@@ -37,7 +37,10 @@
       </div>
       <span
         class="px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0"
-        :class="statusBadgeClassForFailure(item.primary_status, item.primary_failure_category)"
+        :class="[
+          statusBadgeClassForFailure(item.primary_status, item.primary_failure_category),
+          item.primary_status !== 'operational' ? 'cp-badge-pulse' : ''
+        ]"
         :title="failureCategoryLabel(item.primary_failure_category) || statusLabel(item.primary_status)"
       >
         {{ failureCategoryLabel(item.primary_failure_category) || statusLabel(item.primary_status) }}
@@ -146,3 +149,65 @@ const extraModelsCountLabel = computed(() => {
   return t('monitorCommon.extraModelsCount', { n: count })
 })
 </script>
+
+<style scoped>
+/* ============ 卡片错峰入场 ============ */
+.cp-card-reveal {
+  animation: cp-card-in 320ms ease-out both;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+@keyframes cp-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ============ 非正常状态徽标轻脉冲（只播一次） ============ */
+.cp-badge-pulse {
+  animation: cp-badge-glow 900ms ease-out 1;
+}
+
+@keyframes cp-badge-glow {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+    opacity: 0.85;
+  }
+  100% {
+    box-shadow: none;
+    opacity: 1;
+  }
+}
+
+/* ============ 悬浮抬起只在真正支持 hover 的设备上生效 ============ */
+@media (hover: hover) {
+  .group:hover {
+    --tw-translate-y: -0.25rem;
+  }
+}
+
+/* 触屏设备不需要 hover 态，避免点击后粘连 */
+@media (hover: none) {
+  .group:hover {
+    --tw-translate-y: 0;
+    box-shadow: var(--tw-shadow);
+  }
+}
+
+/* ============ 尊重用户「减少动态效果」偏好 ============ */
+@media (prefers-reduced-motion: reduce) {
+  .cp-card-reveal,
+  .cp-badge-pulse {
+    animation: none;
+  }
+}
+</style>

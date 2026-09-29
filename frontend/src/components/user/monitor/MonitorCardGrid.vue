@@ -47,12 +47,14 @@
         </h2>
         <div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       <MonitorCard
-        v-for="item in group.items"
+        v-for="(item, idx) in group.items"
         :key="item.id"
         :item="item"
         :window="window"
         :availability-value="resolveAvailability(item)"
         :countdown-seconds="countdownSeconds"
+        class="cp-card-reveal"
+        :style="{ '--reveal-delay': `${Math.min(idx * 40, 360)}ms` }"
         @click="emit('cardClick', item)"
       />
         </div>
