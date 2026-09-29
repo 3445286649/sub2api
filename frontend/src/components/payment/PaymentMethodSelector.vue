@@ -13,16 +13,29 @@
         type="button"
         :title="methodLabel(method)"
         :disabled="!method.available"
+        :data-selected="selected === method.type ? 'true' : 'false'"
         :class="[
-          'relative flex h-[60px] min-w-0 flex-col items-center justify-center rounded-lg border px-3 transition-all',
+          'cp-method group relative flex h-[64px] min-w-0 flex-col items-center justify-center rounded-xl border px-3 transition-all duration-200',
           !method.available
             ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-50 dark:border-dark-700 dark:bg-dark-800/50'
             : selected === method.type
               ? methodSelectedClass(method.type)
-              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-dark-500',
+              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-dark-500 dark:hover:bg-dark-700/60',
         ]"
         @click="method.available && emit('select', method.type)"
       >
+        <!-- 选中标记 -->
+        <span
+          v-if="method.available"
+          class="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full transition-all duration-200"
+          :class="selected === method.type ? 'scale-100 opacity-100' : 'scale-50 opacity-0'"
+          :style="{ backgroundColor: methodAccent(method.type) }"
+          aria-hidden="true"
+        >
+          <svg class="h-2.5 w-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.8 3.8 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd" />
+          </svg>
+        </span>
         <span class="flex w-full min-w-0 items-center justify-center gap-2">
           <span v-if="method.type === 'usdt_bsc'" class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white shadow-sm">USDT</span>
           <img v-else :src="methodIcon(method.type)" :alt="methodLabel(method)" class="h-7 w-7 shrink-0 object-contain" />
@@ -31,15 +44,21 @@
               {{ methodLabel(method) }}
             </span>
             <span
-              v-if="method.fee_rate > 0"
               class="text-[10px] tracking-wide text-gray-500 dark:text-dark-400"
             >
-              {{ t('payment.fee') }} {{ method.fee_rate }}%
+              {{ methodSubLabel(method) }}
             </span>
           </span>
         </span>
       </button>
     </div>
+    <!-- USDT 选中时说明链和汇率来源，减少选错链的风险 -->
+    <p
+      v-if="selected === 'usdt_bsc'"
+      class="cp-fade-in mt-2 text-xs text-gray-500 dark:text-dark-400"
+    >
+      {{ t('payment.usdtHint') }}
+    </p>
   </div>
 </template>
 
@@ -95,6 +114,25 @@ function methodIcon(type: string): string {
 
 function methodLabel(method: PaymentMethodOption): string {
   return method.display_name?.trim() || t(`payment.methods.${method.type}`, method.type)
+}
+
+// 副标题优先显示费率；没有费率时用 USDT 的链说明占位，其余留空
+function methodSubLabel(method: PaymentMethodOption): string {
+  if (method.fee_rate > 0) {
+    return `${t('payment.fee')} ${method.fee_rate}%`
+  }
+  if (method.type === 'usdt_bsc') return 'BSC'
+  return ''
+}
+
+// 勾选标记跟随各渠道品牌色
+function methodAccent(type: string): string {
+  if (type.includes('alipay')) return '#02A9F1'
+  if (type.includes('wxpay')) return '#09BB07'
+  if (type === 'stripe') return '#676BE5'
+  if (type === 'airwallex') return '#FF6B3D'
+  if (type === 'usdt_bsc') return '#10b981'
+  return '#0d9488'
 }
 
 function methodSelectedClass(type: string): string {

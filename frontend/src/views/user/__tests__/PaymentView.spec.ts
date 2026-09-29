@@ -6,6 +6,7 @@ import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 import { formatPaymentAmount } from '@/components/payment/currency'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
+import PaymentSummaryCard from '@/components/payment/PaymentSummaryCard.vue'
 import en from '@/i18n/locales/en'
 import zh from '@/i18n/locales/zh'
 import type { CheckoutInfoResponse, MethodLimit, SubscriptionPlan } from '@/types/payment'
@@ -411,6 +412,8 @@ describe('PaymentView recharge rate preview', () => {
           AppLayout: { template: '<div><slot /></div>' },
           Teleport: true,
           Transition: false,
+          // 费率预览文案在摘要卡里，必须渲染真实组件
+          PaymentSummaryCard,
         },
       },
     })
@@ -791,6 +794,8 @@ function mountPaymentView() {
           },
         }),
         PaymentMethodSelector: true,
+        // 赠送说明和金额明细都在这个子组件里，必须渲染真实组件才能断言文案
+        PaymentSummaryCard,
       },
     },
   })

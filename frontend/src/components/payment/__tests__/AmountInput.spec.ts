@@ -63,9 +63,31 @@ describe('AmountInput recharge bonus preview', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('80.00')
+    // 只有到账金额高于面值的档位才显示到账行：100 -> 120 显示，80 -> 80 不显示
     expect(wrapper.text()).toContain('120.00')
+    expect(wrapper.text()).not.toContain('80.00')
+    // 倍率 9.9 不应参与计算，否则会算出 792.00
     expect(wrapper.text()).not.toContain('792.00')
+  })
+
+  it('hides the credited line on tiers without a bonus', () => {
+    // 与真实页面一致：门槛以下倍率为 1，达到门槛才有赠送
+    const wrapper = mount(AmountInput, {
+      props: {
+        modelValue: null,
+        amounts: [50, 100],
+        bonusEnabled: true,
+        creditMultiplier: 1.2,
+        bonusThreshold: 100,
+        creditAmountFor: (amount: number) => amount >= 100 ? amount * 1.2 : amount,
+        formatCreditAmount: (value: number) => value.toFixed(2),
+      },
+    })
+
+    // 面值本身照常显示，但门槛以下的档位不该出现到账 50.00 这一行
+    expect(wrapper.text()).toContain('¥50')
+    expect(wrapper.text()).not.toContain('到账 50.00')
+    expect(wrapper.text()).toContain('到账 120.00')
   })
 })
 

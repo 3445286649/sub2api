@@ -46,78 +46,102 @@
           <!-- Top-up Tab -->
           <template v-else-if="activeTab === 'recharge'">
             <!-- Recharge Account Card -->
-            <div class="card p-5">
-              <p class="text-xs font-medium text-gray-400 dark:text-gray-500">{{ t('payment.rechargeAccount') }}</p>
-              <p class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ user?.username || '' }}</p>
-              <p class="mt-0.5 text-sm font-medium text-green-600 dark:text-green-400">{{ t('payment.currentBalance') }}: {{ user?.balance?.toFixed(2) || '0.00' }}</p>
+            <div class="card mb-6 flex items-center justify-between gap-4 px-5 py-3.5">
+              <div class="flex min-w-0 items-center gap-3">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
+                  {{ accountInitial }}
+                </div>
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ accountPrimaryName }}</p>
+                  <p class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.rechargeAccount') }}</p>
+                </div>
+              </div>
+              <div class="shrink-0 text-right">
+                <p class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.currentBalance') }}</p>
+                <p class="text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  ${{ balanceDisplay }}
+                </p>
+              </div>
             </div>
             <div v-if="enabledMethods.length === 0" class="card py-16 text-center">
               <p class="text-gray-500 dark:text-gray-400">{{ t('payment.notAvailable') }}</p>
             </div>
-            <template v-else>
-            <div class="card p-6">
-              <AmountInput
-                v-model="amount"
-                :amounts="[10, 20, 50, 100, 200, 500, 1000, 2000, 5000]"
-                :min="globalMinAmount"
-                :max="globalMaxAmount"
-                :bonus-enabled="rechargeBonusEnabled"
-                :credit-multiplier="balanceRechargeCreditMultiplier"
-                :bonus-threshold="bonusThreshold"
-                :credit-amount-for="creditedBalanceAmountFor"
-                :format-credit-amount="formatCreditedBalanceAmount"
-              />
-              <p v-if="amountError" class="mt-2 text-xs text-amber-600 dark:text-amber-300">{{ amountError }}</p>
-            </div>
-            <div v-if="enabledMethods.length >= 1" class="card p-6">
-              <PaymentMethodSelector
-                :methods="methodOptions"
-                :selected="selectedMethod"
-                @select="selectedMethod = $event"
-              />
-            </div>
-            <div v-if="validAmount > 0" class="card p-6">
-              <div class="space-y-2 text-sm">
-                <div class="flex justify-between">
-                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.paymentAmount') }}</span>
-                  <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(validAmount) }}</span>
+            <div v-else class="cp-cols">
+              <!-- 左栏：选择金额与支付方式 -->
+              <div class="cp-cols-main space-y-6">
+                <div class="card cp-reveal p-6">
+                  <AmountInput
+                    v-model="amount"
+                    :amounts="[10, 20, 50, 100, 200, 500, 1000, 2000, 5000]"
+                    :min="globalMinAmount"
+                    :max="globalMaxAmount"
+                    :bonus-enabled="rechargeBonusEnabled"
+                    :credit-multiplier="balanceRechargeCreditMultiplier"
+                    :bonus-threshold="bonusThreshold"
+                    :credit-amount-for="creditedBalanceAmountFor"
+                    :format-credit-amount="formatCreditedBalanceAmount"
+                    :currency="selectedCurrency"
+                    :bonus-percent="bonusPercent"
+                    :format-amount="formatSelectedPaymentAmount"
+                  />
+                  <p v-if="amountError" class="mt-2 text-xs text-amber-600 dark:text-amber-300">{{ amountError }}</p>
                 </div>
-                <div v-if="feeRate > 0" class="flex justify-between">
-                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
-                  <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(feeAmount) }}</span>
+                <div class="card cp-reveal p-6">
+                  <PaymentMethodSelector
+                    :methods="methodOptions"
+                    :selected="selectedMethod"
+                    @select="selectedMethod = $event"
+                  />
                 </div>
-                <div v-if="feeRate > 0" class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
-                  <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
-                  <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatSelectedPaymentAmount(totalAmount) }}</span>
-                </div>
-                <div v-if="rechargeBonusEnabled" class="flex justify-between" :class="{ 'border-t border-gray-200 pt-2 dark:border-dark-600': feeRate <= 0 }">
-                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalance') }}</span>
-                  <span class="text-gray-900 dark:text-white">${{ creditedAmount.toFixed(2) }}</span>
-                </div>
-                <p v-if="rechargeBonusEnabled" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
-                  <span class="font-medium text-primary-600 dark:text-primary-400">
-                    {{ t('payment.rechargeBonusBanner', { percent: rechargeBonusPercent }) }}
+              </div>
+              <!-- 右栏：固定摘要，按钮位置不随选择跳动 -->
+              <div class="cp-cols-side space-y-4">
+                <PaymentSummaryCard
+                  :amount="validAmount"
+                  :fee-rate="feeRate"
+                  :fee-amount="feeAmount"
+                  :total-amount="totalAmount"
+                  :credited-amount="creditedAmount"
+                  :credit-multiplier="balanceRechargeMultiplier"
+                  :bonus-enabled="rechargeBonusEnabled"
+                  :bonus-percent="rechargeBonusPercent"
+                  :bonus-active="bonusThresholdMet"
+                  :currency="selectedCurrency"
+                  :format-amount="formatSelectedPaymentAmount"
+                />
+                <button
+                  :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]"
+                  :disabled="!canSubmit || submitting"
+                  @click="handleSubmitRecharge"
+                >
+                  <span v-if="submitting" class="flex items-center justify-center gap-2">
+                    <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                    {{ t('common.processing') }}
                   </span>
-                  <span class="mt-1 block">
-                    {{ t('payment.rechargeBonusPreview', {
-                      pay: formatSelectedPaymentAmount(validAmount),
-                      credit: `$${creditedAmount.toFixed(2)}`,
-                    }) }}
-                  </span>
-                </p>
-                <p v-if="balanceRechargeMultiplier !== 1" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
-                  {{ t('payment.rechargeRatePreview', { currency: selectedCurrency, usd: balanceRechargeMultiplier.toFixed(2) }) }}
-                </p>
+                  <span v-else>{{ submitButtonLabel }}</span>
+                </button>
               </div>
             </div>
-            <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmit || submitting" @click="handleSubmitRecharge">
-              <span v-if="submitting" class="flex items-center justify-center gap-2">
-                <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
-                {{ t('common.processing') }}
-              </span>
-              <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(totalAmount) }}</span>
-            </button>
-            </template>
+            <!-- 手机端底部固定支付栏 -->
+            <div v-if="validAmount > 0" class="cp-mobile-bar">
+              <div class="min-w-0">
+                <p class="text-[11px] text-gray-400 dark:text-dark-400">{{ t('payment.actualPay') }}</p>
+                <p class="truncate text-base font-bold tabular-nums text-gray-900 dark:text-white">
+                  {{ formatSelectedPaymentAmount(totalAmount) }}
+                </p>
+              </div>
+              <button
+                :class="['btn shrink-0 px-6 py-2.5 text-sm font-medium', paymentButtonClass]"
+                :disabled="!canSubmit || submitting"
+                @click="handleSubmitRecharge"
+              >
+                <span v-if="submitting" class="flex items-center gap-2">
+                  <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                  {{ t('common.processing') }}
+                </span>
+                <span v-else>{{ t('payment.createOrder') }}</span>
+              </button>
+            </div>
           </template>
           <!-- Subscribe Tab -->
           <template v-else-if="activeTab === 'subscription'">
@@ -391,6 +415,7 @@ import { platformAccentBarClass, platformBadgeLightClass, platformBadgeClass, pl
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import PointsProductCard from '@/components/payment/PointsProductCard.vue'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
+import PaymentSummaryCard from '@/components/payment/PaymentSummaryCard.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
@@ -863,6 +888,38 @@ const canSubmit = computed(() =>
     && amountFitsMethod(validAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
 )
+
+// 充值账户条：没设用户名的账号回退到邮箱，避免出现空行和「?」头像
+const accountPrimaryName = computed(() => {
+  const username = (user.value?.username || '').trim()
+  if (username) return username
+  return (user.value?.email || '').trim()
+})
+
+const accountInitial = computed(() => {
+  const name = accountPrimaryName.value
+  return name ? name.charAt(0).toUpperCase() : '?'
+})
+
+const balanceDisplay = computed(() => {
+  const balance = user.value?.balance ?? 0
+  const safe = Number.isFinite(balance) ? balance : 0
+  const [intPart, decPart] = safe.toFixed(2).split('.')
+  return `${Number(intPart).toLocaleString('en-US')}.${decPart}`
+})
+
+// 赠送门槛是否已跨过：跨过时高亮一次赠送说明
+const bonusThresholdMet = computed(() =>
+  rechargeBonusEnabled.value && validAmount.value > 0 && validAmount.value >= bonusThreshold.value
+)
+
+// 按钮文案直接说明为什么点不了，而不是只把按钮置灰
+const submitButtonLabel = computed(() => {
+  if (validAmount.value <= 0) return t('payment.submitSelectAmount')
+  if (amountError.value) return amountError.value
+  if (selectedLimit.value?.available === false) return t('payment.submitMethodUnavailable')
+  return `${t('payment.createOrder')} ${formatSelectedPaymentAmount(totalAmount.value)}`
+})
 
 const subPaymentAmount = computed(() => {
   const price = selectedPlan.value?.price ?? 0
@@ -1398,3 +1455,88 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+/* ============ 左右两栏：桌面端摘要固定在右侧 ============ */
+.cp-cols {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .cp-cols {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+  }
+}
+
+/* 摘要栏只在桌面端吸附，窄屏保持普通文档流 */
+@media (min-width: 1024px) {
+  .cp-cols-side {
+    position: sticky;
+    top: 1.5rem;
+  }
+}
+
+/* ============ 进入页面时卡片依次淡入 ============ */
+.cp-reveal {
+  animation: cp-reveal-in 320ms ease-out both;
+}
+
+.cp-reveal:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+@keyframes cp-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ============ 手机端底部固定支付栏 ============ */
+.cp-mobile-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgb(229 231 235);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+}
+
+.dark .cp-mobile-bar {
+  border-top-color: rgb(51 65 85);
+  background: rgba(15, 23, 32, 0.94);
+}
+
+/* 只在小屏出现；大屏摘要栏已经包含按钮 */
+@media (min-width: 1024px) {
+  .cp-mobile-bar {
+    display: none;
+  }
+}
+
+/* 底部栏会盖住最后一屏内容，给它留出空间 */
+@media (max-width: 1023px) {
+  .cp-cols {
+    padding-bottom: 5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-reveal {
+    animation: none;
+  }
+}
+</style>
