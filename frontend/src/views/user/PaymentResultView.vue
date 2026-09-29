@@ -63,6 +63,13 @@
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.paymentMethod') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ t(paymentMethodI18nKey(order.payment_type), normalizedOrderPaymentType(order.payment_type)) }}</span>
             </div>
+            <!-- 充值后余额：从充值前的余额滚到新值，让用户看到钱确实到账了 -->
+            <div v-if="showBalanceRoll" class="flex justify-between border-t border-gray-100 pt-3 dark:border-dark-700">
+              <span class="text-gray-500 dark:text-gray-400">{{ t('payment.currentBalance') }}</span>
+              <span class="text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                ${{ displayBalance.toFixed(2) }}
+              </span>
+            </div>
             <div class="flex justify-between">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.status') }}</span>
               <OrderStatusBadge :status="displayOrderStatus(order.status)" />
@@ -112,6 +119,7 @@ import { paymentAPI } from '@/api/payment'
 import type { PublicOrderVerifyResult } from '@/api/payment'
 import type { OrderStatus, PaymentOrder } from '@/types/payment'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { useCountUp } from '@/composables/useCountUp'
 import { normalizePaymentMethodForDisplay, paymentMethodI18nKey } from './paymentUx'
 
 const i18n = useI18n()
@@ -172,6 +180,24 @@ const localeCode = computed(() => {
 const isSuccess = computed(() => {
   return isSuccessStatus(order.value?.status)
 })
+
+// 余额滚动：useCountUp 在 setup 时以当时的余额为起点（此时还是充值前的旧值），
+// refreshUser 回来后余额变化会自动滚到新值。只对余额充值展示——订阅不改余额，
+// 显示这行会让人以为钱没到账。
+const liveBalance = computed(() => {
+  const balance = authStore.user?.balance
+  return Number.isFinite(balance) ? Number(balance) : 0
+})
+
+const { display: displayBalance } = useCountUp(liveBalance, 700)
+
+const showBalanceRoll = computed(() =>
+  isSuccess.value
+  && !!order.value
+  && 'order_type' in order.value
+  && order.value.order_type === 'balance'
+  && liveBalance.value > 0
+)
 
 const isPending = computed(() => {
   return isPendingStatus(order.value?.status)

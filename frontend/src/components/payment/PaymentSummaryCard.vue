@@ -41,8 +41,10 @@
       </div>
 
       <!-- 赠送说明：命中门槛时高亮一次，让用户注意到多拿的部分 -->
+      <!-- key 用上升沿计数：每次跨过门槛重挂载，动画才会重放 -->
       <p
         v-if="bonusEnabled"
+        :key="bonusPulse"
         class="cp-bonus-note mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-200"
         :class="{ 'cp-bonus-note-active': bonusActive }"
       >
@@ -81,10 +83,13 @@ const props = withDefaults(defineProps<{
   bonusEnabled: boolean
   bonusPercent: string
   bonusActive?: boolean
+  /** 上升沿计数：变化时重挂载赠送行，让高亮动画重放 */
+  bonusPulse?: number
   currency?: string
   formatAmount: (value: number) => string
 }>(), {
   bonusActive: false,
+  bonusPulse: 0,
   currency: 'CNY',
 })
 

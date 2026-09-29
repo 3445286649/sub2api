@@ -112,6 +112,7 @@
                   :bonus-enabled="rechargeBonusEnabled"
                   :bonus-percent="rechargeBonusPercent"
                   :bonus-active="bonusThresholdMet"
+                  :bonus-pulse="bonusPulse"
                   :currency="selectedCurrency"
                   :format-amount="formatSelectedPaymentAmount"
                 />
@@ -932,6 +933,13 @@ const balanceDisplay = computed(() => {
 const bonusThresholdMet = computed(() =>
   rechargeBonusEnabled.value && validAmount.value > 0 && validAmount.value >= bonusThreshold.value
 )
+
+// 上升沿计数：每次金额从门槛以下跨到门槛以上就加一，摘要卡用它当 key 重挂载，
+// 从而重放高亮动画。只绑布尔值的话，反复上下横跳时动画不会重放。
+const bonusPulse = ref(0)
+watch(bonusThresholdMet, (met, wasMet) => {
+  if (met && !wasMet) bonusPulse.value += 1
+})
 
 // 按钮文案直接说明为什么点不了，而不是只把按钮置灰
 const submitButtonLabel = computed(() => {

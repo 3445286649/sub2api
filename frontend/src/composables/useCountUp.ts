@@ -11,7 +11,9 @@ import { ref, watch, onScopeDispose, type Ref } from 'vue'
 export function useCountUp(source: Ref<number>, duration = 420) {
   const display = ref(source.value)
   let frame = 0
-  let startTime = 0
+  // 起点在第一帧由 rAF 回调的时间戳确定，不用 performance.now()：
+  // 两者可能不同源，混用会让首帧算出负的已用时长。
+  let startTime: number | null = null
   let from = source.value
   let to = source.value
 
@@ -30,9 +32,11 @@ export function useCountUp(source: Ref<number>, duration = 420) {
       cancelAnimationFrame(frame)
       frame = 0
     }
+    startTime = null
   }
 
   function tick(now: number) {
+    if (startTime === null) startTime = now
     const elapsed = now - startTime
     const progress = duration > 0 ? Math.min(elapsed / duration, 1) : 1
     display.value = from + (to - from) * easeOutCubic(progress)
@@ -41,6 +45,7 @@ export function useCountUp(source: Ref<number>, duration = 420) {
     } else {
       display.value = to
       frame = 0
+      startTime = null
     }
   }
 
@@ -58,7 +63,6 @@ export function useCountUp(source: Ref<number>, duration = 420) {
 
     // 从当前显示值起步，避免上一次动画没结束就再次改金额时出现回跳
     from = display.value
-    startTime = performance.now()
     frame = requestAnimationFrame(tick)
   })
 
