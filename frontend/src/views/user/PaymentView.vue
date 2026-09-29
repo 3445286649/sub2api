@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-4xl space-y-6">
+    <div class="mx-auto space-y-6" :class="activeTab === 'storefront' && paymentPhase === 'select' ? 'max-w-6xl' : 'max-w-4xl'">
       <div v-if="loading" class="flex items-center justify-center py-20">
         <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
       </div>
@@ -16,7 +16,15 @@
           <button v-for="tab in tabs" :key="tab.key"
             class="relative z-10 flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
             :class="activeTab === tab.key ? 'text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
-            @click="activeTab = tab.key">{{ tab.label }}</button>
+            @click="activeTab = tab.key">
+            {{ tab.label }}
+            <!-- 右上角角标：标明卡密充值是备用渠道 -->
+            <span
+              v-if="tab.badge"
+              class="pointer-events-none absolute -right-1 -top-2 rounded-full sm:right-1.5 sm:top-0.5 bg-amber-100 px-1.5 text-[10px] font-semibold leading-4 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30"
+              data-testid="payment-tab-badge"
+            >{{ tab.badge }}</span>
+          </button>
         </div>
         <!-- Payment in progress (shared by recharge and subscription) -->
         <template v-if="paymentPhase === 'paying'">
@@ -45,30 +53,30 @@
         </template>
         <!-- Tab content (select phase) -->
         <template v-else>
+          <!-- Recharge Account Card（充值与卡密充值共用） -->
+          <div v-if="showAccountCard" class="card flex items-center justify-between gap-4 px-5 py-3.5">
+            <div class="flex min-w-0 items-center gap-3">
+              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
+                {{ accountInitial }}
+              </div>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ accountPrimaryName }}</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.rechargeAccount') }}</p>
+              </div>
+            </div>
+            <div class="shrink-0 text-right">
+              <p class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.currentBalance') }}</p>
+              <p class="text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                ${{ balanceDisplay }}
+              </p>
+            </div>
+          </div>
           <!-- Neither top-up nor subscriptions available (balance recharge disabled via API while subscriptions are off) -->
           <div v-if="tabs.length === 0" class="card py-16 text-center">
             <p class="text-gray-500 dark:text-gray-400">{{ t('payment.billingUnavailable') }}</p>
           </div>
           <!-- Top-up Tab -->
           <template v-else-if="activeTab === 'recharge'">
-            <!-- Recharge Account Card -->
-            <div class="card mb-6 flex items-center justify-between gap-4 px-5 py-3.5">
-              <div class="flex min-w-0 items-center gap-3">
-                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
-                  {{ accountInitial }}
-                </div>
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ accountPrimaryName }}</p>
-                  <p class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.rechargeAccount') }}</p>
-                </div>
-              </div>
-              <div class="shrink-0 text-right">
-                <p class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.currentBalance') }}</p>
-                <p class="text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-                  ${{ balanceDisplay }}
-                </p>
-              </div>
-            </div>
             <div v-if="enabledMethods.length === 0" class="card py-16 text-center">
               <p class="text-gray-500 dark:text-gray-400">{{ t('payment.notAvailable') }}</p>
             </div>
@@ -98,6 +106,16 @@
                     :selected="selectedMethod"
                     @select="selectedMethod = $event"
                   />
+                  <button
+                    v-if="storefrontChannels.length > 0"
+                    type="button"
+                    class="mt-4 inline-flex items-center gap-1 text-xs text-gray-400 transition-colors hover:text-primary-600 dark:text-dark-400 dark:hover:text-primary-300"
+                    data-testid="storefront-shortcut"
+                    @click="activeTab = 'storefront'"
+                  >
+                    {{ t('payment.storefront.shortcut') }}
+                    <span aria-hidden="true">→</span>
+                  </button>
                 </div>
               </div>
               <!-- 右栏：固定摘要，按钮位置不随选择跳动 -->
@@ -301,6 +319,10 @@
               </div>
             </template>
           </template>
+          <!-- Storefront Tab：外部卡网购买 + 站内兑换 -->
+          <template v-else-if="activeTab === 'storefront'">
+            <StorefrontPanel v-model:channel-id="storefrontChannelId" :channels="storefrontChannels" />
+          </template>
           <!-- Points Shop Tab -->
           <template v-else-if="activeTab === 'points'">
             <div class="grid gap-3 sm:grid-cols-3">
@@ -339,7 +361,7 @@
             </div>
           </template>
         </template>
-        <div v-if="activeTab !== 'points' && (checkout.help_text || checkout.help_image_url) && paymentPhase === 'select' && !selectedPlan" class="card p-4">
+        <div v-if="activeTab !== 'points' && activeTab !== 'storefront' && (checkout.help_text || checkout.help_image_url) && paymentPhase === 'select' && !selectedPlan" class="card p-4">
           <div class="flex flex-col items-center gap-3">
             <img v-if="checkout.help_image_url" :src="checkout.help_image_url" alt=""
               class="h-40 max-w-full cursor-pointer rounded-lg object-contain transition-opacity hover:opacity-80"
@@ -397,6 +419,8 @@ import { usePaymentStore } from '@/stores/payment'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { useAppStore, usePointsStore } from '@/stores'
 import { FeatureFlags, resolveFeatureFlag } from '@/utils/featureFlags'
+import { resolveRechargeStorefrontChannels } from '@/utils/rechargeStorefront'
+import { useCountUp } from '@/composables/useCountUp'
 import { paymentAPI } from '@/api/payment'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
@@ -423,6 +447,7 @@ import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import PointsProductCard from '@/components/payment/PointsProductCard.vue'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
 import PaymentSummaryCard from '@/components/payment/PaymentSummaryCard.vue'
+import StorefrontPanel from '@/components/payment/StorefrontPanel.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
@@ -461,7 +486,8 @@ const loading = ref(true)
 const submitting = ref(false)
 const errorMessage = ref('')
 const errorHintMessage = ref('')
-const activeTab = ref<'recharge' | 'subscription' | 'points'>('recharge')
+type PaymentTabKey = 'recharge' | 'subscription' | 'points' | 'storefront'
+const activeTab = ref<PaymentTabKey>('recharge')
 const purchaseMode = ref<'subscription' | 'reset'>('subscription')
 const resetGroupId = ref<number | null>(null)
 const amount = ref<number | null>(null)
@@ -679,22 +705,35 @@ const renderedHelpText = computed(() => DOMPurify.sanitize(
 // 不再渲染「订阅」tab，只剩单个 tab 时顶部切换器也随之隐藏。
 const subscriptionEnabled = computed(() => resolveFeatureFlag(appStore.cachedPublicSettings, FeatureFlags.subscription))
 
+// 卡密充值：后台配置的外部卡网渠道，放在最后并挂「备用」角标
+const storefrontChannels = computed(() => resolveRechargeStorefrontChannels(appStore.cachedPublicSettings))
+const storefrontChannelId = ref(typeof route.query.channel === 'string' ? route.query.channel : '')
+
+// 在线支付关闭时页面仍可能因卡密渠道而开放，此时只保留不依赖在线支付的标签
+const paymentEnabled = computed(() => resolveFeatureFlag(appStore.cachedPublicSettings, FeatureFlags.payment))
+
 const tabs = computed(() => {
-	const result: { key: 'recharge' | 'subscription' | 'points'; label: string }[] = []
-	if (!checkout.value.balance_disabled) result.push({ key: 'recharge', label: t('payment.tabTopUp') })
-	if (subscriptionEnabled.value) result.push({ key: 'subscription', label: t('payment.tabSubscribe') })
+	const result: { key: PaymentTabKey; label: string; badge?: string }[] = []
+	if (paymentEnabled.value && !checkout.value.balance_disabled) result.push({ key: 'recharge', label: t('payment.tabTopUp') })
+	if (paymentEnabled.value && subscriptionEnabled.value) result.push({ key: 'subscription', label: t('payment.tabSubscribe') })
 	if (pointsConfig.value.enabled) result.push({ key: 'points', label: t('points.shop') })
+	if (storefrontChannels.value.length > 0) result.push({ key: 'storefront', label: t('payment.tabStorefront'), badge: t('payment.storefront.badge') })
 	return result
 })
 
+const showAccountCard = computed(() =>
+  tabs.value.length > 0 && (activeTab.value === 'recharge' || activeTab.value === 'storefront')
+)
+
 // tab 列表随 checkout（balance_disabled）与订阅开关变化。当前 tab 不在列表里时收敛到第一个可用 tab，
 // 两个方向都覆盖：关闭订阅 → 回到充值；仅订阅站点重新打开订阅 → 进入订阅。列表为空时模板展示不可用提示。
+// immediate：在线支付关闭、只剩卡密充值时，列表从一开始就不含默认的充值 tab。
 watch(tabs, (available) => {
   if (available.some((tab) => tab.key === activeTab.value)) return
   const leavingSubscription = activeTab.value === 'subscription'
   activeTab.value = available[0]?.key ?? 'recharge'
   if (leavingSubscription) selectedPlan.value = null
-})
+}, { immediate: true })
 
 const visibleMethods = computed(() => getVisibleMethods(checkout.value.methods))
 const enabledMethods = computed(() => Object.keys(visibleMethods.value))
@@ -922,9 +961,14 @@ const accountInitial = computed(() => {
   return name ? name.charAt(0).toUpperCase() : '?'
 })
 
-const balanceDisplay = computed(() => {
+// 余额变化时滚动到新值（卡密兑换成功后刷新用户信息会触发）
+const { display: animatedBalance } = useCountUp(computed(() => {
   const balance = user.value?.balance ?? 0
-  const safe = Number.isFinite(balance) ? balance : 0
+  return Number.isFinite(balance) ? balance : 0
+}))
+
+const balanceDisplay = computed(() => {
+  const safe = animatedBalance.value
   const [intPart, decPart] = safe.toFixed(2).split('.')
   return `${Number(intPart).toLocaleString('en-US')}.${decPart}`
 })
@@ -1412,8 +1456,10 @@ onMounted(async () => {
 	let loadedActiveSubscriptionsForReset = false
 	const pointsLoad = pointsStore.load().catch(() => {})
   try {
-    const res = await paymentAPI.getCheckoutInfo()
-    checkout.value = res.data
+    if (paymentEnabled.value) {
+      const res = await paymentAPI.getCheckoutInfo()
+      checkout.value = res.data
+    }
     if (enabledMethods.value.length) {
       const order: readonly string[] = METHOD_ORDER
       const sorted = [...enabledMethods.value].sort((a, b) => {
@@ -1475,6 +1521,9 @@ onMounted(async () => {
 		await pointsLoad
 		if (route.query.tab === 'points' && pointsConfig.value.enabled) {
 			activeTab.value = 'points'
+		}
+		if (route.query.tab === 'storefront' && storefrontChannels.value.length > 0) {
+			activeTab.value = 'storefront'
 		}
 	} catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
   finally { loading.value = false }

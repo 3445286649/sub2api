@@ -13,6 +13,7 @@ import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { getSetupStatus } from '@/api/setup'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
+import { resolveRechargeStorefrontChannels } from '@/utils/rechargeStorefront'
 
 /**
  * Route definitions with lazy loading
@@ -438,17 +439,17 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'customPage.title',
     }
   },
+  // 备用充值已并入购买页的「卡密充值」标签，旧地址重定向过去，避免收藏的链接失效
   {
     path: '/backup-recharge/:channelId?',
     name: 'BackupRecharge',
-    component: () => import('@/views/user/BackupRechargeView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Backup Recharge',
-      titleKey: 'backupRecharge.title',
-      descriptionKey: 'backupRecharge.description',
-    },
+    redirect: (to) => ({
+      path: '/purchase',
+      query: {
+        tab: 'storefront',
+        ...(typeof to.params.channelId === 'string' && to.params.channelId ? { channel: to.params.channelId } : {}),
+      },
+    }),
   },
 
   // ==================== Admin Routes ====================
@@ -1045,10 +1046,12 @@ router.beforeEach(async (to, _from, next) => {
 
   // Only an explicit value from successfully loaded settings can disable a route.
   // A transient settings failure is unknown state, not a confirmed feature toggle.
+  // 购买页同时承载卡密充值：在线支付关闭但配置了卡密渠道时仍放行购买页
   if (
     to.meta.requiresPayment &&
     appStore.publicSettingsLoaded &&
-    appStore.cachedPublicSettings?.payment_enabled === false
+    appStore.cachedPublicSettings?.payment_enabled === false &&
+    !(to.name === 'PurchaseSubscription' && resolveRechargeStorefrontChannels(appStore.cachedPublicSettings).length > 0)
   ) {
     next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
     return

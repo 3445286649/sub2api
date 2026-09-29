@@ -773,11 +773,13 @@ const flagBatchImageAccess = () => canUseBatchImage.value
 const flagRechargeStorefront = () => {
   return resolveRechargeStorefrontChannels(appStore.cachedPublicSettings).length > 0
 }
+// 购买页同时承载卡密充值：在线支付关闭但配置了卡密渠道时，入口仍然显示
+const flagPurchase = () => flagPayment() || flagRechargeStorefront()
 
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
 //
-// 条目顺序：密钥 → 用量 → 可用渠道 → 渠道状态 → 订阅/支付 → 备用充值 → 兑换/资料。
+// 条目顺序：密钥 → 用量 → 可用渠道 → 渠道状态 → 订阅/支付（含卡密充值） → 兑换/资料。
 // 可用渠道紧挨渠道状态之上，让用户"先看自己能用什么、再看对应状态"。
 function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   const items: NavItem[] = []
@@ -792,21 +794,8 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
     { path: '/monitor', label: t('nav.channelStatus'), icon: SignalIcon, featureFlag: flagChannelMonitor },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagSubscription },
-    { path: '/purchase', label: purchaseNavLabel.value, icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
+    { path: '/purchase', label: purchaseNavLabel.value, icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPurchase },
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
-    {
-      path: '/backup-recharge',
-      label: t('nav.backupRecharge'),
-      icon: CreditCardIcon,
-      hideInSimpleMode: true,
-      expandOnly: true,
-      featureFlag: flagRechargeStorefront,
-      children: resolveRechargeStorefrontChannels(appStore.cachedPublicSettings).map((channel) => ({
-        path: `/backup-recharge/${channel.id}`,
-        label: channel.name,
-        icon: CreditCardIcon,
-      })),
-    },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/support', label: t('nav.support'), icon: BellIcon, hideInSimpleMode: true, featureFlag: flagSupportTickets, badge: supportUnreadCount.value },
     { path: '/acquisition', label: t('nav.acquisition'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagAcquisition },

@@ -497,9 +497,8 @@ function closeSupportGroup() {
 }
 
 function openRechargeStorefront() {
-  const firstChannel = rechargeStorefrontChannels.value[0]
-  if (firstChannel) {
-    void router.push({ name: 'BackupRecharge', params: { channelId: firstChannel.id } })
+  if (rechargeStorefrontChannels.value.length > 0) {
+    void router.push({ path: '/purchase', query: { tab: 'storefront' } })
   }
 }
 

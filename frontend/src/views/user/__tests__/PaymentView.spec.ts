@@ -962,3 +962,81 @@ describe('PaymentView subscription feature flag', () => {
     wrapper.unmount()
   })
 })
+
+describe('PaymentView storefront tab', () => {
+  const storefrontSettings = {
+    recharge_storefront_enabled: true,
+    recharge_storefront_channels: [
+      { id: 'backup-1', name: '备用一', url: 'https://shop.example.com/', enabled: true, sort_order: 1 },
+      { id: 'backup-2', name: '备用二', url: 'https://pay.example.com/shop/2', enabled: true, sort_order: 2 },
+    ],
+  }
+
+  beforeEach(() => {
+    appStoreState.pointsEnabled = true
+    routeState.query = {}
+    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture())
+  })
+  afterEach(() => {
+    routeState.query = {}
+    appStoreState.setPublicSettings(undefined)
+  })
+
+  function tabButtons(wrapper: ReturnType<typeof mountPaymentView>) {
+    return wrapper.findAll('button').filter((button) => button.text().startsWith('payment.tab') || button.text() === 'points.shop')
+  }
+
+  it('does not add the storefront tab when no channel is configured', async () => {
+    const wrapper = mountPaymentView()
+    await flushPromises()
+
+    expect(tabButtons(wrapper).map((button) => button.text())).not.toContain('payment.tabStorefront')
+    expect(wrapper.find('[data-testid="storefront-shortcut"]').exists()).toBe(false)
+  })
+
+  it('appends the storefront tab last with an amber backup badge', async () => {
+    appStoreState.setPublicSettings(storefrontSettings)
+    const wrapper = mountPaymentView()
+    await flushPromises()
+
+    const buttons = tabButtons(wrapper)
+    const last = buttons[buttons.length - 1]
+    expect(last.text()).toContain('payment.tabStorefront')
+    const badge = last.get('[data-testid="payment-tab-badge"]')
+    expect(badge.text()).toBe('payment.storefront.badge')
+    expect(badge.classes()).toContain('bg-amber-100')
+    expect(wrapper.findAll('[data-testid="payment-tab-badge"]')).toHaveLength(1)
+  })
+
+  it('opens the storefront tab from ?tab=storefront and keeps the account card', async () => {
+    appStoreState.setPublicSettings(storefrontSettings)
+    routeState.query = { tab: 'storefront', channel: 'backup-2' }
+    const wrapper = mountPaymentView()
+    await flushPromises()
+
+    const panel = wrapper.findComponent({ name: 'StorefrontPanel' })
+    expect(panel.exists()).toBe(true)
+    expect(panel.props('channelId')).toBe('backup-2')
+    expect(wrapper.text()).toContain('payment.rechargeAccount')
+  })
+
+  it('switches to the storefront tab from the payment method shortcut', async () => {
+    appStoreState.setPublicSettings(storefrontSettings)
+    const wrapper = mountPaymentView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="storefront-shortcut"]').trigger('click')
+    expect(wrapper.findComponent({ name: 'StorefrontPanel' }).exists()).toBe(true)
+  })
+
+  it('keeps only the storefront tab and skips checkout when online payment is disabled', async () => {
+    appStoreState.pointsEnabled = false
+    appStoreState.setPublicSettings({ ...storefrontSettings, payment_enabled: false })
+    const wrapper = mountPaymentView()
+    await flushPromises()
+
+    expect(getCheckoutInfo).not.toHaveBeenCalled()
+    expect(wrapper.findComponent({ name: 'StorefrontPanel' }).exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('payment.billingUnavailable')
+  })
+})

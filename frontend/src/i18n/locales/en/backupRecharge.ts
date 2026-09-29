@@ -1,22 +1,4 @@
 export default {
-  nav: {
-    backupRecharge: 'Backup Recharge',
-  },
-  backupRecharge: {
-    title: 'Backup Recharge',
-    description: 'Open a backup recharge channel in the site, then return to redeem your delivered code.',
-    refresh: 'Refresh channel',
-    openExternal: 'Open externally',
-    goRedeem: 'Go to redeem',
-    loading: 'Loading recharge channel',
-    unavailable: 'Backup recharge is unavailable',
-    unavailableDescription: 'There are no available recharge channels right now. Try again later or contact an administrator.',
-    loadFailed: 'Channel failed to load',
-    loadFailedDescription: 'This store may block embedded pages. Open it externally to continue purchasing.',
-    channelReady: 'Channel loaded',
-    purchaseHint: 'Payment and fulfillment happen on the external store. Copy the delivered code, then redeem it here.',
-    frameLabel: '{name} recharge page',
-  },
   admin: {
     settings: {
       site: {

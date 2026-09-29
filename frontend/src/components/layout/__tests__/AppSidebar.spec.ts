@@ -64,13 +64,12 @@ describe('AppSidebar header styles', () => {
 })
 
 describe('AppSidebar backup recharge navigation', () => {
-  it('keeps the existing purchase links and builds a separate channel group', () => {
+  it('folds backup recharge into the purchase page instead of a separate group', () => {
     expect(componentSource).toContain("{ path: '/subscriptions', label: t('nav.mySubscriptions')")
     expect(componentSource).toContain("{ path: '/purchase', label: purchaseNavLabel.value")
-    expect(componentSource).toContain("path: '/backup-recharge'")
-    expect(componentSource).toContain('children: resolveRechargeStorefrontChannels(appStore.cachedPublicSettings).map((channel) => ({')
-    expect(componentSource).toContain('path: `/backup-recharge/${channel.id}`')
-    expect(componentSource).toContain('label: channel.name')
+    expect(componentSource).not.toContain("path: '/backup-recharge'")
+    expect(componentSource).not.toContain("t('nav.backupRecharge')")
+    expect(componentSource).toContain('const flagPurchase = () => flagPayment() || flagRechargeStorefront()')
   })
 })
 
