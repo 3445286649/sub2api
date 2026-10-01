@@ -476,6 +476,9 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 		ReturnURL:   providerReturnURL,
 	}, sel, outTradeNo, payAmountStr, subject)
 	providerReq.AlipayMobilePrecreate = shouldUseAlipayMobilePrecreate(req, cfg, sel)
+	if sel.ProviderKey == payment.TypeUSDTBSC {
+		providerReq.ReservedCryptoAmounts = s.reservedUSDTBSCAmounts(ctx, order.ID)
+	}
 	finishProviderCall := servertiming.ObserveDependency(ctx, "payment")
 	pr, err := prov.CreatePayment(ctx, providerReq)
 	finishProviderCall()
@@ -555,6 +558,38 @@ func buildProviderCreatePaymentRequest(req CreateOrderRequest, sel *payment.Inst
 		IsMobile:           req.IsMobile,
 		InstanceSubMethods: selectedInstanceSupportedTypes(sel),
 	}
+}
+
+// reservedUSDTBSCAmounts 列出仍可能到账的 USDT 订单应付数量，新订单的金额尾数要避开它们，
+// 否则两笔同金额订单可能被同一笔链上转账匹配。查询失败时返回空列表，退化为按订单号取尾数。
+func (s *PaymentService) reservedUSDTBSCAmounts(ctx context.Context, excludeOrderID int64) []string {
+	orders, err := s.entClient.PaymentOrder.Query().
+		Where(
+			paymentorder.IDNEQ(excludeOrderID),
+			paymentorder.PaymentTypeEQ(payment.TypeUSDTBSC),
+			paymentorder.PaymentTradeNoHasPrefix("usdt_bsc|"),
+			paymentorder.Or(
+				paymentorder.StatusEQ(OrderStatusPending),
+				// 过期后仍有宽限期可能被补单入账
+				paymentorder.And(
+					paymentorder.StatusIn(OrderStatusExpired, OrderStatusCancelled),
+					paymentorder.UpdatedAtGTE(time.Now().Add(-usdtBSCReservedAmountWindow)),
+				),
+			),
+		).
+		Select(paymentorder.FieldPaymentTradeNo).
+		Strings(ctx)
+	if err != nil {
+		slog.Warn("[PaymentService] list reserved usdt_bsc amounts failed", "error", err)
+		return nil
+	}
+	amounts := make([]string, 0, len(orders))
+	for _, tradeNo := range orders {
+		if amount, ok := provider.USDTBSCIntentTokenAmount(tradeNo); ok {
+			amounts = append(amounts, amount)
+		}
+	}
+	return amounts
 }
 
 func selectedInstanceSupportedTypes(sel *payment.InstanceSelection) string {

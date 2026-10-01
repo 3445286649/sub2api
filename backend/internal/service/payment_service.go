@@ -40,6 +40,8 @@ const (
 	// defaultMaxPendingOrders and defaultOrderTimeoutMin are defined in
 	// payment_config_service.go alongside other payment configuration defaults.
 	paymentGraceMinutes = 5
+	// usdtBSCReservedAmountWindow 覆盖过期后宽限期与对账延迟，期间不复用其应付金额。
+	usdtBSCReservedAmountWindow = 2 * time.Hour
 
 	defaultPageSize    = 20
 	maxPageSize        = 100

@@ -15,7 +15,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/payment"
@@ -24,7 +23,7 @@ import (
 const (
 	defaultUSDTBSCContract      = "0x55d398326f99059ff775485246999027b3197955"
 	defaultBscScanAPIBase       = "https://api.bscscan.com/api"
-	defaultUSDTBSCRPCURL        = "https://1rpc.io/bnb"
+	defaultUSDTBSCRPCURLs       = "https://bsc-rpc.publicnode.com,https://1rpc.io/bnb"
 	defaultUSDTBSCRateAPIURL    = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
 	defaultUSDTBSCRateJSONPath  = "tether.cny"
 	defaultUSDTBSCRateCacheSecs = int64(300)
@@ -35,8 +34,6 @@ const (
 	usdtBSCIntentPrefix         = "usdt_bsc"
 	usdtBSCTokenDecimals        = 18
 	usdtBSCTransferTopic        = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-	usdtBSCDefaultLookback      = int64(3600)
-	usdtBSCRPCWindowBlocks      = int64(50)
 	usdtBSCMaxIntentLength      = 128
 	usdtBSCMicroTailMax         = uint64(899)
 	usdtBSCChainClockSkew       = 2 * time.Minute
@@ -62,9 +59,6 @@ type USDTBSC struct {
 	rateSource           string
 	rateFallbackToManual bool
 	rateCacheTTL         time.Duration
-	rateCacheMu          sync.Mutex
-	rateCacheValue       *big.Rat
-	rateCacheExpiresAt   time.Time
 	confirmations        int64
 	httpClient           *http.Client
 }
@@ -88,7 +82,8 @@ func NewUSDTBSC(instanceID string, config map[string]string) (*USDTBSC, error) {
 		}
 		rate = parsedRate
 	}
-	if rate == nil && (rateMode == "manual" || rateFallbackToManual) {
+	// 自动模式下手动汇率可留空：此时自动汇率与最近一次可用汇率都拿不到才会拒绝下单
+	if rate == nil && rateMode == "manual" {
 		return nil, fmt.Errorf("usdt_bsc cnyPerUsdt is required")
 	}
 	rateAPIURL := strings.TrimSpace(configValue(config, "rateApiUrl", "rate_api_url"))
@@ -140,7 +135,7 @@ func NewUSDTBSC(instanceID string, config map[string]string) (*USDTBSC, error) {
 	rpcDisabled := rpcURLDisabled(rpcRaw)
 	rpcURLs := parseRPCURLs(rpcRaw)
 	if len(rpcURLs) == 0 && !rpcDisabled {
-		rpcURLs = []string{defaultUSDTBSCRPCURL}
+		rpcURLs = parseRPCURLs(defaultUSDTBSCRPCURLs)
 	}
 	return &USDTBSC{
 		instanceID:           instanceID,
@@ -175,13 +170,13 @@ func (p *USDTBSC) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 	if !ok || cnyAmount.Sign() <= 0 {
 		return nil, fmt.Errorf("invalid usdt_bsc payment amount")
 	}
-	rate, rateSource, err := p.resolveCNYPerUSDT(ctx)
+	rate, rateSource, err := p.resolveCNYPerUSDT(ctx, cnyAmount)
 	if err != nil {
 		return nil, err
 	}
 	base := new(big.Rat).Quo(cnyAmount, rate)
 	baseAmount := ratToFixed(base, 6)
-	amountWithTail := addUniqueMicroTail(baseAmount, req.OrderID)
+	amountWithTail := addUniqueMicroTail(baseAmount, req.OrderID, req.ReservedCryptoAmounts)
 	lockedAt := time.Now().UTC()
 	intent := encodeUSDTBSCIntent(req.OrderID, req.Amount, amountWithTail, p.receiveAddress, rate, lockedAt)
 	if len(intent) > usdtBSCMaxIntentLength {
@@ -197,48 +192,6 @@ func (p *USDTBSC) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 		ReceiveAddress: p.receiveAddress,
 		Metadata:       buildUSDTBSCCreateMetadata(req.Amount, amountWithTail, intent, rate, rateSource, lockedAt.UTC().Format(time.RFC3339)),
 	}, nil
-}
-
-func (p *USDTBSC) QueryOrder(ctx context.Context, queryRef string) (*payment.QueryOrderResponse, error) {
-	intent, err := parseUSDTBSCIntent(queryRef)
-	if err != nil {
-		return nil, err
-	}
-	expectedRaw, err := decimalToRaw(intent.TokenAmount, usdtBSCTokenDecimals)
-	if err != nil {
-		return nil, err
-	}
-	events, err := p.fetchTokenTransfers(ctx, intent.ReceiveAddress, expectedRaw, intent.LockedAt != "")
-	if err != nil {
-		return nil, err
-	}
-	now := time.Now().UTC()
-	for _, event := range events {
-		if !strings.EqualFold(event.To, intent.ReceiveAddress) {
-			continue
-		}
-		if !strings.EqualFold(event.ContractAddress, p.tokenContract) {
-			continue
-		}
-		if strings.TrimSpace(event.Value) != expectedRaw.String() {
-			continue
-		}
-		if intent.LockedAt != "" && !usdtBSCTransferInIntentWindow(event.Timestamp, intent.LockedAt, now) {
-			continue
-		}
-		confirmations, _ := strconv.ParseInt(strings.TrimSpace(event.Confirmations), 10, 64)
-		if confirmations < p.confirmations {
-			return &payment.QueryOrderResponse{Status: payment.ProviderStatusPending}, nil
-		}
-		cny, _ := strconv.ParseFloat(intent.CNYAmount, 64)
-		return &payment.QueryOrderResponse{
-			TradeNo:  event.Hash,
-			Status:   payment.ProviderStatusPaid,
-			Amount:   cny,
-			Metadata: buildUSDTBSCQueryMetadata(intent, event),
-		}, nil
-	}
-	return &payment.QueryOrderResponse{Status: payment.ProviderStatusPending}, nil
 }
 
 func buildUSDTBSCQueryMetadata(intent usdtBSCIntent, event bscScanTokenTx) map[string]string {
@@ -370,219 +323,6 @@ func buildUSDTBSCCreateMetadata(cnyAmount, tokenAmount, intent string, lockedRat
 	return metadata
 }
 
-func (p *USDTBSC) resolveCNYPerUSDT(ctx context.Context) (*big.Rat, string, error) {
-	if p.rateMode != "auto" {
-		if p.cnyPerUSDT == nil {
-			return nil, "", fmt.Errorf("usdt_bsc cnyPerUsdt is required")
-		}
-		return new(big.Rat).Set(p.cnyPerUSDT), usdtBSCRateSourceManual, nil
-	}
-	rate, err := p.fetchAutoCNYPerUSDT(ctx)
-	if err == nil {
-		return rate, p.rateSource, nil
-	}
-	if p.rateFallbackToManual && p.cnyPerUSDT != nil {
-		return new(big.Rat).Set(p.cnyPerUSDT), usdtBSCRateSourceManual, nil
-	}
-	return nil, "", fmt.Errorf("fetch usdt_bsc cny/usdt rate: %w", err)
-}
-
-func (p *USDTBSC) fetchAutoCNYPerUSDT(ctx context.Context) (*big.Rat, error) {
-	now := time.Now()
-	p.rateCacheMu.Lock()
-	if p.rateCacheValue != nil && p.rateCacheTTL > 0 && now.Before(p.rateCacheExpiresAt) {
-		cached := new(big.Rat).Set(p.rateCacheValue)
-		p.rateCacheMu.Unlock()
-		return cached, nil
-	}
-	p.rateCacheMu.Unlock()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.rateAPIURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	if p.rateSource == usdtBSCRateSourceBinanceP2P {
-		req, err = newBinanceP2PRateRequest(ctx, p.rateAPIURL)
-		if err != nil {
-			return nil, err
-		}
-	}
-	req.Header.Set("Accept", "application/json")
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("rate api status %d", resp.StatusCode)
-	}
-	decoder := json.NewDecoder(io.LimitReader(resp.Body, 1<<20))
-	decoder.UseNumber()
-	var payload any
-	if err := decoder.Decode(&payload); err != nil {
-		return nil, fmt.Errorf("decode rate api response: %w", err)
-	}
-	rate, err := p.extractAutoRate(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	p.rateCacheMu.Lock()
-	p.rateCacheValue = new(big.Rat).Set(rate)
-	if p.rateCacheTTL > 0 {
-		p.rateCacheExpiresAt = now.Add(p.rateCacheTTL)
-	} else {
-		p.rateCacheExpiresAt = time.Time{}
-	}
-	p.rateCacheMu.Unlock()
-	return rate, nil
-}
-
-func newBinanceP2PRateRequest(ctx context.Context, rawURL string) (*http.Request, error) {
-	payload := `{"asset":"USDT","fiat":"CNY","tradeType":"SELL","page":1,"rows":5,"payTypes":[],"publisherType":null}`
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rawURL, strings.NewReader(payload))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "sub2api-usdt-bsc-rate/1.0")
-	return req, nil
-}
-
-func (p *USDTBSC) extractAutoRate(payload any) (*big.Rat, error) {
-	if p.rateSource == usdtBSCRateSourceBinanceP2P {
-		return extractBinanceP2PCNYRate(payload)
-	}
-	return extractPositiveRate(payload, p.rateJSONPath)
-}
-
-func extractBinanceP2PCNYRate(payload any) (*big.Rat, error) {
-	root, ok := payload.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("binance p2p response is not an object")
-	}
-	data, ok := root["data"].([]any)
-	if !ok || len(data) == 0 {
-		return nil, fmt.Errorf("binance p2p response has no data")
-	}
-	for _, item := range data {
-		obj, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		adv, ok := obj["adv"].(map[string]any)
-		if !ok {
-			continue
-		}
-		rate, err := rateFromJSONValue(adv["price"])
-		if err == nil {
-			return rate, nil
-		}
-	}
-	return nil, fmt.Errorf("binance p2p response has no valid price")
-}
-
-func extractPositiveRate(payload any, path string) (*big.Rat, error) {
-	current := payload
-	for _, key := range strings.Split(strings.TrimSpace(path), ".") {
-		key = strings.TrimSpace(key)
-		if key == "" {
-			continue
-		}
-		obj, ok := current.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("rate api path %q is not an object", path)
-		}
-		current, ok = obj[key]
-		if !ok {
-			return nil, fmt.Errorf("rate api path %q not found", path)
-		}
-	}
-	return rateFromJSONValue(current)
-}
-
-func rateFromJSONValue(value any) (*big.Rat, error) {
-	var raw string
-	switch v := value.(type) {
-	case json.Number:
-		raw = v.String()
-	case float64:
-		raw = strconv.FormatFloat(v, 'f', -1, 64)
-	case string:
-		raw = strings.TrimSpace(v)
-	default:
-		return nil, fmt.Errorf("rate api value is not numeric")
-	}
-	rate, ok := new(big.Rat).SetString(raw)
-	if !ok || rate.Sign() <= 0 {
-		return nil, fmt.Errorf("rate api value must be positive")
-	}
-	return rate, nil
-}
-
-func (p *USDTBSC) fetchTokenTransfers(ctx context.Context, address string, expectedRaw *big.Int, needTimestamp bool) ([]bscScanTokenTx, error) {
-	if len(p.rpcURLs) > 0 && !p.rpcDisabled {
-		var lastErr error
-		for _, rpcURL := range p.rpcURLs {
-			events, err := p.fetchTokenTransfersByRPC(ctx, rpcURL, address, expectedRaw, needTimestamp)
-			if err == nil {
-				return events, nil
-			}
-			lastErr = err
-		}
-		if lastErr != nil {
-			return nil, lastErr
-		}
-	}
-	u, err := url.Parse(p.bscscanAPIBase)
-	if err != nil {
-		return nil, fmt.Errorf("parse bscscan api base: %w", err)
-	}
-	q := u.Query()
-	q.Set("module", "account")
-	q.Set("action", "tokentx")
-	q.Set("contractaddress", p.tokenContract)
-	q.Set("address", address)
-	q.Set("startblock", "0")
-	q.Set("endblock", "99999999")
-	q.Set("sort", "desc")
-	if p.bscscanAPIKey != "" {
-		q.Set("apikey", p.bscscanAPIKey)
-	}
-	u.RawQuery = q.Encode()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("query bscscan token transfers: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("bscscan status %d", resp.StatusCode)
-	}
-	var parsed bscScanTokenTxResponse
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		return nil, fmt.Errorf("decode bscscan response: %w", err)
-	}
-	if parsed.Status == "0" && strings.EqualFold(parsed.Message, "No transactions found") {
-		return nil, nil
-	}
-	resultText := strings.TrimSpace(string(parsed.Result))
-	if strings.HasPrefix(resultText, `"`) {
-		var message string
-		if err := json.Unmarshal(parsed.Result, &message); err == nil {
-			return nil, fmt.Errorf("bscscan response error: %s", message)
-		}
-	}
-	var events []bscScanTokenTx
-	if err := json.Unmarshal(parsed.Result, &events); err != nil {
-		return nil, fmt.Errorf("decode bscscan result: %w", err)
-	}
-	return events, nil
-}
-
 type rpcRequest struct {
 	JSONRPC string `json:"jsonrpc"`
 	ID      int    `json:"id"`
@@ -611,90 +351,6 @@ type rpcLog struct {
 	LogIndex         string   `json:"logIndex"`
 }
 
-func (p *USDTBSC) fetchTokenTransfersByRPC(ctx context.Context, rpcURL string, address string, expectedRaw *big.Int, needTimestamp bool) ([]bscScanTokenTx, error) {
-	latestHex, err := p.rpcCall(ctx, rpcURL, "eth_blockNumber", []any{})
-	if err != nil {
-		return nil, err
-	}
-	var latestNumber string
-	if err := json.Unmarshal(latestHex, &latestNumber); err != nil {
-		return nil, fmt.Errorf("decode rpc block number: %w", err)
-	}
-	latest, err := parseHexInt64(latestNumber)
-	if err != nil {
-		return nil, fmt.Errorf("parse rpc block number: %w", err)
-	}
-
-	toTopic := evmAddressTopic(address)
-	events := make([]bscScanTokenTx, 0)
-	start := latest - usdtBSCDefaultLookback
-	if start < 0 {
-		start = 0
-	}
-	for end := latest; end >= start; end -= usdtBSCRPCWindowBlocks {
-		from := end - usdtBSCRPCWindowBlocks + 1
-		if from < start {
-			from = start
-		}
-		rawLogs, err := p.rpcCall(ctx, rpcURL, "eth_getLogs", []any{map[string]any{
-			"address":   p.tokenContract,
-			"fromBlock": int64ToHex(from),
-			"toBlock":   int64ToHex(end),
-			"topics":    []any{usdtBSCTransferTopic, nil, toTopic},
-		}})
-		if err != nil {
-			return nil, err
-		}
-		var logs []rpcLog
-		if err := json.Unmarshal(rawLogs, &logs); err != nil {
-			return nil, fmt.Errorf("decode rpc logs: %w", err)
-		}
-		for i := len(logs) - 1; i >= 0; i-- {
-			log := logs[i]
-			if log.Removed {
-				continue
-			}
-			event, ok := rpcLogToTokenTx(log, latest)
-			if !ok {
-				continue
-			}
-			events = append(events, event)
-			if expectedRaw != nil && strings.TrimSpace(event.Value) == expectedRaw.String() {
-				if needTimestamp {
-					event.Timestamp, err = p.fetchRPCBlockTimestamp(ctx, rpcURL, log.BlockNumber)
-					if err != nil {
-						return nil, fmt.Errorf("fetch bsc block timestamp: %w", err)
-					}
-					events[len(events)-1] = event
-				}
-				return events, nil
-			}
-		}
-		if from == 0 {
-			break
-		}
-	}
-	return events, nil
-}
-
-func (p *USDTBSC) fetchRPCBlockTimestamp(ctx context.Context, rpcURL, blockNumber string) (string, error) {
-	raw, err := p.rpcCall(ctx, rpcURL, "eth_getBlockByNumber", []any{blockNumber, false})
-	if err != nil {
-		return "", err
-	}
-	var block struct {
-		Timestamp string `json:"timestamp"`
-	}
-	if err := json.Unmarshal(raw, &block); err != nil {
-		return "", fmt.Errorf("decode bsc block: %w", err)
-	}
-	seconds, err := parseHexInt64(block.Timestamp)
-	if err != nil {
-		return "", fmt.Errorf("parse bsc block timestamp: %w", err)
-	}
-	return strconv.FormatInt(seconds, 10), nil
-}
-
 func (p *USDTBSC) rpcCall(ctx context.Context, rpcURL string, method string, params any) (json.RawMessage, error) {
 	payload, err := json.Marshal(rpcRequest{JSONRPC: "2.0", ID: 1, Method: method, Params: params})
 	if err != nil {
@@ -719,9 +375,14 @@ func (p *USDTBSC) rpcCall(ctx context.Context, rpcURL string, method string, par
 		return nil, fmt.Errorf("decode bsc rpc response: %w", err)
 	}
 	if parsed.Error != nil {
-		return nil, fmt.Errorf("bsc rpc error %d: %s", parsed.Error.Code, parsed.Error.Message)
+		return nil, parsed.Error
 	}
 	return parsed.Result, nil
+}
+
+// Error 让 RPC 业务错误（区块跨度超限、限流等）与网络错误区分开。
+func (e *rpcError) Error() string {
+	return fmt.Sprintf("bsc rpc error %d: %s", e.Code, e.Message)
 }
 
 func rpcLogToTokenTx(log rpcLog, latestBlock int64) (bscScanTokenTx, bool) {
@@ -842,15 +503,41 @@ func ratToFixed(r *big.Rat, decimals int) string {
 	return strconv.FormatFloat(rounded, 'f', decimals, 64)
 }
 
-func addUniqueMicroTail(baseAmount, orderID string) string {
+// addUniqueMicroTail 在应付金额后加 0.000001~0.000899 的尾数，用来区分同金额订单。
+// 尾数由订单号决定；与仍可能到账的其他订单撞上时顺延到下一个空闲尾数。
+func addUniqueMicroTail(baseAmount, orderID string, reserved []string) string {
 	raw, err := strconv.ParseFloat(baseAmount, 64)
 	if err != nil {
 		return baseAmount
 	}
+	taken := make(map[string]struct{}, len(reserved))
+	for _, amount := range reserved {
+		if r, ok := new(big.Rat).SetString(strings.TrimSpace(amount)); ok {
+			taken[r.FloatString(6)] = struct{}{}
+		}
+	}
 	hash := sha256.Sum256([]byte(orderID))
-	tail := binary.BigEndian.Uint64(hash[:8])%usdtBSCMicroTailMax + 1
-	amount := raw + float64(tail)/1_000_000
-	return strconv.FormatFloat(amount, 'f', 6, 64)
+	start := binary.BigEndian.Uint64(hash[:8]) % usdtBSCMicroTailMax
+	format := func(offset uint64) string {
+		tail := (start+offset)%usdtBSCMicroTailMax + 1
+		return strconv.FormatFloat(raw+float64(tail)/1_000_000, 'f', 6, 64)
+	}
+	for offset := uint64(0); offset < usdtBSCMicroTailMax; offset++ {
+		amount := format(offset)
+		if _, used := taken[amount]; !used {
+			return amount
+		}
+	}
+	return format(0)
+}
+
+// USDTBSCIntentTokenAmount 从订单的支付意图中取出应付 USDT 数量，供下单时避开重复尾数。
+func USDTBSCIntentTokenAmount(tradeNo string) (string, bool) {
+	intent, err := parseUSDTBSCIntent(tradeNo)
+	if err != nil {
+		return "", false
+	}
+	return intent.TokenAmount, true
 }
 
 func usdtBSCTransferInIntentWindow(rawTimestamp, lockedAt string, now time.Time) bool {

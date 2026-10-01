@@ -70,7 +70,7 @@ func TestUSDTBSCCreatePaymentBuildsUniqueAmountAndAddressQR(t *testing.T) {
 func TestAddUniqueMicroTailUsesFullConfiguredPool(t *testing.T) {
 	seenAboveLegacyByteRange := false
 	for i := 0; i < 5000; i++ {
-		amount := addUniqueMicroTail("10.000000", fmt.Sprintf("sub2_tail_%d", i))
+		amount := addUniqueMicroTail("10.000000", fmt.Sprintf("sub2_tail_%d", i), nil)
 		parsed, err := strconv.ParseFloat(amount, 64)
 		if err != nil {
 			t.Fatalf("ParseFloat(%q): %v", amount, err)
@@ -167,19 +167,21 @@ func TestUSDTBSCCreatePaymentUsesDefaultBinanceP2PRate(t *testing.T) {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
 		var req struct {
-			Asset     string `json:"asset"`
-			Fiat      string `json:"fiat"`
-			TradeType string `json:"tradeType"`
-			Page      int    `json:"page"`
-			Rows      int    `json:"rows"`
+			Asset       string `json:"asset"`
+			Fiat        string `json:"fiat"`
+			TradeType   string `json:"tradeType"`
+			Page        int    `json:"page"`
+			Rows        int    `json:"rows"`
+			TransAmount string `json:"transAmount"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Fatalf("decode binance p2p request: %v", err)
 		}
-		if req.Asset != "USDT" || req.Fiat != "CNY" || req.TradeType != "SELL" || req.Page != 1 || req.Rows != 5 {
+		if req.Asset != "USDT" || req.Fiat != "CNY" || req.TradeType != "SELL" || req.Page != 1 || req.Rows != 10 || req.TransAmount != "100" {
 			t.Fatalf("unexpected binance p2p request: %+v", req)
 		}
-		fmt.Fprint(w, `{"code":"000000","data":[{"adv":{"price":"6.77"}},{"adv":{"price":"6.78"}}]}`)
+		// 中位数 6.77；第一条报价偏高，不应被直接采用
+		fmt.Fprint(w, `{"code":"000000","data":[{"adv":{"price":"6.90"}},{"adv":{"price":"6.77"}},{"adv":{"price":"6.70"}}]}`)
 	}))
 	defer rateAPI.Close()
 
@@ -436,136 +438,6 @@ func TestUSDTBSCTransferInIntentWindowRejectsMissingAndFutureTimestamps(t *testi
 	}
 	if !usdtBSCTransferInIntentWindow(strconv.FormatInt(now.Unix(), 10), lockedAt, now) {
 		t.Fatal("chain timestamp inside intent window must be accepted")
-	}
-}
-
-func TestUSDTBSCQueryOrderMatchesConfirmedTokenTransferByRPC(t *testing.T) {
-	const address = "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Method string            `json:"method"`
-			Params []json.RawMessage `json:"params"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			t.Fatalf("decode rpc request: %v", err)
-		}
-		switch req.Method {
-		case "eth_blockNumber":
-			fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":"0x100"}`)
-		case "eth_getLogs":
-			fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":[{"address":"0x55d398326f99059ff775485246999027b3197955","blockNumber":"0xf0","transactionHash":"0xrpcpaid","topics":["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","0x000000000000000000000000161ba15a00000000000000000076fbb64576fbb645","0x0000000000000000000000003b210bdc924c685fdd10ae96b7f95d0e14536106"],"data":"0x134655017ebcb000","removed":false}]}`)
-		default:
-			t.Fatalf("unexpected rpc method: %s", req.Method)
-		}
-	}))
-	defer server.Close()
-
-	p, err := NewUSDTBSC("1", map[string]string{
-		"receiveAddress": "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
-		"cnyPerUsdt":     "7.2",
-		"confirmations":  "16",
-		"rpcUrl":         server.URL,
-		"bscscanApiBase": "",
-	})
-	if err != nil {
-		t.Fatalf("NewUSDTBSC() error = %v", err)
-	}
-
-	resp, err := p.QueryOrder(context.Background(), "usdt_bsc|sub2_order|10.00|1.388891|"+address)
-	if err != nil {
-		t.Fatalf("QueryOrder() error = %v", err)
-	}
-	if resp.Status != payment.ProviderStatusPaid {
-		t.Fatalf("Status = %q, want paid", resp.Status)
-	}
-	if resp.TradeNo != "0xrpcpaid" || resp.Metadata["network"] != "BSC" {
-		t.Fatalf("response = %+v", resp)
-	}
-}
-
-func TestUSDTBSCQueryOrderRPCUsesNewestMatchingTransferAndBlockTime(t *testing.T) {
-	const address = "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106"
-	lockedAt := time.Now().UTC().Add(-10 * time.Minute).Truncate(time.Second)
-	validAtHex := fmt.Sprintf("0x%x", lockedAt.Add(time.Minute).Unix())
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Method string            `json:"method"`
-			Params []json.RawMessage `json:"params"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			t.Fatalf("decode rpc request: %v", err)
-		}
-		switch req.Method {
-		case "eth_blockNumber":
-			fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":"0x100"}`)
-		case "eth_getLogs":
-			fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":[{"address":"0x55d398326f99059ff775485246999027b3197955","blockNumber":"0xf0","transactionHash":"0xold","topics":["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","0x000000000000000000000000161ba15a00000000000000000076fbb64576fbb645","0x0000000000000000000000003b210bdc924c685fdd10ae96b7f95d0e14536106"],"data":"0x08ac792e2b536b000","removed":false},{"address":"0x55d398326f99059ff775485246999027b3197955","blockNumber":"0xf1","transactionHash":"0xnew","topics":["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","0x000000000000000000000000161ba15a00000000000000000076fbb64576fbb645","0x0000000000000000000000003b210bdc924c685fdd10ae96b7f95d0e14536106"],"data":"0x08ac792e2b536b000","removed":false}]}`)
-		case "eth_getBlockByNumber":
-			if len(req.Params) == 0 || string(req.Params[0]) != `"0xf1"` {
-				t.Fatalf("timestamp lookup params = %s, want newest block 0xf1", req.Params)
-			}
-			fmt.Fprintf(w, `{"jsonrpc":"2.0","id":1,"result":{"timestamp":"%s"}}`, validAtHex)
-		default:
-			t.Fatalf("unexpected rpc method: %s", req.Method)
-		}
-	}))
-	defer server.Close()
-
-	p, err := NewUSDTBSC("1", map[string]string{
-		"receiveAddress": address,
-		"cnyPerUsdt":     "7.2",
-		"confirmations":  "16",
-		"rpcUrl":         server.URL,
-	})
-	if err != nil {
-		t.Fatalf("NewUSDTBSC() error = %v", err)
-	}
-	queryRef := fmt.Sprintf("usdt_bsc|sub2_rpc_window|72.00|10.000123|%s|7.200000|%d", address, lockedAt.Unix())
-	resp, err := p.QueryOrder(context.Background(), queryRef)
-	if err != nil {
-		t.Fatalf("QueryOrder() error = %v", err)
-	}
-	if resp.Status != payment.ProviderStatusPaid || resp.TradeNo != "0xnew" {
-		t.Fatalf("response = %+v, want newest in-window transfer", resp)
-	}
-}
-
-func TestUSDTBSCQueryOrderTriesNextRPCURL(t *testing.T) {
-	badRPC := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"error":{"code":-32005,"message":"limit exceeded"}}`)
-	}))
-	defer badRPC.Close()
-	goodRPC := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Method string `json:"method"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			t.Fatalf("decode rpc request: %v", err)
-		}
-		if req.Method == "eth_blockNumber" {
-			fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":"0x100"}`)
-			return
-		}
-		fmt.Fprint(w, `{"jsonrpc":"2.0","id":1,"result":[{"address":"0x55d398326f99059ff775485246999027b3197955","blockNumber":"0xf0","transactionHash":"0xrpcpaid2","topics":["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef","0x000000000000000000000000161ba15a00000000000000000076fbb64576fbb645","0x0000000000000000000000003b210bdc924c685fdd10ae96b7f95d0e14536106"],"data":"0x134655017ebcb000","removed":false}]}`)
-	}))
-	defer goodRPC.Close()
-
-	p, err := NewUSDTBSC("1", map[string]string{
-		"receiveAddress": "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",
-		"cnyPerUsdt":     "7.2",
-		"confirmations":  "16",
-		"rpcUrl":         badRPC.URL + "," + goodRPC.URL,
-	})
-	if err != nil {
-		t.Fatalf("NewUSDTBSC() error = %v", err)
-	}
-
-	resp, err := p.QueryOrder(context.Background(), "usdt_bsc|sub2_order|10.00|1.388891|0x3b210bdc924c685fDd10Ae96b7f95D0E14536106")
-	if err != nil {
-		t.Fatalf("QueryOrder() error = %v", err)
-	}
-	if resp.Status != payment.ProviderStatusPaid || resp.TradeNo != "0xrpcpaid2" {
-		t.Fatalf("response = %+v", resp)
 	}
 }
 

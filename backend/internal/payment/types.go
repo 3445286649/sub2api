@@ -113,6 +113,9 @@ type CreatePaymentRequest struct {
 	// alipay.trade.precreate instead of alipay.trade.wap.pay.
 	AlipayMobilePrecreate bool
 	InstanceSubMethods    string // Comma-separated sub-methods from instance supported_types (for Stripe)
+	// ReservedCryptoAmounts lists crypto amounts still claimable by other orders
+	// on the same receive address; USDT-BSC avoids reusing them as unique tails.
+	ReservedCryptoAmounts []string
 }
 
 // CreatePaymentResultType describes the shape of the create-payment result.

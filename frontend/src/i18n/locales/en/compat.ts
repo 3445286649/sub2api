@@ -325,15 +325,15 @@ export default {
         "field_tokenContract": "USDT contract address",
         "field_usdtReceiveAddressHint": "Use only a BNB Smart Chain / BEP20 USDT receiving address. The server never stores private keys.",
         "field_usdtRateModeHint": "Auto is recommended: the server fetches the USDT/CNY rate when creating an order and locks the exact USDT amount. Existing orders do not change when the rate moves later.",
-        "field_usdtCnyPerUsdtHint": "Manual rate and the fallback value for auto mode. This means how many CNY 1 USDT is worth, e.g. 7.2; do not use 1 unless you intentionally test 1 CNY = 1 USDT.",
-        "field_usdtRateApiUrlHint": "Leave empty to use Binance P2P USDT/CNY sell price by default. Fill this only for a custom price endpoint; it must return JSON.",
+        "field_usdtCnyPerUsdtHint": "How many CNY 1 USDT is worth. Used directly in manual mode; in auto mode it is only a last resort when the auto rate keeps failing and no rate from the last 30 minutes is available (a warning is logged). May be left empty in auto mode, in which case orders are rejected instead of priced at a wrong rate. Keep it close to the market price.",
+        "field_usdtRateApiUrlHint": "Leave empty to use the Binance P2P USDT/CNY sell price: queried by order amount tier, median of the top 5 quotes, discarding quotes outside 5-9 or jumping more than 5% from the last good rate. Fill this only for a custom price endpoint; it must return JSON.",
         "field_usdtRateJSONPathHint": "Dot path for custom price endpoint JSON. The default tether.cny matches a tether.cny=7.2 field value; the default Binance P2P source does not use this.",
-        "field_usdtRateCacheSecondsHint": "Auto-rate cache lifetime inside this service process. Default is 300 seconds; use 0 to request the endpoint for every order.",
-        "field_usdtRateFallbackToManualHint": "Recommended. If the auto-rate endpoint fails, use the manual rate above to keep order creation available. Disable this to fail order creation instead.",
+        "field_usdtRateCacheSecondsHint": "Auto-rate cache lifetime, shared site-wide. Default 300 seconds; once stale, orders keep using the previous rate while it refreshes in the background. Use 0 to request the endpoint for every order.",
+        "field_usdtRateFallbackToManualHint": "Whether to use the manual rate above when the auto rate fails and no rate from the last 30 minutes is available. When disabled or the manual rate is empty, order creation is blocked in that case.",
         "field_usdtConfirmationsHint": "Auto-credit only after this many block confirmations. Recommended 15-30; default is 20.",
-        "field_usdtRpcUrlHint": "Used to query BSC USDT transfer logs. Defaults to https://1rpc.io/bnb; public nodes may be rate-limited, so use your own or third-party BSC RPC in production.",
-        "field_usdtBscscanApiKeyHint": "Optional. Improves BscScan query stability. Stored as a sensitive value and never echoed back.",
-        "field_usdtBscscanApiBaseHint": "Optional. Defaults to https://api.bscscan.com/api; normally only change this for a compatible proxy.",
+        "field_usdtRpcUrlHint": "Used to query BSC USDT transfers. Separate multiple URLs with commas; the next one is tried when one fails. Defaults to https://bsc-rpc.publicnode.com,https://1rpc.io/bnb; put your own or a paid node first in production.",
+        "field_usdtBscscanApiKeyHint": "Only used when the RPC URL is set to disabled. The legacy BscScan API has been retired and is not recommended.",
+        "field_usdtBscscanApiBaseHint": "Only used when the RPC URL is set to disabled. Defaults to https://api.bscscan.com/api (retired); normally leave it as is.",
         "field_usdtTokenContractHint": "Defaults to BSC USDT contract 0x55d398326f99059ff775485246999027b3197955. Usually do not change it."
       }
     }
