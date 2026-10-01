@@ -16,13 +16,22 @@ import (
 )
 
 const qualityMonitorHandlerFixture = `{
-  "candy": {"model": "gpt-6-astra", "interval_seconds": 1200, "history": [
-    {"status": "passed", "finished_at": "2026-09-28T05:55:04Z", "answer": "{\"answer\":8}"},
-    {"status": "error", "finished_at": "2026-09-28T06:15:04Z", "error": "模型接口返回 HTTP 502"}
-  ]},
-  "pelican_monitor": {"model": "gpt-6-astra", "interval_seconds": 1200, "history": [
-    {"status": "passed", "finished_at": "2026-09-28T05:55:57Z", "assessment": "{'quality': 'normal'}"}
-  ]}
+  "api_version": "v1",
+  "source": "self",
+  "question_version": "candy-shapes-21",
+  "generated_at": "2026-09-28T06:20:00.000Z",
+  "groups": [
+    {"id": "channel-1", "name": "Pro尊享分组", "model": "gpt-6-astra", "reasoning_effort": "medium",
+     "interval_seconds": 1200, "next_run_at": "2026-09-28T06:40:00.000Z", "running": false,
+     "stats": {
+       "total": 8, "valid": 7, "passed": 7, "incorrect": 0, "errors": 1, "pass_rate": 100.0,
+       "latest_status": "passed", "latest_finished_at": "2026-09-28T06:15:04.000Z"
+     },
+     "records": [
+       {"id": "r1", "status": "passed", "finished_at": "2026-09-28T05:55:04Z", "parsed_answer": 21, "input_tokens": 4625, "duration_ms": 23000, "attempts": 1},
+       {"id": "r2", "status": "error", "finished_at": "2026-09-28T06:15:04Z", "parsed_answer": null, "duration_ms": 5000, "attempts": 2}
+     ]}
+  ]
 }`
 
 func callQualityMonitor(t *testing.T, h *SettingHandler) map[string]any {
@@ -65,8 +74,7 @@ func TestSettingHandler_GetQualityMonitor_Disabled(t *testing.T) {
 
 func TestSettingHandler_GetQualityMonitor_Available(t *testing.T) {
 	h := newQualityMonitorHandler(map[string]string{
-		service.SettingKeyQualityMonitorURL:       "https://monitor.example.com",
-		service.SettingKeyQualityMonitorGroupName: "OpenAI 满血分组",
+		service.SettingKeyQualityMonitorURL: "https://monitor.example.com",
 	}, func(context.Context, string) ([]byte, error) {
 		return []byte(qualityMonitorHandlerFixture), nil
 	})
@@ -76,13 +84,15 @@ func TestSettingHandler_GetQualityMonitor_Available(t *testing.T) {
 	require.Equal(t, true, data["available"])
 
 	snap := data["data"].(map[string]any)
-	require.Equal(t, "OpenAI 满血分组", snap["group_name"])
 	require.Equal(t, "https://monitor.example.com", snap["detail_url"])
+	groups := snap["groups"].([]any)
+	require.Len(t, groups, 1)
+	require.Equal(t, "Pro尊享分组", groups[0].(map[string]any)["name"])
 
-	// 不外泄答案、错误详情与评估理由
+	// 只透出状态与时间，不外泄答案、记录编号与用量
 	raw, err := json.Marshal(snap)
 	require.NoError(t, err)
-	for _, secret := range []string{"answer", "HTTP 502", "assessment", "quality"} {
+	for _, secret := range []string{"answer", "r1", "input_tokens", "question_version"} {
 		require.NotContains(t, string(raw), secret)
 	}
 }

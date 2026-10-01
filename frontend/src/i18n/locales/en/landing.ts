@@ -244,8 +244,26 @@ export default {
       live: 'Live monitoring',
       title: 'Full-strength models. No silent downgrades.',
       subtitle: 'The full-strength group is tested automatically on a schedule. Every result is public, and you can run the tests yourself.',
+      lead: 'Automated reasoning tests on a schedule. Every result is public.',
       interval: 'Tested every {minutes} min',
-      passRate: 'valid pass rate',
+      passRate: 'Pass rate',
+      total: 'Total',
+      passed: 'Passed',
+      failed: 'Failed',
+      errored: 'Errors',
+      latest: 'Latest',
+      next: 'Next',
+      reasoning: 'Reasoning',
+      status: {
+        passed: 'Passed',
+        failed: 'Failed',
+        error: 'Error'
+      },
+      empty: 'Monitor data not available',
+      error: 'Failed to load',
+      stale: 'Data sync temporarily failed; results may not be current',
+      visit: 'Visit monitor site',
+      detail: 'View full monitor history',
       tests: {
         logic: 'Reasoning test',
         creative: 'Generation test'

@@ -243,8 +243,26 @@ export default {
       live: '实时监测中',
       title: '满血模型，不降智',
       subtitle: '满血分组定时自动检测，每一次结果都公开可查，也欢迎你亲自来测',
+      lead: '定时自动检测推理题答对率，每一次结果都公开可查',
       interval: '每 {minutes} 分钟检测一次',
-      passRate: '有效通过率',
+      passRate: '通过率',
+      total: '总次数',
+      passed: '通过',
+      failed: '答错',
+      errored: '失败',
+      latest: '最新',
+      next: '下次',
+      reasoning: '推理',
+      status: {
+        passed: '通过',
+        failed: '答错',
+        error: '失败'
+      },
+      empty: '监测数据暂不可用',
+      error: '加载失败',
+      stale: '数据同步暂时失败，显示的可能不是最新结果',
+      visit: '访问监测站',
+      detail: '查看完整监测记录',
       tests: {
         logic: '逻辑测试',
         creative: '生成测试'

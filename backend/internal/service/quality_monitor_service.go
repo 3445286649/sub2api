@@ -18,31 +18,40 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 )
 
-// 首页「满血保障」数据：从站长自建的公开降智监测站拉取检测记录，
+// 首页「满血保障」数据：从站长自建的公开降智监测站拉取各分组检测记录，
 // 精简后经本站公开接口给首页展示。
 //
 // 设计要点：
+//   - 对接监测站的公开接口 v1（只新增字段、不改含义），监测站改版不影响首页。
 //   - 按需拉取 + 内存缓存，不跑后台定时任务；并发请求合并为一次上游调用。
-//   - 只拼固定路径 /api/monitors，管理员无法借此让服务器请求任意地址。
+//   - 只拼固定路径 /api/public/v1/groups，管理员无法借此让服务器请求任意地址。
 //   - 只允许 HTTPS，校验解析后 IP，拒绝内网与本机地址（防 SSRF / DNS Rebinding）。
 //   - 上游失败时回退到上一次成功的数据并标记 stale；超过上限后宣告不可用，
 //     前端此时只展示静态文案，绝不展示过期太久的数字。
 const (
-	qualityMonitorPath          = "/api/monitors"
+	qualityMonitorPath          = "/api/public/v1/groups"
 	qualityMonitorCacheTTL      = 5 * time.Minute
 	qualityMonitorStaleLimit    = time.Hour
 	qualityMonitorFetchTimeout  = 5 * time.Second
-	qualityMonitorMaxBodyBytes  = 256 << 10
-	qualityMonitorMaxHistory    = 48
+	qualityMonitorMaxBodyBytes  = 512 << 10
+	qualityMonitorMaxHistory    = 60
+	qualityMonitorMaxGroups     = 2
 	qualityMonitorFlightKey     = "quality-monitor"
 	qualityMonitorFailRetryWait = 30 * time.Second
 )
 
-// 检测记录状态，与监测站保持一致。
+// 对外的检测记录状态。上游的 incorrect（答错）统一映射为 failed（疑似降智）。
 const (
 	QualityStatusPassed = "passed"
 	QualityStatusFailed = "failed"
 	QualityStatusError  = "error"
+)
+
+// 上游 v1 接口的记录状态。
+const (
+	qualityUpstreamPassed    = "passed"
+	qualityUpstreamIncorrect = "incorrect"
+	qualityUpstreamError     = "error"
 )
 
 var (
@@ -58,38 +67,46 @@ type QualityMonitorPoint struct {
 	FinishedAt time.Time `json:"t"`
 }
 
-// QualityMonitorTest 是一个检测项目（逻辑测试 / 生成测试）。
-type QualityMonitorTest struct {
-	Key string `json:"key"`
-	// PassRate = 通过 ÷（通过 + 未通过），接口异常不计入；没有有效结果时为 nil。
-	PassRate *float64              `json:"pass_rate"`
-	Passed   int                   `json:"passed"`
-	Failed   int                   `json:"failed"`
-	Errored  int                   `json:"errored"`
-	History  []QualityMonitorPoint `json:"history"`
+// QualityMonitorGroup 是一个被监测的分组。
+type QualityMonitorGroup struct {
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	Model           string     `json:"model"`
+	ReasoningEffort string     `json:"reasoning_effort,omitempty"`
+	IntervalSeconds int        `json:"interval_seconds"`
+	NextRunAt       *time.Time `json:"next_run_at,omitempty"`
+	// PassRate = 通过 ÷（通过 + 疑似降智），接口异常不计入；没有有效结果时为 nil。
+	PassRate     *float64              `json:"pass_rate"`
+	Passed       int                   `json:"passed"`
+	Failed       int                   `json:"failed"`
+	Errored      int                   `json:"errored"`
+	LatestStatus string                `json:"latest_status,omitempty"`
+	History      []QualityMonitorPoint `json:"history"`
 }
 
 // QualityMonitorSnapshot 是返回给首页的完整数据。
 type QualityMonitorSnapshot struct {
-	GroupName       string               `json:"group_name"`
-	Model           string               `json:"model"`
-	IntervalSeconds int                  `json:"interval_seconds"`
-	DetailURL       string               `json:"detail_url"`
-	UpdatedAt       time.Time            `json:"updated_at"`
-	Stale           bool                 `json:"stale"`
-	Tests           []QualityMonitorTest `json:"tests"`
+	DetailURL string                `json:"detail_url"`
+	UpdatedAt time.Time             `json:"updated_at"`
+	Stale     bool                  `json:"stale"`
+	Groups    []QualityMonitorGroup `json:"groups"`
 }
 
-// 监测站 /api/monitors 的响应结构（只声明用到的字段）。
+// 监测站 /api/public/v1/groups 的响应结构（只声明用到的字段）。
 type qualityMonitorUpstream struct {
-	Candy   *qualityMonitorUpstreamItem `json:"candy"`
-	Pelican *qualityMonitorUpstreamItem `json:"pelican_monitor"`
+	APIVersion string                        `json:"api_version"`
+	Source     string                        `json:"source"`
+	Groups     []qualityMonitorUpstreamGroup `json:"groups"`
 }
 
-type qualityMonitorUpstreamItem struct {
+type qualityMonitorUpstreamGroup struct {
+	ID              string                         `json:"id"`
+	Name            string                         `json:"name"`
 	Model           string                         `json:"model"`
-	IntervalSeconds int                            `json:"interval_seconds"`
-	History         []qualityMonitorUpstreamRecord `json:"history"`
+	ReasoningEffort *string                        `json:"reasoning_effort"`
+	IntervalSeconds *int                           `json:"interval_seconds"`
+	NextRunAt       *time.Time                     `json:"next_run_at"`
+	Records         []qualityMonitorUpstreamRecord `json:"records"`
 }
 
 type qualityMonitorUpstreamRecord struct {
@@ -149,13 +166,10 @@ func NormalizeQualityMonitorURL(raw string) (string, error) {
 
 // GetSnapshot 返回首页展示用的监测数据。
 //
-// 返回 ErrQualityMonitorUnavailable 时仍会带回只含 GroupName / DetailURL 的快照，
+// 返回 ErrQualityMonitorUnavailable 时仍会带回只含 DetailURL 的快照，
 // 让首页在无数据时也能给出监测站链接。
 func (s *QualityMonitorService) GetSnapshot(ctx context.Context) (*QualityMonitorSnapshot, error) {
-	settings, err := s.settingRepo.GetMultiple(ctx, []string{
-		SettingKeyQualityMonitorURL,
-		SettingKeyQualityMonitorGroupName,
-	})
+	settings, err := s.settingRepo.GetMultiple(ctx, []string{SettingKeyQualityMonitorURL})
 	if err != nil {
 		return nil, fmt.Errorf("load quality monitor settings: %w", err)
 	}
@@ -164,7 +178,6 @@ func (s *QualityMonitorService) GetSnapshot(ctx context.Context) (*QualityMonito
 	if err != nil || baseURL == "" {
 		return nil, ErrQualityMonitorDisabled
 	}
-	groupName := strings.TrimSpace(settings[SettingKeyQualityMonitorGroupName])
 
 	now := s.now()
 	s.mu.Lock()
@@ -190,11 +203,10 @@ func (s *QualityMonitorService) GetSnapshot(ctx context.Context) (*QualityMonito
 	}
 
 	if cached.snapshot == nil || now.Sub(cached.fetchedAt) > qualityMonitorStaleLimit {
-		return &QualityMonitorSnapshot{GroupName: groupName, DetailURL: baseURL}, ErrQualityMonitorUnavailable
+		return &QualityMonitorSnapshot{DetailURL: baseURL, Groups: []QualityMonitorGroup{}}, ErrQualityMonitorUnavailable
 	}
 
 	out := *cached.snapshot
-	out.GroupName = groupName
 	out.DetailURL = baseURL
 	out.Stale = now.Sub(cached.fetchedAt) >= qualityMonitorCacheTTL
 	return &out, nil
@@ -267,50 +279,76 @@ func fetchQualityMonitor(ctx context.Context, endpoint string) ([]byte, error) {
 }
 
 // parseQualityMonitor 把监测站原始响应精简为首页数据。
-// 数据结构对不上时返回错误，由调用方降级，而不是展示残缺或错误的数字。
+// 数据结构对不上、或监测站不是本站自测数据时返回错误，由调用方降级，而不是展示残缺或错误的数字。
 func parseQualityMonitor(body []byte) (*QualityMonitorSnapshot, error) {
 	var upstream qualityMonitorUpstream
 	if err := json.Unmarshal(body, &upstream); err != nil {
-		return nil, fmt.Errorf("decode monitors: %w", err)
+		return nil, fmt.Errorf("decode monitor groups: %w", err)
 	}
-	if upstream.Candy == nil || upstream.Pelican == nil {
-		return nil, errors.New("monitors payload is missing candy or pelican_monitor")
+	if upstream.APIVersion != "v1" {
+		return nil, fmt.Errorf("unexpected monitor api version %q", upstream.APIVersion)
 	}
-
-	snapshot := &QualityMonitorSnapshot{
-		Model:           strings.TrimSpace(upstream.Candy.Model),
-		IntervalSeconds: upstream.Candy.IntervalSeconds,
-		Tests: []QualityMonitorTest{
-			summarizeQualityMonitor("logic", upstream.Candy.History),
-			summarizeQualityMonitor("creative", upstream.Pelican.History),
-		},
-	}
-	if snapshot.Model == "" {
-		snapshot.Model = strings.TrimSpace(upstream.Pelican.Model)
+	// 监测站切到「API 拉取」模式时没有本站自测数据
+	if upstream.Source != "self" {
+		return nil, fmt.Errorf("monitor source is %q, not self", upstream.Source)
 	}
 
-	for _, test := range snapshot.Tests {
-		if n := len(test.History); n > 0 && test.History[n-1].FinishedAt.After(snapshot.UpdatedAt) {
-			snapshot.UpdatedAt = test.History[n-1].FinishedAt
+	snapshot := &QualityMonitorSnapshot{Groups: make([]QualityMonitorGroup, 0, qualityMonitorMaxGroups)}
+	for _, raw := range upstream.Groups {
+		if len(snapshot.Groups) == qualityMonitorMaxGroups {
+			break
 		}
+		group := summarizeQualityMonitorGroup(raw)
+		if group.ID == "" {
+			continue
+		}
+		if n := len(group.History); n > 0 && group.History[n-1].FinishedAt.After(snapshot.UpdatedAt) {
+			snapshot.UpdatedAt = group.History[n-1].FinishedAt
+		}
+		snapshot.Groups = append(snapshot.Groups, group)
+	}
+	if len(snapshot.Groups) == 0 {
+		return nil, errors.New("monitor has no enabled groups")
 	}
 	return snapshot, nil
 }
 
-func summarizeQualityMonitor(key string, records []qualityMonitorUpstreamRecord) QualityMonitorTest {
-	test := QualityMonitorTest{Key: key, History: []QualityMonitorPoint{}}
+func summarizeQualityMonitorGroup(raw qualityMonitorUpstreamGroup) QualityMonitorGroup {
+	group := QualityMonitorGroup{
+		ID:      strings.TrimSpace(raw.ID),
+		Name:    strings.TrimSpace(raw.Name),
+		Model:   strings.TrimSpace(raw.Model),
+		History: []QualityMonitorPoint{},
+	}
+	if raw.ReasoningEffort != nil {
+		group.ReasoningEffort = strings.TrimSpace(*raw.ReasoningEffort)
+	}
+	if raw.IntervalSeconds != nil && *raw.IntervalSeconds > 0 {
+		group.IntervalSeconds = *raw.IntervalSeconds
+	}
+	if raw.NextRunAt != nil && !raw.NextRunAt.IsZero() {
+		next := raw.NextRunAt.UTC()
+		group.NextRunAt = &next
+	}
 
 	// 只保留已结束且状态可识别的记录；未知状态一律跳过，不猜测含义
-	points := make([]QualityMonitorPoint, 0, len(records))
-	for _, record := range records {
-		status := strings.ToLower(strings.TrimSpace(record.Status))
+	points := make([]QualityMonitorPoint, 0, len(raw.Records))
+	for _, record := range raw.Records {
 		if record.FinishedAt.IsZero() {
 			continue
 		}
-		switch status {
-		case QualityStatusPassed, QualityStatusFailed, QualityStatusError:
-			points = append(points, QualityMonitorPoint{Status: status, FinishedAt: record.FinishedAt.UTC()})
+		var status string
+		switch strings.ToLower(strings.TrimSpace(record.Status)) {
+		case qualityUpstreamPassed:
+			status = QualityStatusPassed
+		case qualityUpstreamIncorrect:
+			status = QualityStatusFailed
+		case qualityUpstreamError:
+			status = QualityStatusError
+		default:
+			continue
 		}
+		points = append(points, QualityMonitorPoint{Status: status, FinishedAt: record.FinishedAt.UTC()})
 	}
 	if len(points) > qualityMonitorMaxHistory {
 		points = points[len(points)-qualityMonitorMaxHistory:]
@@ -319,17 +357,20 @@ func summarizeQualityMonitor(key string, records []qualityMonitorUpstreamRecord)
 	for _, point := range points {
 		switch point.Status {
 		case QualityStatusPassed:
-			test.Passed++
+			group.Passed++
 		case QualityStatusFailed:
-			test.Failed++
+			group.Failed++
 		case QualityStatusError:
-			test.Errored++
+			group.Errored++
 		}
 	}
-	if valid := test.Passed + test.Failed; valid > 0 {
-		rate := float64(test.Passed) / float64(valid)
-		test.PassRate = &rate
+	if valid := group.Passed + group.Failed; valid > 0 {
+		rate := float64(group.Passed) / float64(valid)
+		group.PassRate = &rate
 	}
-	test.History = points
-	return test
+	if n := len(points); n > 0 {
+		group.LatestStatus = points[n-1].Status
+	}
+	group.History = points
+	return group
 }

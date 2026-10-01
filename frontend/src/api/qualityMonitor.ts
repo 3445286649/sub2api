@@ -8,32 +8,38 @@ import { apiClient } from './client'
 export type QualityStatus = 'passed' | 'failed' | 'error'
 
 export interface QualityMonitorPoint {
-  /** passed=通过，failed=未通过/疑似降智，error=接口异常（不计入通过率） */
+  /** passed=通过，failed=答错/疑似降智，error=接口异常（不计入通过率） */
   s: QualityStatus
   /** 检测完成时间（ISO 8601） */
   t: string
 }
 
-export interface QualityMonitorTest {
-  /** logic=逻辑测试，creative=生成测试 */
-  key: 'logic' | 'creative' | string
-  /** 通过 ÷（通过 + 未通过）；没有有效结果时为 null */
+export interface QualityMonitorGroup {
+  /** 监测站分组固定标识，如 channel-1 */
+  id: string
+  name: string
+  model: string
+  /** 推理程度；为空表示接口默认 */
+  reasoning_effort?: string
+  /** 检测间隔；0 表示定时检测未启用 */
+  interval_seconds: number
+  next_run_at?: string
+  /** 通过 ÷（通过 + 疑似降智）；没有有效结果时为 null */
   pass_rate: number | null
   passed: number
   failed: number
   errored: number
+  latest_status?: QualityStatus
+  /** 最近最多 60 次检测，从旧到新 */
   history: QualityMonitorPoint[]
 }
 
 export interface QualityMonitorSnapshot {
-  group_name: string
-  model: string
-  interval_seconds: number
   detail_url: string
   updated_at: string
   /** 上游暂时拉取失败，当前为缓存的旧数据 */
   stale: boolean
-  tests: QualityMonitorTest[]
+  groups: QualityMonitorGroup[]
 }
 
 export interface QualityMonitorResponse {

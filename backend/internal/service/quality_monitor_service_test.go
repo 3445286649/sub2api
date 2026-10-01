@@ -13,34 +13,45 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// 截取自监测站 /api/monitors 的真实响应（记录条数已裁剪，字段保持原样）。
+// 按监测站 /api/public/v1/groups 的真实响应裁剪（字段保持原样）。
 const qualityMonitorFixture = `{
+  "api_version": "v1",
   "source": "self",
-  "candy": {
-    "model": "gpt-6-astra",
-    "reasoning_effort": "low",
-    "interval_seconds": 1200,
-    "next_run_at": "2026-09-28T06:36:55.683Z",
-    "running": false,
-    "history": [
-      {"id": "a1", "status": "error", "finished_at": "2026-09-28T04:09:11.000Z", "duration_ms": 494, "error": "模型接口返回 HTTP 502", "has_html": false},
-      {"id": "a2", "status": "passed", "finished_at": "2026-09-28T04:30:11.573Z", "duration_ms": 3036, "answer": "{\"answer\":8}", "output_tokens": 9, "has_html": false},
-      {"id": "a3", "status": "passed", "finished_at": "2026-09-28T04:51:07.523Z", "duration_ms": 3297, "answer": "{\"answer\":8}", "output_tokens": 9, "has_html": false},
-      {"id": "a4", "status": "failed", "finished_at": "2026-09-28T05:12:13.088Z", "duration_ms": 3290, "answer": "{\"answer\":7}", "output_tokens": 9, "has_html": false},
-      {"id": "a5", "status": "passed", "finished_at": "2026-09-28T05:55:04.402Z", "duration_ms": 3195, "answer": "{\"answer\":8}", "output_tokens": 9, "has_html": false}
-    ]
-  },
-  "pelican_monitor": {
-    "model": "gpt-6-astra",
-    "reasoning_effort": "low",
-    "interval_seconds": 1200,
-    "next_run_at": "2026-09-28T06:36:55.683Z",
-    "running": false,
-    "history": [
-      {"id": "b1", "status": "passed", "finished_at": "2026-09-28T05:33:57.000Z", "duration_ms": 51230, "output_tokens": 3401, "has_html": true, "assessment": "{'quality': 'normal'}"},
-      {"id": "b2", "status": "passed", "finished_at": "2026-09-28T05:55:57.643Z", "duration_ms": 53241, "output_tokens": 3517, "has_html": true, "assessment": "{'quality': 'normal'}"}
-    ]
-  }
+  "question_version": "candy-shapes-21",
+  "generated_at": "2026-09-28T06:00:00.000Z",
+  "groups": [
+    {
+      "id": "channel-1",
+      "name": "Pro尊享分组",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "medium",
+      "interval_seconds": 1200,
+      "next_run_at": "2026-09-28T06:15:04.000Z",
+      "running": false,
+      "stats": {"total": 5, "valid": 4, "passed": 3, "incorrect": 1, "errors": 1, "pass_rate": 75, "latest_status": "passed", "latest_finished_at": "2026-09-28T05:55:04.402Z"},
+      "records": [
+        {"id": "a1", "status": "error", "finished_at": "2026-09-28T04:09:11.000Z", "duration_ms": 494, "attempts": 3, "parsed_answer": null, "input_tokens": null, "output_tokens": null, "reasoning_tokens": null, "tps": null},
+        {"id": "a2", "status": "passed", "finished_at": "2026-09-28T04:30:11.573Z", "duration_ms": 31403, "attempts": 1, "parsed_answer": 21, "input_tokens": 4625, "output_tokens": 944, "reasoning_tokens": 454, "tps": 30.1},
+        {"id": "a3", "status": "passed", "finished_at": "2026-09-28T04:51:07.523Z", "duration_ms": 30111, "attempts": 1, "parsed_answer": 21, "input_tokens": 4625, "output_tokens": 912, "reasoning_tokens": 440, "tps": 30.3},
+        {"id": "a4", "status": "incorrect", "finished_at": "2026-09-28T05:12:13.088Z", "duration_ms": 29870, "attempts": 1, "parsed_answer": 19, "input_tokens": 4625, "output_tokens": 870, "reasoning_tokens": 410, "tps": 29.1},
+        {"id": "a5", "status": "passed", "finished_at": "2026-09-28T05:55:04.402Z", "duration_ms": 31490, "attempts": 1, "parsed_answer": 21, "input_tokens": 4625, "output_tokens": 914, "reasoning_tokens": 428, "tps": 29}
+      ]
+    },
+    {
+      "id": "channel-2",
+      "name": "Pro独享分组",
+      "model": "gpt-6-astra",
+      "reasoning_effort": null,
+      "interval_seconds": null,
+      "next_run_at": null,
+      "running": false,
+      "stats": {"total": 2, "valid": 2, "passed": 2, "incorrect": 0, "errors": 0, "pass_rate": 100, "latest_status": "passed", "latest_finished_at": "2026-09-28T05:55:57.643Z"},
+      "records": [
+        {"id": "b1", "status": "passed", "finished_at": "2026-09-28T05:33:57.000Z", "duration_ms": 37200, "attempts": 1, "parsed_answer": 21},
+        {"id": "b2", "status": "passed", "finished_at": "2026-09-28T05:55:57.643Z", "duration_ms": 37100, "attempts": 1, "parsed_answer": 21}
+      ]
+    }
+  ]
 }`
 
 type qualityMonitorSettingRepo struct {
@@ -92,8 +103,7 @@ func newQualityMonitorHarness(t *testing.T) *qualityMonitorHarness {
 	t.Helper()
 	h := &qualityMonitorHarness{
 		repo: &qualityMonitorSettingRepo{values: map[string]string{
-			SettingKeyQualityMonitorURL:       "https://monitor.example.com/",
-			SettingKeyQualityMonitorGroupName: "OpenAI 满血分组",
+			SettingKeyQualityMonitorURL: "https://monitor.example.com/",
 		}},
 		now:  time.Date(2026, 9, 28, 6, 0, 0, 0, time.UTC),
 		body: []byte(qualityMonitorFixture),
@@ -135,29 +145,36 @@ func TestQualityMonitor_ParsesRealPayload(t *testing.T) {
 	snap, err := h.svc.GetSnapshot(context.Background())
 	require.NoError(t, err)
 
-	require.Equal(t, "https://monitor.example.com/api/monitors", h.lastURL, "只请求固定路径")
-	require.Equal(t, "OpenAI 满血分组", snap.GroupName)
+	require.Equal(t, "https://monitor.example.com/api/public/v1/groups", h.lastURL, "只请求固定路径")
 	require.Equal(t, "https://monitor.example.com", snap.DetailURL)
-	require.Equal(t, "gpt-6-astra", snap.Model)
-	require.Equal(t, 1200, snap.IntervalSeconds)
 	require.False(t, snap.Stale)
 	require.Equal(t, time.Date(2026, 9, 28, 5, 55, 57, 643000000, time.UTC), snap.UpdatedAt)
 
-	require.Len(t, snap.Tests, 2)
-	logic := snap.Tests[0]
-	require.Equal(t, "logic", logic.Key)
-	require.Equal(t, 3, logic.Passed)
-	require.Equal(t, 1, logic.Failed)
-	require.Equal(t, 1, logic.Errored)
-	require.NotNil(t, logic.PassRate)
-	// 通过 ÷（通过 + 未通过），接口异常不计入
-	require.InDelta(t, 0.75, *logic.PassRate, 1e-9)
-	require.Len(t, logic.History, 5)
-	require.Equal(t, QualityStatusError, logic.History[0].Status)
+	require.Len(t, snap.Groups, 2)
+	first := snap.Groups[0]
+	require.Equal(t, "channel-1", first.ID)
+	require.Equal(t, "Pro尊享分组", first.Name)
+	require.Equal(t, "gpt-6-astra", first.Model)
+	require.Equal(t, "medium", first.ReasoningEffort)
+	require.Equal(t, 1200, first.IntervalSeconds)
+	require.NotNil(t, first.NextRunAt)
+	require.Equal(t, 3, first.Passed)
+	require.Equal(t, 1, first.Failed, "incorrect 映射为疑似降智")
+	require.Equal(t, 1, first.Errored)
+	require.NotNil(t, first.PassRate)
+	// 通过 ÷（通过 + 疑似降智），接口异常不计入
+	require.InDelta(t, 0.75, *first.PassRate, 1e-9)
+	require.Equal(t, QualityStatusPassed, first.LatestStatus)
+	require.Len(t, first.History, 5)
+	require.Equal(t, QualityStatusError, first.History[0].Status)
+	require.Equal(t, QualityStatusFailed, first.History[3].Status)
 
-	creative := snap.Tests[1]
-	require.Equal(t, "creative", creative.Key)
-	require.InDelta(t, 1.0, *creative.PassRate, 1e-9)
+	second := snap.Groups[1]
+	require.Equal(t, "Pro独享分组", second.Name)
+	require.Empty(t, second.ReasoningEffort, "null 推理程度不展示")
+	require.Zero(t, second.IntervalSeconds, "定时检测未启用")
+	require.Nil(t, second.NextRunAt)
+	require.InDelta(t, 1.0, *second.PassRate, 1e-9)
 }
 
 func TestQualityMonitor_DisabledWhenURLMissingOrInvalid(t *testing.T) {
@@ -232,11 +249,21 @@ func TestQualityMonitor_FallsBackToStaleThenUnavailable(t *testing.T) {
 	snap, err = h.svc.GetSnapshot(context.Background())
 	require.ErrorIs(t, err, ErrQualityMonitorUnavailable, "超过上限后不再展示旧数字")
 	require.Equal(t, "https://monitor.example.com", snap.DetailURL, "无数据时仍给出监测站链接")
-	require.Empty(t, snap.Tests, "无数据时不带任何检测结果")
+	require.Empty(t, snap.Groups, "无数据时不带任何检测结果")
 }
 
 func TestQualityMonitor_RejectsUnexpectedPayload(t *testing.T) {
-	for _, body := range []string{`{}`, `{"candy":{"history":[]}}`, `not json`, `[]`} {
+	for _, body := range []string{
+		`{}`,
+		`not json`,
+		`[]`,
+		// 旧版 /api/monitors 格式
+		`{"source":"self","candy":{"history":[]}}`,
+		// 监测站切到 API 拉取模式，没有本站自测数据
+		`{"api_version":"v1","source":"api","groups":[]}`,
+		`{"api_version":"v1","source":"self","groups":[]}`,
+		`{"api_version":"v2","source":"self","groups":[{"id":"channel-1","records":[]}]}`,
+	} {
 		h := newQualityMonitorHarness(t)
 		h.body = []byte(body)
 
@@ -257,7 +284,7 @@ func TestQualityMonitor_URLChangeInvalidatesCache(t *testing.T) {
 	require.Equal(t, "https://other.example.com", snap.DetailURL)
 }
 
-func TestSummarizeQualityMonitor_SkipsUnknownAndCapsHistory(t *testing.T) {
+func TestSummarizeQualityMonitorGroup_SkipsUnknownAndCapsHistory(t *testing.T) {
 	base := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
 	records := []qualityMonitorUpstreamRecord{
 		{Status: "running", FinishedAt: base},
@@ -267,13 +294,23 @@ func TestSummarizeQualityMonitor_SkipsUnknownAndCapsHistory(t *testing.T) {
 		records = append(records, qualityMonitorUpstreamRecord{Status: "PASSED", FinishedAt: base.Add(time.Duration(i) * time.Minute)})
 	}
 
-	test := summarizeQualityMonitor("logic", records)
-	require.Len(t, test.History, qualityMonitorMaxHistory)
-	require.Equal(t, qualityMonitorMaxHistory, test.Passed)
-	require.Equal(t, base.Add(time.Duration(qualityMonitorMaxHistory+4)*time.Minute), test.History[len(test.History)-1].FinishedAt)
+	group := summarizeQualityMonitorGroup(qualityMonitorUpstreamGroup{ID: "channel-1", Records: records})
+	require.Len(t, group.History, qualityMonitorMaxHistory)
+	require.Equal(t, qualityMonitorMaxHistory, group.Passed)
+	require.Equal(t, base.Add(time.Duration(qualityMonitorMaxHistory+4)*time.Minute), group.History[len(group.History)-1].FinishedAt)
 
-	empty := summarizeQualityMonitor("logic", []qualityMonitorUpstreamRecord{{Status: "error", FinishedAt: base}})
+	empty := summarizeQualityMonitorGroup(qualityMonitorUpstreamGroup{ID: "channel-1", Records: []qualityMonitorUpstreamRecord{{Status: "error", FinishedAt: base}}})
 	require.Nil(t, empty.PassRate, "只有接口异常时通过率为空，而不是 0%")
+	require.Equal(t, QualityStatusError, empty.LatestStatus)
+}
+
+func TestParseQualityMonitor_CapsGroups(t *testing.T) {
+	body := `{"api_version":"v1","source":"self","groups":[
+		{"id":"channel-1","records":[]},{"id":"channel-2","records":[]},{"id":"channel-3","records":[]}]}`
+	snap, err := parseQualityMonitor([]byte(body))
+	require.NoError(t, err)
+	require.Len(t, snap.Groups, qualityMonitorMaxGroups)
+	require.Empty(t, snap.Groups[0].History, "暂无记录的分组照常返回，前端显示空占位")
 }
 
 func TestNormalizeQualityMonitorURL(t *testing.T) {

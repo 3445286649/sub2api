@@ -270,7 +270,6 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ModelRadarEnabled:                                      settings.ModelRadarEnabled,
 		DocURL:                                                 settings.DocURL,
 		QualityMonitorURL:                                      settings.QualityMonitorURL,
-		QualityMonitorGroupName:                                settings.QualityMonitorGroupName,
 		HomeContent:                                            settings.HomeContent,
 		CompactHomeEnabled:                                     settings.CompactHomeEnabled,
 		HideCcsImportButton:                                    settings.HideCcsImportButton,
