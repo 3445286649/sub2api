@@ -402,9 +402,9 @@ export default {
       "networkLabel": "Receiving Network",
       "usdtBscNetwork": "BNB Smart Chain (BEP20)",
       "payAmount": "Amount to Pay",
-      "exchangeRate": "Exchange Rate",
+      "exchangeRate": "Rate",
       "exchangeRateValue": "1 USDT ≈ {rate} CNY",
-      "walletAddress": "Receiving Wallet Address",
+      "walletAddress": "Receiving Address",
       "copyAmount": "Copy Amount",
       "copyAddress": "Copy Address",
       "copied": "Copied",
@@ -412,7 +412,8 @@ export default {
       "addressCopied": "Wallet address copied",
       "feeWarning": "We recommend paying with a Web3 wallet. BSC gas is usually paid separately in BNB and does not reduce the USDT transfer amount; copy the exact amount above when transferring.",
       "exchangeWithdrawalWarning": "Direct exchange withdrawals are not recommended. If you must withdraw from an exchange, make sure the USDT actually received by this address after withdrawal fees still exactly matches the amount above, otherwise it will not be credited automatically and requires manual review.",
-      "usdtBscWarning": "Please transfer only USDT-BSC / BEP20. Wrong chain, token, or address will not be credited automatically and requires manual review."
+      "usdtBscWarning": "Only BNB Smart Chain (BEP20) supported. Other networks will be lost",
+      "usdtBscWarningShort": "⚠️ BNB Smart Chain (BEP20) only"
     },
     "subscriptionPlans": "Subscription Plans",
     "rechargeBonusBanner": "Current recharge campaign: bonus {percent}%",

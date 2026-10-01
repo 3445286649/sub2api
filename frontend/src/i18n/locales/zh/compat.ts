@@ -412,9 +412,9 @@ export default {
       "networkLabel": "收款网络",
       "usdtBscNetwork": "BNB Smart Chain（BEP20）",
       "payAmount": "应付数量",
-      "exchangeRate": "转换倍率",
+      "exchangeRate": "汇率",
       "exchangeRateValue": "1 USDT ≈ {rate} CNY",
-      "walletAddress": "收款钱包地址",
+      "walletAddress": "收款地址",
       "copyAmount": "复制数量",
       "copyAddress": "复制地址",
       "copied": "已复制",
@@ -422,7 +422,8 @@ export default {
       "addressCopied": "钱包地址已复制",
       "feeWarning": "建议优先使用 Web3 钱包转账。BSC 网络矿工费通常用 BNB 单独支付，不会从 USDT 转账数量里扣除；请直接复制上方应付数量转账。",
       "exchangeWithdrawalWarning": "不建议从交易所直接提币到本站地址。若必须使用交易所提币，请在交易所确认扣除提币手续费后，实际到达本站地址的 USDT 数量仍与上方应付数量完全一致，否则系统不会自动到账，需要人工处理。",
-      "usdtBscWarning": "请务必选择 USDT-BSC / BEP20 网络转账。转错链、转错币种或转错地址将无法自动到账，需要人工处理。"
+      "usdtBscWarning": "仅支持 BNB Smart Chain (BEP20)，其他网络将丢失",
+      "usdtBscWarningShort": "⚠️ 仅支持 BNB Smart Chain (BEP20)"
     },
     "subscriptionPlans": "订阅套餐",
     "rechargeBonusBanner": "当前充值活动：赠送 {percent}%",
