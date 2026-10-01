@@ -270,9 +270,11 @@ export default {
       legend: {
         passed: '通过',
         failed: '疑似降智',
-        error: '接口异常（不计入）'
+        error: '接口异常（不计入）',
+        empty: '暂无记录'
       },
-      barLabel: '{name}：通过 {passed} 次，疑似降智 {failed} 次，接口异常 {errored} 次',
+      barLabel: '{name}最近检测：通过 {passed} 次，疑似降智 {failed} 次，接口异常 {errored} 次',
+      historyWindow: '最近 {n} 次检测 · 已有 {count} 条 · 左旧右新',
       updatedAt: '最近一次检测：{time}',
       staleAt: '同步暂时失败，显示的是 {time} 的数据',
       justNow: '刚刚',

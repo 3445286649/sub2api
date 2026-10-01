@@ -172,8 +172,8 @@
       <div class="card p-6">
         <div class="flex flex-col items-center space-y-4">
           <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ scanTitle }}</p>
-          <div :class="['relative rounded-lg border-2 p-4', qrBorderClass, isUsdtBsc ? 'usdt-qr-container' : '']">
-            <canvas ref="qrCanvas" class="mx-auto" :class="isUsdtBsc ? 'usdt-qr-canvas' : ''"></canvas>
+          <div :class="['relative rounded-lg border-2 p-4', qrBorderClass]">
+            <canvas ref="qrCanvas" class="mx-auto"></canvas>
             <!-- Brand logo overlay -->
             <div v-if="showQrLogo" class="pointer-events-none absolute inset-0 flex items-center justify-center">
               <span :class="['rounded-full p-2 shadow ring-2 ring-white', qrLogoBgClass]">
@@ -181,61 +181,70 @@
               </span>
             </div>
           </div>
-          <!-- USDT Payment Details -->
-          <div v-if="isUsdtBsc" class="usdt-panel w-full space-y-4">
-            <!-- Amount Section with CNY prominent -->
-            <div class="usdt-amount-card">
-              <div class="flex items-start justify-between gap-4">
-                <div class="flex-1">
-                  <!-- CNY amount prominent -->
-                  <p class="usdt-cny-amount">¥ {{ props.amount?.toFixed(2) || '0.00' }}</p>
-                  <!-- USDT amount secondary -->
-                  <p v-if="cryptoPayAmountDisplay" class="usdt-amount-value">{{ cryptoPayAmountDisplay }}</p>
-                  <!-- Rate hint tertiary -->
-                  <p v-if="cryptoRateDisplay" class="usdt-rate-hint">{{ cryptoRateDisplay }}</p>
-                </div>
+          <p v-if="scanHint" class="text-center text-sm text-gray-500 dark:text-gray-400">{{ scanHint }}</p>
+          <div v-if="isUsdtBsc" class="w-full space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-left dark:border-emerald-800/70 dark:bg-emerald-950/20">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p class="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                  {{ t('payment.crypto.networkLabel') }}
+                </p>
+                <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                  {{ t('payment.crypto.usdtBscNetwork') }}
+                </p>
+              </div>
+              <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200">
+                USDT-BEP20
+              </span>
+            </div>
+            <div v-if="cryptoPayAmountDisplay" class="rounded-lg bg-white p-3 shadow-sm dark:bg-dark-800">
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {{ t('payment.crypto.payAmount') }}
+                </p>
                 <button
-                  v-if="cryptoPayAmountDisplay"
                   type="button"
-                  class="usdt-copy-btn-large"
+                  class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
                   @click="copyPayAmount"
                 >
                   <Icon name="copy" size="sm" />
-                  <span>{{ amountCopied ? t('payment.crypto.copied') : t('payment.crypto.copyAmount') }}</span>
+                  {{ amountCopied ? t('payment.crypto.copied') : t('payment.crypto.copyAmount') }}
                 </button>
               </div>
+              <div class="mt-1 flex flex-wrap items-end justify-between gap-3">
+                <p class="font-mono text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                  {{ cryptoPayAmountDisplay }}
+                </p>
+                <div v-if="cryptoRateDisplay" class="inline-flex items-center gap-2 rounded-md border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-800 dark:border-emerald-800/70 dark:bg-emerald-950/40 dark:text-emerald-200">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.crypto.exchangeRate') }}</span>
+                  <span class="font-mono">{{ cryptoRateDisplay }}</span>
+                </div>
+              </div>
+              <p class="mt-2 text-xs leading-5 text-amber-700 dark:text-amber-300">
+                {{ t('payment.crypto.feeWarning') }}
+              </p>
+              <p class="mt-1 text-xs leading-5 text-amber-700 dark:text-amber-300">
+                {{ t('payment.crypto.exchangeWithdrawalWarning') }}
+              </p>
             </div>
-
-            <!-- Network Badge -->
-            <div class="usdt-network-badge">
-              <span class="usdt-network-label">{{ t('payment.crypto.usdtBscNetwork') }}</span>
-            </div>
-
-            <!-- Address Section with full address on desktop -->
-            <div class="usdt-address-card">
+            <div class="rounded-lg bg-white p-3 shadow-sm dark:bg-dark-800">
               <div class="mb-2 flex items-center justify-between gap-3">
-                <span class="usdt-address-label">{{ t('payment.crypto.walletAddress') }}</span>
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {{ t('payment.crypto.walletAddress') }}
+                </span>
                 <button
                   type="button"
-                  class="usdt-copy-btn-large"
+                  class="wallet-address-copy inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
                   @click="copyWalletAddress"
                 >
                   <Icon name="copy" size="sm" />
-                  <span>{{ addressCopied ? t('payment.crypto.copied') : t('payment.crypto.copyAddress') }}</span>
+                  {{ addressCopied ? t('payment.crypto.copied') : t('payment.crypto.copyAddress') }}
                 </button>
               </div>
-              <!-- Desktop: full address, Mobile: truncated -->
-              <p class="usdt-address-value usdt-address-desktop">{{ walletAddress }}</p>
-              <p class="usdt-address-value usdt-address-mobile">{{ truncatedAddress }}</p>
+              <p class="break-all font-mono text-sm text-gray-900 dark:text-gray-100">{{ walletAddress }}</p>
             </div>
-
-            <!-- Warning - simplified -->
-            <div class="usdt-warning">
-              <svg class="usdt-warning-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span>{{ t('payment.crypto.usdtBscWarningShort') }}</span>
-            </div>
+            <p class="text-xs leading-5 text-emerald-800 dark:text-emerald-200">
+              {{ t('payment.crypto.usdtBscWarning') }}
+            </p>
           </div>
           <button v-if="payUrl" class="btn btn-secondary text-sm" @click="reopenPopup">
             {{ t('payment.qr.openPayWindow') }}
@@ -243,9 +252,9 @@
         </div>
       </div>
       <div class="card p-4 text-center">
-        <p class="usdt-countdown-label">{{ t('payment.qr.expiresIn') }}</p>
-        <p class="usdt-countdown-value">{{ countdownDisplay }}</p>
-        <p class="usdt-countdown-hint">{{ t('payment.qr.waitingPayment') }}</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.expiresIn') }}</p>
+        <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
+        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
       </div>
       <button class="btn btn-secondary w-full" :disabled="cancelling" @click="handleCancel">
         {{ cancelling ? t('common.processing') : t('payment.qr.cancelOrder') }}
@@ -384,13 +393,6 @@ const cryptoRateDisplay = computed(() => {
   return t('payment.crypto.exchangeRateValue', { rate: formatted })
 })
 
-const truncatedAddress = computed(() => {
-  const addr = walletAddress.value
-  if (addr.length <= 16) return addr
-  // 桌面端全显示，移动端截断
-  return addr.substring(0, 8) + '...' + addr.substring(addr.length - 6)
-})
-
 const qrBorderClass = computed(() => {
   if (isAlipay.value) return 'border-[#00AEEF] bg-blue-50 dark:border-[#00AEEF]/70 dark:bg-blue-950/20'
   if (isWxpay.value) return 'border-[#2BB741] bg-green-50 dark:border-[#2BB741]/70 dark:bg-green-950/20'
@@ -408,6 +410,13 @@ const scanTitle = computed(() => {
   if (isAlipay.value) return t('payment.qr.scanAlipay')
   if (isWxpay.value) return t('payment.qr.scanWxpay')
   return t('payment.qr.scanToPay')
+})
+
+const scanHint = computed(() => {
+  if (isUsdtBsc.value) return t('payment.crypto.scanUsdtBscHint')
+  if (isAlipay.value) return t('payment.qr.scanAlipayHint')
+  if (isWxpay.value) return t('payment.qr.scanWxpayHint')
+  return ''
 })
 
 const countdownDisplay = computed(() => {
@@ -642,203 +651,5 @@ onUnmounted(() => cleanup())
   .cp-success-check {
     stroke-dashoffset: 0;
   }
-}
-
-/* ============ USDT 支付面板优化 ============ */
-.usdt-panel {
-  --usdt-surface-1: #0A0D12;
-  --usdt-surface-2: #0F131C;
-  --usdt-surface-3: #161D2B;
-  --usdt-accent: #6EE7B7;
-  --usdt-accent-dim: #34D399;
-  --usdt-text-primary: #F9FAFB;
-  --usdt-text-secondary: #9CA3AF;
-  --usdt-warning: #F59E0B;
-}
-
-:root:not(.dark) .usdt-panel {
-  --usdt-surface-1: #F9FAFB;
-  --usdt-surface-2: #FFFFFF;
-  --usdt-surface-3: #F3F4F6;
-  --usdt-accent: #059669;
-  --usdt-accent-dim: #10B981;
-  --usdt-text-primary: #111827;
-  --usdt-text-secondary: #6B7280;
-  --usdt-warning: #D97706;
-}
-
-/* QR Code enlarged for USDT */
-.usdt-qr-container {
-  border-color: color-mix(in srgb, var(--usdt-accent) 30%, transparent);
-  background: var(--usdt-surface-2);
-}
-
-.usdt-qr-canvas {
-  width: 240px !important;
-  height: 240px !important;
-}
-
-/* Amount Card: CNY prominent */
-.usdt-amount-card {
-  background: var(--usdt-surface-2);
-  border-radius: 16px;
-  padding: clamp(1.25rem, 3vw, 1.75rem);
-  border: 1px solid color-mix(in srgb, var(--usdt-accent) 20%, transparent);
-}
-
-.usdt-cny-amount {
-  font-size: clamp(2rem, 5vw, 2.75rem);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--usdt-text-primary);
-  line-height: 1.1;
-  margin-bottom: 0.5rem;
-}
-
-.usdt-amount-value {
-  font-size: clamp(1.25rem, 3vw, 1.5rem);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--usdt-accent);
-  line-height: 1.2;
-  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
-}
-
-.usdt-rate-hint {
-  margin-top: 0.25rem;
-  font-size: 0.875rem;
-  color: var(--usdt-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.usdt-network-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.625rem 1rem;
-  background: color-mix(in srgb, var(--usdt-accent) 12%, transparent);
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--usdt-accent) 30%, transparent);
-}
-
-.usdt-network-label {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--usdt-accent-dim);
-  letter-spacing: 0.02em;
-}
-
-.usdt-address-card {
-  background: var(--usdt-surface-2);
-  border-radius: 12px;
-  padding: clamp(1rem, 2.5vw, 1.25rem);
-  border: 1px solid var(--usdt-surface-3);
-}
-
-.usdt-address-label {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--usdt-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.usdt-address-value {
-  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--usdt-text-primary);
-  word-break: break-all;
-  line-height: 1.6;
-}
-
-/* Desktop: show full address, Mobile: show truncated */
-.usdt-address-desktop {
-  display: none;
-}
-
-.usdt-address-mobile {
-  display: block;
-}
-
-@media (min-width: 640px) {
-  .usdt-address-desktop {
-    display: block;
-    font-size: 0.9375rem;
-  }
-
-  .usdt-address-mobile {
-    display: none;
-  }
-}
-
-.usdt-copy-btn-large {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.125rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--usdt-accent-dim);
-  background: color-mix(in srgb, var(--usdt-accent) 10%, transparent);
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--usdt-accent) 25%, transparent);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-
-.usdt-copy-btn-large:hover {
-  background: color-mix(in srgb, var(--usdt-accent) 18%, transparent);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--usdt-accent) 20%, transparent);
-}
-
-.usdt-copy-btn-large:active {
-  transform: translateY(0);
-}
-
-.usdt-warning {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
-  padding: 0.875rem 1rem;
-  background: color-mix(in srgb, var(--usdt-warning) 8%, transparent);
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--usdt-warning) 20%, transparent);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: var(--usdt-warning);
-}
-
-.usdt-warning-icon {
-  flex-shrink: 0;
-  width: 1.125rem;
-  height: 1.125rem;
-  margin-top: 0.0625rem;
-}
-
-.usdt-countdown-label {
-  font-size: 0.875rem;
-  color: var(--usdt-text-secondary);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.usdt-countdown-value {
-  margin-top: 0.5rem;
-  font-size: clamp(2.5rem, 5vw, 3.5rem);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--usdt-accent-dim);
-  line-height: 1;
-}
-
-.usdt-countdown-hint {
-  margin-top: 0.5rem;
-  font-size: 0.75rem;
-  color: var(--usdt-text-secondary);
-  opacity: 0.7;
 }
 </style>

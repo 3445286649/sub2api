@@ -140,13 +140,13 @@ func (p *USDTBSC) resolveCNYPerUSDT(ctx context.Context, cnyAmount *big.Rat) (*b
 	}
 	key := strings.Join([]string{p.rateSource, p.rateAPIURL, p.rateJSONPath, strconv.FormatInt(tier, 10)}, "|")
 	fetch := func(fetchCtx context.Context) (*big.Rat, error) {
-		return p.fetchAutoCNYPerUSDT(fetchCtx, tier)
+		return p.fetchAutoCNYPerUSDT(fetchCtx, cnyAmount)
 	}
 
 	store := usdtBSCRates
 	cached, hasCached := store.get(key)
 	age := store.now().Sub(cached.fetchedAt)
-	if hasCached && p.rateCacheTTL > 0 && age < p.rateCacheTTL {
+	if hasCached && p.rateCacheTTL > 0 && age < p.rateCacheTTL && age <= usdtBSCRateLastGoodMaxAge {
 		return new(big.Rat).Set(cached.rate), p.rateSource, nil
 	}
 	if hasCached && p.rateCacheTTL > 0 && age <= usdtBSCRateLastGoodMaxAge {
@@ -179,13 +179,13 @@ func (p *USDTBSC) resolveCNYPerUSDT(ctx context.Context, cnyAmount *big.Rat) (*b
 	return nil, "", fmt.Errorf("fetch usdt_bsc cny/usdt rate: %w", err)
 }
 
-func (p *USDTBSC) fetchAutoCNYPerUSDT(ctx context.Context, tier int64) (*big.Rat, error) {
+func (p *USDTBSC) fetchAutoCNYPerUSDT(ctx context.Context, amount *big.Rat) (*big.Rat, error) {
 	var (
 		req *http.Request
 		err error
 	)
 	if p.rateSource == usdtBSCRateSourceBinanceP2P {
-		req, err = newBinanceP2PRateRequest(ctx, p.rateAPIURL, tier)
+		req, err = newBinanceP2PRateRequest(ctx, p.rateAPIURL, amount)
 	} else {
 		req, err = http.NewRequestWithContext(ctx, http.MethodGet, p.rateAPIURL, nil)
 	}
@@ -208,12 +208,12 @@ func (p *USDTBSC) fetchAutoCNYPerUSDT(ctx context.Context, tier int64) (*big.Rat
 		return nil, fmt.Errorf("decode rate api response: %w", err)
 	}
 	if p.rateSource == usdtBSCRateSourceBinanceP2P {
-		return extractBinanceP2PCNYRate(payload)
+		return extractBinanceP2PCNYRate(payload, amount)
 	}
 	return extractPositiveRate(payload, p.rateJSONPath)
 }
 
-func newBinanceP2PRateRequest(ctx context.Context, rawURL string, transAmount int64) (*http.Request, error) {
+func newBinanceP2PRateRequest(ctx context.Context, rawURL string, transAmount *big.Rat) (*http.Request, error) {
 	body := map[string]any{
 		"asset":         "USDT",
 		"fiat":          "CNY",
@@ -223,8 +223,8 @@ func newBinanceP2PRateRequest(ctx context.Context, rawURL string, transAmount in
 		"payTypes":      []string{},
 		"publisherType": nil,
 	}
-	if transAmount > 0 {
-		body["transAmount"] = strconv.FormatInt(transAmount, 10)
+	if transAmount != nil && transAmount.Sign() > 0 {
+		body["transAmount"] = strconv.FormatInt(usdtBSCRateAmountTier(transAmount), 10)
 	}
 	payload, err := json.Marshal(body)
 	if err != nil {
@@ -240,7 +240,7 @@ func newBinanceP2PRateRequest(ctx context.Context, rawURL string, transAmount in
 }
 
 // extractBinanceP2PCNYRate 取前几条有效报价的中位数。
-func extractBinanceP2PCNYRate(payload any) (*big.Rat, error) {
+func extractBinanceP2PCNYRate(payload any, amounts ...*big.Rat) (*big.Rat, error) {
 	root, ok := payload.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("binance p2p response is not an object")
@@ -260,8 +260,22 @@ func extractBinanceP2PCNYRate(payload any) (*big.Rat, error) {
 			continue
 		}
 		rate, err := rateFromJSONValue(adv["price"])
-		if err != nil {
+		if err != nil || validateUSDTBSCRate(rate) != nil {
 			continue
+		}
+		if len(amounts) > 0 && amounts[0] != nil {
+			eligible := true
+			for _, bound := range []string{"minSingleTransAmount", "maxSingleTransAmount"} {
+				if raw, exists := adv[bound]; exists {
+					limit, err := rateFromJSONValue(raw)
+					if err != nil || (bound == "minSingleTransAmount" && amounts[0].Cmp(limit) < 0) || (bound == "maxSingleTransAmount" && amounts[0].Cmp(limit) > 0) {
+						eligible = false
+					}
+				}
+			}
+			if !eligible {
+				continue
+			}
 		}
 		prices = append(prices, rate)
 		if len(prices) == usdtBSCRateMedianSamples {

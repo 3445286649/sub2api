@@ -243,7 +243,7 @@ export default {
     quality: {
       live: 'Live monitoring',
       title: 'Full-strength models. No silent downgrades.',
-      subtitle: 'The full-strength group is tested automatically on a schedule. Every result is public, and you can run the tests yourself.',
+      subtitle: 'The full-strength groups are tested automatically on a schedule. Every result is public, and you can run the tests yourself.',
       lead: 'Automated reasoning tests on a schedule. Every result is public.',
       interval: 'Tested every {minutes} min',
       passRate: 'Pass rate',
@@ -271,9 +271,11 @@ export default {
       legend: {
         passed: 'Passed',
         failed: 'Possible downgrade',
-        error: 'API error (not counted)'
+        error: 'API error (not counted)',
+        empty: 'No record'
       },
-      barLabel: '{name}: {passed} passed, {failed} possible downgrades, {errored} API errors',
+      barLabel: '{name} recent tests: {passed} passed, {failed} possible downgrades, {errored} API errors',
+      historyWindow: 'Latest {n} tests · {count} records · Oldest left, newest right',
       updatedAt: 'Last test: {time}',
       staleAt: 'Sync failed, showing data from {time}',
       justNow: 'just now',

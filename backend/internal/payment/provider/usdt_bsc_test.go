@@ -98,6 +98,20 @@ func TestUSDTBSCRequiresExplicitCNYPerUSDTRate(t *testing.T) {
 	}
 }
 
+func TestUSDTBSCRejectsExhaustedAmounts(t *testing.T) {
+	p := newTestUSDTBSC(t)
+	reserved := make([]string, 899)
+	for i := range reserved {
+		reserved[i] = fmt.Sprintf("10.%06d", i+1)
+	}
+	_, err := p.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID: "sub2_exhausted", Amount: "72.00", ReservedCryptoAmounts: reserved,
+	})
+	if err == nil {
+		t.Fatal("exhausted amount pool must reject the order instead of reusing an amount")
+	}
+}
+
 func TestUSDTBSCCreatePaymentConvertsCNYAmountByRate(t *testing.T) {
 	p, err := NewUSDTBSC("1", map[string]string{
 		"receiveAddress": "0x3b210bdc924c685fDd10Ae96b7f95D0E14536106",

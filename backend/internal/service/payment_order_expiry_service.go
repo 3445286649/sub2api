@@ -17,7 +17,7 @@ const (
 	// that only one instance issues the upstream payment-provider calls per cycle.
 	paymentOrderExpiryLeaderLockKey = "payment:order:expiry:leader"
 	// paymentOrderExpiryLeaderLockTTL must exceed the combined reconcile + expiry
-	// timeouts (2 * expiryCheckTimeout) so the lock never expires mid-run.
+	// timeouts (3 * expiryCheckTimeout) so the lock never expires mid-run.
 	paymentOrderExpiryLeaderLockTTL = 3 * time.Minute
 )
 

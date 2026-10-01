@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -177,6 +176,9 @@ func (p *USDTBSC) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 	base := new(big.Rat).Quo(cnyAmount, rate)
 	baseAmount := ratToFixed(base, 6)
 	amountWithTail := addUniqueMicroTail(baseAmount, req.OrderID, req.ReservedCryptoAmounts)
+	if amountWithTail == "" {
+		return nil, fmt.Errorf("usdt_bsc unique payment amount pool is exhausted")
+	}
 	lockedAt := time.Now().UTC()
 	intent := encodeUSDTBSCIntent(req.OrderID, req.Amount, amountWithTail, p.receiveAddress, rate, lockedAt)
 	if len(intent) > usdtBSCMaxIntentLength {
@@ -497,18 +499,18 @@ func rpcURLDisabled(raw string) bool {
 }
 
 func ratToFixed(r *big.Rat, decimals int) string {
-	f, _ := r.Float64()
-	pow := math.Pow10(decimals)
-	rounded := math.Round(f*pow) / pow
-	return strconv.FormatFloat(rounded, 'f', decimals, 64)
+	if r == nil {
+		return "<nil>"
+	}
+	return r.FloatString(decimals)
 }
 
 // addUniqueMicroTail 在应付金额后加 0.000001~0.000899 的尾数，用来区分同金额订单。
 // 尾数由订单号决定；与仍可能到账的其他订单撞上时顺延到下一个空闲尾数。
 func addUniqueMicroTail(baseAmount, orderID string, reserved []string) string {
-	raw, err := strconv.ParseFloat(baseAmount, 64)
-	if err != nil {
-		return baseAmount
+	raw, ok := new(big.Rat).SetString(baseAmount)
+	if !ok || raw.Sign() <= 0 {
+		return ""
 	}
 	taken := make(map[string]struct{}, len(reserved))
 	for _, amount := range reserved {
@@ -520,7 +522,7 @@ func addUniqueMicroTail(baseAmount, orderID string, reserved []string) string {
 	start := binary.BigEndian.Uint64(hash[:8]) % usdtBSCMicroTailMax
 	format := func(offset uint64) string {
 		tail := (start+offset)%usdtBSCMicroTailMax + 1
-		return strconv.FormatFloat(raw+float64(tail)/1_000_000, 'f', 6, 64)
+		return new(big.Rat).Add(raw, big.NewRat(int64(tail), 1_000_000)).FloatString(6)
 	}
 	for offset := uint64(0); offset < usdtBSCMicroTailMax; offset++ {
 		amount := format(offset)
@@ -528,7 +530,42 @@ func addUniqueMicroTail(baseAmount, orderID string, reserved []string) string {
 			return amount
 		}
 	}
-	return format(0)
+	return ""
+}
+
+// ReserveUSDTBSCAmount adjusts a prepared quote while the caller holds the database
+// allocation lock. It preserves the quote's rate and time and performs no network I/O.
+func ReserveUSDTBSCAmount(result *payment.CreatePaymentResponse, reserved []string) error {
+	intent, err := parseUSDTBSCIntent(result.TradeNo)
+	if err != nil {
+		return err
+	}
+	rate, ok := new(big.Rat).SetString(intent.LockedRate)
+	if !ok || rate.Sign() <= 0 {
+		return fmt.Errorf("usdt_bsc missing locked rate")
+	}
+	cny, ok := new(big.Rat).SetString(intent.CNYAmount)
+	if !ok || cny.Sign() <= 0 {
+		return fmt.Errorf("usdt_bsc invalid locked amount")
+	}
+	amount := addUniqueMicroTail(new(big.Rat).Quo(cny, rate).FloatString(6), intent.OrderID, reserved)
+	if amount == "" {
+		return fmt.Errorf("usdt_bsc unique payment amount pool is exhausted")
+	}
+	lockedAt, err := time.Parse(time.RFC3339, intent.LockedAt)
+	if err != nil {
+		return err
+	}
+	tradeNo := encodeUSDTBSCIntent(intent.OrderID, intent.CNYAmount, amount, intent.ReceiveAddress, rate, lockedAt)
+	if len(tradeNo) > usdtBSCMaxIntentLength {
+		return fmt.Errorf("usdt_bsc locked payment intent is too long")
+	}
+	result.TradeNo, result.CryptoAmount = tradeNo, amount
+	if result.Metadata == nil {
+		result.Metadata = map[string]string{}
+	}
+	result.Metadata["intent_trade_no"], result.Metadata["token_amount"] = tradeNo, amount
+	return nil
 }
 
 // USDTBSCIntentTokenAmount 从订单的支付意图中取出应付 USDT 数量，供下单时避开重复尾数。

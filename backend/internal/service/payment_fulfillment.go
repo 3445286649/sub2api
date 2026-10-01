@@ -178,6 +178,9 @@ func (s *PaymentService) toPaid(ctx context.Context, o *dbent.PaymentOrder, trad
 	previousStatus := o.Status
 	now := time.Now()
 	grace := now.Add(-paymentGraceMinutes * time.Minute)
+	if pk == payment.TypeUSDTBSC && !o.ExpiresAt.After(grace) {
+		return fmt.Errorf("crypto order %d is beyond its payment grace period", o.ID)
+	}
 	update := s.entClient.PaymentOrder.Update().Where(
 		paymentorder.IDEQ(o.ID),
 		paymentorder.Or(

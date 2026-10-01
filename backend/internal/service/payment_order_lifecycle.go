@@ -347,28 +347,45 @@ func (s *PaymentService) ReconcilePendingPaymentOrders(ctx context.Context) (int
 // Blockchain providers do not send webhooks in the first implementation, so
 // this periodic reconciliation is the authoritative auto-credit path.
 func (s *PaymentService) ReconcilePendingCryptoOrders(ctx context.Context) (int, error) {
+	s.cryptoReconcileMu.Lock()
+	defer s.cryptoReconcileMu.Unlock()
 	now := time.Now()
 	orders, err := s.entClient.PaymentOrder.Query().
 		Where(
-			paymentorder.StatusEQ(OrderStatusPending),
-			paymentorder.ExpiresAtGT(now),
+			paymentorder.IDGT(s.cryptoReconcileCursor),
+			paymentorder.StatusIn(OrderStatusPending, OrderStatusExpired, OrderStatusCancelled),
+			paymentorder.ExpiresAtGT(now.Add(-paymentGraceMinutes*time.Minute)),
 			paymentorder.Or(
 				paymentorder.PaymentTypeEQ(payment.TypeUSDTBSC),
 				paymentorder.ProviderKeyEQ(payment.TypeUSDTBSC),
 			),
 		).
-		Order(dbent.Asc(paymentorder.FieldCreatedAt)).
+		Order(dbent.Asc(paymentorder.FieldID)).
 		Limit(pendingCryptoReconcileLimit).
 		All(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("query pending crypto orders: %w", err)
 	}
+	if len(orders) == 0 {
+		s.cryptoReconcileCursor = 0
+		return 0, nil
+	}
 
 	recovered := 0
 	for _, order := range orders {
-		if s.reconcilePaid(ctx, order) == checkPaidResultAlreadyPaid {
+		if err := ctx.Err(); err != nil {
+			return recovered, err
+		}
+		// Advance even on a provider timeout; the next sweep must reach newer orders.
+		s.cryptoReconcileCursor = order.ID
+		orderCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		if s.reconcilePaid(orderCtx, order) == checkPaidResultAlreadyPaid {
 			recovered++
 		}
+		cancel()
+	}
+	if len(orders) < pendingCryptoReconcileLimit {
+		s.cryptoReconcileCursor = 0
 	}
 	return recovered, nil
 }
