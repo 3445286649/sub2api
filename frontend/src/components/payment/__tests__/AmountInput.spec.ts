@@ -16,6 +16,21 @@ vi.mock('vue-i18n', async () => {
 })
 
 describe('AmountInput recharge bonus preview', () => {
+  it('shows tier-specific promotions inside the local amount cards', async () => {
+    const wrapper = mount(AmountInput, { props: {
+      modelValue: null, amounts: [50, 100, 200], multiplier: 2,
+      bonusTiers: [{ min_amount: 100, bonus_percent: 10 }, { min_amount: 200, bonus_percent: 20 }],
+    } })
+    const cards = wrapper.findAll('button')
+    expect(cards[0].text()).not.toContain('%')
+    expect(cards[1].text()).toContain('+10%')
+    expect(cards[1].text()).toContain('220.00')
+    expect(cards[2].text()).toContain('+20%')
+    await wrapper.setProps({ bonusMode: 'discount' })
+    expect(cards[2].text()).toContain('-20%')
+    expect(cards[2].text()).not.toContain('+20%')
+  })
+
   it('shows credited balance preview on quick amount cards when bonus display is enabled', () => {
     const wrapper = mount(AmountInput, {
       props: {

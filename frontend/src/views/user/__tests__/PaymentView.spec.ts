@@ -819,6 +819,54 @@ describe('PaymentView recharge bonus campaign', () => {
     ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = undefined
   })
 
+  it('keeps the selected method when the discounted amount fits its limit', async () => {
+    const method = checkoutInfoFixture().data.methods.wxpay
+    getCheckoutInfo.mockResolvedValue(checkoutInfoFixture({
+      methods: {
+        wxpay: { ...method, single_max: 80 },
+        alipay: { ...method, single_max: 200 },
+      },
+      recharge_bonus_tiers: [{ min_amount: 100, bonus_percent: 20 }],
+      recharge_bonus_mode: 'discount',
+    }))
+    const wrapper = mountPaymentView()
+    await flushPromises()
+    wrapper.getComponent({ name: 'PaymentMethodSelector' }).vm.$emit('select', 'wxpay')
+    await flushPromises()
+    expect(wrapper.getComponent({ name: 'PaymentMethodSelector' }).props('selected')).toBe('wxpay')
+    await wrapper.get('.amount-input-stub').setValue('100')
+    await flushPromises()
+    expect(wrapper.getComponent({ name: 'PaymentMethodSelector' }).props('selected')).toBe('wxpay')
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['bonus', 240, 0, 102.5],
+    ['discount', 200, 20, 82],
+  ] as const)('uses %s tiers without stacking the legacy bonus', async (mode, credited, discount, total) => {
+    getCheckoutInfo.mockResolvedValue(checkoutInfoFixture({
+      balance_recharge_multiplier: 2,
+      balance_recharge_bonus_enabled: true,
+      balance_recharge_bonus_threshold: 100,
+      balance_recharge_bonus_percent: 10,
+      recharge_bonus_tiers: [{ min_amount: 100, bonus_percent: 20 }],
+      recharge_bonus_mode: mode,
+      recharge_fee_rate: 2.5,
+      recharge_bonus_notice: '<img src=x onerror="alert(1)"><strong>Campaign</strong>',
+    }))
+    const wrapper = mountPaymentView()
+    await flushPromises()
+    await wrapper.get('.amount-input-stub').setValue('100')
+    await flushPromises()
+    const summary = wrapper.getComponent(PaymentSummaryCard)
+    expect(summary.props('creditedAmount')).toBe(credited)
+    expect(summary.props('discountAmount')).toBe(discount)
+    expect(summary.props('totalAmount')).toBe(total)
+    expect(wrapper.get('[data-testid="recharge-bonus-notice"]').html()).not.toContain('onerror')
+    expect(wrapper.find('.cp-cols-side').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('shows bonus percent and credited amount when display switch is enabled and multiplier is greater than 1', async () => {
     getCheckoutInfo.mockResolvedValue(checkoutInfoFixture({
       balance_recharge_multiplier: 1.1,

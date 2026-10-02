@@ -84,12 +84,16 @@
               <!-- 左栏：选择金额与支付方式 -->
               <div class="cp-cols-main space-y-6">
                 <div class="card cp-reveal p-6">
+                  <div v-if="renderedBonusNotice" class="mb-5 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-100" data-testid="recharge-bonus-notice" v-html="renderedBonusNotice"></div>
                   <AmountInput
                     v-model="amount"
                     :amounts="[10, 20, 50, 100, 200, 500, 1000, 2000, 5000]"
-                    :min="globalMinAmount"
-                    :max="globalMaxAmount"
+                    :min="hasBonusTiers && rechargeBonusMode === 'discount' ? 0 : globalMinAmount"
+                    :max="hasBonusTiers && rechargeBonusMode === 'discount' ? 0 : globalMaxAmount"
                     :bonus-enabled="rechargeBonusEnabled"
+                    :bonus-tiers="rechargeBonusTiers"
+                    :bonus-mode="rechargeBonusMode"
+                    :multiplier="balanceRechargeMultiplier"
                     :credit-multiplier="balanceRechargeCreditMultiplier"
                     :bonus-threshold="bonusThreshold"
                     :credit-amount-for="creditedBalanceAmountFor"
@@ -126,7 +130,9 @@
                   :fee-amount="feeAmount"
                   :total-amount="totalAmount"
                   :credited-amount="creditedAmount"
-                  :credit-multiplier="balanceRechargeMultiplier"
+                  :credit-multiplier="bonusRuleEnabled ? 1 : balanceRechargeMultiplier"
+                  :discount-amount="discountAmount"
+                  :bonus-mode="hasBonusTiers ? rechargeBonusMode : 'bonus'"
                   :bonus-enabled="rechargeBonusEnabled"
                   :bonus-percent="rechargeBonusPercent"
                   :bonus-active="bonusThresholdMet"
@@ -426,6 +432,7 @@ import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiErro
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
 import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
+import { normalizeRechargeBonusTiers, normalizeRechargeBonusMode, quoteRechargeBonus } from '@/utils/rechargeBonus'
 import type { PointsProduct } from '@/types/points'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
@@ -742,7 +749,12 @@ const balanceRechargeMultiplier = computed(() => {
   const multiplier = checkout.value.balance_recharge_multiplier
   return Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1
 })
+const rechargeBonusTiers = computed(() => normalizeRechargeBonusTiers(checkout.value.recharge_bonus_tiers))
+const rechargeBonusMode = computed(() => normalizeRechargeBonusMode(checkout.value.recharge_bonus_mode))
+const hasBonusTiers = computed(() => rechargeBonusTiers.value.length > 0)
+const renderedBonusNotice = computed(() => DOMPurify.sanitize(marked.parse(checkout.value.recharge_bonus_notice || '', { async: false, gfm: true, breaks: true })))
 const bonusRuleEnabled = computed(() =>
+  !hasBonusTiers.value &&
   checkout.value.balance_recharge_bonus_enabled === true
   && Number(checkout.value.balance_recharge_bonus_threshold || 0) > 0
   && Number(checkout.value.balance_recharge_bonus_percent || 0) > 0
@@ -758,16 +770,22 @@ const balanceRechargeCreditMultiplier = computed(() => {
   }
   return balanceRechargeMultiplier.value
 })
-const creditedAmount = computed(() => Math.round((validAmount.value * balanceRechargeCreditMultiplier.value) * 100) / 100)
+function tierQuoteFor(value: number, currency = selectedCurrency.value) {
+  return quoteRechargeBonus(rechargeBonusTiers.value, value, { multiplier: balanceRechargeMultiplier.value, mode: rechargeBonusMode.value, currencyDigits: currencyFractionDigits(currency) })
+}
+const bonusQuote = computed(() => tierQuoteFor(validAmount.value))
+const payBaseAmount = computed(() => hasBonusTiers.value ? bonusQuote.value.payBase : validAmount.value)
+const discountAmount = computed(() => hasBonusTiers.value ? roundPaymentAmount(validAmount.value - payBaseAmount.value, selectedCurrency.value) : 0)
+const creditedAmount = computed(() => hasBonusTiers.value ? bonusQuote.value.credited : Math.round((validAmount.value * balanceRechargeCreditMultiplier.value) * 100) / 100)
 const rechargeBonusEnabled = computed(() =>
-  checkout.value.balance_recharge_bonus_display_enabled === true &&
+  hasBonusTiers.value || checkout.value.balance_recharge_bonus_display_enabled === true &&
   (
     bonusRuleEnabled.value
     || (!bonusRuleEnabled.value && balanceRechargeMultiplier.value > 1)
   )
 )
 const rechargeBonusPercent = computed(() => {
-  const percent = bonusRuleEnabled.value
+  const percent = hasBonusTiers.value ? bonusQuote.value.percent : bonusRuleEnabled.value
     ? Math.round(bonusPercent.value * 100) / 100
     : Math.round((balanceRechargeMultiplier.value - 1) * 10000) / 100
   return Number.isInteger(percent) ? String(percent) : percent.toFixed(2).replace(/\.?0+$/, '')
@@ -880,6 +898,7 @@ function formatCreditedBalanceAmount(value: number): string {
 }
 
 function creditedBalanceAmountFor(inputAmount: number): number {
+  if (hasBonusTiers.value) return tierQuoteFor(inputAmount).credited
   if (!Number.isFinite(inputAmount) || inputAmount <= 0) return 0
   const multiplier = bonusRuleEnabled.value
     ? (inputAmount >= bonusThreshold.value ? 1 + (bonusPercent.value / 100) : 1)
@@ -897,41 +916,41 @@ const methodOptions = computed<PaymentMethodOption[]>(() =>
     return {
       type,
       fee_rate: ml?.fee_rate ?? 0,
-      available: ml?.available !== false && amountFitsMethod(validAmount.value, type),
+      available: ml?.available !== false && amountFitsMethod(payBaseAmount.value, type),
     }
   })
 )
 
 const feeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
 const feeAmount = computed(() =>
-  feeRate.value > 0 && validAmount.value > 0
-    ? Math.ceil(((validAmount.value * feeRate.value) / 100) * 100) / 100
+  feeRate.value > 0 && payBaseAmount.value > 0
+    ? Math.ceil(((payBaseAmount.value * feeRate.value) / 100) * 100) / 100
     : 0
 )
 const totalAmount = computed(() =>
-  feeRate.value > 0 && validAmount.value > 0
-    ? Math.round((validAmount.value + feeAmount.value) * 100) / 100
-    : validAmount.value
+  feeRate.value > 0 && payBaseAmount.value > 0
+    ? Math.round((payBaseAmount.value + feeAmount.value) * 100) / 100
+    : payBaseAmount.value
 )
 
 const amountError = computed(() => {
-  if (validAmount.value <= 0) return ''
+  if (payBaseAmount.value <= 0) return ''
   // No method can handle this amount
-  if (!enabledMethods.value.some((m) => amountFitsMethod(validAmount.value, m))) {
+  if (!enabledMethods.value.some((m) => amountFitsMethod(payBaseAmount.value, m))) {
     return t('payment.amountNoMethod')
   }
   // Selected method can't handle this amount (but others can)
   const ml = selectedLimit.value
   if (ml) {
-    if (ml.single_min > 0 && validAmount.value < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
-    if (ml.single_max > 0 && validAmount.value > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
+    if (ml.single_min > 0 && payBaseAmount.value < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
+    if (ml.single_max > 0 && payBaseAmount.value > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
   }
   return ''
 })
 
 const canSubmit = computed(() =>
-  validAmount.value > 0
-    && amountFitsMethod(validAmount.value, selectedMethod.value)
+  payBaseAmount.value > 0
+    && amountFitsMethod(payBaseAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
 )
 
@@ -975,7 +994,7 @@ const balanceDisplay = computed(() => {
 
 // 赠送门槛是否已跨过：跨过时高亮一次赠送说明
 const bonusThresholdMet = computed(() =>
-  rechargeBonusEnabled.value && validAmount.value > 0 && validAmount.value >= bonusThreshold.value
+  rechargeBonusEnabled.value && (hasBonusTiers.value ? bonusQuote.value.percent > 0 : validAmount.value > 0 && validAmount.value >= bonusThreshold.value)
 )
 
 // 上升沿计数：每次金额从门槛以下跨到门槛以上就加一，摘要卡用它当 key 重挂载，
@@ -1036,7 +1055,7 @@ const canSubmitSubscription = computed(() =>
 )
 
 // Auto-switch to first available method when current selection can't handle the amount
-watch(() => [validAmount.value, selectedMethod.value] as const, ([amt, method]) => {
+watch(() => [payBaseAmount.value, selectedMethod.value] as const, ([amt, method]) => {
   if (amt <= 0 || amountFitsMethod(amt, method)) return
   const available = enabledMethods.value.find((m) => amountFitsMethod(amt, m))
   if (available) selectedMethod.value = available

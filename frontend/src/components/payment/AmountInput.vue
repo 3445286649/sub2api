@@ -50,7 +50,7 @@
             v-if="hasBonus(amt)"
             class="mt-1 block text-xs font-normal tabular-nums text-emerald-600 dark:text-emerald-400"
           >
-            {{ t('payment.quickAmountCredit', { amount: formatCreditedAmount(creditedAmountFor(amt)) }) }}
+            {{ props.bonusTiers.length && bonusMode === 'discount' ? t('payment.rechargeBonus.payShort', { amount: formatAmountText(tierQuote(amt).payBase) }) : t('payment.quickAmountCredit', { amount: formatCreditedAmount(creditedAmountFor(amt)) }) }}
           </span>
         </button>
       </div>
@@ -88,6 +88,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import type { RechargeBonusTier } from '@/types/payment'
+import { quoteRechargeBonus, type RechargeBonusMode } from '@/utils/rechargeBonus'
 import { currencySymbol } from './currency'
 
 const props = withDefaults(defineProps<{
@@ -95,6 +97,9 @@ const props = withDefaults(defineProps<{
   modelValue: number | null
   min?: number
   max?: number
+  bonusTiers?: RechargeBonusTier[]
+  bonusMode?: RechargeBonusMode
+  multiplier?: number
   bonusEnabled?: boolean
   creditMultiplier?: number
   bonusThreshold?: number
@@ -110,6 +115,9 @@ const props = withDefaults(defineProps<{
   amounts: () => [10, 20, 50, 100, 200, 500, 1000, 2000, 5000],
   min: 0,
   max: 0,
+  bonusTiers: () => [],
+  bonusMode: 'bonus',
+  multiplier: 1,
   bonusEnabled: false,
   creditMultiplier: 1,
   bonusThreshold: 0,
@@ -152,7 +160,15 @@ const bonusPercentValue = computed(() => {
 })
 
 // 赠送角标只标在真正达到门槛的档位上
+function tierQuote(amt: number) {
+  const digits = new Intl.NumberFormat('en', { style: 'currency', currency: props.currency }).resolvedOptions().maximumFractionDigits
+  return quoteRechargeBonus(props.bonusTiers, amt, { multiplier: props.multiplier, mode: props.bonusMode, currencyDigits: digits })
+}
 function bonusBadgeText(amt: number): string {
+  if (props.bonusTiers.length) {
+    const q = tierQuote(amt)
+    return q.percent > 0 ? (props.bonusMode === 'discount' ? `-${q.percent}%` : `+${q.percent}%`) : ''
+  }
   if (!props.bonusEnabled || bonusPercentValue.value <= 0) return ''
   if (props.bonusThreshold > 0 && amt < props.bonusThreshold) return ''
   const percent = bonusPercentValue.value
@@ -161,6 +177,7 @@ function bonusBadgeText(amt: number): string {
 
 // 该档位是否真有赠送：到账金额必须高于面值，否则那行数字和面值重复，只是噪音
 function hasBonus(amt: number): boolean {
+  if (props.bonusTiers.length) return tierQuote(amt).percent > 0
   if (!props.bonusEnabled) return false
   return creditedAmountFor(amt) > amt
 }
@@ -191,6 +208,7 @@ function formattedAmount(amt: number): string {
 }
 
 function creditedAmountFor(amt: number) {
+  if (props.bonusTiers.length) return tierQuote(amt).credited
   if (props.creditAmountFor) {
     return props.creditAmountFor(amt)
   }

@@ -18,6 +18,10 @@
             {{ formatAmount(displayPayAmount) }}
           </span>
         </div>
+        <div v-if="discountAmount > 0" class="flex items-center justify-between" data-testid="recharge-discount-row">
+          <span>{{ t('payment.rechargeBonus.discountLabelWithPercent', { percent: bonusPercent }) }}</span>
+          <span class="text-emerald-600">-{{ formatAmount(discountAmount) }}</span>
+        </div>
         <div v-if="feeRate > 0" class="flex items-center justify-between">
           <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
           <span class="font-medium tabular-nums text-gray-900 dark:text-white">
@@ -43,12 +47,12 @@
       <!-- 赠送说明：命中门槛时高亮一次，让用户注意到多拿的部分 -->
       <!-- key 用上升沿计数：每次跨过门槛重挂载，动画才会重放 -->
       <p
-        v-if="bonusEnabled"
+        v-if="bonusEnabled && bonusPercent !== '0'"
         :key="bonusPulse"
         class="cp-bonus-note mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-200"
         :class="{ 'cp-bonus-note-active': bonusActive }"
       >
-        <span class="font-semibold">{{ t('payment.rechargeBonusBanner', { percent: bonusPercent }) }}</span>
+        <span class="font-semibold">{{ t(bonusMode === 'discount' ? 'payment.rechargeBonus.discountLabelWithPercent' : 'payment.rechargeBonusBanner', { percent: bonusPercent }) }}</span>
         <span class="mt-0.5 block">
           {{ t('payment.rechargeBonusPreview', {
             pay: formatAmount(amount),
@@ -74,6 +78,8 @@ import Icon from '@/components/icons/Icon.vue'
 import { useCountUp } from '@/composables/useCountUp'
 
 const props = withDefaults(defineProps<{
+  discountAmount?: number
+  bonusMode?: 'bonus' | 'discount'
   amount: number
   feeRate: number
   totalAmount: number
@@ -88,6 +94,8 @@ const props = withDefaults(defineProps<{
   currency?: string
   formatAmount: (value: number) => string
 }>(), {
+  discountAmount: 0,
+  bonusMode: 'bonus',
   bonusActive: false,
   bonusPulse: 0,
   currency: 'CNY',
