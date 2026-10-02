@@ -106,6 +106,10 @@ export interface PaymentOrder {
   refund_request_reason?: string
   plan_id?: number
   provider_instance_id?: string
+  /** USDT 订单支付后才有：链上交易哈希、实际转账数量和币种 */
+  crypto_tx_hash?: string
+  crypto_amount?: string
+  crypto_currency?: string
 }
 
 // ==================== Plans & Channels ====================

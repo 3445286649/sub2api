@@ -63,6 +63,12 @@
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.paymentMethod') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ t(paymentMethodI18nKey(order.payment_type), normalizedOrderPaymentType(order.payment_type)) }}</span>
             </div>
+            <CryptoTxReceipt
+              v-if="cryptoReceipt"
+              :tx-hash="cryptoReceipt.crypto_tx_hash"
+              :amount="cryptoReceipt.crypto_amount"
+              :currency="cryptoReceipt.crypto_currency"
+            />
             <!-- 充值后余额：从充值前的余额滚到新值，让用户看到钱确实到账了 -->
             <div v-if="showBalanceRoll" class="flex justify-between border-t border-gray-100 pt-3 dark:border-dark-700">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.currentBalance') }}</span>
@@ -108,6 +114,7 @@ import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
+import CryptoTxReceipt from '@/components/payment/CryptoTxReceipt.vue'
 import {
   PAYMENT_RECOVERY_STORAGE_KEY,
   clearPaymentRecoverySnapshot,
@@ -198,6 +205,12 @@ const showBalanceRoll = computed(() =>
   && order.value.order_type === 'balance'
   && liveBalance.value > 0
 )
+
+const cryptoReceipt = computed(() => {
+  const current = order.value
+  if (!current || !('crypto_tx_hash' in current) || !current.crypto_tx_hash) return null
+  return current
+})
 
 const isPending = computed(() => {
   return isPendingStatus(order.value?.status)

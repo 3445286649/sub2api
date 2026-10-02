@@ -34,3 +34,21 @@ export function formatUsdtRate(raw: string | undefined): string {
   if (!Number.isFinite(numeric) || numeric <= 0) return rate
   return numeric.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
 }
+
+const TX_HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/
+
+export function isCryptoTxHash(raw: string | undefined): boolean {
+  return TX_HASH_PATTERN.test((raw || '').trim())
+}
+
+/** 0x9c3e5b1f…7d9e1f3a：保留前 10 位和后 8 位，够用户和钱包里的记录对上 */
+export function shortenTxHash(raw: string): string {
+  const hash = raw.trim()
+  if (hash.length <= 20) return hash
+  return `${hash.slice(0, 10)}…${hash.slice(-8)}`
+}
+
+/** 浏览器链接写死 BSC 主网；测试网订单的链接会打不开，但不影响到账 */
+export function bscScanTxUrl(hash: string): string {
+  return `https://bscscan.com/tx/${hash.trim()}`
+}

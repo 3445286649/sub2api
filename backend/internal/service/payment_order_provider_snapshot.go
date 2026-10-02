@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -290,4 +291,47 @@ func providerMerchantIdentityMetadata(prov payment.Provider) map[string]string {
 		return nil
 	}
 	return reporter.MerchantIdentityMetadata()
+}
+
+// PaymentOrderCryptoReceipt is the on-chain proof shown to the user after a
+// crypto order is paid.
+type PaymentOrderCryptoReceipt struct {
+	TxHash   string
+	Amount   string
+	Currency string
+}
+
+var (
+	cryptoTxHashPattern = regexp.MustCompile(`^0x[0-9a-fA-F]{64}$`)
+	cryptoAmountPattern = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`)
+)
+
+// PaymentOrderCryptoReceiptOf returns nil unless the order is a paid USDT-BSC
+// order with a well-formed transaction hash. Before payment PaymentTradeNo holds
+// the internal payment intent (amount, rate, receive address), so it is only
+// trusted as a fallback once the order is paid and it looks like a tx hash.
+func PaymentOrderCryptoReceiptOf(order *dbent.PaymentOrder) *PaymentOrderCryptoReceipt {
+	if order == nil || order.PaidAt == nil {
+		return nil
+	}
+	switch order.Status {
+	case OrderStatusPending, OrderStatusExpired, OrderStatusCancelled:
+		return nil
+	}
+	if order.PaymentType != payment.TypeUSDTBSC && psStringValue(order.ProviderKey) != payment.TypeUSDTBSC {
+		return nil
+	}
+	usdt, _ := order.ProviderSnapshot[payment.TypeUSDTBSC].(map[string]any)
+	hash := psSnapshotStringValue(usdt["tx_hash"])
+	if !cryptoTxHashPattern.MatchString(hash) {
+		hash = strings.TrimSpace(order.PaymentTradeNo)
+	}
+	if !cryptoTxHashPattern.MatchString(hash) {
+		return nil
+	}
+	receipt := &PaymentOrderCryptoReceipt{TxHash: strings.ToLower(hash), Currency: "USDT"}
+	if amount := psSnapshotStringValue(usdt["token_amount"]); cryptoAmountPattern.MatchString(amount) {
+		receipt.Amount = amount
+	}
+	return receipt
 }

@@ -234,12 +234,19 @@ describe('PaymentStatusPanel', () => {
     expect(wrapper.text()).toContain('payment.qr.expired')
     expect(wrapper.find('[data-test="usdt-watch"]').text()).toContain('payment.crypto.watching')
 
-    pollOrderStatus.mockResolvedValue(orderFactory('COMPLETED', { payment_type: 'usdt_bsc' }))
+    const txHash = '0x9c3e5b1f2a7d4e6c8b0a1f3d5e7c9b2a4d6f8e0c1b3a5d7e9f1c3b5a7d9e1f3a'
+    pollOrderStatus.mockResolvedValue(orderFactory('COMPLETED', {
+      payment_type: 'usdt_bsc',
+      crypto_tx_hash: txHash,
+      crypto_amount: '10.000124',
+      crypto_currency: 'USDT',
+    }))
     await vi.advanceTimersByTimeAsync(15_000)
     await flushPromises()
 
     expect(wrapper.text()).toContain('payment.result.success')
-    expect(wrapper.text()).toContain('payment.crypto.paidOnChain')
+    expect(wrapper.get('[data-test="crypto-paid-amount"]').text()).toBe('10.000124 USDT')
+    expect(wrapper.get('[data-test="crypto-tx-link"]').attributes('href')).toBe(`https://bscscan.com/tx/${txHash}`)
     expect(wrapper.emitted('success')).toHaveLength(1)
     expect(wrapper.emitted('settled')).toEqual([['expired'], ['success']])
 

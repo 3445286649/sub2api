@@ -11,6 +11,7 @@ const verifyOrder = vi.hoisted(() => vi.fn())
 const verifyOrderPublic = vi.hoisted(() => vi.fn())
 const resolveOrderPublicByResumeToken = vi.hoisted(() => vi.fn())
 const refreshUser = vi.hoisted(() => vi.fn())
+const copyToClipboard = vi.hoisted(() => vi.fn())
 
 vi.mock('vue-router', async () => {
   const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
@@ -49,6 +50,10 @@ vi.mock('@/api/payment', () => ({
     verifyOrderPublic,
     resolveOrderPublicByResumeToken,
   },
+}))
+
+vi.mock('@/composables/useClipboard', () => ({
+  useClipboard: () => ({ copied: false, copyToClipboard }),
 }))
 
 import PaymentResultView from '../PaymentResultView.vue'
@@ -534,5 +539,47 @@ describe('PaymentResultView', () => {
 
     expect(wrapper.text()).toContain('payment.methods.alipay')
     expect(wrapper.text()).not.toContain('payment.methods.alipay_direct')
+  })
+
+  it('shows the on-chain amount and a BscScan link for a paid USDT order', async () => {
+    const hash = '0x9c3e5b1f2a7d4e6c8b0a1f3d5e7c9b2a4d6f8e0c1b3a5d7e9f1c3b5a7d9e1f3a'
+    routeState.query = { resume_token: 'resume-usdt' }
+    resolveOrderPublicByResumeToken.mockResolvedValue({
+      data: {
+        ...orderFactory('COMPLETED'),
+        payment_type: 'usdt_bsc',
+        crypto_tx_hash: hash,
+        crypto_amount: '10.056873',
+        crypto_currency: 'USDT',
+      },
+    })
+
+    const wrapper = mount(PaymentResultView, {
+      global: { stubs: { OrderStatusBadge: true, Icon: true } },
+    })
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="crypto-paid-amount"]').text()).toBe('10.056873 USDT')
+    const link = wrapper.get('[data-test="crypto-tx-link"]')
+    expect(link.attributes('href')).toBe(`https://bscscan.com/tx/${hash}`)
+    expect(link.attributes('target')).toBe('_blank')
+    expect(link.attributes('rel')).toContain('noopener')
+    expect(link.text()).toBe('0x9c3e5b1f…7d9e1f3a')
+
+    await wrapper.get('[data-test="crypto-tx-copy"]').trigger('click')
+    expect(copyToClipboard).toHaveBeenCalledWith(hash, 'payment.crypto.txHashCopied')
+  })
+
+  it('hides the on-chain rows when the order carries no transaction hash', async () => {
+    routeState.query = { resume_token: 'resume-alipay' }
+    resolveOrderPublicByResumeToken.mockResolvedValue({ data: orderFactory('COMPLETED') })
+
+    const wrapper = mount(PaymentResultView, {
+      global: { stubs: { OrderStatusBadge: true, Icon: true } },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="crypto-tx-link"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('payment.crypto.paidOnChain')
   })
 })

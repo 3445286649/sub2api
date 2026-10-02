@@ -28,7 +28,7 @@ vi.mock('qrcode', () => ({
 }))
 
 import UsdtBscCheckout from '../UsdtBscCheckout.vue'
-import { formatCountdown, formatUsdtRate, groupWalletAddress, splitUsdtAmount } from '../usdtBsc'
+import { bscScanTxUrl, formatCountdown, formatUsdtRate, groupWalletAddress, isCryptoTxHash, shortenTxHash, splitUsdtAmount } from '../usdtBsc'
 
 const address = '0x3b210bdc924c685fDd10Ae96b7f95D0E14536106'
 
@@ -80,6 +80,16 @@ describe('usdtBsc helpers', () => {
     expect(formatUsdtRate('7.160000')).toBe('7.16')
     expect(formatUsdtRate('')).toBe('')
     expect(formatUsdtRate('abc')).toBe('abc')
+  })
+
+  it('validates, shortens and links transaction hashes', () => {
+    const hash = `0x${'ab'.repeat(30)}cdef`
+    expect(isCryptoTxHash(hash)).toBe(true)
+    expect(isCryptoTxHash(` ${hash} `)).toBe(true)
+    expect(isCryptoTxHash('sub2_x|72.00|10.056873|7.16|0x3b21|1759300000')).toBe(false)
+    expect(isCryptoTxHash(undefined)).toBe(false)
+    expect(shortenTxHash(hash)).toBe('0xabababab…ababcdef')
+    expect(bscScanTxUrl(hash)).toBe(`https://bscscan.com/tx/${hash}`)
   })
 })
 

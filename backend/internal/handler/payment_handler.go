@@ -513,6 +513,9 @@ type PublicOrderResult struct {
 	RefundRequestedBy   *string    `json:"refund_requested_by,omitempty"`
 	RefundRequestReason *string    `json:"refund_request_reason,omitempty"`
 	PlanID              *int64     `json:"plan_id,omitempty"`
+	CryptoTxHash        string     `json:"crypto_tx_hash,omitempty"`
+	CryptoAmount        string     `json:"crypto_amount,omitempty"`
+	CryptoCurrency      string     `json:"crypto_currency,omitempty"`
 }
 
 // PublicOrderVerifyResult is returned by the legacy anonymous out_trade_no
@@ -528,7 +531,7 @@ type PublicOrderVerifyResult struct {
 }
 
 func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
-	return PublicOrderResult{
+	result := PublicOrderResult{
 		ID:                  order.ID,
 		OutTradeNo:          order.OutTradeNo,
 		Amount:              order.Amount,
@@ -549,6 +552,10 @@ func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
 		RefundRequestReason: order.RefundRequestReason,
 		PlanID:              order.PlanID,
 	}
+	if receipt := service.PaymentOrderCryptoReceiptOf(order); receipt != nil {
+		result.CryptoTxHash, result.CryptoAmount, result.CryptoCurrency = receipt.TxHash, receipt.Amount, receipt.Currency
+	}
+	return result
 }
 
 func buildPublicOrderVerifyResult(order *dbent.PaymentOrder) PublicOrderVerifyResult {
@@ -658,6 +665,9 @@ type PaymentOrderResult struct {
 	RefundRequestReason *string    `json:"refund_request_reason,omitempty"`
 	PlanID              *int64     `json:"plan_id,omitempty"`
 	ProviderInstanceID  *string    `json:"provider_instance_id,omitempty"`
+	CryptoTxHash        string     `json:"crypto_tx_hash,omitempty"`
+	CryptoAmount        string     `json:"crypto_amount,omitempty"`
+	CryptoCurrency      string     `json:"crypto_currency,omitempty"`
 }
 
 func sanitizePaymentOrdersForResponse(orders []*dbent.PaymentOrder) []PaymentOrderResult {
@@ -674,7 +684,7 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 	if order == nil {
 		return nil
 	}
-	return &PaymentOrderResult{
+	result := &PaymentOrderResult{
 		ID:                  order.ID,
 		UserID:              order.UserID,
 		Amount:              order.Amount,
@@ -697,6 +707,10 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 		PlanID:              order.PlanID,
 		ProviderInstanceID:  order.ProviderInstanceID,
 	}
+	if receipt := service.PaymentOrderCryptoReceiptOf(order); receipt != nil {
+		result.CryptoTxHash, result.CryptoAmount, result.CryptoCurrency = receipt.TxHash, receipt.Amount, receipt.Currency
+	}
+	return result
 }
 
 func isWeChatBrowser(c *gin.Context) bool {

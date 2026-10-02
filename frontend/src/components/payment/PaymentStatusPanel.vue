@@ -30,10 +30,12 @@
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
                 <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(paidOrder.pay_amount, paidOrder.currency) }}</span>
               </div>
-              <div v-if="isUsdtBsc && cryptoAmountText" class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.crypto.paidOnChain') }}</span>
-                <span class="font-mono font-medium text-gray-900 dark:text-white">{{ cryptoAmountText }} {{ cryptoCurrencyText }}</span>
-              </div>
+              <CryptoTxReceipt
+                v-if="isUsdtBsc"
+                :tx-hash="paidOrder.crypto_tx_hash"
+                :amount="paidOrder.crypto_amount || cryptoAmountText"
+                :currency="paidOrder.crypto_currency || cryptoCurrencyText"
+              />
             </div>
           </div>
           <button class="btn btn-primary" @click="handleDone">{{ t('common.confirm') }}</button>
@@ -299,6 +301,7 @@ import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/paym
 import { FeatureFlags, resolveFeatureFlag } from '@/utils/featureFlags'
 import type { PaymentOrder } from '@/types/payment'
 import Icon from '@/components/icons/Icon.vue'
+import CryptoTxReceipt from './CryptoTxReceipt.vue'
 import UsdtBscCheckout from './UsdtBscCheckout.vue'
 import { formatCountdown } from './usdtBsc'
 import QRCode from 'qrcode'
