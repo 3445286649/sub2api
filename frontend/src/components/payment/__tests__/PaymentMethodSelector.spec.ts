@@ -72,4 +72,17 @@ describe('PaymentMethodSelector', () => {
     expect(wrapper.text()).toContain('custom_pay')
     expect(wrapper.text()).not.toContain('payment.methods.custom_pay')
   })
+
+  it('shows only the token name for USDT-BSC because the chain is already in the sub label', () => {
+    const wrapper = mount(PaymentMethodSelector, {
+      props: {
+        selected: 'usdt_bsc',
+        methods: [{ type: 'usdt_bsc', fee_rate: 0, available: true }],
+      },
+    })
+
+    expect(wrapper.get('[data-testid="payment-method-label"]').text()).toBe('USDT')
+    expect(wrapper.text()).toContain('BSC')
+    expect(wrapper.get('button').attributes('title')).toBe('usdt_bsc')
+  })
 })

@@ -40,7 +40,7 @@
           <img :src="methodIcon(method.type)" :alt="methodLabel(method)" class="h-7 w-7 shrink-0 object-contain" />
           <span class="flex min-w-0 flex-col items-start leading-none">
             <span data-testid="payment-method-label" class="block w-full truncate text-base font-semibold">
-              {{ methodLabel(method) }}
+              {{ methodShortLabel(method) }}
             </span>
             <span
               class="text-[10px] tracking-wide text-gray-500 dark:text-dark-400"
@@ -115,6 +115,13 @@ function methodIcon(type: string): string {
 
 function methodLabel(method: PaymentMethodOption): string {
   return method.display_name?.trim() || t(`payment.methods.${method.type}`, method.type)
+}
+
+// 格子很窄：USDT-BSC 的链名已经在副标题里，正文只写币种，避免被截成「USD...」。
+// 后台给了自定义名称时照常显示；title / alt 仍用完整名称。
+function methodShortLabel(method: PaymentMethodOption): string {
+  if (method.type === 'usdt_bsc' && !method.display_name?.trim()) return 'USDT'
+  return methodLabel(method)
 }
 
 // 副标题优先显示费率；没有费率时用 USDT 的链说明占位，其余留空
