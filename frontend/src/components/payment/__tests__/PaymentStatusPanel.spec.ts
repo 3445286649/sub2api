@@ -27,6 +27,7 @@ vi.mock('@/stores/payment', () => ({
 vi.mock('@/stores', () => ({
   useAppStore: () => ({
     showError,
+    cachedPublicSettings: null,
   }),
 }))
 
@@ -52,7 +53,7 @@ vi.mock('qrcode', () => ({
 
 import PaymentStatusPanel from '../PaymentStatusPanel.vue'
 
-const orderFactory = (status: string) => ({
+const orderFactory = (status: string, overrides: Record<string, unknown> = {}) => ({
   id: 42,
   user_id: 9,
   amount: 88,
@@ -65,6 +66,22 @@ const orderFactory = (status: string) => ({
   created_at: '2026-04-20T12:00:00Z',
   expires_at: '2099-01-01T12:30:00Z',
   refund_amount: 0,
+  ...overrides,
+})
+
+const usdtStubs = { Icon: true, RouterLink: true, ConfirmDialog: true }
+
+const usdtProps = (overrides: Record<string, unknown> = {}) => ({
+  orderId: 42,
+  qrCode: '0x3b210bdc924c685fDd10Ae96b7f95D0E14536106',
+  expiresAt: '2099-01-01T12:30:00Z',
+  paymentType: 'usdt_bsc',
+  orderType: 'balance',
+  cryptoAmount: '10.000123',
+  cryptoCurrency: 'USDT',
+  receiveAddress: '0x3b210bdc924c685fDd10Ae96b7f95D0E14536106',
+  outTradeNo: 'sub2_20260420abcd1234',
+  ...overrides,
 })
 
 describe('PaymentStatusPanel', () => {
@@ -96,6 +113,7 @@ describe('PaymentStatusPanel', () => {
       global: {
         stubs: {
           Icon: true,
+          RouterLink: true,
         },
       },
     })
@@ -124,6 +142,7 @@ describe('PaymentStatusPanel', () => {
       global: {
         stubs: {
           Icon: true,
+          RouterLink: true,
         },
       },
     })
@@ -141,7 +160,7 @@ describe('PaymentStatusPanel', () => {
     openSpy.mockRestore()
   })
 
-  it('renders USDT-BSC QR details and copies the wallet address', async () => {
+  it('renders the USDT-BSC checkout and copies the raw amount and address', async () => {
     const address = '0x3b210bdc924c685fDd10Ae96b7f95D0E14536106'
 
     const wrapper = mount(PaymentStatusPanel, {
@@ -158,25 +177,103 @@ describe('PaymentStatusPanel', () => {
         receiveAddress: address,
       },
       global: {
-        stubs: {
-          Icon: true,
-        },
+        stubs: usdtStubs,
       },
     })
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('payment.crypto.scanUsdtBsc')
-    expect(wrapper.text()).toContain('payment.crypto.walletAddress')
-    expect(wrapper.text()).toContain('payment.crypto.feeWarning')
-    expect(wrapper.text()).toContain('10.000123 USDT')
-    expect(wrapper.text()).toContain('payment.crypto.exchangeRate')
+    expect(wrapper.findComponent({ name: 'UsdtBscCheckout' }).exists()).toBe(true)
+    expect(wrapper.get('[data-test="usdt-amount"]').text()).toBe('10.000123USDT')
     expect(wrapper.text()).toContain('payment.crypto.exchangeRateValue')
-    expect(wrapper.text()).toContain(address)
     expect(toCanvas).toHaveBeenCalledWith(expect.anything(), address, expect.any(Object))
+
+    await wrapper.get('[data-test="copy-amount"]').trigger('click')
+    expect(copyToClipboard).toHaveBeenCalledWith('10.000123', 'payment.crypto.amountCopied')
 
     await wrapper.get('button.wallet-address-copy').trigger('click')
     expect(copyToClipboard).toHaveBeenCalledWith(address, 'payment.crypto.addressCopied')
+  })
+
+  it('verifies a pending USDT-BSC order on a fixed interval without an attempt cap', async () => {
+    pollOrderStatus.mockResolvedValue(orderFactory('PENDING', { payment_type: 'usdt_bsc' }))
+    verifyOrder.mockResolvedValue({ data: orderFactory('PENDING', { payment_type: 'usdt_bsc' }) })
+
+    const wrapper = mount(PaymentStatusPanel, {
+      props: usdtProps(),
+      global: { stubs: usdtStubs },
+    })
+
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+    expect(verifyOrder).toHaveBeenCalledTimes(1)
+
+    // 6 次上限按 15 秒算约 90 秒就用完；USDT 应该 3 分钟后还在核单
+    await vi.advanceTimersByTimeAsync(180_000)
+    await flushPromises()
+    expect(verifyOrder.mock.calls.length).toBeGreaterThan(6)
+
+    wrapper.unmount()
+  })
+
+  it('keeps watching an expired USDT-BSC order and switches to success when it is credited', async () => {
+    const expiresAt = new Date(Date.now() + 2000).toISOString()
+    pollOrderStatus.mockResolvedValue(orderFactory('PENDING', { payment_type: 'usdt_bsc' }))
+    verifyOrder.mockResolvedValue({ data: orderFactory('PENDING', { payment_type: 'usdt_bsc' }) })
+
+    const wrapper = mount(PaymentStatusPanel, {
+      props: usdtProps({ expiresAt }),
+      global: { stubs: usdtStubs },
+    })
+
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('payment.qr.expired')
+    expect(wrapper.find('[data-test="usdt-watch"]').text()).toContain('payment.crypto.watching')
+
+    pollOrderStatus.mockResolvedValue(orderFactory('COMPLETED', { payment_type: 'usdt_bsc' }))
+    await vi.advanceTimersByTimeAsync(15_000)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('payment.result.success')
+    expect(wrapper.text()).toContain('payment.crypto.paidOnChain')
+    expect(wrapper.emitted('success')).toHaveLength(1)
+    expect(wrapper.emitted('settled')).toEqual([['expired'], ['success']])
+
+    wrapper.unmount()
+  })
+
+  it('stops watching a cancelled USDT-BSC order after the grace window', async () => {
+    pollOrderStatus.mockResolvedValue(orderFactory('PENDING', { payment_type: 'usdt_bsc' }))
+    verifyOrder.mockResolvedValue({ data: orderFactory('PENDING', { payment_type: 'usdt_bsc' }) })
+    cancelOrder.mockResolvedValue({})
+
+    const wrapper = mount(PaymentStatusPanel, {
+      props: usdtProps(),
+      global: { stubs: usdtStubs },
+    })
+    await flushPromises()
+
+    wrapper.findComponent({ name: 'UsdtBscCheckout' }).vm.$emit('cancel')
+    await flushPromises()
+    expect(cancelOrder).toHaveBeenCalledWith(42)
+    expect(wrapper.text()).toContain('payment.qr.cancelled')
+
+    pollOrderStatus.mockClear()
+    pollOrderStatus.mockResolvedValue(orderFactory('CANCELLED', { payment_type: 'usdt_bsc' }))
+    await vi.advanceTimersByTimeAsync(6 * 60 * 1000)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('payment.crypto.watchEnded')
+    const callsAtEnd = pollOrderStatus.mock.calls.length
+    expect(callsAtEnd).toBeGreaterThan(20)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(pollOrderStatus.mock.calls.length).toBe(callsAtEnd)
+
+    wrapper.unmount()
   })
 
   it('actively verifies a stuck pending order and settles it when upstream confirms payment', async () => {
@@ -196,6 +293,7 @@ describe('PaymentStatusPanel', () => {
       global: {
         stubs: {
           Icon: true,
+          RouterLink: true,
         },
       },
     })
@@ -236,7 +334,7 @@ describe('PaymentStatusPanel', () => {
         outTradeNo: 'sub2_20260420abcd1234',
         mobileAlipayDeepLink: true,
       },
-      global: { stubs: { Icon: true } },
+      global: { stubs: { Icon: true, RouterLink: true } },
     })
 
     await flushPromises()
@@ -266,7 +364,7 @@ describe('PaymentStatusPanel', () => {
         orderType: 'balance',
         outTradeNo: 'sub2_20260420abcd1234',
       },
-      global: { stubs: { Icon: true } },
+      global: { stubs: { Icon: true, RouterLink: true } },
     })
 
     await flushPromises()
@@ -304,7 +402,7 @@ describe('PaymentStatusPanel', () => {
         outTradeNo: 'sub2_20260420abcd1234',
         mobileAlipayDeepLink: true,
       },
-      global: { stubs: { Icon: true } },
+      global: { stubs: { Icon: true, RouterLink: true } },
     })
 
     await flushPromises()
@@ -349,7 +447,7 @@ describe('PaymentStatusPanel', () => {
         outTradeNo: 'sub2_20260420abcd1234',
         mobileAlipayDeepLink: true,
       },
-      global: { stubs: { Icon: true } },
+      global: { stubs: { Icon: true, RouterLink: true } },
     })
 
     await flushPromises()

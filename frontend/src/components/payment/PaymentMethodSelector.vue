@@ -37,8 +37,7 @@
           </svg>
         </span>
         <span class="flex w-full min-w-0 items-center justify-center gap-2">
-          <span v-if="method.type === 'usdt_bsc'" class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white shadow-sm">USDT</span>
-          <img v-else :src="methodIcon(method.type)" :alt="methodLabel(method)" class="h-7 w-7 shrink-0 object-contain" />
+          <img :src="methodIcon(method.type)" :alt="methodLabel(method)" class="h-7 w-7 shrink-0 object-contain" />
           <span class="flex min-w-0 flex-col items-start leading-none">
             <span data-testid="payment-method-label" class="block w-full truncate text-base font-semibold">
               {{ methodLabel(method) }}
@@ -70,6 +69,7 @@ import alipayIcon from '@/assets/icons/alipay.svg'
 import wxpayIcon from '@/assets/icons/wxpay.svg'
 import stripeIcon from '@/assets/icons/stripe.svg'
 import airwallexIcon from '@/assets/icons/airwallex.svg'
+import usdtIcon from '@/assets/icons/usdt.svg'
 
 export interface PaymentMethodOption {
   type: string
@@ -94,6 +94,7 @@ const METHOD_ICONS: Record<string, string> = {
   wxpay: wxpayIcon,
   stripe: stripeIcon,
   airwallex: airwallexIcon,
+  usdt_bsc: usdtIcon,
 }
 
 const sortedMethods = computed(() => {
