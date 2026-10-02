@@ -274,7 +274,13 @@ export default {
         empty: '暂无记录'
       },
       barLabel: '{name}最近检测：通过 {passed} 次，疑似降智 {failed} 次，接口异常 {errored} 次',
-      historyWindow: '最近 {n} 次检测 · 已有 {count} 条 · 左旧右新',
+      barHint: '色块为最近 {n} 次检测，左旧右新',
+      latestFailed: '最近一次疑似降智',
+      count: {
+        passed: '通过 {n}',
+        failed: '疑似降智 {n}',
+        error: '接口异常 {n}'
+      },
       updatedAt: '最近一次检测：{time}',
       staleAt: '同步暂时失败，显示的是 {time} 的数据',
       justNow: '刚刚',

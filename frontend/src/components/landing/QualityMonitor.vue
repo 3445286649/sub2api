@@ -9,21 +9,21 @@
       <p class="qm-sub">{{ t('home.quality.subtitle') }}</p>
     </header>
 
-    <div v-if="snapshot" v-reveal class="qm-board">
-      <div v-for="group in snapshot.groups" :key="group.id" class="qm-row">
-        <div class="qm-row-label">
-          <span class="qm-row-name">{{ group.name || group.id }}</span>
-          <span class="qm-row-rate">
-            {{ formatRate(group.pass_rate) }}
-            <small>{{ t('home.quality.passRate') }}</small>
-          </span>
-        </div>
-        <div class="qm-board-head">
-          <div class="qm-board-title">
-            <span class="qm-model">{{ group.model }}</span>
-            <span v-if="group.reasoning_effort" class="qm-group">{{ t('home.quality.reasoning') }}: {{ group.reasoning_effort }}</span>
+    <div v-if="snapshot" v-reveal class="qm-board" :class="{ 'is-stale': snapshot.stale }">
+      <article v-for="(group, groupIndex) in snapshot.groups" :key="group.id" class="qm-row" :style="{ '--qm-row': groupIndex }">
+        <div class="qm-row-head">
+          <div class="qm-row-id">
+            <h3 class="qm-row-name">{{ group.name || group.id }}</h3>
+            <div class="qm-row-tags">
+              <span class="qm-model">{{ group.model }}</span>
+              <span v-if="group.reasoning_effort" class="qm-tag">{{ t('home.quality.reasoning') }} {{ group.reasoning_effort }}</span>
+              <span v-if="group.latest_status === 'failed'" class="qm-tag is-failed">{{ t('home.quality.latestFailed') }}</span>
+            </div>
           </div>
-          <span v-if="group.interval_seconds > 0" class="qm-interval">{{ intervalLabel(group) }}</span>
+          <p class="qm-rate" :class="rateTone(group.pass_rate)">
+            <strong>{{ formatRate(group.pass_rate) }}</strong>
+            <small>{{ t('home.quality.passRate') }}</small>
+          </p>
         </div>
         <TransitionGroup
           tag="div"
@@ -31,41 +31,36 @@
           class="qm-bar"
           :style="{ '--qm-slots': HISTORY_SLOTS }"
           role="img"
-          :aria-label="historyLabel(group)"
+          :aria-label="barLabel(group)"
         >
           <i
             v-for="(slot, index) in historySlots(group)"
             :key="slot.key"
             :style="{ '--qm-slot': index }"
-            :class="slot.point ? `is-${slot.point.s}` : 'is-empty'"
+            :class="[slot.point ? `is-${slot.point.s}` : 'is-empty', { 'is-latest': index === HISTORY_SLOTS - 1 && slot.point }]"
             :title="slot.point ? pointTitle(slot.point) : t('home.quality.legend.empty')"
             aria-hidden="true"
           ></i>
         </TransitionGroup>
-        <p class="qm-updated qm-row-summary">{{ historyLabel(group) }}</p>
-        <p v-if="!group.history.length" class="qm-updated">{{ t('home.quality.empty') }}</p>
-        <p v-if="group.history.length" class="qm-updated qm-row-summary">{{ barLabel(group) }}</p>
-        <div v-if="group.latest_status || group.next_run_at" class="qm-row-label qm-updated">
-          <span v-if="group.latest_status">
-            {{ t('home.quality.latest') }}:
-            {{ statusLabel(group.latest_status) }}
+        <div class="qm-row-foot">
+          <span v-if="group.history.length" class="qm-counts">
+            <span><i class="is-passed"></i>{{ t('home.quality.count.passed', { n: group.passed }) }}</span>
+            <span><i class="is-failed"></i>{{ t('home.quality.count.failed', { n: group.failed }) }}</span>
+            <span><i class="is-error"></i>{{ t('home.quality.count.error', { n: group.errored }) }}</span>
           </span>
-          <span v-if="group.next_run_at">
-            {{ t('home.quality.next') }}: {{ formatTime(group.next_run_at) }}
+          <span v-else>{{ t('home.quality.empty') }}</span>
+          <span v-if="group.interval_seconds > 0 || group.next_run_at" class="qm-schedule">
+            <template v-if="group.interval_seconds > 0">{{ intervalLabel(group) }}</template>
+            <template v-if="group.interval_seconds > 0 && group.next_run_at"> · </template>
+            <template v-if="group.next_run_at">{{ t('home.quality.next') }} {{ formatTime(group.next_run_at) }}</template>
           </span>
         </div>
-      </div>
-
-      <div class="qm-legend">
-        <span><i class="is-passed"></i>{{ t('home.quality.legend.passed') }}</span>
-        <span><i class="is-failed"></i>{{ t('home.quality.legend.failed') }}</span>
-        <span><i class="is-error"></i>{{ t('home.quality.legend.error') }}</span>
-        <span><i class="is-empty"></i>{{ t('home.quality.legend.empty') }}</span>
-      </div>
+      </article>
 
       <div class="qm-board-foot">
         <span class="qm-updated">
           {{ snapshot.stale ? t('home.quality.staleAt', { time: relativeUpdated }) : t('home.quality.updatedAt', { time: relativeUpdated }) }}
+          <span class="qm-hint">· {{ t('home.quality.barHint', { n: HISTORY_SLOTS }) }}</span>
         </span>
         <a :href="snapshot.detail_url" target="_blank" rel="noopener noreferrer" class="qm-link">
           {{ t('home.quality.viewAll') }}
@@ -84,7 +79,7 @@
     </div>
 
     <div v-else class="qm-board qm-board-loading" aria-hidden="true">
-      <span v-for="n in 2" :key="n" class="qm-skeleton"></span>
+      <span v-for="n in 3" :key="n" class="qm-skeleton"></span>
     </div>
 
     <div class="qm-methods">
@@ -153,10 +148,6 @@ function historySlots(group: QualityMonitorGroup) {
   ]
 }
 
-function historyLabel(group: QualityMonitorGroup): string {
-  return t('home.quality.historyWindow', { n: HISTORY_SLOTS, count: Math.min(group.history.length, HISTORY_SLOTS) })
-}
-
 const visible = computed(() => state.value !== 'disabled')
 const detailUrl = computed(() => snapshot.value?.detail_url || fallbackDetailUrl.value)
 
@@ -194,6 +185,14 @@ function formatRate(rate: number | null): string {
   // 不四舍五入到 100%：99.6% 就显示 99.6%，避免「看起来全过」的误导
   const pct = Math.floor(rate * 1000) / 10
   return `${pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1)}%`
+}
+
+// 通过率低于 95% 就不再用绿色，避免看起来像「一切正常」
+function rateTone(rate: number | null): string {
+  if (rate === null || !Number.isFinite(rate)) return 'is-none'
+  if (rate >= 0.95) return 'is-ok'
+  if (rate >= 0.8) return 'is-warn'
+  return 'is-danger'
 }
 
 function statusLabel(status: string): string {
@@ -344,93 +343,114 @@ onUnmounted(() => {
 .qm-board {
   max-width: 880px;
   margin: 0 auto;
-  padding: 22px 24px;
+  padding: 6px 24px 18px;
   border: 1px solid var(--border);
   border-radius: 18px;
   background: var(--surface);
   box-shadow: var(--shadow-float);
 }
 
-.qm-board-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  margin-bottom: 18px;
+/* 一个分组一行，三个分组时也能一屏看完 */
+.qm-row {
+  padding: 18px 0 16px;
 }
 
-.qm-board-title {
+.qm-row + .qm-row {
+  border-top: 1px solid var(--border);
+}
+
+.qm-row-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.qm-row-id {
+  min-width: 0;
+}
+
+.qm-row-name {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.qm-row-tags {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .qm-model {
   color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 12.5px;
+  font-weight: 650;
 }
 
-.qm-group {
-  padding: 2px 9px;
+.qm-tag {
+  padding: 1px 8px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent-ok) 13%, transparent);
   color: var(--accent-ok);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 650;
 }
 
-.qm-interval {
-  color: var(--muted);
-  font-size: 12px;
+.qm-tag.is-failed {
+  background: color-mix(in srgb, var(--accent-danger) 13%, transparent);
+  color: var(--accent-danger);
 }
 
-.qm-row + .qm-row {
-  margin-top: 16px;
-}
-
-.qm-row-label {
+.qm-rate {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  margin: 0;
+  line-height: 1;
 }
 
-.qm-row-name {
-  color: var(--text);
-  font-size: 13.5px;
-  font-weight: 650;
-}
-
-.qm-row-rate {
-  color: var(--accent-ok);
-  font-size: 15px;
+.qm-rate strong {
+  font-size: 26px;
   font-weight: 750;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
-.qm-row-rate small {
-  margin-left: 4px;
+.qm-rate small {
+  margin-top: 5px;
   color: var(--muted);
   font-size: 11.5px;
   font-weight: 500;
 }
+
+.qm-rate.is-ok strong { color: var(--accent-ok); }
+.qm-rate.is-warn strong { color: var(--accent-warn); }
+.qm-rate.is-danger strong { color: var(--accent-danger); }
+.qm-rate.is-none strong { color: var(--muted); }
 
 /* 状态页式色块条：一格一次检测，最新的在右边 */
 .qm-bar {
   --qm-gap: 3px;
   --qm-step: calc((100% + var(--qm-gap)) / var(--qm-slots));
   position: relative;
-  height: 30px;
+  height: 28px;
   overflow: hidden;
   padding: 4px 0;
   margin: -4px 0;
   box-sizing: content-box;
+}
+
+/* 面板滚入视口时色块条从左往右扫出，各行错开；刷新数据不会重播 */
+.qm-board.is-revealed .qm-bar {
+  animation: qm-wipe 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(0.18s + var(--qm-row, 0) * 0.12s);
 }
 
 .qm-bar i {
@@ -440,7 +460,7 @@ onUnmounted(() => {
   left: calc(var(--qm-slot) * var(--qm-step));
   width: calc(var(--qm-step) - var(--qm-gap));
   border-radius: 3px;
-  transition: left 0.45s ease, transform 0.45s ease, opacity 0.45s ease;
+  transition: left 0.45s ease, transform 0.2s ease, opacity 0.45s ease;
 }
 
 .qm-bar i.qm-cell-enter-from {
@@ -452,54 +472,72 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-.qm-bar i.is-empty,
-.qm-legend i.is-empty {
+.qm-bar i.is-empty {
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--border);
-}
-
-.qm-bar i.is-empty {
   transition: none;
 }
 
-.qm-bar i:hover {
-  transform: scaleY(1.12);
+.qm-bar i:not(.is-empty):hover {
+  transform: scaleY(1.14);
+}
+
+/* 最新一格轻微呼吸，表示监测仍在进行；数据过期时停下 */
+.qm-bar i.is-latest {
+  animation: qm-breathe 2.4s ease-in-out infinite;
+}
+
+.qm-board.is-stale .qm-bar i.is-latest {
+  animation: none;
 }
 
 .qm-bar i.is-passed,
-.qm-legend i.is-passed {
+.qm-counts i.is-passed {
   background: var(--accent-ok);
 }
 
 .qm-bar i.is-failed,
-.qm-legend i.is-failed {
+.qm-counts i.is-failed {
   background: var(--accent-danger);
 }
 
 .qm-bar i.is-error,
-.qm-legend i.is-error {
+.qm-counts i.is-error {
   background: color-mix(in srgb, var(--muted) 40%, transparent);
 }
 
-.qm-legend {
+.qm-row-foot {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 6px 16px;
-  margin-top: 14px;
+  margin-top: 10px;
   color: var(--muted);
   font-size: 12px;
 }
 
-.qm-legend span {
+.qm-counts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.qm-counts span {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-variant-numeric: tabular-nums;
 }
 
-.qm-legend i {
-  width: 9px;
-  height: 9px;
+.qm-counts i {
+  width: 8px;
+  height: 8px;
   border-radius: 2px;
+}
+
+.qm-schedule {
+  font-variant-numeric: tabular-nums;
 }
 
 .qm-board-foot {
@@ -508,7 +546,6 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
-  margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid var(--border);
 }
@@ -518,8 +555,8 @@ onUnmounted(() => {
   font-size: 12.5px;
 }
 
-.qm-row-summary {
-  margin: 8px 0;
+.qm-hint {
+  opacity: 0.8;
 }
 
 .qm-link,
@@ -619,14 +656,35 @@ onUnmounted(() => {
   50% { opacity: 0.5; }
 }
 
+@keyframes qm-wipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes qm-breathe {
+  50% { opacity: 0.55; }
+}
+
 @media (max-width: 767px) {
   .qm-board {
-    padding: 18px 16px;
+    padding: 2px 16px 16px;
+  }
+
+  .qm-row-name {
+    font-size: 14px;
+  }
+
+  .qm-rate strong {
+    font-size: 22px;
   }
 
   .qm-bar {
     --qm-gap: 2px;
-    height: 26px;
+    height: 24px;
+  }
+
+  .qm-hint {
+    display: none;
   }
 
   .qm-methods {
@@ -639,6 +697,8 @@ onUnmounted(() => {
     transition: none;
   }
 
+  .qm-board.is-revealed .qm-bar,
+  .qm-bar i.is-latest,
   .qm-live::after,
   .qm-skeleton {
     animation: none;

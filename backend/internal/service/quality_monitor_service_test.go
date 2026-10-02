@@ -306,11 +306,28 @@ func TestSummarizeQualityMonitorGroup_SkipsUnknownAndCapsHistory(t *testing.T) {
 
 func TestParseQualityMonitor_CapsGroups(t *testing.T) {
 	body := `{"api_version":"v1","source":"self","groups":[
-		{"id":"channel-1","records":[]},{"id":"channel-2","records":[]},{"id":"channel-3","records":[]}]}`
+		{"id":"channel-1","records":[]},{"id":"channel-2","records":[]},{"id":"channel-3","records":[]},{"id":"channel-4","records":[]}]}`
 	snap, err := parseQualityMonitor([]byte(body))
 	require.NoError(t, err)
-	require.Len(t, snap.Groups, qualityMonitorMaxGroups)
+	require.Len(t, snap.Groups, 3, "监测站最多三个分组，首页全部展示")
+	require.Equal(t, "channel-3", snap.Groups[2].ID)
 	require.Empty(t, snap.Groups[0].History, "暂无记录的分组照常返回，前端显示空占位")
+}
+
+func TestParseQualityMonitor_OrdersByDisplayOrder(t *testing.T) {
+	body := `{"api_version":"v1","source":"self","groups":[
+		{"id":"channel-1","display_order":3,"records":[]},
+		{"id":"channel-2","display_order":1,"records":[]},
+		{"id":"channel-3","display_order":2,"records":[]}]}`
+	snap, err := parseQualityMonitor([]byte(body))
+	require.NoError(t, err)
+	ids := []string{snap.Groups[0].ID, snap.Groups[1].ID, snap.Groups[2].ID}
+	require.Equal(t, []string{"channel-2", "channel-3", "channel-1"}, ids)
+
+	legacy := `{"api_version":"v1","source":"self","groups":[{"id":"channel-2","records":[]},{"id":"channel-1","records":[]}]}`
+	snap, err = parseQualityMonitor([]byte(legacy))
+	require.NoError(t, err)
+	require.Equal(t, "channel-2", snap.Groups[0].ID, "旧版监测站没有 display_order 时保持原顺序")
 }
 
 func TestNormalizeQualityMonitorURL(t *testing.T) {

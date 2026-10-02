@@ -49,6 +49,13 @@ function response(): QualityMonitorResponse {
           latest_status: 'passed',
           history: [{ s: 'passed', t: '2026-10-01T12:00:00Z' }],
         },
+        {
+          id: 'channel-3', name: 'Plus分组', model: 'gpt-6-astra',
+          interval_seconds: 1200,
+          pass_rate: 0.5, passed: 1, failed: 1, errored: 0,
+          latest_status: 'passed',
+          history: [{ s: 'failed', t: '2026-10-01T11:40:00Z' }, { s: 'passed', t: '2026-10-01T12:00:00Z' }],
+        },
       ],
     },
   }
@@ -62,30 +69,39 @@ function mountMonitor() {
   })
 }
 
-describe('QualityMonitor v1 groups in the original landing layout', () => {
-  it('renders each group with its own metadata, accurate percentages and real history', async () => {
+describe('QualityMonitor v1 groups', () => {
+  it('renders all three groups with their own metadata, accurate percentages and real history', async () => {
     vi.mocked(getQualityMonitor).mockResolvedValue(response())
     const wrapper = mountMonitor()
     await flushPromises()
     const rows = wrapper.findAll('.qm-row')
-    expect(rows).toHaveLength(2)
+    expect(rows).toHaveLength(3)
     expect(rows[0].text()).toContain('Pro尊享分组')
     expect(rows[0].text()).toContain('gpt-6-astra')
     expect(rows[0].text()).toContain('medium')
     expect(rows[0].text()).toContain('每 20 分钟检测一次')
     expect(rows[0].text()).toContain('93.7%')
-    expect(rows[0].text()).toContain('通过 15 次')
-    expect(rows[0].text()).toContain('最新: 疑似降智')
+    expect(rows[0].text()).toContain('通过 15')
+    expect(rows[0].text()).toContain('疑似降智 1')
+    expect(rows[0].text()).toContain('接口异常 1')
+    expect(rows[0].text()).toContain('最近一次疑似降智')
+    expect(rows[0].get('.qm-rate').classes()).toContain('is-warn')
     expect(rows[0].findAll('.qm-bar i')).toHaveLength(48)
     expect(rows[0].findAll('.qm-bar i.is-empty')).toHaveLength(31)
     expect(rows[0].findAll('.qm-bar i').at(-1)?.attributes('title')).toContain('疑似降智')
+    expect(rows[0].findAll('.qm-bar i').at(-1)?.classes()).toContain('is-latest')
     expect(rows[1].text()).toContain('Pro独享分组')
     expect(rows[1].text()).toContain('other-model')
     expect(rows[1].text()).toContain('high')
     expect(rows[1].text()).toContain('每 10 分钟检测一次')
     expect(rows[1].text()).toContain('100%')
-    expect(rows[1].findAll('.qm-bar i')).toHaveLength(48)
+    expect(rows[1].text()).not.toContain('最近一次疑似降智')
+    expect(rows[1].get('.qm-rate').classes()).toContain('is-ok')
     expect(rows[1].findAll('.qm-bar i.is-empty')).toHaveLength(47)
+    expect(rows[2].text()).toContain('Plus分组')
+    expect(rows[2].text()).not.toContain('推理')
+    expect(rows[2].get('.qm-rate').classes()).toContain('is-danger')
+    expect(wrapper.text()).toContain('色块为最近 48 次检测，左旧右新')
     expect(wrapper.text()).not.toMatch(/鹈鹕|生成测试/)
     expect(wrapper.emitted('loaded')).toEqual([[true]])
   })
@@ -100,12 +116,15 @@ describe('QualityMonitor v1 groups in the original landing layout', () => {
     vi.mocked(getQualityMonitor).mockResolvedValue(data)
     const wrapper = mountMonitor()
     await flushPromises()
+    expect(wrapper.get('.qm-board').classes()).toContain('is-stale')
     const row = wrapper.get('.qm-row')
     expect(row.text()).toContain('—')
+    expect(row.get('.qm-rate').classes()).toContain('is-none')
     expect(row.text()).toContain('监测数据暂不可用')
     expect(row.text()).not.toContain('分钟检测一次')
     expect(row.findAll('.qm-bar i.is-empty')).toHaveLength(48)
     expect(row.findAll('.qm-bar i:not(.is-empty)')).toHaveLength(0)
+    expect(row.find('.qm-bar i.is-latest').exists()).toBe(false)
     expect(wrapper.text()).toContain('同步暂时失败')
   })
 
@@ -151,7 +170,8 @@ describe('QualityMonitor v1 groups in the original landing layout', () => {
     expect(cells).toHaveLength(48)
     expect(cells.at(-2)!.element).toBe(element)
     expect(cells.at(-2)!.attributes('style')).toContain('--qm-slot: 46')
-    expect(cells.at(-1)!.classes()).toContain('is-passed')
+    expect(cells.at(-2)!.classes()).not.toContain('is-latest')
+    expect(cells.at(-1)!.classes()).toEqual(expect.arrayContaining(['is-passed', 'is-latest']))
     vi.mocked(getQualityMonitor).mockRejectedValue(new Error('temporary outage'))
     await vi.advanceTimersByTimeAsync(300_000)
     await flushPromises()
@@ -163,11 +183,12 @@ describe('QualityMonitor v1 groups in the original landing layout', () => {
     expect(getQualityMonitor).toHaveBeenCalledTimes(calls)
   })
 
-  it('keeps the original loading and unavailable states with a working monitor link', async () => {
+  it('keeps the loading and unavailable states with a working monitor link', async () => {
     let resolve!: (value: QualityMonitorResponse) => void
     vi.mocked(getQualityMonitor).mockReturnValue(new Promise((done) => { resolve = done }))
     const wrapper = mountMonitor()
     expect(wrapper.find('.qm-board-loading').exists()).toBe(true)
+    expect(wrapper.findAll('.qm-skeleton')).toHaveLength(3)
     resolve({ enabled: true, available: false, detail_url: 'https://monitor.example.com' })
     await flushPromises()
     expect(wrapper.text()).toContain('监测数据暂时无法同步')

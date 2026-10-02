@@ -275,7 +275,13 @@ export default {
         empty: 'No record'
       },
       barLabel: '{name} recent tests: {passed} passed, {failed} possible downgrades, {errored} API errors',
-      historyWindow: 'Latest {n} tests · {count} records · Oldest left, newest right',
+      barHint: 'Bars show the latest {n} tests, oldest on the left',
+      latestFailed: 'Latest run: possible downgrade',
+      count: {
+        passed: '{n} passed',
+        failed: '{n} possible downgrades',
+        error: '{n} API errors'
+      },
       updatedAt: 'Last test: {time}',
       staleAt: 'Sync failed, showing data from {time}',
       justNow: 'just now',

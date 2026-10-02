@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -35,7 +36,7 @@ const (
 	qualityMonitorFetchTimeout  = 5 * time.Second
 	qualityMonitorMaxBodyBytes  = 512 << 10
 	qualityMonitorMaxHistory    = 60
-	qualityMonitorMaxGroups     = 2
+	qualityMonitorMaxGroups     = 3
 	qualityMonitorFlightKey     = "quality-monitor"
 	qualityMonitorFailRetryWait = 30 * time.Second
 )
@@ -102,6 +103,7 @@ type qualityMonitorUpstream struct {
 type qualityMonitorUpstreamGroup struct {
 	ID              string                         `json:"id"`
 	Name            string                         `json:"name"`
+	DisplayOrder    *int                           `json:"display_order"`
 	Model           string                         `json:"model"`
 	ReasoningEffort *string                        `json:"reasoning_effort"`
 	IntervalSeconds *int                           `json:"interval_seconds"`
@@ -293,6 +295,11 @@ func parseQualityMonitor(body []byte) (*QualityMonitorSnapshot, error) {
 		return nil, fmt.Errorf("monitor source is %q, not self", upstream.Source)
 	}
 
+	// 监测站已按 display_order 排好；旧版没有这个字段时保持原顺序
+	sort.SliceStable(upstream.Groups, func(i, j int) bool {
+		return qualityMonitorDisplayOrder(upstream.Groups[i]) < qualityMonitorDisplayOrder(upstream.Groups[j])
+	})
+
 	snapshot := &QualityMonitorSnapshot{Groups: make([]QualityMonitorGroup, 0, qualityMonitorMaxGroups)}
 	for _, raw := range upstream.Groups {
 		if len(snapshot.Groups) == qualityMonitorMaxGroups {
@@ -311,6 +318,13 @@ func parseQualityMonitor(body []byte) (*QualityMonitorSnapshot, error) {
 		return nil, errors.New("monitor has no enabled groups")
 	}
 	return snapshot, nil
+}
+
+func qualityMonitorDisplayOrder(group qualityMonitorUpstreamGroup) int {
+	if group.DisplayOrder == nil || *group.DisplayOrder < 1 {
+		return 1 << 30
+	}
+	return *group.DisplayOrder
 }
 
 func summarizeQualityMonitorGroup(raw qualityMonitorUpstreamGroup) QualityMonitorGroup {
