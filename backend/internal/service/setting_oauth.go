@@ -333,6 +333,7 @@ func mergeEmailOAuthBaseConfig(base, override config.EmailOAuthProviderConfig) c
 	if strings.TrimSpace(override.RedirectURL) != "" {
 		base.RedirectURL = strings.TrimSpace(override.RedirectURL)
 	}
+	base.AdditionalRedirectURLs = strings.TrimSpace(override.AdditionalRedirectURLs)
 	if strings.TrimSpace(override.FrontendRedirectURL) != "" {
 		base.FrontendRedirectURL = strings.TrimSpace(override.FrontendRedirectURL)
 	}
@@ -362,6 +363,9 @@ func (s *SettingService) effectiveEmailOAuthConfig(settings map[string]string, p
 		cfg.ClientID = firstNonEmpty(settings[SettingKeyGoogleOAuthClientID], cfg.ClientID)
 		cfg.ClientSecret = firstNonEmpty(settings[SettingKeyGoogleOAuthClientSecret], cfg.ClientSecret)
 		cfg.RedirectURL = firstNonEmpty(settings[SettingKeyGoogleOAuthRedirectURL], cfg.RedirectURL)
+		if raw, ok := settings[SettingKeyGoogleOAuthAdditionalRedirectURLs]; ok {
+			cfg.AdditionalRedirectURLs = strings.TrimSpace(raw)
+		}
 		cfg.FrontendRedirectURL = firstNonEmpty(settings[SettingKeyGoogleOAuthFrontendRedirectURL], cfg.FrontendRedirectURL, defaultGoogleOAuthFrontend)
 	}
 	return cfg
@@ -428,6 +432,7 @@ func (s *SettingService) GetEmailOAuthProviderConfig(ctx context.Context, provid
 		SettingKeyGoogleOAuthClientID,
 		SettingKeyGoogleOAuthClientSecret,
 		SettingKeyGoogleOAuthRedirectURL,
+		SettingKeyGoogleOAuthAdditionalRedirectURLs,
 		SettingKeyGoogleOAuthFrontendRedirectURL,
 	}
 	settings, err := s.settingRepo.GetMultiple(ctx, keys)
@@ -437,6 +442,11 @@ func (s *SettingService) GetEmailOAuthProviderConfig(ctx context.Context, provid
 	cfg := s.effectiveEmailOAuthConfig(settings, provider)
 	if !cfg.Enabled {
 		return config.EmailOAuthProviderConfig{}, infraerrors.NotFound("OAUTH_DISABLED", "oauth login is disabled")
+	}
+	if provider == "google" {
+		if _, err := config.GoogleOAuthRedirectURLs(cfg); err != nil {
+			return config.EmailOAuthProviderConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", err.Error())
+		}
 	}
 	if strings.TrimSpace(cfg.ClientID) == "" {
 		return config.EmailOAuthProviderConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth client id not configured")

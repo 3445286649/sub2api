@@ -62,7 +62,7 @@ func (h *AuthHandler) emailOAuthStart(c *gin.Context, provider string) {
 	if !h.requireActionCaptchaForOAuthLoginStart(c) {
 		return
 	}
-	cfg, err := h.getEmailOAuthConfig(c.Request.Context(), provider)
+	cfg, err := h.emailOAuthRequestConfig(c, provider)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -97,7 +97,7 @@ func (h *AuthHandler) emailOAuthStart(c *gin.Context, provider string) {
 }
 
 func (h *AuthHandler) emailOAuthCallback(c *gin.Context, provider string) {
-	cfg, cfgErr := h.getEmailOAuthConfig(c.Request.Context(), provider)
+	cfg, cfgErr := h.emailOAuthRequestConfig(c, provider)
 	if cfgErr != nil {
 		response.ErrorFrom(c, cfgErr)
 		return
@@ -106,6 +106,14 @@ func (h *AuthHandler) emailOAuthCallback(c *gin.Context, provider string) {
 	if frontendCallback == "" {
 		frontendCallback = "/auth/oauth/callback"
 	}
+	// Set expiration headers before any redirect writes the response. Clearing
+	// response cookies does not remove the request cookies used below.
+	secureCookie := isRequestHTTPS(c)
+	emailOAuthClearCookie(c, emailOAuthStateCookieName, secureCookie)
+	emailOAuthClearCookie(c, emailOAuthRedirectCookie, secureCookie)
+	emailOAuthClearCookie(c, emailOAuthProviderCookie, secureCookie)
+	emailOAuthClearCookie(c, emailOAuthAffiliateCookie, secureCookie)
+	clearOAuthPromoCodeCookie(c, secureCookie)
 	if providerErr := strings.TrimSpace(c.Query("error")); providerErr != "" {
 		redirectOAuthError(c, frontendCallback, "provider_error", providerErr, c.Query("error_description"))
 		return
@@ -117,14 +125,6 @@ func (h *AuthHandler) emailOAuthCallback(c *gin.Context, provider string) {
 		return
 	}
 
-	secureCookie := isRequestHTTPS(c)
-	defer func() {
-		emailOAuthClearCookie(c, emailOAuthStateCookieName, secureCookie)
-		emailOAuthClearCookie(c, emailOAuthRedirectCookie, secureCookie)
-		emailOAuthClearCookie(c, emailOAuthProviderCookie, secureCookie)
-		emailOAuthClearCookie(c, emailOAuthAffiliateCookie, secureCookie)
-		clearOAuthPromoCodeCookie(c, secureCookie)
-	}()
 	expectedState, err := readCookieDecoded(c, emailOAuthStateCookieName)
 	if err != nil || expectedState == "" || expectedState != state {
 		redirectOAuthError(c, frontendCallback, "invalid_state", "invalid oauth state", "")
@@ -449,6 +449,30 @@ func (h *AuthHandler) getEmailOAuthConfig(ctx context.Context, provider string) 
 		return h.settingSvc.GetEmailOAuthProviderConfig(ctx, provider)
 	}
 	return config.EmailOAuthProviderConfig{}, infraerrors.ServiceUnavailable("CONFIG_NOT_READY", "config not loaded")
+}
+
+func (h *AuthHandler) emailOAuthRequestConfig(c *gin.Context, provider string) (config.EmailOAuthProviderConfig, error) {
+	cfg, err := h.getEmailOAuthConfig(c.Request.Context(), provider)
+	if err != nil || provider != "google" {
+		return cfg, err
+	}
+	callbacks, err := config.GoogleOAuthRedirectURLs(cfg)
+	if err != nil {
+		return cfg, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", err.Error())
+	}
+	if len(callbacks) == 0 {
+		return cfg, nil
+	}
+	// The reverse proxy must preserve Host. Forwarded-Host and user-supplied
+	// redirect parameters never select the OAuth destination.
+	for _, callback := range callbacks {
+		host := strings.TrimSuffix(callback.Host, ":443")
+		if strings.EqualFold(c.Request.Host, host) || strings.EqualFold(c.Request.Host, host+":443") {
+			cfg.RedirectURL = callback.String()
+			return cfg, nil
+		}
+	}
+	return cfg, infraerrors.BadRequest("OAUTH_DOMAIN_NOT_ALLOWED", "Google login is not configured for this domain")
 }
 
 func buildEmailOAuthAuthorizeURL(cfg config.EmailOAuthProviderConfig, state string) (string, error) {

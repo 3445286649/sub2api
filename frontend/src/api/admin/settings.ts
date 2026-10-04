@@ -612,6 +612,7 @@ export interface SystemSettings {
   google_oauth_client_id: string;
   google_oauth_client_secret_configured: boolean;
   google_oauth_redirect_url: string;
+  google_oauth_additional_redirect_urls: string;
   google_oauth_frontend_redirect_url: string;
 
   // Model fallback configuration
@@ -988,6 +989,7 @@ export interface UpdateSettingsRequest {
   google_oauth_client_id?: string;
   google_oauth_client_secret?: string;
   google_oauth_redirect_url?: string;
+  google_oauth_additional_redirect_urls?: string;
   google_oauth_frontend_redirect_url?: string;
   enable_model_fallback?: boolean;
   fallback_model_anthropic?: string;

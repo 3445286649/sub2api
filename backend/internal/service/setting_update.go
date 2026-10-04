@@ -154,9 +154,17 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		settings.GitHubOAuthFrontendRedirectURL = defaultGitHubOAuthFrontend
 	}
 	settings.GoogleOAuthRedirectURL = strings.TrimSpace(settings.GoogleOAuthRedirectURL)
+	settings.GoogleOAuthAdditionalRedirectURLs = strings.TrimSpace(settings.GoogleOAuthAdditionalRedirectURLs)
 	settings.GoogleOAuthFrontendRedirectURL = strings.TrimSpace(settings.GoogleOAuthFrontendRedirectURL)
 	if settings.GoogleOAuthFrontendRedirectURL == "" {
 		settings.GoogleOAuthFrontendRedirectURL = defaultGoogleOAuthFrontend
+	}
+	if _, err := config.GoogleOAuthRedirectURLs(config.EmailOAuthProviderConfig{
+		RedirectURL:            settings.GoogleOAuthRedirectURL,
+		AdditionalRedirectURLs: settings.GoogleOAuthAdditionalRedirectURLs,
+		FrontendRedirectURL:    settings.GoogleOAuthFrontendRedirectURL,
+	}); err != nil {
+		return nil, infraerrors.BadRequest("INVALID_GOOGLE_OAUTH_CALLBACKS", err.Error())
 	}
 
 	updates := make(map[string]string)
@@ -304,6 +312,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyGoogleOAuthEnabled] = strconv.FormatBool(settings.GoogleOAuthEnabled)
 	updates[SettingKeyGoogleOAuthClientID] = strings.TrimSpace(settings.GoogleOAuthClientID)
 	updates[SettingKeyGoogleOAuthRedirectURL] = settings.GoogleOAuthRedirectURL
+	updates[SettingKeyGoogleOAuthAdditionalRedirectURLs] = settings.GoogleOAuthAdditionalRedirectURLs
 	updates[SettingKeyGoogleOAuthFrontendRedirectURL] = settings.GoogleOAuthFrontendRedirectURL
 	if settings.GoogleOAuthClientSecret != "" {
 		updates[SettingKeyGoogleOAuthClientSecret] = strings.TrimSpace(settings.GoogleOAuthClientSecret)

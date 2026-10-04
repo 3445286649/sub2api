@@ -105,6 +105,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyGoogleOAuthClientID:                       "",
 		SettingKeyGoogleOAuthClientSecret:                   "",
 		SettingKeyGoogleOAuthRedirectURL:                    "",
+		SettingKeyGoogleOAuthAdditionalRedirectURLs:         "",
 		SettingKeyGoogleOAuthFrontendRedirectURL:            defaultGoogleOAuthFrontend,
 		SettingKeyOIDCConnectEnabled:                        "false",
 		SettingKeyOIDCConnectProviderName:                   "OIDC",
@@ -750,6 +751,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.GoogleOAuthClientSecret = strings.TrimSpace(googleEffective.ClientSecret)
 	result.GoogleOAuthClientSecretConfigured = result.GoogleOAuthClientSecret != ""
 	result.GoogleOAuthRedirectURL = strings.TrimSpace(googleEffective.RedirectURL)
+	result.GoogleOAuthAdditionalRedirectURLs = strings.TrimSpace(googleEffective.AdditionalRedirectURLs)
 	result.GoogleOAuthFrontendRedirectURL = strings.TrimSpace(googleEffective.FrontendRedirectURL)
 
 	// WeChat Connect 设置：

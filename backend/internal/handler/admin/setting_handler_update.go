@@ -141,16 +141,17 @@ type UpdateSettingsRequest struct {
 	OIDCConnectUserInfoIDPath       string `json:"oidc_connect_userinfo_id_path"`
 	OIDCConnectUserInfoUsernamePath string `json:"oidc_connect_userinfo_username_path"`
 
-	GitHubOAuthEnabled             bool   `json:"github_oauth_enabled"`
-	GitHubOAuthClientID            string `json:"github_oauth_client_id"`
-	GitHubOAuthClientSecret        string `json:"github_oauth_client_secret"`
-	GitHubOAuthRedirectURL         string `json:"github_oauth_redirect_url"`
-	GitHubOAuthFrontendRedirectURL string `json:"github_oauth_frontend_redirect_url"`
-	GoogleOAuthEnabled             bool   `json:"google_oauth_enabled"`
-	GoogleOAuthClientID            string `json:"google_oauth_client_id"`
-	GoogleOAuthClientSecret        string `json:"google_oauth_client_secret"`
-	GoogleOAuthRedirectURL         string `json:"google_oauth_redirect_url"`
-	GoogleOAuthFrontendRedirectURL string `json:"google_oauth_frontend_redirect_url"`
+	GitHubOAuthEnabled                bool   `json:"github_oauth_enabled"`
+	GitHubOAuthClientID               string `json:"github_oauth_client_id"`
+	GitHubOAuthClientSecret           string `json:"github_oauth_client_secret"`
+	GitHubOAuthRedirectURL            string `json:"github_oauth_redirect_url"`
+	GitHubOAuthFrontendRedirectURL    string `json:"github_oauth_frontend_redirect_url"`
+	GoogleOAuthEnabled                bool   `json:"google_oauth_enabled"`
+	GoogleOAuthClientID               string `json:"google_oauth_client_id"`
+	GoogleOAuthClientSecret           string `json:"google_oauth_client_secret"`
+	GoogleOAuthRedirectURL            string `json:"google_oauth_redirect_url"`
+	GoogleOAuthAdditionalRedirectURLs string `json:"google_oauth_additional_redirect_urls"`
+	GoogleOAuthFrontendRedirectURL    string `json:"google_oauth_frontend_redirect_url"`
 
 	// OEM设置
 	SiteName                      string                              `json:"site_name"`
@@ -542,6 +543,16 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
+	}
+	// Validate the callback fields together, including values omitted by older clients.
+	if _, sent := sentFields["google_oauth_redirect_url"]; !sent {
+		req.GoogleOAuthRedirectURL = previousSettings.GoogleOAuthRedirectURL
+	}
+	if _, sent := sentFields["google_oauth_additional_redirect_urls"]; !sent {
+		req.GoogleOAuthAdditionalRedirectURLs = previousSettings.GoogleOAuthAdditionalRedirectURLs
+	}
+	if _, sent := sentFields["google_oauth_frontend_redirect_url"]; !sent {
+		req.GoogleOAuthFrontendRedirectURL = previousSettings.GoogleOAuthFrontendRedirectURL
 	}
 
 	// 两个安全开关的请求字段为指针：省略字段=保持现值，避免旧客户端/脚本
@@ -1676,6 +1687,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		GoogleOAuthClientID:                    req.GoogleOAuthClientID,
 		GoogleOAuthClientSecret:                req.GoogleOAuthClientSecret,
 		GoogleOAuthRedirectURL:                 req.GoogleOAuthRedirectURL,
+		GoogleOAuthAdditionalRedirectURLs:      req.GoogleOAuthAdditionalRedirectURLs,
 		GoogleOAuthFrontendRedirectURL:         req.GoogleOAuthFrontendRedirectURL,
 		SiteName:                               req.SiteName,
 		SiteLogo:                               req.SiteLogo,
@@ -2386,6 +2398,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		GoogleOAuthClientID:                                    updatedSettings.GoogleOAuthClientID,
 		GoogleOAuthClientSecretConfigured:                      updatedSettings.GoogleOAuthClientSecretConfigured,
 		GoogleOAuthRedirectURL:                                 updatedSettings.GoogleOAuthRedirectURL,
+		GoogleOAuthAdditionalRedirectURLs:                      updatedSettings.GoogleOAuthAdditionalRedirectURLs,
 		GoogleOAuthFrontendRedirectURL:                         updatedSettings.GoogleOAuthFrontendRedirectURL,
 		SiteName:                                               updatedSettings.SiteName,
 		SiteLogo:                                               updatedSettings.SiteLogo,

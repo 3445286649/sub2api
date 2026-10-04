@@ -147,6 +147,7 @@ type SystemSettings struct {
 	GoogleOAuthClientSecret           string
 	GoogleOAuthClientSecretConfigured bool
 	GoogleOAuthRedirectURL            string
+	GoogleOAuthAdditionalRedirectURLs string
 	GoogleOAuthFrontendRedirectURL    string
 
 	SiteName                     string

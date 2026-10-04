@@ -2775,6 +2775,25 @@
                         placeholder="/auth/oauth/callback"
                       />
                     </div>
+                    <div>
+                      <label for="google-oauth-additional-redirects" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ localText("额外允许的 Google 回调地址", "Additional Google Callback URLs") }}
+                      </label>
+                      <textarea
+                        id="google-oauth-additional-redirects"
+                        v-model="form.google_oauth_additional_redirect_urls"
+                        rows="3"
+                        class="input font-mono text-sm"
+                        placeholder="https://second-domain.com/api/v1/auth/oauth/google/callback"
+                        aria-describedby="google-oauth-additional-redirects-help"
+                      />
+                      <p id="google-oauth-additional-redirects-help" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        {{ localText(
+                          "每行一个 HTTPS 地址，也需在同一 Google OAuth 客户端登记。填写后按访问域名选择回调，仅允许已登记域名登录；前端回跳地址须使用 /auth/oauth/callback 这样的站内路径。留空保持单域模式。",
+                          "Enter one HTTPS URL per line and register each in the same Google OAuth client. Login will select the callback for the current domain and reject unlisted domains. Use a local frontend path such as /auth/oauth/callback. Leave blank for single-domain mode.",
+                        ) }}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -10439,6 +10458,7 @@ const form = reactive<SettingsForm>({
   google_oauth_client_secret: "",
   google_oauth_client_secret_configured: false,
   google_oauth_redirect_url: "",
+  google_oauth_additional_redirect_urls: "",
   google_oauth_frontend_redirect_url: "/auth/oauth/callback",
   // Model fallback
   enable_model_fallback: false,
@@ -12230,6 +12250,7 @@ async function saveSettings() {
       google_oauth_client_secret:
         form.google_oauth_client_secret || undefined,
       google_oauth_redirect_url: form.google_oauth_redirect_url,
+      google_oauth_additional_redirect_urls: form.google_oauth_additional_redirect_urls,
       google_oauth_frontend_redirect_url:
         form.google_oauth_frontend_redirect_url,
       enable_model_fallback: form.enable_model_fallback,

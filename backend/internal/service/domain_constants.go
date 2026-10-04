@@ -385,16 +385,17 @@ const (
 	SettingKeyOIDCConnectUserInfoUsernamePath = "oidc_connect_userinfo_username_path"
 
 	// GitHub / Google 邮箱快捷登录设置
-	SettingKeyGitHubOAuthEnabled             = "github_oauth_enabled"
-	SettingKeyGitHubOAuthClientID            = "github_oauth_client_id"
-	SettingKeyGitHubOAuthClientSecret        = "github_oauth_client_secret"
-	SettingKeyGitHubOAuthRedirectURL         = "github_oauth_redirect_url"
-	SettingKeyGitHubOAuthFrontendRedirectURL = "github_oauth_frontend_redirect_url"
-	SettingKeyGoogleOAuthEnabled             = "google_oauth_enabled"
-	SettingKeyGoogleOAuthClientID            = "google_oauth_client_id"
-	SettingKeyGoogleOAuthClientSecret        = "google_oauth_client_secret"
-	SettingKeyGoogleOAuthRedirectURL         = "google_oauth_redirect_url"
-	SettingKeyGoogleOAuthFrontendRedirectURL = "google_oauth_frontend_redirect_url"
+	SettingKeyGitHubOAuthEnabled                = "github_oauth_enabled"
+	SettingKeyGitHubOAuthClientID               = "github_oauth_client_id"
+	SettingKeyGitHubOAuthClientSecret           = "github_oauth_client_secret"
+	SettingKeyGitHubOAuthRedirectURL            = "github_oauth_redirect_url"
+	SettingKeyGitHubOAuthFrontendRedirectURL    = "github_oauth_frontend_redirect_url"
+	SettingKeyGoogleOAuthEnabled                = "google_oauth_enabled"
+	SettingKeyGoogleOAuthClientID               = "google_oauth_client_id"
+	SettingKeyGoogleOAuthClientSecret           = "google_oauth_client_secret"
+	SettingKeyGoogleOAuthRedirectURL            = "google_oauth_redirect_url"
+	SettingKeyGoogleOAuthAdditionalRedirectURLs = "google_oauth_additional_redirect_urls"
+	SettingKeyGoogleOAuthFrontendRedirectURL    = "google_oauth_frontend_redirect_url"
 
 	// OEM设置
 	SettingKeySiteName                    = "site_name"                       // 网站名称

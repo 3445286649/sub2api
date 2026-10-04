@@ -147,6 +147,7 @@ type SystemSettings struct {
 	GoogleOAuthClientID               string `json:"google_oauth_client_id"`
 	GoogleOAuthClientSecretConfigured bool   `json:"google_oauth_client_secret_configured"`
 	GoogleOAuthRedirectURL            string `json:"google_oauth_redirect_url"`
+	GoogleOAuthAdditionalRedirectURLs string `json:"google_oauth_additional_redirect_urls"`
 	GoogleOAuthFrontendRedirectURL    string `json:"google_oauth_frontend_redirect_url"`
 
 	SiteName                     string                              `json:"site_name"`
