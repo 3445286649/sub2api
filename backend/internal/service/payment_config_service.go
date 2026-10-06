@@ -225,6 +225,7 @@ type PaymentConfigService struct {
 	entClient     *dbent.Client
 	settingRepo   SettingRepository
 	encryptionKey []byte
+	returnOrigins []string
 }
 
 // NewPaymentConfigService creates a new PaymentConfigService.

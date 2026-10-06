@@ -20,6 +20,8 @@ func TestEasyPayQueryOrderStatusMapping(t *testing.T) {
 		wantStatus  string
 		wantTradeNo string
 		wantAmount  float64
+		wantError   bool
+		httpStatus  int
 	}{
 		{
 			name:        "top level trade success is paid",
@@ -36,11 +38,10 @@ func TestEasyPayQueryOrderStatusMapping(t *testing.T) {
 			wantAmount:  12.34,
 		},
 		{
-			name:        "empty trade status with paid numeric status stays pending",
-			body:        `{"code":1,"trade_status":"","status":1,"money":"12.34"}`,
-			wantStatus:  payment.ProviderStatusPending,
-			wantTradeNo: orderID,
-			wantAmount:  12.34,
+			name:       "empty trade status with paid numeric status stays pending",
+			body:       `{"code":1,"trade_status":"","status":1,"money":"12.34"}`,
+			wantStatus: payment.ProviderStatusPending,
+			wantAmount: 12.34,
 		},
 		{
 			name:        "nested data trade success is paid",
@@ -51,29 +52,69 @@ func TestEasyPayQueryOrderStatusMapping(t *testing.T) {
 		},
 		{
 			name:        "legacy numeric paid status remains compatible",
-			body:        `{"code":1,"status":1,"money":"3.21"}`,
+			body:        `{"code":1,"status":1,"money":"3.21","trade_no":"legacy-platform-123"}`,
 			wantStatus:  payment.ProviderStatusPaid,
-			wantTradeNo: orderID,
+			wantTradeNo: "legacy-platform-123",
 			wantAmount:  3.21,
 		},
 		{
-			name:        "legacy numeric non paid status is pending",
-			body:        `{"code":1,"status":0,"money":"3.21"}`,
-			wantStatus:  payment.ProviderStatusPending,
-			wantTradeNo: orderID,
+			name:       "legacy numeric non paid status is pending",
+			body:       `{"code":1,"status":0,"money":"3.21"}`,
+			wantStatus: payment.ProviderStatusPending,
+			wantAmount: 3.21,
+		},
+		{
+			name:      "query failure is rejected",
+			body:      `{"code":0,"msg":"order not found"}`,
+			wantError: true,
+		},
+		{
+			name:      "query failure cannot claim paid",
+			body:      `{"code":0,"status":1,"money":"3.21","trade_no":"gateway-123"}`,
+			wantError: true,
+		},
+		{
+			name:      "missing result code is rejected",
+			body:      `{}`,
+			wantError: true,
+		},
+		{
+			name:      "paid without platform trade no is rejected",
+			body:      `{"code":1,"trade_status":"TRADE_SUCCESS","money":"3.21"}`,
+			wantError: true,
+		},
+		{
+			name:      "paid with blank platform trade no is rejected",
+			body:      `{"code":1,"status":1,"money":"3.21","trade_no":" "}`,
+			wantError: true,
+		},
+		{
+			name:        "empty top-level trade no uses real nested platform trade no",
+			body:        `{"code":1,"status":1,"money":"3.21","trade_no":"","data":{"trade_no":"nested-platform-123"}}`,
+			wantStatus:  payment.ProviderStatusPaid,
+			wantTradeNo: "nested-platform-123",
 			wantAmount:  3.21,
 		},
 		{
-			name:        "query failure with missing status is pending",
-			body:        `{"code":0,"msg":"订单不存在"}`,
-			wantStatus:  payment.ProviderStatusPending,
-			wantTradeNo: orderID,
+			name:      "paid invalid money is rejected",
+			body:      `{"code":1,"status":1,"money":"invalid","trade_no":"gateway-123"}`,
+			wantError: true,
 		},
 		{
-			name:        "missing fields are pending",
-			body:        `{}`,
-			wantStatus:  payment.ProviderStatusPending,
-			wantTradeNo: orderID,
+			name:      "paid NaN money is rejected",
+			body:      `{"code":1,"status":1,"money":"NaN","trade_no":"gateway-123"}`,
+			wantError: true,
+		},
+		{
+			name:      "paid infinity money is rejected",
+			body:      `{"code":1,"status":1,"money":"+Inf","trade_no":"gateway-123"}`,
+			wantError: true,
+		},
+		{
+			name:       "HTTP failure cannot claim paid",
+			body:       `{"code":1,"status":1,"money":"3.21","trade_no":"gateway-123"}`,
+			httpStatus: http.StatusInternalServerError,
+			wantError:  true,
 		},
 	}
 
@@ -98,12 +139,21 @@ func TestEasyPayQueryOrderStatusMapping(t *testing.T) {
 					gotForm[key] = append([]string(nil), values...)
 				}
 				w.Header().Set("Content-Type", "application/json")
+				if tt.httpStatus != 0 {
+					w.WriteHeader(tt.httpStatus)
+				}
 				_, _ = w.Write([]byte(tt.body))
 			}))
 			defer server.Close()
 
 			provider := newTestEasyPay(t, server.URL)
 			resp, err := provider.QueryOrder(context.Background(), orderID)
+			if tt.wantError {
+				if err == nil {
+					t.Fatalf("QueryOrder accepted invalid response: %+v", resp)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("QueryOrder returned error: %v", err)
 			}

@@ -163,6 +163,7 @@ func TestEasyPayCreatePaymentResolvesRelativeQRCode(t *testing.T) {
 		Amount:      "1.00",
 		PaymentType: payment.TypeWxpay,
 		Subject:     "Relative QR",
+		ReturnURL:   "https://example.com/payment/result",
 	})
 	if err != nil {
 		t.Fatalf("CreatePayment: %v", err)
@@ -189,6 +190,7 @@ func TestEasyPayCreatePaymentResolvesRelativeMobilePayURL2(t *testing.T) {
 		Amount:      "1.00",
 		PaymentType: payment.TypeWxpay,
 		Subject:     "Relative H5",
+		ReturnURL:   "https://example.com/payment/result",
 		IsMobile:    true,
 	})
 	if err != nil {
@@ -215,6 +217,7 @@ func TestEasyPayCreatePaymentKeepsUpstreamAbsoluteAndOpaqueValues(t *testing.T) 
 		Amount:      "1.00",
 		PaymentType: payment.TypeWxpay,
 		Subject:     "Absolute",
+		ReturnURL:   "https://example.com/payment/result",
 	})
 	if err != nil {
 		t.Fatalf("CreatePayment: %v", err)

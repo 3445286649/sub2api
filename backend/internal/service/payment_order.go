@@ -35,6 +35,10 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if !cfg.Enabled {
 		return nil, infraerrors.Forbidden("PAYMENT_DISABLED", "payment system is disabled")
 	}
+	req.ReturnURL, err = CanonicalizeReturnURL(req.SrcHost, s.configService.returnOrigins)
+	if err != nil {
+		return nil, err
+	}
 	plan, err := s.validateOrderInput(ctx, req, cfg)
 	if err != nil {
 		return nil, err
@@ -443,10 +447,7 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 	}
 	subject := s.buildPaymentSubject(plan, limitAmount, cfg, sel)
 	outTradeNo := order.OutTradeNo
-	canonicalReturnURL, err := CanonicalizeReturnURL(req.ReturnURL, req.SrcHost, req.SrcURL)
-	if err != nil {
-		return nil, err
-	}
+	canonicalReturnURL := req.ReturnURL
 	resumeToken := ""
 	if resume := s.paymentResume(); resume != nil {
 		if canonicalReturnURL != "" && resume.isSigningConfigured() {

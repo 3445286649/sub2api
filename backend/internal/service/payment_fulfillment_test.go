@@ -906,67 +906,56 @@ func TestExecuteBalanceFulfillmentRecoversAfterRedeemWithoutCreditingAgain(t *te
 func TestDuplicatePaymentNotificationDoesNotReprocessCompletedBalanceOrder(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
-	order := createPaymentFulfillmentSubscriptionOrder(t, ctx, client, OrderStatusCompleted, time.Now())
-	order, err := client.PaymentOrder.UpdateOneID(order.ID).
-		SetOrderType(payment.OrderTypeBalance).
-		ClearPlanID().
-		ClearSubscriptionGroupID().
-		ClearSubscriptionDays().
-		Save(ctx)
-	require.NoError(t, err)
-
-	redeemRepo := &redeemCodeRepoStub{codesByCode: map[string]*RedeemCode{
-		order.RechargeCode: {
-			ID:     102,
-			Code:   order.RechargeCode,
-			Type:   RedeemTypeBalance,
-			Value:  order.Amount,
-			Status: StatusUnused,
-		},
-	}}
+	ensurePaymentAuditOrderActionUniqueIndex(t, ctx, client)
+	order := createPendingEasyPayFulfillmentOrder(t, ctx, client)
+	redeemRepo := &paymentFulfillmentRedeemRepo{}
+	credited := 0.0
+	userRepo := &mockUserRepo{getByIDUser: &User{ID: order.UserID, Balance: 0}}
+	userRepo.updateBalanceFn = func(_ context.Context, id int64, amount float64) error {
+		require.Equal(t, order.UserID, id)
+		credited += amount
+		return nil
+	}
+	cache := &paymentFulfillmentRedeemCacheStub{}
 	svc := &PaymentService{
 		entClient:     client,
-		redeemService: &RedeemService{redeemRepo: redeemRepo},
+		redeemService: NewRedeemService(redeemRepo, userRepo, nil, cache, nil, client, nil, nil),
 	}
 	notification := &payment.PaymentNotification{
-		TradeNo: "alipay-trade-replayed",
-		OrderID: order.OutTradeNo,
-		Amount:  order.PayAmount,
-		Status:  payment.NotificationStatusSuccess,
+		TradeNo:  "easypay-trade-replayed",
+		OrderID:  order.OutTradeNo,
+		Amount:   order.PayAmount,
+		Status:   payment.NotificationStatusSuccess,
+		Metadata: map[string]string{"pid": "pid-expected"},
 	}
-	require.NoError(t, svc.HandlePaymentNotification(ctx, notification, payment.TypeAlipay))
-	require.NoError(t, svc.HandlePaymentNotification(ctx, notification, payment.TypeAlipay))
+	require.NoError(t, svc.HandlePaymentNotification(ctx, notification, payment.TypeEasyPay))
+	require.NoError(t, svc.HandlePaymentNotification(ctx, notification, payment.TypeEasyPay))
 
 	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
 	require.NoError(t, err)
 	require.Equal(t, OrderStatusCompleted, reloaded.Status)
-	require.Empty(t, redeemRepo.useCalls, "a duplicate notification must not redeem the balance code again")
+	require.Equal(t, notification.TradeNo, reloaded.PaymentTradeNo)
+	require.InDelta(t, order.Amount, credited, 1e-8)
+	require.Equal(t, 1, redeemRepo.createCalls)
+	require.Len(t, redeemRepo.useCalls, 1, "a duplicate notification must not redeem the balance code again")
 }
 
 func TestPaymentNotificationRejectsAmountMismatchBeforeFulfillment(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
-	order := createPaymentFulfillmentSubscriptionOrder(t, ctx, client, OrderStatusPending, time.Now())
-	order, err := client.PaymentOrder.UpdateOneID(order.ID).
-		SetOrderType(payment.OrderTypeBalance).
-		ClearPlanID().
-		ClearSubscriptionGroupID().
-		ClearSubscriptionDays().
-		Save(ctx)
-	require.NoError(t, err)
+	order := createPendingEasyPayFulfillmentOrder(t, ctx, client)
 
 	svc := &PaymentService{entClient: client}
-	err = svc.HandlePaymentNotification(ctx, &payment.PaymentNotification{
-		TradeNo: "alipay-trade-wrong-amount",
-		OrderID: order.OutTradeNo,
-		Amount:  order.PayAmount - 1,
-		Status:  payment.NotificationStatusSuccess,
-	}, payment.TypeAlipay)
+	err := svc.HandlePaymentNotification(ctx, &payment.PaymentNotification{
+		TradeNo:  "easypay-trade-wrong-amount",
+		OrderID:  order.OutTradeNo,
+		Amount:   order.PayAmount - 1,
+		Status:   payment.NotificationStatusSuccess,
+		Metadata: map[string]string{"pid": "pid-expected"},
+	}, payment.TypeEasyPay)
 	require.ErrorContains(t, err, "amount mismatch")
 
-	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
-	require.NoError(t, err)
-	require.Equal(t, OrderStatusPending, reloaded.Status)
+	assertRejectedEasyPayFulfillment(t, ctx, client, svc, order, "PAYMENT_AMOUNT_MISMATCH")
 }
 
 func TestExecuteBalanceFulfillmentRejectsCodeUsedByAnotherUser(t *testing.T) {

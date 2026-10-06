@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -80,60 +81,68 @@ func TestNormalizePaymentSource(t *testing.T) {
 
 func TestCanonicalizeReturnURL(t *testing.T) {
 	t.Parallel()
-
-	got, err := CanonicalizeReturnURL("https://example.com/payment/result?b=2#a", "example.com", "")
-	if err != nil {
-		t.Fatalf("CanonicalizeReturnURL returned error: %v", err)
+	origins := []string{"https://codeplan.codes", "https://subapi.loucer.cn", "https://us.codeplan.codes", "http://127.0.0.1:18080"}
+	for _, tt := range []struct{ host, want string }{
+		{"codeplan.codes", "https://codeplan.codes/payment/result"},
+		{"CODEPLAN.CODES:443", "https://codeplan.codes/payment/result"},
+		{"subapi.loucer.cn", "https://subapi.loucer.cn/payment/result"},
+		{"us.codeplan.codes", "https://us.codeplan.codes/payment/result"},
+		{"127.0.0.1:18080", "http://127.0.0.1:18080/payment/result"},
+	} {
+		t.Run(tt.host, func(t *testing.T) {
+			got, err := CanonicalizeReturnURL(tt.host, origins)
+			if err != nil || got != tt.want {
+				t.Fatalf("got %q, %v; want %q", got, err, tt.want)
+			}
+		})
 	}
-	if got != "https://example.com/payment/result?b=2" {
-		t.Fatalf("CanonicalizeReturnURL = %q, want %q", got, "https://example.com/payment/result?b=2")
+	for _, host := range []string{"evil.example", "codeplan.codes.evil.example", "codeplan.codes:444", "codeplan.codes@evil.example", "", "127.0.0.1:18081"} {
+		if _, err := CanonicalizeReturnURL(host, origins); err == nil {
+			t.Fatalf("should reject unknown host %q", host)
+		}
 	}
-}
-
-func TestCanonicalizeReturnURLRejectsRelativeURL(t *testing.T) {
-	t.Parallel()
-
-	if _, err := CanonicalizeReturnURL("/payment/result", "example.com", ""); err == nil {
-		t.Fatal("CanonicalizeReturnURL should reject relative URLs")
+	if _, err := CanonicalizeReturnURL("codeplan.codes", nil); err == nil {
+		t.Fatal("missing trusted origins must fail closed")
 	}
-}
-
-func TestCanonicalizeReturnURLRejectsExternalHost(t *testing.T) {
-	t.Parallel()
-
-	if _, err := CanonicalizeReturnURL("https://evil.example/payment/result", "app.example.com", ""); err == nil {
-		t.Fatal("CanonicalizeReturnURL should reject external hosts")
-	}
-}
-
-func TestCanonicalizeReturnURLAllowsConfiguredFrontendHost(t *testing.T) {
-	t.Parallel()
-
-	got, err := CanonicalizeReturnURL(
-		"https://app.example.com/payment/result?from=checkout",
-		"api.example.com",
-		"https://app.example.com/purchase",
-	)
-	if err != nil {
-		t.Fatalf("CanonicalizeReturnURL returned error: %v", err)
-	}
-	if got != "https://app.example.com/payment/result?from=checkout" {
-		t.Fatalf("CanonicalizeReturnURL = %q, want %q", got, "https://app.example.com/payment/result?from=checkout")
+	if _, err := CanonicalizeReturnURL("codeplan.codes", []string{"https://*.codes"}); err == nil {
+		t.Fatal("wildcards must fail closed")
 	}
 }
 
-func TestCanonicalizeReturnURLRejectsNonCanonicalPath(t *testing.T) {
+func TestCreateOrderIgnoresClientReturnURLBeforeCreatingOrder(t *testing.T) {
 	t.Parallel()
+	svc := &PaymentService{configService: &PaymentConfigService{
+		returnOrigins: []string{"https://codeplan.codes"},
+		settingRepo:   &paymentConfigSettingRepoStub{values: map[string]string{SettingPaymentEnabled: "true"}},
+	}}
+	_, err := svc.CreateOrder(context.Background(), CreateOrderRequest{
+		SrcHost: "evil.example", SrcURL: "https://codeplan.codes/", ReturnURL: "https://codeplan.codes/payment/result?trade_status=TRADE_SUCCESS",
+	})
+	if infraerrors.Reason(err) != "INVALID_PAYMENT_HOST" {
+		t.Fatalf("untrusted Host must be rejected before creating an order, got %v", err)
+	}
+}
 
-	if _, err := CanonicalizeReturnURL("https://app.example.com/orders/42", "app.example.com", ""); err == nil {
-		t.Fatal("CanonicalizeReturnURL should reject non-canonical result paths")
+func TestProvidePaymentConfigServiceUsesOnlyExplicitOrigins(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Server.PaymentReturnOrigins = []string{"https://codeplan.codes", "https://subapi.loucer.cn"}
+	cfg.CORS.AllowedOrigins = []string{"*", "https://evil.example"}
+	svc := ProvidePaymentConfigService(nil, nil, nil, cfg)
+	if _, err := CanonicalizeReturnURL("evil.example", svc.returnOrigins); err == nil {
+		t.Fatal("CORS must not grant payment return trust")
+	}
+	cfg.Server.PaymentReturnOrigins = nil
+	cfg.Server.FrontendURL = "https://us.codeplan.codes"
+	svc = ProvidePaymentConfigService(nil, nil, nil, cfg)
+	if _, err := CanonicalizeReturnURL("us.codeplan.codes", svc.returnOrigins); err == nil {
+		t.Fatal("frontend and CORS configuration must not grant implicit payment trust")
 	}
 }
 
 func TestBuildPaymentReturnURL(t *testing.T) {
 	t.Parallel()
 
-	got, err := buildPaymentReturnURL("https://example.com/payment/result?from=checkout#fragment", 42, "sub2_42", "resume-token")
+	got, err := buildPaymentReturnURL("https://example.com/payment/result?from=checkout&trade_status=TRADE_SUCCESS&pid=forged&money=1.00#fragment", 42, "sub2_42", "resume-token")
 	if err != nil {
 		t.Fatalf("buildPaymentReturnURL returned error: %v", err)
 	}
@@ -146,8 +155,8 @@ func TestBuildPaymentReturnURL(t *testing.T) {
 		t.Fatalf("buildPaymentReturnURL should strip fragments, got %q", parsed.Fragment)
 	}
 	query := parsed.Query()
-	if query.Get("from") != "checkout" {
-		t.Fatalf("expected original query to be preserved, got %q", query.Get("from"))
+	if len(query) != 4 || query.Get("from") != "" {
+		t.Fatalf("only server-generated fields may be signed, got %v", query)
 	}
 	if query.Get("order_id") != strconv.FormatInt(42, 10) {
 		t.Fatalf("order_id = %q", query.Get("order_id"))
@@ -191,11 +200,8 @@ func TestBuildPaymentReturnURLEmptyBase(t *testing.T) {
 	t.Parallel()
 
 	got, err := buildPaymentReturnURL("", 42, "sub2_42", "resume-token")
-	if err != nil {
-		t.Fatalf("buildPaymentReturnURL returned error: %v", err)
-	}
-	if got != "" {
-		t.Fatalf("buildPaymentReturnURL = %q, want empty string", got)
+	if err == nil || got != "" {
+		t.Fatalf("empty base must fail closed, got %q, %v", got, err)
 	}
 }
 

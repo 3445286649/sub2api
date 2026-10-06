@@ -689,16 +689,17 @@ type PricingConfig struct {
 type ServerConfig struct {
 	Host                     string    `mapstructure:"host"`
 	Port                     int       `mapstructure:"port"`
-	Mode                     string    `mapstructure:"mode"`                  // debug/release
-	EnableServerTiming       bool      `mapstructure:"enable_server_timing"`  // Admin UI Server-Timing response header
-	FrontendURL              string    `mapstructure:"frontend_url"`          // 前端基础 URL，用于生成邮件中的外部链接
-	ReadHeaderTimeout        int       `mapstructure:"read_header_timeout"`   // 读取请求头超时（秒）
-	MaxHeaderBytes           int       `mapstructure:"max_header_bytes"`      // 请求头最大字节数（HTTP/2 映射为 header-list 上限）
-	IdleTimeout              int       `mapstructure:"idle_timeout"`          // 空闲连接超时（秒）
-	TrustedProxies           []string  `mapstructure:"trusted_proxies"`       // 可信代理列表（CIDR/IP）
-	TrustedProxiesConfigured bool      `mapstructure:"-" json:"-" yaml:"-"`   // 是否显式配置了可信代理列表
-	MaxRequestBodySize       int64     `mapstructure:"max_request_body_size"` // 全局最大请求体限制
-	H2C                      H2CConfig `mapstructure:"h2c"`                   // HTTP/2 Cleartext 配置
+	Mode                     string    `mapstructure:"mode"`                   // debug/release
+	EnableServerTiming       bool      `mapstructure:"enable_server_timing"`   // Admin UI Server-Timing response header
+	FrontendURL              string    `mapstructure:"frontend_url"`           // 前端基础 URL，用于生成邮件中的外部链接
+	PaymentReturnOrigins     []string  `mapstructure:"payment_return_origins"` // Exact trusted origins for payment result redirects
+	ReadHeaderTimeout        int       `mapstructure:"read_header_timeout"`    // 读取请求头超时（秒）
+	MaxHeaderBytes           int       `mapstructure:"max_header_bytes"`       // 请求头最大字节数（HTTP/2 映射为 header-list 上限）
+	IdleTimeout              int       `mapstructure:"idle_timeout"`           // 空闲连接超时（秒）
+	TrustedProxies           []string  `mapstructure:"trusted_proxies"`        // 可信代理列表（CIDR/IP）
+	TrustedProxiesConfigured bool      `mapstructure:"-" json:"-" yaml:"-"`    // 是否显式配置了可信代理列表
+	MaxRequestBodySize       int64     `mapstructure:"max_request_body_size"`  // 全局最大请求体限制
+	H2C                      H2CConfig `mapstructure:"h2c"`                    // HTTP/2 Cleartext 配置
 }
 
 // H2CConfig HTTP/2 Cleartext 配置
@@ -1884,6 +1885,9 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	if trustedProxiesEnvConfigured {
 		cfg.Server.TrustedProxies = normalizeStringSlice(strings.Split(trustedProxiesEnv, ","))
 	}
+	if paymentReturnOriginsEnv, configured := os.LookupEnv("SERVER_PAYMENT_RETURN_ORIGINS"); configured {
+		cfg.Server.PaymentReturnOrigins = strings.Fields(paymentReturnOriginsEnv)
+	}
 	if forwardedClientIPHeadersEnvConfigured {
 		cfg.Security.ForwardedClientIPHeaders = normalizeStringSlice(strings.Split(forwardedClientIPHeadersEnv, ","))
 	}
@@ -2062,6 +2066,7 @@ func setDefaults() {
 	viper.SetDefault("server.mode", "release")
 	viper.SetDefault("server.enable_server_timing", false)
 	viper.SetDefault("server.frontend_url", "")
+	viper.SetDefault("server.payment_return_origins", []string{})
 	viper.SetDefault("server.read_header_timeout", 10) // 10秒读取请求头
 	viper.SetDefault("server.max_header_bytes", 64*1024)
 	viper.SetDefault("server.idle_timeout", 120) // 120秒空闲超时
@@ -2766,6 +2771,11 @@ func (c *Config) Validate() error {
 	if c.Server.MaxRequestBodySize < 0 {
 		return fmt.Errorf("server.max_request_body_size must be non-negative")
 	}
+	paymentReturnOrigins, err := normalizePaymentReturnOrigins(c.Server.PaymentReturnOrigins)
+	if err != nil {
+		return fmt.Errorf("server.payment_return_origins: %w", err)
+	}
+	c.Server.PaymentReturnOrigins = paymentReturnOrigins
 	if c.Server.H2C.Enabled {
 		if c.Server.H2C.MaxConcurrentStreams == 0 {
 			return fmt.Errorf("server.h2c.max_concurrent_streams must be positive")

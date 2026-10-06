@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"sort"
@@ -123,6 +124,9 @@ func (e *EasyPay) MerchantIdentityMetadata() map[string]string {
 }
 
 func (e *EasyPay) CreatePayment(ctx context.Context, req payment.CreatePaymentRequest) (*payment.CreatePaymentResponse, error) {
+	if strings.TrimSpace(req.ReturnURL) == "" {
+		return nil, fmt.Errorf("easypay create requires a server-generated return URL")
+	}
 	// Payment mode determined by instance config, not payment type.
 	// "popup" → hosted page (submit.php); "qrcode"/default → API call (mapi.php).
 	mode := e.config["paymentMode"]
@@ -251,18 +255,13 @@ func resolveEasyPayReturnedRef(apiBase, ref string) string {
 	return base.ResolveReference(parsed).String()
 }
 
-// resolveURLs returns (notifyURL, returnURL) preferring request values,
-// falling back to instance config.
+// The service owns the return URL; only notifyURL can fall back to instance config.
 func (e *EasyPay) resolveURLs(req payment.CreatePaymentRequest) (string, string) {
 	notifyURL := req.NotifyURL
 	if notifyURL == "" {
 		notifyURL = e.config["notifyUrl"]
 	}
-	returnURL := req.ReturnURL
-	if returnURL == "" {
-		returnURL = e.config["returnUrl"]
-	}
-	return notifyURL, returnURL
+	return notifyURL, req.ReturnURL
 }
 
 func (e *EasyPay) customMethods() []easyPayCustomMethod {
@@ -305,9 +304,12 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 		"act": "order", "pid": e.config["pid"],
 		"key": e.config["pkey"], "out_trade_no": tradeNo,
 	}
-	body, err := e.post(ctx, e.apiBase()+"/api.php", params)
+	body, httpStatus, err := e.postRaw(ctx, e.apiBase()+"/api.php", params)
 	if err != nil {
 		return nil, fmt.Errorf("easypay query: %w", err)
+	}
+	if httpStatus < http.StatusOK || httpStatus >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("easypay query HTTP %d", httpStatus)
 	}
 	type easyPayQueryData struct {
 		TradeStatus *string `json:"trade_status"`
@@ -326,6 +328,9 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, fmt.Errorf("easypay parse query: %w", err)
+	}
+	if resp.Code != easypayCodeSuccess {
+		return nil, fmt.Errorf("easypay query failed: %s", resp.Msg)
 	}
 	status := payment.ProviderStatusPending
 	if resp.TradeStatus != nil {
@@ -350,16 +355,23 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 	} else if resp.Data.Money != nil {
 		money = *resp.Data.Money
 	}
-	responseTradeNo := tradeNo
+	responseTradeNo := ""
 	if resp.TradeNo != nil {
-		if *resp.TradeNo != "" {
-			responseTradeNo = *resp.TradeNo
-		}
-	} else if resp.Data.TradeNo != nil && *resp.Data.TradeNo != "" {
-		responseTradeNo = *resp.Data.TradeNo
+		responseTradeNo = strings.TrimSpace(*resp.TradeNo)
+	}
+	if responseTradeNo == "" && resp.Data.TradeNo != nil {
+		responseTradeNo = strings.TrimSpace(*resp.Data.TradeNo)
 	}
 
-	amount, _ := strconv.ParseFloat(money, 64)
+	amount, amountErr := strconv.ParseFloat(money, 64)
+	if status == payment.ProviderStatusPaid {
+		if responseTradeNo == "" {
+			return nil, fmt.Errorf("easypay paid query missing platform trade_no")
+		}
+		if amountErr != nil || !validEasyPayAmount(amount) {
+			return nil, fmt.Errorf("easypay paid query has invalid money")
+		}
+	}
 	return &payment.QueryOrderResponse{
 		TradeNo:  responseTradeNo,
 		Status:   status,
@@ -373,10 +385,34 @@ func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[st
 	if err != nil {
 		return nil, fmt.Errorf("parse notify: %w", err)
 	}
-	// url.ParseQuery already decodes values — no additional decode needed.
+	// Only notification fields may enter the ambiguous raw EasyPay signing format.
 	params := make(map[string]string)
-	for k := range values {
-		params[k] = values.Get(k)
+	for key, items := range values {
+		if len(items) != 1 {
+			return nil, fmt.Errorf("duplicate notify parameter: %s", key)
+		}
+		switch key {
+		case "pid", "trade_no", "out_trade_no", "type", "name", "money", "trade_status", "sign", "sign_type", "channel_order_no", "param":
+		default:
+			return nil, fmt.Errorf("unexpected notify parameter: %s", key)
+		}
+		params[key] = items[0]
+	}
+	if params["pid"] == "" || params["pid"] != strings.TrimSpace(e.config["pid"]) {
+		return nil, fmt.Errorf("invalid notify pid")
+	}
+	if strings.TrimSpace(params["trade_no"]) == "" || strings.TrimSpace(params["out_trade_no"]) == "" {
+		return nil, fmt.Errorf("missing notify order identifier")
+	}
+	if params["trade_status"] != tradeStatusSuccess {
+		return nil, fmt.Errorf("invalid notify trade_status")
+	}
+	if signType := params["sign_type"]; signType != "" && signType != signTypeMD5 {
+		return nil, fmt.Errorf("unsupported notify sign_type")
+	}
+	amount, err := strconv.ParseFloat(params["money"], 64)
+	if err != nil || !validEasyPayAmount(amount) {
+		return nil, fmt.Errorf("invalid notify money")
 	}
 	sign := params["sign"]
 	if sign == "" {
@@ -385,23 +421,19 @@ func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[st
 	if !easyPayVerifySign(params, e.config["pkey"], sign) {
 		return nil, fmt.Errorf("invalid signature")
 	}
-	status := payment.ProviderStatusFailed
-	if params["trade_status"] == tradeStatusSuccess {
-		status = payment.ProviderStatusSuccess
-	}
-	amount, _ := strconv.ParseFloat(params["money"], 64)
-
 	metadata := e.MerchantIdentityMetadata()
-	if pid := strings.TrimSpace(params["pid"]); pid != "" {
-		if metadata == nil {
-			metadata = map[string]string{}
-		}
-		metadata["pid"] = pid
+	metadata["pid"] = params["pid"]
+	if channelOrderNo := params["channel_order_no"]; channelOrderNo != "" {
+		metadata["channel_order_no"] = channelOrderNo
 	}
 	return &payment.PaymentNotification{
 		TradeNo: params["trade_no"], OrderID: params["out_trade_no"],
-		Amount: amount, Status: status, RawData: rawBody, Metadata: metadata,
+		Amount: amount, Status: payment.ProviderStatusSuccess, RawData: rawBody, Metadata: metadata,
 	}, nil
+}
+
+func validEasyPayAmount(amount float64) bool {
+	return amount > 0 && !math.IsNaN(amount) && !math.IsInf(amount, 0)
 }
 
 func (e *EasyPay) Refund(ctx context.Context, req payment.RefundRequest) (*payment.RefundResponse, error) {

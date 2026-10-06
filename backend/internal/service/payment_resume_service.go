@@ -8,12 +8,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -232,63 +232,36 @@ func visibleMethodSourceSettingKey(method string) string {
 	}
 }
 
-func CanonicalizeReturnURL(raw string, srcHost string, srcURL string) (string, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return "", nil
+// Only deployment-controlled origins may enter the provider's signed request.
+func CanonicalizeReturnURL(srcHost string, origins []string) (string, error) {
+	for _, raw := range origins {
+		parsed, err := config.ValidatePaymentReturnOrigin(raw)
+		if err != nil {
+			return "", infraerrors.ServiceUnavailable("PAYMENT_RETURN_ORIGIN_INVALID", "payment return origins are invalid")
+		}
+		requestOrigin, err := config.ValidatePaymentReturnOrigin(parsed.Scheme + "://" + srcHost)
+		if err == nil && requestOrigin.Host == parsed.Host {
+			parsed.Path = paymentResultReturnPath
+			return parsed.String(), nil
+		}
 	}
-	parsed, err := url.Parse(raw)
-	if err != nil || !parsed.IsAbs() || parsed.Host == "" {
-		return "", infraerrors.BadRequest("INVALID_RETURN_URL", "return_url must be an absolute http/https URL")
-	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return "", infraerrors.BadRequest("INVALID_RETURN_URL", "return_url must use http or https")
-	}
-	parsed.Fragment = ""
-	if parsed.Path == "" {
-		parsed.Path = "/"
-	}
-	if parsed.Path != paymentResultReturnPath {
-		return "", infraerrors.BadRequest("INVALID_RETURN_URL", "return_url must target the canonical internal payment result page")
-	}
-	if !allowedReturnURLHost(parsed.Host, srcHost, srcURL) {
-		return "", infraerrors.BadRequest("INVALID_RETURN_URL", "return_url must use the same host as the current site or browser origin")
-	}
-	return parsed.String(), nil
-}
-
-func allowedReturnURLHost(returnURLHost string, requestHost string, refererURL string) bool {
-	if sameOriginHost(returnURLHost, requestHost) {
-		return true
-	}
-
-	refererURL = strings.TrimSpace(refererURL)
-	if refererURL == "" {
-		return false
-	}
-	parsedReferer, err := url.Parse(refererURL)
-	if err != nil || parsedReferer.Host == "" {
-		return false
-	}
-	return sameOriginHost(returnURLHost, parsedReferer.Host)
+	return "", infraerrors.BadRequest("INVALID_PAYMENT_HOST", "payment requests must use a configured site host")
 }
 
 func buildPaymentReturnURL(base string, orderID int64, outTradeNo string, resumeToken string) (string, error) {
 	canonical := strings.TrimSpace(base)
-	if canonical == "" {
-		return "", nil
-	}
-
 	parsed, err := url.Parse(canonical)
 	if err != nil {
 		return "", infraerrors.BadRequest("INVALID_RETURN_URL", "return_url must be a valid URL")
 	}
-	if !parsed.IsAbs() || parsed.Host == "" {
+	if !parsed.IsAbs() || parsed.Host == "" || parsed.User != nil || parsed.Path != paymentResultReturnPath || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return "", infraerrors.BadRequest("INVALID_RETURN_URL", "return_url must be a valid absolute URL")
 	}
 	parsed.Fragment = ""
+	parsed.RawPath = ""
+	parsed.ForceQuery = false
 
-	query := parsed.Query()
+	query := url.Values{}
 	if orderID > 0 {
 		query.Set("order_id", strconv.FormatInt(orderID, 10))
 	}
@@ -302,31 +275,6 @@ func buildPaymentReturnURL(base string, orderID int64, outTradeNo string, resume
 	parsed.RawQuery = query.Encode()
 
 	return parsed.String(), nil
-}
-
-func sameOriginHost(returnURLHost string, requestHost string) bool {
-	returnHost := strings.TrimSpace(returnURLHost)
-	reqHost := strings.TrimSpace(requestHost)
-	if returnHost == "" || reqHost == "" {
-		return false
-	}
-	if strings.EqualFold(returnHost, reqHost) {
-		return true
-	}
-
-	returnName, returnPort := splitHostPortDefault(returnHost)
-	reqName, reqPort := splitHostPortDefault(reqHost)
-	if returnName == "" || reqName == "" {
-		return false
-	}
-	return strings.EqualFold(returnName, reqName) && returnPort == reqPort
-}
-
-func splitHostPortDefault(raw string) (string, string) {
-	if host, port, err := net.SplitHostPort(raw); err == nil {
-		return host, port
-	}
-	return raw, ""
 }
 
 func (s *PaymentResumeService) CreateToken(claims ResumeTokenClaims) (string, error) {

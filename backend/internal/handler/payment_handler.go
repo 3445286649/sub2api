@@ -304,7 +304,6 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 		IsWeChatBrowser: isWeChatBrowser(c),
 		SrcHost:         c.Request.Host,
 		SrcURL:          c.Request.Referer(),
-		ReturnURL:       req.ReturnURL,
 		PaymentSource:   req.PaymentSource,
 		OrderType:       req.OrderType,
 		PlanID:          req.PlanID,

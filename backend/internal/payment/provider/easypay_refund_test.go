@@ -213,6 +213,7 @@ func TestEasyPayCustomMethodsUseConfiguredUpstreamType(t *testing.T) {
 		Amount:      "1.00",
 		PaymentType: "usdt_trc20",
 		Subject:     "Custom EasyPay",
+		ReturnURL:   "https://example.com/payment/result",
 	})
 	if err != nil {
 		t.Fatalf("CreatePayment: %v", err)
@@ -249,6 +250,7 @@ func TestEasyPayCustomMethodsResolveCIDFromConfiguredUpstreamType(t *testing.T) 
 		Amount:      "1.00",
 		PaymentType: "ldc",
 		Subject:     "Custom EasyPay CID",
+		ReturnURL:   "https://example.com/payment/result",
 	})
 	if err != nil {
 		t.Fatalf("CreatePayment: %v", err)

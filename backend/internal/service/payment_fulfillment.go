@@ -94,6 +94,12 @@ func (s *PaymentService) confirmPayment(ctx context.Context, oid int64, tradeNo 
 		})
 		return fmt.Errorf("provider mismatch: expected %s, got %s", expectedProviderKey, pk)
 	}
+	if strings.EqualFold(expectedProviderKey, payment.TypeEasyPay) && strings.TrimSpace(tradeNo) == "" {
+		s.writeAuditLog(ctx, o.ID, "PAYMENT_MISSING_TRADE_NO", pk, map[string]any{
+			"expectedProvider": expectedProviderKey,
+		})
+		return fmt.Errorf("easypay payment trade no is empty")
+	}
 	if err := validateProviderNotificationMetadata(o, pk, metadata); err != nil {
 		s.writeAuditLog(ctx, o.ID, "PAYMENT_PROVIDER_METADATA_MISMATCH", pk, map[string]any{
 			"detail":  err.Error(),
