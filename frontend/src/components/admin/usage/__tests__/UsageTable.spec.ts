@@ -694,8 +694,8 @@ describe('admin UsageTable tooltip', () => {
   })
 })
 
-describe('admin UsageTable token speed', () => {
-  it('shows streaming generation speed in the shared latency cell', () => {
+describe('admin UsageTable latency metrics', () => {
+  it.each([true, false])('shows only first token, total duration and purple output TPS for stream=%s', (stream) => {
     const wrapper = mount(UsageTable, {
       props: {
         data: [{
@@ -706,7 +706,7 @@ describe('admin UsageTable token speed', () => {
           output_tokens: 100,
           duration_ms: 5_500,
           first_token_ms: 500,
-          stream: true,
+          stream,
         }],
         loading: false,
         columns: [],
@@ -721,8 +721,15 @@ describe('admin UsageTable token speed', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Speed')
-    expect(wrapper.text()).toContain('20 Token/s')
+    const outputTps = wrapper.get('[data-testid="output-tps"]')
+    const metrics = outputTps.element.parentElement!
+    expect(Array.from(metrics.children).map(cell => cell.textContent)).toEqual([
+      'First', '500ms', 'Total', '5.50s', 'Output TPS', '18.2 tok/s',
+    ])
+    expect(wrapper.text()).not.toContain('Speed')
+    expect(outputTps.classes()).toContain('text-purple-600')
+    expect(outputTps.classes()).toContain('dark:text-purple-400')
+    wrapper.unmount()
   })
 })
 

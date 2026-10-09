@@ -256,15 +256,8 @@
               <span v-else class="text-gray-400 dark:text-gray-500">-</span>
               <span class="text-gray-400 dark:text-gray-500">{{ t('usage.latencyDuration') }}</span>
               <span class="font-medium tabular-nums" :class="LATENCY_TEXT_CLASSES[durationSeverity(row.duration_ms ?? 0)]">{{ formatDuration(row.duration_ms) }}</span>
-              <span class="text-gray-400 dark:text-gray-500">{{ t('usage.tokenSpeed') }}</span>
-              <span
-                class="font-medium tabular-nums"
-                :class="calculateUsageTokenSpeed(row) == null
-                  ? 'text-gray-400 dark:text-gray-500'
-                  : 'text-teal-600 dark:text-teal-400'"
-              >{{ formatUsageTokenSpeed(row) }}</span>
               <span class="text-gray-400 dark:text-gray-500" :title="t('usage.outputTpsHint')">{{ t('usage.outputTps') }}</span>
-              <span data-testid="output-tps" class="font-medium tabular-nums text-gray-700 dark:text-gray-300">{{ formatUsageOutputRate(row) }}</span>
+              <span data-testid="output-tps" class="font-medium tabular-nums text-purple-600 dark:text-purple-400">{{ formatUsageOutputRate(row) }}</span>
             </div>
           </div>
         </template>
@@ -558,7 +551,6 @@ import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
 import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
 import { resolveUsageRequestType } from '@/utils/usageRequestType'
-import { calculateUsageTokenSpeed, formatUsageTokenSpeed } from '@/utils/usageTokenSpeed'
 import {
   LATENCY_BAR_CLASSES,
   LATENCY_BAR_FROM_CLASSES,
