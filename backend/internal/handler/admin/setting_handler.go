@@ -60,6 +60,7 @@ type SettingHandler struct {
 	paymentService           *service.PaymentService
 	userAttributeService     *service.UserAttributeService
 	notificationEmailService *service.NotificationEmailService
+	telegramService          *service.TelegramNotificationService
 	totpService              *service.TotpService
 	userService              *service.UserService
 }
@@ -81,6 +82,10 @@ func NewSettingHandler(settingService *service.SettingService, emailService *ser
 // the constructor signature used by existing unit tests.
 func (h *SettingHandler) SetNotificationEmailService(notificationEmailService *service.NotificationEmailService) {
 	h.notificationEmailService = notificationEmailService
+}
+
+func (h *SettingHandler) SetTelegramService(telegramService *service.TelegramNotificationService) {
+	h.telegramService = telegramService
 }
 
 // SetAliyunCaptchaService attaches the Aliyun captcha credential validator without

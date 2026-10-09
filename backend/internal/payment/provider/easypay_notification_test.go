@@ -40,6 +40,27 @@ func TestEasyPayNotificationRejectsReusedCheckoutSignature(t *testing.T) {
 	}
 }
 
+func TestEasyPayNotificationRejectsCompleteCheckoutReplay(t *testing.T) {
+	t.Parallel()
+
+	provider := newTestEasyPay(t, "https://pay.example.com")
+	checkout := map[string]string{
+		"pid":          "pid-1",
+		"type":         "alipay",
+		"out_trade_no": "sub2-unpaid",
+		"name":         "Recharge",
+		"money":        "1.00",
+		"notify_url":   "https://example.com/notify",
+		"return_url":   "https://example.com/payment/result",
+	}
+	checkout["sign"] = easyPaySign(checkout, provider.config["pkey"])
+	checkout["sign_type"] = signTypeMD5
+
+	if _, err := provider.VerifyNotification(context.Background(), encodeEasyPayNotification(checkout), nil); err == nil || !strings.Contains(err.Error(), "unexpected notify parameter") {
+		t.Fatalf("a complete signed checkout URL must be rejected as an unexpected notification parameter, got %v", err)
+	}
+}
+
 func TestEasyPayVerifyNotificationAcceptsDocumentedFields(t *testing.T) {
 	t.Parallel()
 

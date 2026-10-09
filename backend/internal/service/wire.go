@@ -1067,6 +1067,7 @@ var ProviderSet = wire.NewSet(
 	NewDailyCheckinService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
+	ProvideTelegramNotificationService,
 	ProvidePaymentOrderExpiryService,
 	ProvideBalanceNotifyService,
 	ProvideChannelMonitorService,
@@ -1101,10 +1102,17 @@ func ProvideBalanceNotifyService(emailService *EmailService, settingRepo Setting
 }
 
 // ProvidePaymentService creates PaymentService and attaches notification email delivery.
-func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, pointsShopService *PointsShopService, notificationEmailService *NotificationEmailService) *PaymentService {
+func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, pointsShopService *PointsShopService, notificationEmailService *NotificationEmailService, telegramService *TelegramNotificationService) *PaymentService {
 	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService)
 	svc.SetPointsShopService(pointsShopService)
 	svc.SetNotificationEmailService(notificationEmailService)
+	svc.SetTelegramService(telegramService)
+	return svc
+}
+
+func ProvideTelegramNotificationService(settingRepo SettingRepository, encryptor SecretEncryptor, db *sql.DB) *TelegramNotificationService {
+	svc := NewTelegramNotificationService(settingRepo, encryptor, db)
+	svc.Start()
 	return svc
 }
 

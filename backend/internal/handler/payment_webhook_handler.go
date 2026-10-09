@@ -111,6 +111,7 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 		}
 		slog.Error("[Payment Webhook] verify failed", "provider", providerKey, "error", err, "method", c.Request.Method, "bodyLen", len(rawBody))
 		slog.Debug("[Payment Webhook] verify failed body", "provider", providerKey, "rawBody", truncatedBody)
+		h.paymentService.RecordRejectedPaymentCallback(c.Request.Context(), providerKey, outTradeNo)
 		c.String(http.StatusBadRequest, "verify failed")
 		return
 	}

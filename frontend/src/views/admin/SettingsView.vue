@@ -8925,6 +8925,7 @@
             @toggle-type="handleToggleType"
             @reorder="handleReorderProviders"
           />
+          <TelegramPaymentSettings />
         </div>
 
         <div v-show="activeTab === 'email'" class="space-y-6">
@@ -9487,6 +9488,7 @@ import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
 import RechargeBonusTierEditor from "@/components/admin/settings/RechargeBonusTierEditor.vue";
+import TelegramPaymentSettings from "@/components/admin/settings/TelegramPaymentSettings.vue";
 import {
   normalizeRechargeBonusMode,
   normalizeRechargeBonusTiers,

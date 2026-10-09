@@ -209,6 +209,7 @@ type PaymentService struct {
 	pointsShopService        *PointsShopService
 	acquisitionService       *AcquisitionService
 	notificationEmailService *NotificationEmailService
+	telegramService          *TelegramNotificationService
 }
 
 func (s *PaymentService) SetPointsShopService(pointsShopService *PointsShopService) {
@@ -223,6 +224,10 @@ func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, load
 
 func (s *PaymentService) SetNotificationEmailService(notificationEmailService *NotificationEmailService) {
 	s.notificationEmailService = notificationEmailService
+}
+
+func (s *PaymentService) SetTelegramService(telegramService *TelegramNotificationService) {
+	s.telegramService = telegramService
 }
 
 func (s *PaymentService) SetAcquisitionService(acquisitionService *AcquisitionService) {

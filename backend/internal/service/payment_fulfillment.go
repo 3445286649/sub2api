@@ -28,6 +28,8 @@ import (
 // misconfigured to point at us, or when our orders table has been wiped).
 var ErrOrderNotFound = errors.New("payment order not found")
 
+var errPaymentCompletionPending = errors.New("payment completion persistence pending")
+
 const paymentFulfillmentLeaseDuration = 5 * time.Minute
 
 type paymentFulfillmentLease struct {
@@ -37,6 +39,10 @@ type paymentFulfillmentLease struct {
 // --- Payment Notification & Fulfillment ---
 
 func (s *PaymentService) HandlePaymentNotification(ctx context.Context, n *payment.PaymentNotification, pk string) error {
+	return s.handlePaymentNotification(ctx, n, pk, false)
+}
+
+func (s *PaymentService) handlePaymentNotification(ctx context.Context, n *payment.PaymentNotification, pk string, fromQuery bool) error {
 	if n.Status != payment.NotificationStatusSuccess {
 		return nil
 	}
@@ -46,14 +52,14 @@ func (s *PaymentService) HandlePaymentNotification(ctx context.Context, n *payme
 		// Fallback only for true legacy "sub2_N" DB-ID payloads when the
 		// current out_trade_no lookup genuinely did not find an order.
 		if oid, ok := parseLegacyPaymentOrderID(n.OrderID, err); ok {
-			return s.confirmPayment(ctx, oid, n.TradeNo, n.Amount, pk, n.Metadata)
+			return s.confirmPaymentWithVerification(ctx, oid, n.TradeNo, n.Amount, pk, n.Metadata, fromQuery)
 		}
 		if dbent.IsNotFound(err) {
 			return fmt.Errorf("%w: out_trade_no=%s", ErrOrderNotFound, n.OrderID)
 		}
 		return fmt.Errorf("lookup order failed for out_trade_no %s: %w", n.OrderID, err)
 	}
-	return s.confirmPayment(ctx, order.ID, n.TradeNo, n.Amount, pk, n.Metadata)
+	return s.confirmPaymentWithVerification(ctx, order.ID, n.TradeNo, n.Amount, pk, n.Metadata, fromQuery)
 }
 
 func parseLegacyPaymentOrderID(orderID string, lookupErr error) (int64, bool) {
@@ -76,6 +82,10 @@ func parseLegacyPaymentOrderID(orderID string, lookupErr error) (int64, bool) {
 }
 
 func (s *PaymentService) confirmPayment(ctx context.Context, oid int64, tradeNo string, paid float64, pk string, metadata map[string]string) error {
+	return s.confirmPaymentWithVerification(ctx, oid, tradeNo, paid, pk, metadata, false)
+}
+
+func (s *PaymentService) confirmPaymentWithVerification(ctx context.Context, oid int64, tradeNo string, paid float64, pk string, metadata map[string]string, fromQuery bool) error {
 	o, err := s.entClient.PaymentOrder.Get(ctx, oid)
 	if err != nil {
 		slog.Error("order not found", "orderID", oid)
@@ -92,12 +102,14 @@ func (s *PaymentService) confirmPayment(ctx context.Context, oid int64, tradeNo 
 			"actualProvider":   pk,
 			"tradeNo":          tradeNo,
 		})
+		s.notifyPaymentReview(ctx, o, "PAYMENT_PROVIDER_MISMATCH", "回调支付渠道与订单绑定渠道不一致")
 		return fmt.Errorf("provider mismatch: expected %s, got %s", expectedProviderKey, pk)
 	}
 	if strings.EqualFold(expectedProviderKey, payment.TypeEasyPay) && strings.TrimSpace(tradeNo) == "" {
 		s.writeAuditLog(ctx, o.ID, "PAYMENT_MISSING_TRADE_NO", pk, map[string]any{
 			"expectedProvider": expectedProviderKey,
 		})
+		s.notifyPaymentReview(ctx, o, "PAYMENT_MISSING_TRADE_NO", "支付回调缺少真实交易号")
 		return fmt.Errorf("easypay payment trade no is empty")
 	}
 	if err := validateProviderNotificationMetadata(o, pk, metadata); err != nil {
@@ -105,6 +117,7 @@ func (s *PaymentService) confirmPayment(ctx context.Context, oid int64, tradeNo 
 			"detail":  err.Error(),
 			"tradeNo": tradeNo,
 		})
+		s.notifyPaymentReview(ctx, o, "PAYMENT_PROVIDER_METADATA_MISMATCH", "支付商户或币种信息与订单不一致")
 		return err
 	}
 	if !isValidProviderAmount(paid) {
@@ -113,14 +126,21 @@ func (s *PaymentService) confirmPayment(ctx context.Context, oid int64, tradeNo 
 			"paid":     paid,
 			"tradeNo":  tradeNo,
 		})
+		s.notifyPaymentReview(ctx, o, "PAYMENT_INVALID_AMOUNT", "支付回调金额无效")
 		return fmt.Errorf("invalid paid amount from provider: %v", paid)
 	}
 	if math.Abs(paid-o.PayAmount) > paymentAmountToleranceForCurrency(PaymentOrderCurrency(o)) {
 		s.writeAuditLog(ctx, o.ID, "PAYMENT_AMOUNT_MISMATCH", pk, map[string]any{"expected": o.PayAmount, "paid": paid, "tradeNo": tradeNo})
+		s.notifyPaymentReview(ctx, o, "PAYMENT_AMOUNT_MISMATCH", "支付回调金额与订单应付金额不一致")
 		return fmt.Errorf("amount mismatch: expected %s, got %s", strconv.FormatFloat(o.PayAmount, 'f', -1, 64), strconv.FormatFloat(paid, 'f', -1, 64))
 	}
 	if strings.EqualFold(strings.TrimSpace(pk), payment.TypeUSDTBSC) {
 		if err := s.ensureCryptoTradeNotReused(ctx, o.ID, tradeNo, pk); err != nil {
+			return err
+		}
+	}
+	if !fromQuery {
+		if err := s.verifyNewEasyPayNotification(ctx, o, expectedProviderKey, tradeNo, paid); err != nil {
 			return err
 		}
 	}
@@ -144,6 +164,9 @@ func (s *PaymentService) ensureCryptoTradeNotReused(ctx context.Context, orderID
 	}
 	if count > 0 {
 		s.writeAuditLog(ctx, orderID, "CRYPTO_TRADE_REUSED", pk, map[string]any{"tradeNo": tradeNo})
+		if order, getErr := s.entClient.PaymentOrder.Get(ctx, orderID); getErr == nil {
+			s.notifyPaymentReview(ctx, order, "CRYPTO_TRADE_REUSED", "该链上交易已被其他订单使用")
+		}
 		return fmt.Errorf("crypto trade already used: %s", tradeNo)
 	}
 	return nil
@@ -286,7 +309,11 @@ func (s *PaymentService) ExecuteBalanceFulfillment(ctx context.Context, oid int6
 		return nil
 	}
 	if err := s.doBalance(ctx, o, lease); err != nil {
-		s.markFailed(ctx, oid, lease, err)
+		if errors.Is(err, errPaymentCompletionPending) {
+			s.releasePaymentCompletionForRetry(ctx, oid, lease)
+		} else {
+			s.markFailed(ctx, oid, lease, err)
+		}
 		return err
 	}
 	return nil
@@ -443,7 +470,32 @@ func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrde
 		return errors.New("missing payment fulfillment lease")
 	}
 	now := time.Now()
-	updated, err := s.entClient.PaymentOrder.Update().Where(
+	client := s.entClient
+	var tx *dbent.Tx
+	telegramChatID := ""
+	queueTelegram := false
+	if s.telegramService != nil && auditAction == "RECHARGE_SUCCESS" {
+		cfg, err := s.telegramService.loadSettings(ctx)
+		if err != nil {
+			slog.Warn("telegram settings unavailable at payment completion", "order_id", o.ID)
+			queueTelegram = true
+		} else if cfg.Enabled {
+			queueTelegram = true
+			if validateTelegramGroupID(cfg.ChatID) == nil {
+				telegramChatID = cfg.ChatID
+			}
+		}
+	}
+	if queueTelegram {
+		var err error
+		tx, err = s.entClient.Tx(ctx)
+		if err != nil {
+			return fmt.Errorf("begin payment completion: %w", err)
+		}
+		defer tx.Rollback()
+		client = tx.Client()
+	}
+	updated, err := client.PaymentOrder.Update().Where(
 		paymentorder.IDEQ(o.ID),
 		paymentorder.StatusEQ(OrderStatusRecharging),
 		paymentorder.UpdatedAtEQ(lease.version),
@@ -452,11 +504,22 @@ func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrde
 		return fmt.Errorf("mark completed: %w", err)
 	}
 	if updated == 0 {
-		current, getErr := s.entClient.PaymentOrder.Get(ctx, o.ID)
+		current, getErr := client.PaymentOrder.Get(ctx, o.ID)
 		if getErr == nil && current.Status == OrderStatusCompleted {
 			o = current
 		} else {
 			return infraerrors.Conflict("CONFLICT", "fulfillment lease was lost before completion")
+		}
+	}
+	if tx != nil {
+		if updated > 0 {
+			event := telegramPaymentEventForOrder(o, TelegramOutcomeRechargeSuccess, now, "支付校验通过，余额已入账")
+			if err := s.telegramService.enqueueForTargetTx(ctx, tx, event, telegramChatID); err != nil {
+				return fmt.Errorf("%w: persist payment notification: %v", errPaymentCompletionPending, err)
+			}
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("%w: commit payment completion: %v", errPaymentCompletionPending, err)
 		}
 	}
 	if s.pointsShopService != nil {
@@ -474,6 +537,21 @@ func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrde
 		s.dispatchPaymentFulfillmentNotification(o, auditAction)
 	}
 	return nil
+}
+
+func (s *PaymentService) releasePaymentCompletionForRetry(ctx context.Context, oid int64, lease *paymentFulfillmentLease) {
+	updated, err := s.entClient.PaymentOrder.Update().Where(
+		paymentorder.IDEQ(oid),
+		paymentorder.StatusEQ(OrderStatusRecharging),
+		paymentorder.UpdatedAtEQ(lease.version),
+	).SetStatus(OrderStatusPaid).Save(ctx)
+	if err != nil {
+		slog.Warn("payment completion remains pending", "order_id", oid)
+		return
+	}
+	if updated > 0 {
+		s.writeAuditLog(ctx, oid, "PAYMENT_COMPLETION_PENDING", "system", map[string]any{"reason": "notification persistence will retry; credited balance is unchanged"})
+	}
 }
 
 func (s *PaymentService) recordAcquisitionPaymentCompletion(ctx context.Context, o *dbent.PaymentOrder, completedAt time.Time) {

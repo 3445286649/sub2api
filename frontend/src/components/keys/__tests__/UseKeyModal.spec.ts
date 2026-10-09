@@ -415,7 +415,7 @@ describe('UseKeyModal', () => {
     expect(configToml).not.toContain('image_generation')
     expect(configToml).not.toContain('supports_websockets')
     expect(configToml).not.toContain('responses_websockets_v2')
-    expect(configToml).toContain('[features]\ngoals = true')
+    expect(configToml).toContain('[features]\napi_key_model_discovery = true\ngoals = true')
     expect(configToml).not.toContain('model_reasoning_effort = "xhigh"')
     expect(codeBlocks).toContain('{\n  "OPENAI_API_KEY": "sk-test"\n}')
     expect(wrapper.text()).toContain('auth.json')
@@ -557,7 +557,7 @@ describe('UseKeyModal', () => {
     expect(configToml).not.toContain('env_key')
     expect(configToml).not.toContain('image_generation')
     expect(configToml).toContain('supports_websockets = true')
-    expect(configToml).toContain('[features]\nresponses_websockets_v2 = true\ngoals = true')
+    expect(configToml).toContain('[features]\napi_key_model_discovery = true\nresponses_websockets_v2 = true\ngoals = true')
     expect(codeBlocks).toContain('{\n  "OPENAI_API_KEY": "sk-test"\n}')
     expect(wrapper.text()).toContain('auth.json')
   })
@@ -605,7 +605,7 @@ describe('UseKeyModal', () => {
     expect(configToml).not.toContain('env_key')
     expect(configToml).not.toContain('image_generation')
     expect(configToml).toContain('supports_websockets = true')
-    expect(configToml).toContain('[features]\nresponses_websockets_v2 = true\ngoals = true')
+    expect(configToml).toContain('[features]\napi_key_model_discovery = true\nresponses_websockets_v2 = true\ngoals = true')
     expect(codeBlocks).not.toContain('{\n  "OPENAI_API_KEY": "sk-test"\n}')
     expect(wrapper.text()).not.toContain('auth.json')
   })
@@ -1042,6 +1042,83 @@ describe('UseKeyModal', () => {
       }
     }
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { label: 'OpenAI HTTP', platform: 'openai', client: 'codexCli', websockets: false },
+    { label: 'OpenAI WebSocket', platform: 'openai', client: 'codexCliWs', websockets: true },
+    { label: 'Grok', platform: 'grok', client: 'codexCli', websockets: false },
+    { label: 'Composite routed', platform: 'composite', client: 'codexCli', websockets: false }
+  ])('enables model discovery only for the remote $label catalog', async ({ platform, client, websockets }) => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'sk-catalog-test',
+        baseUrl: 'https://example.com/v1',
+        platform
+      },
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Icon: { template: '<span />' }
+        }
+      }
+    })
+
+    await wrapper.findAll('button').find((button) =>
+      button.text().trim() === 'keys.useKeyModal.cliTabs.' + client
+    )!.trigger('click')
+    if (platform === 'openai') {
+      await wrapper.get('[data-testid="codex-auth-mode-api-key"]').trigger('click')
+    }
+
+    for (const os of ['macOS / Linux', 'Windows']) {
+      await wrapper.findAll('button').find((button) => button.text().trim() === os)!.trigger('click')
+      for (const mode of ['remote', 'file', 'remote']) {
+        await wrapper.get('[data-testid="codex-model-catalog-mode"]').setValue(mode)
+        const config = wrapper.findAll('pre code')
+          .map((code) => code.text())
+          .find((content) => content.includes('[model_providers.'))!
+        expect(config).toBeDefined()
+
+        const featureSections = config.match(/^\[features\]$/gm) || []
+        if (mode === 'remote') {
+          expect(config).toContain('model_catalog_url = "https://example.com/v1/models"')
+          expect(config).not.toContain('model_catalog_json')
+          expect(config).toContain('[features]\napi_key_model_discovery = true')
+          expect(config.match(/^api_key_model_discovery = true$/gm)).toHaveLength(1)
+          expect(featureSections).toHaveLength(1)
+        } else {
+          expect(config).toContain('model_catalog_json = "~/.codex/codex-models.json"')
+          expect(config).not.toContain('model_catalog_url')
+          expect(config).not.toContain('api_key_model_discovery')
+          expect(featureSections).toHaveLength(platform === 'openai' ? 1 : 0)
+        }
+
+        expect(config).toContain('requires_openai_auth = false')
+        if (platform === 'openai') {
+          expect(config).toContain('goals = true')
+          expect(config).toContain('experimental_bearer_token = "sk-catalog-test"')
+          expect(config).toContain('http_headers = { "x-openai-actor-authorization" = "local-image-extension" }')
+        } else {
+          expect(config).toContain('env_key = "SUB2API_API_KEY"')
+          expect(config).toContain('supports_websockets = false')
+        }
+        if (websockets) {
+          expect(config).toContain('supports_websockets = true')
+          expect(config).toContain('responses_websockets_v2 = true')
+        } else {
+          expect(config).not.toContain('responses_websockets_v2')
+        }
+        if (platform === 'grok') {
+          expect(config).toContain('# goals = true')
+        }
+      }
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+    wrapper.unmount()
   })
 
   it.each([1024 * 1024 - 1, 1024 * 1024, 1024 * 1024 + 1])(
