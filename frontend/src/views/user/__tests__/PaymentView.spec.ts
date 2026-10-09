@@ -63,6 +63,7 @@ vi.mock('vue-i18n', async () => {
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
     user: {
+      id: 99,
       username: 'demo-user',
       balance: 0,
     },
@@ -337,6 +338,29 @@ describe('PaymentView help text', () => {
     return wrapper
   }
 
+  it('keeps gateway requests stable across a failed create and gates the network from server options', async () => {
+    const method = checkoutInfoFixture().data.methods.wxpay
+    getCheckoutInfo.mockResolvedValue(checkoutInfoFixture({ methods: { usdt_gateway: { ...method, networks: ['tron_mainnet'] } } }))
+    createOrder.mockRejectedValue(new Error('response lost'))
+    const wrapper = shallowMount(PaymentView, { global: { stubs: { AppLayout: { template: '<div><slot /></div>' }, Teleport: true, Transition: false } } })
+    await flushPromises()
+    const amountInput = wrapper.findComponent(AmountInput)
+    amountInput.vm.$emit('update:modelValue', 12)
+    await flushPromises()
+    const pay = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))!
+    expect(pay.attributes('disabled')).toBeUndefined()
+    await pay.trigger('click')
+    await flushPromises()
+    await pay.trigger('click')
+    await flushPromises()
+    expect(createOrder).toHaveBeenCalledTimes(2)
+    const first = createOrder.mock.calls[0][0]
+    expect(first).toMatchObject({ payment_type: 'usdt_gateway', crypto_network: 'tron_mainnet', amount: 12 })
+    expect(first.client_request_id).toMatch(/^[0-9a-f-]{36}$/)
+    expect(createOrder.mock.calls[1][0].client_request_id).toBe(first.client_request_id)
+    wrapper.unmount()
+  })
+
   it('renders headings, emphasis, links, and lists in payment help without starting checkout', async () => {
     const wrapper = await mountHelp('## Recharge help\n\n**Read first**\n\n- [Contact support](https://example.com/help)')
     const help = wrapper.get('.markdown-body')
@@ -431,6 +455,21 @@ describe('PaymentView recharge rate preview', () => {
 })
 
 describe('PaymentView subscription confirmation amounts', () => {
+  it('quotes gateway USD plans in CNY while sending the original plan price', async () => {
+    const base = checkoutInfoFixture().data.methods.wxpay
+    const wrapper = await mountSubscriptionConfirm({ checkout: { methods: { usdt_gateway: { ...base, currency: 'CNY', networks: ['tron_mainnet'] } }, subscription_usd_to_cny_rate: 7.2 }, plan: { price: 12, currency: 'USD' } })
+    const selector = wrapper.findComponent({ name: 'PaymentMethodSelector' })
+    selector.vm.$emit('select', 'usdt_gateway')
+    await flushPromises()
+    const pay = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))!
+    expect(pay.text()).toContain(formatPaymentAmount(86.4, 'CNY'))
+    expect(wrapper.text()).not.toContain(formatPaymentAmount(12, 'CNY'))
+    createOrder.mockResolvedValue({ order_id: 8, amount: 12, pay_amount: 86.4, fee_rate: 0, expires_at: '2099-01-01T00:00:00Z', create_stage: 'unknown' })
+    await pay.trigger('click')
+    await flushPromises()
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({ amount: 12, plan_id: 7, payment_type: 'usdt_gateway', crypto_network: 'tron_mainnet' }))
+    wrapper.unmount()
+  })
   it('keeps subscription plan price independent from balance recharge multiplier', async () => {
     const wrapper = await mountSubscriptionConfirm({
       checkout: {

@@ -36,21 +36,23 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
-import { bscScanTxUrl, isCryptoTxHash, shortenTxHash } from './usdtBsc'
+import { shortenTxHash } from './usdtBsc'
+import { cryptoTransactionUrl } from './cryptoGateway'
 
 const props = defineProps<{
   txHash?: string
   amount?: string
   currency?: string
+  network?: string
 }>()
 
 const { t } = useI18n()
 const { copied, copyToClipboard } = useClipboard()
 
 const hash = computed(() => (props.txHash || '').trim())
-const hasHash = computed(() => isCryptoTxHash(hash.value))
+const hasHash = computed(() => !!explorerUrl.value)
 const shortHash = computed(() => shortenTxHash(hash.value))
-const explorerUrl = computed(() => bscScanTxUrl(hash.value))
+const explorerUrl = computed(() => cryptoTransactionUrl(hash.value, props.network || 'bsc_mainnet'))
 const amountText = computed(() => {
   const amount = (props.amount || '').trim()
   return amount ? `${amount} ${(props.currency || 'USDT').trim()}` : ''

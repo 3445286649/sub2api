@@ -17,9 +17,10 @@ const VISIBLE_METHOD_ALIASES = {
   stripe: 'stripe',
   airwallex: 'airwallex',
   usdt_bsc: 'usdt_bsc',
+  usdt_gateway: 'usdt_gateway',
 } as const
 
-export type VisiblePaymentMethod = 'alipay' | 'wxpay' | 'stripe' | 'airwallex' | 'usdt_bsc'
+export type VisiblePaymentMethod = 'alipay' | 'wxpay' | 'stripe' | 'airwallex' | 'usdt_bsc' | 'usdt_gateway'
 export type StripeVisibleMethod = 'alipay' | 'wechat_pay'
 export type PaymentLaunchKind =
   | 'qr_waiting'
@@ -57,6 +58,11 @@ export interface PaymentRecoverySnapshot {
   resumeToken: string
   alipayMobilePrecreateDeepLink?: boolean
   createdAt: number
+  createStage?: string
+  gatewayStatus?: string
+  confirmations?: number
+  requiredConfirmations?: number
+  ownerUserId?: number
 }
 
 export interface PaymentLaunchContext {
@@ -95,6 +101,8 @@ export interface BuildCreateOrderPayloadInput {
   forceQRCode?: boolean
   /** When true, keep the real mobile signal so the backend can select precreate */
   mobilePrecreateDeepLink?: boolean
+  cryptoNetwork?: CreateOrderRequest['crypto_network']
+  clientRequestId?: string
 }
 
 type CreateOrderFlowResult = CreateOrderResult & {
@@ -149,6 +157,10 @@ export function buildCreateOrderPayload(input: BuildCreateOrderPayloadInput): Cr
   if (normalizedOrigin) {
     payload.return_url = `${normalizedOrigin}/payment/result`
   }
+  if (visibleMethod === 'usdt_gateway') {
+    payload.crypto_network = input.cryptoNetwork
+    payload.client_request_id = input.clientRequestId
+  }
 
   return payload
 }
@@ -177,6 +189,10 @@ export function decidePaymentLaunch(
     cryptoRate: result.crypto_rate || '',
     cryptoRateSource: result.crypto_rate_source || '',
     receiveAddress: result.receive_address || '',
+    ...(visibleMethod === 'usdt_gateway' ? {
+      createStage: result.create_stage || '', gatewayStatus: result.gateway_status || '',
+      confirmations: result.confirmations, requiredConfirmations: result.required_confirmations,
+    } : {}),
     payAmount: result.pay_amount,
     orderType: context.orderType,
     paymentMode: (result.payment_mode || '').trim(),
@@ -228,6 +244,9 @@ export function decidePaymentLaunch(
   }
 
   const normalizedPaymentMode = baseState.paymentMode.trim().toLowerCase()
+  if (visibleMethod === 'usdt_gateway') {
+    return { kind: 'qr_waiting', paymentState: baseState, recovery: baseState }
+  }
   // When forceQRCode is on for alipay, treat the device as desktop so the mobile-redirect
   // branch is bypassed and we fall through to qr_waiting.
   const effectiveMobile = (context.forceQRCode && !context.mobilePrecreateDeepLink && visibleMethod === 'alipay')
@@ -316,13 +335,14 @@ export function readPaymentRecoverySnapshot(
       || typeof parsed.resumeToken !== 'string'
       || (parsed.alipayMobilePrecreateDeepLink != null && typeof parsed.alipayMobilePrecreateDeepLink !== 'boolean')
       || typeof parsed.createdAt !== 'number'
+      || (parsed.ownerUserId != null && typeof parsed.ownerUserId !== 'number')
     ) {
       return null
     }
 
     const now = options.now ?? Date.now()
     const expiresAt = Date.parse(parsed.expiresAt)
-    if (Number.isFinite(expiresAt) && expiresAt <= now) {
+    if (Number.isFinite(expiresAt) && expiresAt <= now && parsed.paymentType !== 'usdt_gateway') {
       return null
     }
     if (options.resumeToken && parsed.resumeToken !== options.resumeToken) {
@@ -354,6 +374,13 @@ export function readPaymentRecoverySnapshot(
       resumeToken: parsed.resumeToken,
       alipayMobilePrecreateDeepLink: parsed.alipayMobilePrecreateDeepLink === true,
       createdAt: parsed.createdAt,
+      ...(parsed.paymentType === 'usdt_gateway' ? {
+        createStage: typeof parsed.createStage === 'string' ? parsed.createStage : '',
+        gatewayStatus: typeof parsed.gatewayStatus === 'string' ? parsed.gatewayStatus : '',
+        confirmations: typeof parsed.confirmations === 'number' ? parsed.confirmations : undefined,
+        requiredConfirmations: typeof parsed.requiredConfirmations === 'number' ? parsed.requiredConfirmations : undefined,
+        ownerUserId: parsed.ownerUserId,
+      } : {}),
     }
   } catch {
     return null

@@ -28,6 +28,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if normalized := NormalizeVisibleMethod(req.PaymentType); normalized != "" {
 		req.PaymentType = normalized
 	}
+	if err := validateBepusdtCreateInput(req); err != nil {
+		return nil, err
+	}
 	cfg, err := s.configService.GetPaymentConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get payment config: %w", err)
@@ -53,6 +56,13 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if user.Status != payment.EntityStatusActive {
 		return nil, infraerrors.Forbidden("USER_INACTIVE", "user account is disabled")
 	}
+	if req.PaymentType == payment.TypeUSDTGateway {
+		if existing, err := s.findBepusdtRequest(ctx, req); err != nil {
+			return nil, err
+		} else if existing != nil {
+			return s.resumeBepusdtCreation(ctx, existing)
+		}
+	}
 	if s.notificationEmailService != nil {
 		s.notificationEmailService.RememberRecipientLocale(ctx, req.UserID, user.Email, req.Locale)
 	}
@@ -70,6 +80,12 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if plan != nil {
 		orderAmount = plan.Price
 		limitAmount = plan.Price
+		if req.PaymentType == payment.TypeUSDTGateway {
+			limitAmount, err = bepusdtSubscriptionCNYPrice(plan.Price, plan.Currency, cfg.SubscriptionUSDToCNYRate)
+			if err != nil {
+				return nil, err
+			}
+		}
 	} else if req.OrderType == payment.OrderTypeBalance {
 		// 阈值按支付金额命中。赠金模式：到账 = 基数 + 赠送；折扣模式：到账 = 基数，实付基数按折扣减少。
 		quote := quoteRechargeBonus(cfg, req.Amount, methodCurrency)
@@ -110,7 +126,15 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	}
 	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, bonusAmount, sel)
 	if err != nil {
+		if req.PaymentType == payment.TypeUSDTGateway && dbent.IsConstraintError(err) {
+			if existing, lookupErr := s.findBepusdtRequest(ctx, req); lookupErr == nil && existing != nil {
+				return s.resumeBepusdtCreation(ctx, existing)
+			}
+		}
 		return nil, err
+	}
+	if req.PaymentType == payment.TypeUSDTGateway {
+		return s.resumeBepusdtCreation(ctx, order)
 	}
 	resp, err := s.invokeProvider(ctx, order, req, cfg, limitAmount, payAmountStr, payAmount, plan, sel)
 	if err != nil {
@@ -177,6 +201,29 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+	if sel != nil && isCryptoProviderKey(sel.ProviderKey) {
+		id, e := strconv.ParseInt(sel.InstanceID, 10, 64)
+		if e != nil {
+			return nil, e
+		}
+		if e = lockCryptoProviderInstance(ctx, tx.Client(), id); e != nil {
+			return nil, e
+		}
+		current, e := tx.PaymentProviderInstance.Get(ctx, id)
+		if e != nil {
+			return nil, e
+		}
+		if !current.Enabled {
+			return nil, infraerrors.Conflict("PAYMENT_INSTANCE_DISABLED", "payment provider no longer accepts new orders")
+		}
+		fresh, e := s.configService.decryptConfig(current.Config)
+		if e != nil {
+			return nil, e
+		}
+		if !sameCryptoInstanceSelection(current, fresh, sel, req) {
+			return nil, infraerrors.Conflict("PAYMENT_INSTANCE_CHANGED", "payment provider configuration changed; retry the request")
+		}
+	}
 	if err := s.checkPendingLimit(ctx, tx, req.UserID, cfg.MaxPendingOrders); err != nil {
 		return nil, err
 	}
@@ -193,6 +240,16 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		return nil, err
 	}
 	providerSnapshot := buildPaymentOrderProviderSnapshot(sel, req)
+	if req.PaymentType == payment.TypeUSDTGateway {
+		providerSnapshot = buildBepusdtInitialSnapshot(sel, req, outTradeNo, payAmount, exp)
+		if plan != nil {
+			planCurrency := strings.ToUpper(strings.TrimSpace(plan.Currency))
+			if planCurrency == "" {
+				planCurrency = "USD"
+			}
+			providerSnapshot[payment.ProviderBepusdt].(map[string]any)["plan_currency"] = planCurrency
+		}
+	}
 	selectedInstanceID := ""
 	selectedProviderKey := ""
 	if sel != nil {
@@ -222,6 +279,9 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	}
 	if selectedInstanceID != "" {
 		b.SetProviderInstanceID(selectedInstanceID)
+	}
+	if req.ClientRequestID != "" {
+		b.SetClientRequestID(req.ClientRequestID)
 	}
 	if selectedProviderKey != "" {
 		b.SetProviderKey(selectedProviderKey)
@@ -395,6 +455,9 @@ func (s *PaymentService) selectCreateOrderInstance(ctx context.Context, req Crea
 }
 
 func (s *PaymentService) prepareCreateOrderSelectionContext(ctx context.Context, req CreateOrderRequest) (context.Context, error) {
+	if req.PaymentType == payment.TypeUSDTGateway {
+		return payment.WithCryptoNetwork(ctx, req.CryptoNetwork), nil
+	}
 	if !requestNeedsWeChatJSAPICompatibility(req) {
 		return ctx, nil
 	}
@@ -475,6 +538,15 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 		IsMobile:    req.IsMobile,
 		ReturnURL:   providerReturnURL,
 	}, sel, outTradeNo, payAmountStr, subject)
+	if sel.ProviderKey == payment.ProviderBepusdt {
+		intent, err := bepusdtCreateRequest(order)
+		if err != nil {
+			return nil, err
+		}
+		providerReq.Amount = intent.FiatAmount
+		providerReq.CryptoNetwork = intent.Network
+		providerReq.ExpiresAt = intent.ExpiresAt
+	}
 	providerReq.AlipayMobilePrecreate = shouldUseAlipayMobilePrecreate(req, cfg, sel)
 	finishProviderCall := servertiming.ObserveDependency(ctx, "payment")
 	pr, err := prov.CreatePayment(ctx, providerReq)
@@ -862,6 +934,12 @@ func (s *PaymentService) GetOrder(ctx context.Context, orderID, userID int64) (*
 	}
 	if o.UserID != userID {
 		return nil, infraerrors.Forbidden("FORBIDDEN", "no permission for this order")
+	}
+	if psStringValue(o.ProviderKey) == payment.ProviderBepusdt && o.PaidAt == nil {
+		_ = s.reconcileBepusdtOrder(ctx, o)
+		if fresh, err := s.entClient.PaymentOrder.Get(ctx, o.ID); err == nil {
+			o = fresh
+		}
 	}
 	return o, nil
 }

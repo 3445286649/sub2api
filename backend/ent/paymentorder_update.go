@@ -203,6 +203,26 @@ func (_u *PaymentOrderUpdate) SetNillableOutTradeNo(v *string) *PaymentOrderUpda
 	return _u
 }
 
+// SetClientRequestID sets the "client_request_id" field.
+func (_u *PaymentOrderUpdate) SetClientRequestID(v string) *PaymentOrderUpdate {
+	_u.mutation.SetClientRequestID(v)
+	return _u
+}
+
+// SetNillableClientRequestID sets the "client_request_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableClientRequestID(v *string) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetClientRequestID(*v)
+	}
+	return _u
+}
+
+// ClearClientRequestID clears the value of the "client_request_id" field.
+func (_u *PaymentOrderUpdate) ClearClientRequestID() *PaymentOrderUpdate {
+	_u.mutation.ClearClientRequestID()
+	return _u
+}
+
 // SetPaymentType sets the "payment_type" field.
 func (_u *PaymentOrderUpdate) SetPaymentType(v string) *PaymentOrderUpdate {
 	_u.mutation.SetPaymentType(v)
@@ -858,6 +878,11 @@ func (_u *PaymentOrderUpdate) check() error {
 			return &ValidationError{Name: "out_trade_no", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.out_trade_no": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ClientRequestID(); ok {
+		if err := paymentorder.ClientRequestIDValidator(v); err != nil {
+			return &ValidationError{Name: "client_request_id", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.client_request_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.PaymentType(); ok {
 		if err := paymentorder.PaymentTypeValidator(v); err != nil {
 			return &ValidationError{Name: "payment_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.payment_type": %w`, err)}
@@ -972,6 +997,12 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.OutTradeNo(); ok {
 		_spec.SetField(paymentorder.FieldOutTradeNo, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ClientRequestID(); ok {
+		_spec.SetField(paymentorder.FieldClientRequestID, field.TypeString, value)
+	}
+	if _u.mutation.ClientRequestIDCleared() {
+		_spec.ClearField(paymentorder.FieldClientRequestID, field.TypeString)
 	}
 	if value, ok := _u.mutation.PaymentType(); ok {
 		_spec.SetField(paymentorder.FieldPaymentType, field.TypeString, value)
@@ -1361,6 +1392,26 @@ func (_u *PaymentOrderUpdateOne) SetNillableOutTradeNo(v *string) *PaymentOrderU
 	if v != nil {
 		_u.SetOutTradeNo(*v)
 	}
+	return _u
+}
+
+// SetClientRequestID sets the "client_request_id" field.
+func (_u *PaymentOrderUpdateOne) SetClientRequestID(v string) *PaymentOrderUpdateOne {
+	_u.mutation.SetClientRequestID(v)
+	return _u
+}
+
+// SetNillableClientRequestID sets the "client_request_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableClientRequestID(v *string) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetClientRequestID(*v)
+	}
+	return _u
+}
+
+// ClearClientRequestID clears the value of the "client_request_id" field.
+func (_u *PaymentOrderUpdateOne) ClearClientRequestID() *PaymentOrderUpdateOne {
+	_u.mutation.ClearClientRequestID()
 	return _u
 }
 
@@ -2032,6 +2083,11 @@ func (_u *PaymentOrderUpdateOne) check() error {
 			return &ValidationError{Name: "out_trade_no", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.out_trade_no": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ClientRequestID(); ok {
+		if err := paymentorder.ClientRequestIDValidator(v); err != nil {
+			return &ValidationError{Name: "client_request_id", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.client_request_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.PaymentType(); ok {
 		if err := paymentorder.PaymentTypeValidator(v); err != nil {
 			return &ValidationError{Name: "payment_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.payment_type": %w`, err)}
@@ -2163,6 +2219,12 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	}
 	if value, ok := _u.mutation.OutTradeNo(); ok {
 		_spec.SetField(paymentorder.FieldOutTradeNo, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ClientRequestID(); ok {
+		_spec.SetField(paymentorder.FieldClientRequestID, field.TypeString, value)
+	}
+	if _u.mutation.ClientRequestIDCleared() {
+		_spec.ClearField(paymentorder.FieldClientRequestID, field.TypeString)
 	}
 	if value, ok := _u.mutation.PaymentType(); ok {
 		_spec.SetField(paymentorder.FieldPaymentType, field.TypeString, value)

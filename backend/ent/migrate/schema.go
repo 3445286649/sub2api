@@ -886,6 +886,36 @@ var (
 			},
 		},
 	}
+	// CryptoPaymentReceiptsColumns holds the columns for the "crypto_payment_receipts" table.
+	CryptoPaymentReceiptsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "chain_id", Type: field.TypeString, Size: 32},
+		{Name: "tx_hash", Type: field.TypeString, Size: 66},
+		{Name: "order_id", Type: field.TypeInt64},
+		{Name: "token_contract", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "event_index", Type: field.TypeInt64, Nullable: true},
+		{Name: "amount_atomic", Type: field.TypeString, Size: 78, Default: ""},
+		{Name: "source", Type: field.TypeString, Size: 32},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// CryptoPaymentReceiptsTable holds the schema information for the "crypto_payment_receipts" table.
+	CryptoPaymentReceiptsTable = &schema.Table{
+		Name:       "crypto_payment_receipts",
+		Columns:    CryptoPaymentReceiptsColumns,
+		PrimaryKey: []*schema.Column{CryptoPaymentReceiptsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "cryptopaymentreceipt_chain_id_tx_hash",
+				Unique:  true,
+				Columns: []*schema.Column{CryptoPaymentReceiptsColumns[1], CryptoPaymentReceiptsColumns[2]},
+			},
+			{
+				Name:    "cryptopaymentreceipt_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{CryptoPaymentReceiptsColumns[3]},
+			},
+		},
+	}
 	// ErrorPassthroughRulesColumns holds the columns for the "error_passthrough_rules" table.
 	ErrorPassthroughRulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1154,6 +1184,7 @@ var (
 		{Name: "bonus_amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
 		{Name: "recharge_code", Type: field.TypeString, Size: 64},
 		{Name: "out_trade_no", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "client_request_id", Type: field.TypeString, Nullable: true, Size: 36},
 		{Name: "payment_type", Type: field.TypeString, Size: 30},
 		{Name: "payment_trade_no", Type: field.TypeString, Size: 128},
 		{Name: "pay_url", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
@@ -1197,12 +1228,17 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "payment_orders_users_payment_orders",
-				Columns:    []*schema.Column{PaymentOrdersColumns[43]},
+				Columns:    []*schema.Column{PaymentOrdersColumns[44]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 		},
 		Indexes: []*schema.Index{
+			{
+				Name:    "paymentorder_user_id_client_request_id",
+				Unique:  true,
+				Columns: []*schema.Column{PaymentOrdersColumns[44], PaymentOrdersColumns[10]},
+			},
 			{
 				Name:    "paymentorder_out_trade_no",
 				Unique:  true,
@@ -1214,7 +1250,7 @@ var (
 			{
 				Name:    "paymentorder_payment_trade_no",
 				Unique:  true,
-				Columns: []*schema.Column{PaymentOrdersColumns[11]},
+				Columns: []*schema.Column{PaymentOrdersColumns[12]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "payment_type = 'usdt_bsc' AND payment_trade_no <> ''",
 				},
@@ -1222,37 +1258,37 @@ var (
 			{
 				Name:    "paymentorder_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[43]},
+				Columns: []*schema.Column{PaymentOrdersColumns[44]},
 			},
 			{
 				Name:    "paymentorder_status",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[25]},
+				Columns: []*schema.Column{PaymentOrdersColumns[26]},
 			},
 			{
 				Name:    "paymentorder_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[33]},
+				Columns: []*schema.Column{PaymentOrdersColumns[34]},
 			},
 			{
 				Name:    "paymentorder_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[41]},
+				Columns: []*schema.Column{PaymentOrdersColumns[42]},
 			},
 			{
 				Name:    "paymentorder_paid_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[34]},
+				Columns: []*schema.Column{PaymentOrdersColumns[35]},
 			},
 			{
 				Name:    "paymentorder_payment_type_paid_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[10], PaymentOrdersColumns[34]},
+				Columns: []*schema.Column{PaymentOrdersColumns[11], PaymentOrdersColumns[35]},
 			},
 			{
 				Name:    "paymentorder_order_type",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[15]},
+				Columns: []*schema.Column{PaymentOrdersColumns[16]},
 			},
 		},
 	}
@@ -2345,6 +2381,7 @@ var (
 		ChannelMonitorHistoriesTable,
 		ChannelMonitorRequestTemplatesTable,
 		CompositeModelRoutesTable,
+		CryptoPaymentReceiptsTable,
 		ErrorPassthroughRulesTable,
 		GroupsTable,
 		IdempotencyRecordsTable,
@@ -2435,6 +2472,9 @@ func init() {
 	CompositeModelRoutesTable.ForeignKeys[0].RefTable = GroupsTable
 	CompositeModelRoutesTable.Annotation = &entsql.Annotation{
 		Table: "composite_model_routes",
+	}
+	CryptoPaymentReceiptsTable.Annotation = &entsql.Annotation{
+		Table: "crypto_payment_receipts",
 	}
 	ErrorPassthroughRulesTable.Annotation = &entsql.Annotation{
 		Table: "error_passthrough_rules",

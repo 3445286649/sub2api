@@ -30,6 +30,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
 	"github.com/Wei-Shaw/sub2api/ent/compositemodelroute"
+	"github.com/Wei-Shaw/sub2api/ent/cryptopaymentreceipt"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -97,6 +98,8 @@ type Client struct {
 	ChannelMonitorRequestTemplate *ChannelMonitorRequestTemplateClient
 	// CompositeModelRoute is the client for interacting with the CompositeModelRoute builders.
 	CompositeModelRoute *CompositeModelRouteClient
+	// CryptoPaymentReceipt is the client for interacting with the CryptoPaymentReceipt builders.
+	CryptoPaymentReceipt *CryptoPaymentReceiptClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
 	// Group is the client for interacting with the Group builders.
@@ -179,6 +182,7 @@ func (c *Client) init() {
 	c.ChannelMonitorHistory = NewChannelMonitorHistoryClient(c.config)
 	c.ChannelMonitorRequestTemplate = NewChannelMonitorRequestTemplateClient(c.config)
 	c.CompositeModelRoute = NewCompositeModelRouteClient(c.config)
+	c.CryptoPaymentReceipt = NewCryptoPaymentReceiptClient(c.config)
 	c.ErrorPassthroughRule = NewErrorPassthroughRuleClient(c.config)
 	c.Group = NewGroupClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
@@ -314,6 +318,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
 		ChannelMonitorRequestTemplate: NewChannelMonitorRequestTemplateClient(cfg),
 		CompositeModelRoute:           NewCompositeModelRouteClient(cfg),
+		CryptoPaymentReceipt:          NewCryptoPaymentReceiptClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
@@ -376,6 +381,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
 		ChannelMonitorRequestTemplate: NewChannelMonitorRequestTemplateClient(cfg),
 		CompositeModelRoute:           NewCompositeModelRouteClient(cfg),
+		CryptoPaymentReceipt:          NewCryptoPaymentReceiptClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
@@ -437,11 +443,11 @@ func (c *Client) Use(hooks ...Hook) {
 		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCampaign, c.RedeemCampaignRedemption, c.RedeemCode,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SupportTicket,
+		c.CompositeModelRoute, c.CryptoPaymentReceipt, c.ErrorPassthroughRule, c.Group,
+		c.IdempotencyRecord, c.IdentityAdoptionDecision, c.PaymentAuditLog,
+		c.PaymentOrder, c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode,
+		c.PromoCodeUsage, c.Proxy, c.RedeemCampaign, c.RedeemCampaignRedemption,
+		c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SupportTicket,
 		c.SupportTicketMessage, c.TLSFingerprintProfile, c.UsageCleanupTask,
 		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
 		c.UserAttributeValue, c.UserPlatformQuota, c.UserSubscription,
@@ -458,11 +464,11 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCampaign, c.RedeemCampaignRedemption, c.RedeemCode,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SupportTicket,
+		c.CompositeModelRoute, c.CryptoPaymentReceipt, c.ErrorPassthroughRule, c.Group,
+		c.IdempotencyRecord, c.IdentityAdoptionDecision, c.PaymentAuditLog,
+		c.PaymentOrder, c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode,
+		c.PromoCodeUsage, c.Proxy, c.RedeemCampaign, c.RedeemCampaignRedemption,
+		c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.SupportTicket,
 		c.SupportTicketMessage, c.TLSFingerprintProfile, c.UsageCleanupTask,
 		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
 		c.UserAttributeValue, c.UserPlatformQuota, c.UserSubscription,
@@ -504,6 +510,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ChannelMonitorRequestTemplate.mutate(ctx, m)
 	case *CompositeModelRouteMutation:
 		return c.CompositeModelRoute.mutate(ctx, m)
+	case *CryptoPaymentReceiptMutation:
+		return c.CryptoPaymentReceipt.mutate(ctx, m)
 	case *ErrorPassthroughRuleMutation:
 		return c.ErrorPassthroughRule.mutate(ctx, m)
 	case *GroupMutation:
@@ -2914,6 +2922,139 @@ func (c *CompositeModelRouteClient) mutate(ctx context.Context, m *CompositeMode
 		return (&CompositeModelRouteDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CompositeModelRoute mutation op: %q", m.Op())
+	}
+}
+
+// CryptoPaymentReceiptClient is a client for the CryptoPaymentReceipt schema.
+type CryptoPaymentReceiptClient struct {
+	config
+}
+
+// NewCryptoPaymentReceiptClient returns a client for the CryptoPaymentReceipt from the given config.
+func NewCryptoPaymentReceiptClient(c config) *CryptoPaymentReceiptClient {
+	return &CryptoPaymentReceiptClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `cryptopaymentreceipt.Hooks(f(g(h())))`.
+func (c *CryptoPaymentReceiptClient) Use(hooks ...Hook) {
+	c.hooks.CryptoPaymentReceipt = append(c.hooks.CryptoPaymentReceipt, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `cryptopaymentreceipt.Intercept(f(g(h())))`.
+func (c *CryptoPaymentReceiptClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CryptoPaymentReceipt = append(c.inters.CryptoPaymentReceipt, interceptors...)
+}
+
+// Create returns a builder for creating a CryptoPaymentReceipt entity.
+func (c *CryptoPaymentReceiptClient) Create() *CryptoPaymentReceiptCreate {
+	mutation := newCryptoPaymentReceiptMutation(c.config, OpCreate)
+	return &CryptoPaymentReceiptCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CryptoPaymentReceipt entities.
+func (c *CryptoPaymentReceiptClient) CreateBulk(builders ...*CryptoPaymentReceiptCreate) *CryptoPaymentReceiptCreateBulk {
+	return &CryptoPaymentReceiptCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CryptoPaymentReceiptClient) MapCreateBulk(slice any, setFunc func(*CryptoPaymentReceiptCreate, int)) *CryptoPaymentReceiptCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CryptoPaymentReceiptCreateBulk{err: fmt.Errorf("calling to CryptoPaymentReceiptClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CryptoPaymentReceiptCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CryptoPaymentReceiptCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CryptoPaymentReceipt.
+func (c *CryptoPaymentReceiptClient) Update() *CryptoPaymentReceiptUpdate {
+	mutation := newCryptoPaymentReceiptMutation(c.config, OpUpdate)
+	return &CryptoPaymentReceiptUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CryptoPaymentReceiptClient) UpdateOne(_m *CryptoPaymentReceipt) *CryptoPaymentReceiptUpdateOne {
+	mutation := newCryptoPaymentReceiptMutation(c.config, OpUpdateOne, withCryptoPaymentReceipt(_m))
+	return &CryptoPaymentReceiptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CryptoPaymentReceiptClient) UpdateOneID(id int64) *CryptoPaymentReceiptUpdateOne {
+	mutation := newCryptoPaymentReceiptMutation(c.config, OpUpdateOne, withCryptoPaymentReceiptID(id))
+	return &CryptoPaymentReceiptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CryptoPaymentReceipt.
+func (c *CryptoPaymentReceiptClient) Delete() *CryptoPaymentReceiptDelete {
+	mutation := newCryptoPaymentReceiptMutation(c.config, OpDelete)
+	return &CryptoPaymentReceiptDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CryptoPaymentReceiptClient) DeleteOne(_m *CryptoPaymentReceipt) *CryptoPaymentReceiptDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CryptoPaymentReceiptClient) DeleteOneID(id int64) *CryptoPaymentReceiptDeleteOne {
+	builder := c.Delete().Where(cryptopaymentreceipt.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CryptoPaymentReceiptDeleteOne{builder}
+}
+
+// Query returns a query builder for CryptoPaymentReceipt.
+func (c *CryptoPaymentReceiptClient) Query() *CryptoPaymentReceiptQuery {
+	return &CryptoPaymentReceiptQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCryptoPaymentReceipt},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CryptoPaymentReceipt entity by its id.
+func (c *CryptoPaymentReceiptClient) Get(ctx context.Context, id int64) (*CryptoPaymentReceipt, error) {
+	return c.Query().Where(cryptopaymentreceipt.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CryptoPaymentReceiptClient) GetX(ctx context.Context, id int64) *CryptoPaymentReceipt {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CryptoPaymentReceiptClient) Hooks() []Hook {
+	return c.hooks.CryptoPaymentReceipt
+}
+
+// Interceptors returns the client interceptors.
+func (c *CryptoPaymentReceiptClient) Interceptors() []Interceptor {
+	return c.inters.CryptoPaymentReceipt
+}
+
+func (c *CryptoPaymentReceiptClient) mutate(ctx context.Context, m *CryptoPaymentReceiptMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CryptoPaymentReceiptCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CryptoPaymentReceiptUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CryptoPaymentReceiptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CryptoPaymentReceiptDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CryptoPaymentReceipt mutation op: %q", m.Op())
 	}
 }
 
@@ -7570,27 +7711,27 @@ type (
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
 		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
-		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCampaign, RedeemCampaignRedemption, RedeemCode,
-		SecuritySecret, Setting, SubscriptionPlan, SupportTicket, SupportTicketMessage,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Hook
+		ChannelMonitorRequestTemplate, CompositeModelRoute, CryptoPaymentReceipt,
+		ErrorPassthroughRule, Group, IdempotencyRecord, IdentityAdoptionDecision,
+		PaymentAuditLog, PaymentOrder, PaymentProviderInstance, PendingAuthSession,
+		PromoCode, PromoCodeUsage, Proxy, RedeemCampaign, RedeemCampaignRedemption,
+		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, SupportTicket,
+		SupportTicketMessage, TLSFingerprintProfile, UsageCleanupTask, UsageLog, User,
+		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
+		UserPlatformQuota, UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
 		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
-		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCampaign, RedeemCampaignRedemption, RedeemCode,
-		SecuritySecret, Setting, SubscriptionPlan, SupportTicket, SupportTicketMessage,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Interceptor
+		ChannelMonitorRequestTemplate, CompositeModelRoute, CryptoPaymentReceipt,
+		ErrorPassthroughRule, Group, IdempotencyRecord, IdentityAdoptionDecision,
+		PaymentAuditLog, PaymentOrder, PaymentProviderInstance, PendingAuthSession,
+		PromoCode, PromoCodeUsage, Proxy, RedeemCampaign, RedeemCampaignRedemption,
+		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, SupportTicket,
+		SupportTicketMessage, TLSFingerprintProfile, UsageCleanupTask, UsageLog, User,
+		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
+		UserPlatformQuota, UserSubscription []ent.Interceptor
 	}
 )
 

@@ -85,6 +85,8 @@ type CreateOrderRequest struct {
 	OrderType       string
 	PlanID          int64
 	Locale          string
+	CryptoNetwork   string
+	ClientRequestID string
 }
 
 type CreateOrderResponse struct {
@@ -110,6 +112,10 @@ type CreateOrderResponse struct {
 	CryptoRate                    string                          `json:"crypto_rate,omitempty"`
 	CryptoRateSrc                 string                          `json:"crypto_rate_source,omitempty"`
 	ReceiveAddress                string                          `json:"receive_address,omitempty"`
+	CreateStage                   string                          `json:"create_stage,omitempty"`
+	GatewayStatus                 string                          `json:"gateway_status,omitempty"`
+	RequiredConfirmations         int                             `json:"required_confirmations,omitempty"`
+	Confirmations                 int                             `json:"confirmations,omitempty"`
 	OAuth                         *payment.WechatOAuthInfo        `json:"oauth,omitempty"`
 	JSAPI                         *payment.WechatJSAPIPayload     `json:"jsapi,omitempty"`
 	JSAPIPayload                  *payment.WechatJSAPIPayload     `json:"jsapi_payload,omitempty"`
@@ -192,24 +198,26 @@ type TopUsersByCurrency map[string][]TopUserStat
 // --- Service ---
 
 type PaymentService struct {
-	cryptoReconcileMu        sync.Mutex
-	cryptoReconcileCursor    int64
-	providerMu               sync.Mutex
-	providersLoaded          bool
-	entClient                *dbent.Client
-	registry                 *payment.Registry
-	loadBalancer             payment.LoadBalancer
-	redeemService            *RedeemService
-	subscriptionSvc          *SubscriptionService
-	configService            *PaymentConfigService
-	userRepo                 UserRepository
-	groupRepo                GroupRepository
-	resumeService            *PaymentResumeService
-	affiliateService         *AffiliateService
-	pointsShopService        *PointsShopService
-	acquisitionService       *AcquisitionService
-	notificationEmailService *NotificationEmailService
-	telegramService          *TelegramNotificationService
+	cryptoReconcileMu          sync.Mutex
+	cryptoReconcileCursor      int64
+	bepusdtReconcileCursor     int64
+	legacyCryptoBackfillCursor int64
+	providerMu                 sync.Mutex
+	providersLoaded            bool
+	entClient                  *dbent.Client
+	registry                   *payment.Registry
+	loadBalancer               payment.LoadBalancer
+	redeemService              *RedeemService
+	subscriptionSvc            *SubscriptionService
+	configService              *PaymentConfigService
+	userRepo                   UserRepository
+	groupRepo                  GroupRepository
+	resumeService              *PaymentResumeService
+	affiliateService           *AffiliateService
+	pointsShopService          *PointsShopService
+	acquisitionService         *AcquisitionService
+	notificationEmailService   *NotificationEmailService
+	telegramService            *TelegramNotificationService
 }
 
 func (s *PaymentService) SetPointsShopService(pointsShopService *PointsShopService) {

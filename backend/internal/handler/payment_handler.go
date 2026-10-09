@@ -259,6 +259,8 @@ type CreateOrderRequest struct {
 	PaymentSource     string  `json:"payment_source"`
 	OrderType         string  `json:"order_type"`
 	PlanID            int64   `json:"plan_id"`
+	CryptoNetwork     string  `json:"crypto_network"`
+	ClientRequestID   string  `json:"client_request_id"`
 	// IsMobile lets the frontend declare its mobile status directly. When
 	// nil we fall back to User-Agent heuristics (which miss iPadOS / some
 	// embedded browsers that strip the "Mobile" keyword).
@@ -308,6 +310,8 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 		OrderType:       req.OrderType,
 		PlanID:          req.PlanID,
 		Locale:          c.GetHeader("Accept-Language"),
+		CryptoNetwork:   req.CryptoNetwork,
+		ClientRequestID: req.ClientRequestID,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -499,29 +503,37 @@ func (h *PaymentHandler) VerifyOrder(c *gin.Context) {
 // proves possession of the checkout session, so the result keeps the legacy
 // frontend contract needed by payment result pages.
 type PublicOrderResult struct {
-	ID                  int64      `json:"id"`
-	OutTradeNo          string     `json:"out_trade_no"`
-	Amount              float64    `json:"amount"`
-	PayAmount           float64    `json:"pay_amount"`
-	FeeRate             float64    `json:"fee_rate"`
-	BonusAmount         float64    `json:"bonus_amount"`
-	Currency            string     `json:"currency"`
-	PaymentType         string     `json:"payment_type"`
-	OrderType           string     `json:"order_type"`
-	Status              string     `json:"status"`
-	CreatedAt           time.Time  `json:"created_at"`
-	ExpiresAt           time.Time  `json:"expires_at"`
-	PaidAt              *time.Time `json:"paid_at,omitempty"`
-	CompletedAt         *time.Time `json:"completed_at,omitempty"`
-	RefundAmount        float64    `json:"refund_amount"`
-	RefundReason        *string    `json:"refund_reason,omitempty"`
-	RefundRequestedAt   *time.Time `json:"refund_requested_at,omitempty"`
-	RefundRequestedBy   *string    `json:"refund_requested_by,omitempty"`
-	RefundRequestReason *string    `json:"refund_request_reason,omitempty"`
-	PlanID              *int64     `json:"plan_id,omitempty"`
-	CryptoTxHash        string     `json:"crypto_tx_hash,omitempty"`
-	CryptoAmount        string     `json:"crypto_amount,omitempty"`
-	CryptoCurrency      string     `json:"crypto_currency,omitempty"`
+	ID                    int64      `json:"id"`
+	OutTradeNo            string     `json:"out_trade_no"`
+	Amount                float64    `json:"amount"`
+	PayAmount             float64    `json:"pay_amount"`
+	FeeRate               float64    `json:"fee_rate"`
+	BonusAmount           float64    `json:"bonus_amount"`
+	Currency              string     `json:"currency"`
+	PaymentType           string     `json:"payment_type"`
+	OrderType             string     `json:"order_type"`
+	Status                string     `json:"status"`
+	CreatedAt             time.Time  `json:"created_at"`
+	ExpiresAt             time.Time  `json:"expires_at"`
+	PaidAt                *time.Time `json:"paid_at,omitempty"`
+	CompletedAt           *time.Time `json:"completed_at,omitempty"`
+	RefundAmount          float64    `json:"refund_amount"`
+	RefundReason          *string    `json:"refund_reason,omitempty"`
+	RefundRequestedAt     *time.Time `json:"refund_requested_at,omitempty"`
+	RefundRequestedBy     *string    `json:"refund_requested_by,omitempty"`
+	RefundRequestReason   *string    `json:"refund_request_reason,omitempty"`
+	PlanID                *int64     `json:"plan_id,omitempty"`
+	CryptoTxHash          string     `json:"crypto_tx_hash,omitempty"`
+	CryptoAmount          string     `json:"crypto_amount,omitempty"`
+	CryptoCurrency        string     `json:"crypto_currency,omitempty"`
+	CryptoNetwork         string     `json:"crypto_network,omitempty"`
+	ReceiveAddress        string     `json:"receive_address,omitempty"`
+	CreateStage           string     `json:"create_stage,omitempty"`
+	GatewayStatus         string     `json:"gateway_status,omitempty"`
+	RequiredConfirmations int        `json:"required_confirmations,omitempty"`
+	Confirmations         int        `json:"confirmations,omitempty"`
+	CryptoExplorerURL     string     `json:"crypto_explorer_url,omitempty"`
+	PlanCurrency          string     `json:"plan_currency,omitempty"`
 }
 
 // PublicOrderVerifyResult is returned by the legacy anonymous out_trade_no
@@ -561,7 +573,13 @@ func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
 	}
 	if receipt := service.PaymentOrderCryptoReceiptOf(order); receipt != nil {
 		result.CryptoTxHash, result.CryptoAmount, result.CryptoCurrency = receipt.TxHash, receipt.Amount, receipt.Currency
+		result.CryptoNetwork, result.CryptoExplorerURL = receipt.Network, receipt.ExplorerURL
 	}
+	if crypto := service.BepusdtOrderDisplay(order); crypto != nil {
+		result.CryptoAmount, result.CryptoCurrency, result.CryptoNetwork, result.ReceiveAddress = crypto.CryptoAmount, crypto.CryptoCurrency, crypto.CryptoNetwork, crypto.ReceiveAddress
+		result.CreateStage, result.GatewayStatus, result.RequiredConfirmations, result.Confirmations = crypto.CreateStage, crypto.GatewayStatus, crypto.RequiredConfirmations, crypto.Confirmations
+	}
+	result.PlanCurrency = service.BepusdtPlanCurrency(order)
 	return result
 }
 
@@ -651,31 +669,39 @@ func isMobile(c *gin.Context) bool {
 }
 
 type PaymentOrderResult struct {
-	ID                  int64      `json:"id"`
-	UserID              int64      `json:"user_id"`
-	Amount              float64    `json:"amount"`
-	PayAmount           float64    `json:"pay_amount"`
-	FeeRate             float64    `json:"fee_rate"`
-	BonusAmount         float64    `json:"bonus_amount"`
-	Currency            string     `json:"currency"`
-	PaymentType         string     `json:"payment_type"`
-	OutTradeNo          string     `json:"out_trade_no"`
-	Status              string     `json:"status"`
-	OrderType           string     `json:"order_type"`
-	CreatedAt           time.Time  `json:"created_at"`
-	ExpiresAt           time.Time  `json:"expires_at"`
-	PaidAt              *time.Time `json:"paid_at,omitempty"`
-	CompletedAt         *time.Time `json:"completed_at,omitempty"`
-	RefundAmount        float64    `json:"refund_amount"`
-	RefundReason        *string    `json:"refund_reason,omitempty"`
-	RefundRequestedAt   *time.Time `json:"refund_requested_at,omitempty"`
-	RefundRequestedBy   *string    `json:"refund_requested_by,omitempty"`
-	RefundRequestReason *string    `json:"refund_request_reason,omitempty"`
-	PlanID              *int64     `json:"plan_id,omitempty"`
-	ProviderInstanceID  *string    `json:"provider_instance_id,omitempty"`
-	CryptoTxHash        string     `json:"crypto_tx_hash,omitempty"`
-	CryptoAmount        string     `json:"crypto_amount,omitempty"`
-	CryptoCurrency      string     `json:"crypto_currency,omitempty"`
+	ID                    int64      `json:"id"`
+	UserID                int64      `json:"user_id"`
+	Amount                float64    `json:"amount"`
+	PayAmount             float64    `json:"pay_amount"`
+	FeeRate               float64    `json:"fee_rate"`
+	BonusAmount           float64    `json:"bonus_amount"`
+	Currency              string     `json:"currency"`
+	PaymentType           string     `json:"payment_type"`
+	OutTradeNo            string     `json:"out_trade_no"`
+	Status                string     `json:"status"`
+	OrderType             string     `json:"order_type"`
+	CreatedAt             time.Time  `json:"created_at"`
+	ExpiresAt             time.Time  `json:"expires_at"`
+	PaidAt                *time.Time `json:"paid_at,omitempty"`
+	CompletedAt           *time.Time `json:"completed_at,omitempty"`
+	RefundAmount          float64    `json:"refund_amount"`
+	RefundReason          *string    `json:"refund_reason,omitempty"`
+	RefundRequestedAt     *time.Time `json:"refund_requested_at,omitempty"`
+	RefundRequestedBy     *string    `json:"refund_requested_by,omitempty"`
+	RefundRequestReason   *string    `json:"refund_request_reason,omitempty"`
+	PlanID                *int64     `json:"plan_id,omitempty"`
+	ProviderInstanceID    *string    `json:"provider_instance_id,omitempty"`
+	CryptoTxHash          string     `json:"crypto_tx_hash,omitempty"`
+	CryptoAmount          string     `json:"crypto_amount,omitempty"`
+	CryptoCurrency        string     `json:"crypto_currency,omitempty"`
+	CryptoNetwork         string     `json:"crypto_network,omitempty"`
+	ReceiveAddress        string     `json:"receive_address,omitempty"`
+	CreateStage           string     `json:"create_stage,omitempty"`
+	GatewayStatus         string     `json:"gateway_status,omitempty"`
+	RequiredConfirmations int        `json:"required_confirmations,omitempty"`
+	Confirmations         int        `json:"confirmations,omitempty"`
+	CryptoExplorerURL     string     `json:"crypto_explorer_url,omitempty"`
+	PlanCurrency          string     `json:"plan_currency,omitempty"`
 }
 
 func sanitizePaymentOrdersForResponse(orders []*dbent.PaymentOrder) []PaymentOrderResult {
@@ -718,7 +744,13 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 	}
 	if receipt := service.PaymentOrderCryptoReceiptOf(order); receipt != nil {
 		result.CryptoTxHash, result.CryptoAmount, result.CryptoCurrency = receipt.TxHash, receipt.Amount, receipt.Currency
+		result.CryptoNetwork, result.CryptoExplorerURL = receipt.Network, receipt.ExplorerURL
 	}
+	if crypto := service.BepusdtOrderDisplay(order); crypto != nil {
+		result.CryptoAmount, result.CryptoCurrency, result.CryptoNetwork, result.ReceiveAddress = crypto.CryptoAmount, crypto.CryptoCurrency, crypto.CryptoNetwork, crypto.ReceiveAddress
+		result.CreateStage, result.GatewayStatus, result.RequiredConfirmations, result.Confirmations = crypto.CreateStage, crypto.GatewayStatus, crypto.RequiredConfirmations, crypto.Confirmations
+	}
+	result.PlanCurrency = service.BepusdtPlanCurrency(order)
 	return result
 }
 

@@ -62,10 +62,12 @@
               :provider="p"
               :enabled="isEnabled(p.provider_key)"
               :available-types="getTypes(p.provider_key)"
+              :checking="checkingProviderId === p.id"
               @toggle-field="(field) => emit('toggleField', p, field)"
               @toggle-type="(type) => emit('toggleType', p, type)"
               @edit="emit('edit', p)"
               @delete="emit('delete', p)"
+              @check="emit('check', p)"
             />
           </div>
         </div>
@@ -108,6 +110,7 @@ const props = defineProps<{
   enabledPaymentTypes: string[]
   allPaymentTypes: TypeOption[]
   redirectLabel: string
+  checkingProviderId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -118,6 +121,7 @@ const emit = defineEmits<{
   toggleField: [provider: ProviderInstance, field: 'enabled' | 'refund_enabled' | 'allow_user_refund']
   toggleType: [provider: ProviderInstance, type: string]
   reorder: [providers: { id: number; sort_order: number }[]]
+  check: [provider: ProviderInstance]
 }>()
 
 const { t } = useI18n()
@@ -137,7 +141,7 @@ function onDragEnd() {
 }
 
 function isEnabled(providerKey: string): boolean {
-  return props.enabledPaymentTypes.includes(providerKey)
+  return props.enabledPaymentTypes.includes(providerKey === 'bepusdt' ? 'usdt_gateway' : providerKey)
 }
 
 function getTypes(providerKey: string): TypeOption[] {

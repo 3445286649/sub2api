@@ -27,6 +27,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
 	"github.com/Wei-Shaw/sub2api/ent/compositemodelroute"
+	"github.com/Wei-Shaw/sub2api/ent/cryptopaymentreceipt"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -83,6 +84,7 @@ const (
 	TypeChannelMonitorHistory         = "ChannelMonitorHistory"
 	TypeChannelMonitorRequestTemplate = "ChannelMonitorRequestTemplate"
 	TypeCompositeModelRoute           = "CompositeModelRoute"
+	TypeCryptoPaymentReceipt          = "CryptoPaymentReceipt"
 	TypeErrorPassthroughRule          = "ErrorPassthroughRule"
 	TypeGroup                         = "Group"
 	TypeIdempotencyRecord             = "IdempotencyRecord"
@@ -22123,6 +22125,808 @@ func (m *CompositeModelRouteMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown CompositeModelRoute edge %s", name)
 }
 
+// CryptoPaymentReceiptMutation represents an operation that mutates the CryptoPaymentReceipt nodes in the graph.
+type CryptoPaymentReceiptMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int64
+	chain_id       *string
+	tx_hash        *string
+	order_id       *int64
+	addorder_id    *int64
+	token_contract *string
+	event_index    *int64
+	addevent_index *int64
+	amount_atomic  *string
+	source         *string
+	created_at     *time.Time
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*CryptoPaymentReceipt, error)
+	predicates     []predicate.CryptoPaymentReceipt
+}
+
+var _ ent.Mutation = (*CryptoPaymentReceiptMutation)(nil)
+
+// cryptopaymentreceiptOption allows management of the mutation configuration using functional options.
+type cryptopaymentreceiptOption func(*CryptoPaymentReceiptMutation)
+
+// newCryptoPaymentReceiptMutation creates new mutation for the CryptoPaymentReceipt entity.
+func newCryptoPaymentReceiptMutation(c config, op Op, opts ...cryptopaymentreceiptOption) *CryptoPaymentReceiptMutation {
+	m := &CryptoPaymentReceiptMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCryptoPaymentReceipt,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCryptoPaymentReceiptID sets the ID field of the mutation.
+func withCryptoPaymentReceiptID(id int64) cryptopaymentreceiptOption {
+	return func(m *CryptoPaymentReceiptMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CryptoPaymentReceipt
+		)
+		m.oldValue = func(ctx context.Context) (*CryptoPaymentReceipt, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CryptoPaymentReceipt.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCryptoPaymentReceipt sets the old CryptoPaymentReceipt of the mutation.
+func withCryptoPaymentReceipt(node *CryptoPaymentReceipt) cryptopaymentreceiptOption {
+	return func(m *CryptoPaymentReceiptMutation) {
+		m.oldValue = func(context.Context) (*CryptoPaymentReceipt, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CryptoPaymentReceiptMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CryptoPaymentReceiptMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of CryptoPaymentReceipt entities.
+func (m *CryptoPaymentReceiptMutation) SetID(id int64) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CryptoPaymentReceiptMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CryptoPaymentReceiptMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CryptoPaymentReceipt.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetChainID sets the "chain_id" field.
+func (m *CryptoPaymentReceiptMutation) SetChainID(s string) {
+	m.chain_id = &s
+}
+
+// ChainID returns the value of the "chain_id" field in the mutation.
+func (m *CryptoPaymentReceiptMutation) ChainID() (r string, exists bool) {
+	v := m.chain_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChainID returns the old "chain_id" field's value of the CryptoPaymentReceipt entity.
+// If the CryptoPaymentReceipt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CryptoPaymentReceiptMutation) OldChainID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChainID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChainID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChainID: %w", err)
+	}
+	return oldValue.ChainID, nil
+}
+
+// ResetChainID resets all changes to the "chain_id" field.
+func (m *CryptoPaymentReceiptMutation) ResetChainID() {
+	m.chain_id = nil
+}
+
+// SetTxHash sets the "tx_hash" field.
+func (m *CryptoPaymentReceiptMutation) SetTxHash(s string) {
+	m.tx_hash = &s
+}
+
+// TxHash returns the value of the "tx_hash" field in the mutation.
+func (m *CryptoPaymentReceiptMutation) TxHash() (r string, exists bool) {
+	v := m.tx_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTxHash returns the old "tx_hash" field's value of the CryptoPaymentReceipt entity.
+// If the CryptoPaymentReceipt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CryptoPaymentReceiptMutation) OldTxHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTxHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTxHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTxHash: %w", err)
+	}
+	return oldValue.TxHash, nil
+}
+
+// ResetTxHash resets all changes to the "tx_hash" field.
+func (m *CryptoPaymentReceiptMutation) ResetTxHash() {
+	m.tx_hash = nil
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *CryptoPaymentReceiptMutation) SetOrderID(i int64) {
+	m.order_id = &i
+	m.addorder_id = nil
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *CryptoPaymentReceiptMutation) OrderID() (r int64, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the CryptoPaymentReceipt entity.
+// If the CryptoPaymentReceipt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CryptoPaymentReceiptMutation) OldOrderID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// AddOrderID adds i to the "order_id" field.
+func (m *CryptoPaymentReceiptMutation) AddOrderID(i int64) {
+	if m.addorder_id != nil {
+		*m.addorder_id += i
+	} else {
+		m.addorder_id = &i
+	}
+}
+
+// AddedOrderID returns the value that was added to the "order_id" field in this mutation.
+func (m *CryptoPaymentReceiptMutation) AddedOrderID() (r int64, exists bool) {
+	v := m.addorder_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *CryptoPaymentReceiptMutation) ResetOrderID() {
+	m.order_id = nil
+	m.addorder_id = nil
+}
+
+// SetTokenContract sets the "token_contract" field.
+func (m *CryptoPaymentReceiptMutation) SetTokenContract(s string) {
+	m.token_contract = &s
+}
+
+// TokenContract returns the value of the "token_contract" field in the mutation.
+func (m *CryptoPaymentReceiptMutation) TokenContract() (r string, exists bool) {
+	v := m.token_contract
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenContract returns the old "token_contract" field's value of the CryptoPaymentReceipt entity.
+// If the CryptoPaymentReceipt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CryptoPaymentReceiptMutation) OldTokenContract(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenContract is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenContract requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenContract: %w", err)
+	}
+	return oldValue.TokenContract, nil
+}
+
+// ResetTokenContract resets all changes to the "token_contract" field.
+func (m *CryptoPaymentReceiptMutation) ResetTokenContract() {
+	m.token_contract = nil
+}
+
+// SetEventIndex sets the "event_index" field.
+func (m *CryptoPaymentReceiptMutation) SetEventIndex(i int64) {
+	m.event_index = &i
+	m.addevent_index = nil
+}
+
+// EventIndex returns the value of the "event_index" field in the mutation.
+func (m *CryptoPaymentReceiptMutation) EventIndex() (r int64, exists bool) {
+	v := m.event_index
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEventIndex returns the old "event_index" field's value of the CryptoPaymentReceipt entity.
+// If the CryptoPaymentReceipt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CryptoPaymentReceiptMutation) OldEventIndex(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEventIndex is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEventIndex requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEventIndex: %w", err)
+	}
+	return oldValue.EventIndex, nil
+}
+
+// AddEventIndex adds i to the "event_index" field.
+func (m *CryptoPaymentReceiptMutation) AddEventIndex(i int64) {
+	if m.addevent_index != nil {
+		*m.addevent_index += i
+	} else {
+		m.addevent_index = &i
+	}
+}
+
+// AddedEventIndex returns the value that was added to the "event_index" field in this mutation.
+func (m *CryptoPaymentReceiptMutation) AddedEventIndex() (r int64, exists bool) {
+	v := m.addevent_index
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearEventIndex clears the value of the "event_index" field.
+func (m *CryptoPaymentReceiptMutation) ClearEventIndex() {
+	m.event_index = nil
+	m.addevent_index = nil
+	m.clearedFields[cryptopaymentreceipt.FieldEventIndex] = struct{}{}
+}
+
+// EventIndexCleared returns if the "event_index" field was cleared in this mutation.
+func (m *CryptoPaymentReceiptMutation) EventIndexCleared() bool {
+	_, ok := m.clearedFields[cryptopaymentreceipt.FieldEventIndex]
+	return ok
+}
+
+// ResetEventIndex resets all changes to the "event_index" field.
+func (m *CryptoPaymentReceiptMutation) ResetEventIndex() {
+	m.event_index = nil
+	m.addevent_index = nil
+	delete(m.clearedFields, cryptopaymentreceipt.FieldEventIndex)
+}
+
+// SetAmountAtomic sets the "amount_atomic" field.
+func (m *CryptoPaymentReceiptMutation) SetAmountAtomic(s string) {
+	m.amount_atomic = &s
+}
+
+// AmountAtomic returns the value of the "amount_atomic" field in the mutation.
+func (m *CryptoPaymentReceiptMutation) AmountAtomic() (r string, exists bool) {
+	v := m.amount_atomic
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmountAtomic returns the old "amount_atomic" field's value of the CryptoPaymentReceipt entity.
+// If the CryptoPaymentReceipt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CryptoPaymentReceiptMutation) OldAmountAtomic(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmountAtomic is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmountAtomic requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmountAtomic: %w", err)
+	}
+	return oldValue.AmountAtomic, nil
+}
+
+// ResetAmountAtomic resets all changes to the "amount_atomic" field.
+func (m *CryptoPaymentReceiptMutation) ResetAmountAtomic() {
+	m.amount_atomic = nil
+}
+
+// SetSource sets the "source" field.
+func (m *CryptoPaymentReceiptMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *CryptoPaymentReceiptMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the CryptoPaymentReceipt entity.
+// If the CryptoPaymentReceipt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CryptoPaymentReceiptMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *CryptoPaymentReceiptMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CryptoPaymentReceiptMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CryptoPaymentReceiptMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CryptoPaymentReceipt entity.
+// If the CryptoPaymentReceipt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CryptoPaymentReceiptMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CryptoPaymentReceiptMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the CryptoPaymentReceiptMutation builder.
+func (m *CryptoPaymentReceiptMutation) Where(ps ...predicate.CryptoPaymentReceipt) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CryptoPaymentReceiptMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CryptoPaymentReceiptMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CryptoPaymentReceipt, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CryptoPaymentReceiptMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CryptoPaymentReceiptMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CryptoPaymentReceipt).
+func (m *CryptoPaymentReceiptMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CryptoPaymentReceiptMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.chain_id != nil {
+		fields = append(fields, cryptopaymentreceipt.FieldChainID)
+	}
+	if m.tx_hash != nil {
+		fields = append(fields, cryptopaymentreceipt.FieldTxHash)
+	}
+	if m.order_id != nil {
+		fields = append(fields, cryptopaymentreceipt.FieldOrderID)
+	}
+	if m.token_contract != nil {
+		fields = append(fields, cryptopaymentreceipt.FieldTokenContract)
+	}
+	if m.event_index != nil {
+		fields = append(fields, cryptopaymentreceipt.FieldEventIndex)
+	}
+	if m.amount_atomic != nil {
+		fields = append(fields, cryptopaymentreceipt.FieldAmountAtomic)
+	}
+	if m.source != nil {
+		fields = append(fields, cryptopaymentreceipt.FieldSource)
+	}
+	if m.created_at != nil {
+		fields = append(fields, cryptopaymentreceipt.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CryptoPaymentReceiptMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case cryptopaymentreceipt.FieldChainID:
+		return m.ChainID()
+	case cryptopaymentreceipt.FieldTxHash:
+		return m.TxHash()
+	case cryptopaymentreceipt.FieldOrderID:
+		return m.OrderID()
+	case cryptopaymentreceipt.FieldTokenContract:
+		return m.TokenContract()
+	case cryptopaymentreceipt.FieldEventIndex:
+		return m.EventIndex()
+	case cryptopaymentreceipt.FieldAmountAtomic:
+		return m.AmountAtomic()
+	case cryptopaymentreceipt.FieldSource:
+		return m.Source()
+	case cryptopaymentreceipt.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CryptoPaymentReceiptMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case cryptopaymentreceipt.FieldChainID:
+		return m.OldChainID(ctx)
+	case cryptopaymentreceipt.FieldTxHash:
+		return m.OldTxHash(ctx)
+	case cryptopaymentreceipt.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case cryptopaymentreceipt.FieldTokenContract:
+		return m.OldTokenContract(ctx)
+	case cryptopaymentreceipt.FieldEventIndex:
+		return m.OldEventIndex(ctx)
+	case cryptopaymentreceipt.FieldAmountAtomic:
+		return m.OldAmountAtomic(ctx)
+	case cryptopaymentreceipt.FieldSource:
+		return m.OldSource(ctx)
+	case cryptopaymentreceipt.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CryptoPaymentReceipt field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CryptoPaymentReceiptMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case cryptopaymentreceipt.FieldChainID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChainID(v)
+		return nil
+	case cryptopaymentreceipt.FieldTxHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTxHash(v)
+		return nil
+	case cryptopaymentreceipt.FieldOrderID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case cryptopaymentreceipt.FieldTokenContract:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenContract(v)
+		return nil
+	case cryptopaymentreceipt.FieldEventIndex:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEventIndex(v)
+		return nil
+	case cryptopaymentreceipt.FieldAmountAtomic:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmountAtomic(v)
+		return nil
+	case cryptopaymentreceipt.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case cryptopaymentreceipt.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CryptoPaymentReceipt field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CryptoPaymentReceiptMutation) AddedFields() []string {
+	var fields []string
+	if m.addorder_id != nil {
+		fields = append(fields, cryptopaymentreceipt.FieldOrderID)
+	}
+	if m.addevent_index != nil {
+		fields = append(fields, cryptopaymentreceipt.FieldEventIndex)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CryptoPaymentReceiptMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case cryptopaymentreceipt.FieldOrderID:
+		return m.AddedOrderID()
+	case cryptopaymentreceipt.FieldEventIndex:
+		return m.AddedEventIndex()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CryptoPaymentReceiptMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case cryptopaymentreceipt.FieldOrderID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrderID(v)
+		return nil
+	case cryptopaymentreceipt.FieldEventIndex:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEventIndex(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CryptoPaymentReceipt numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CryptoPaymentReceiptMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(cryptopaymentreceipt.FieldEventIndex) {
+		fields = append(fields, cryptopaymentreceipt.FieldEventIndex)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CryptoPaymentReceiptMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CryptoPaymentReceiptMutation) ClearField(name string) error {
+	switch name {
+	case cryptopaymentreceipt.FieldEventIndex:
+		m.ClearEventIndex()
+		return nil
+	}
+	return fmt.Errorf("unknown CryptoPaymentReceipt nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CryptoPaymentReceiptMutation) ResetField(name string) error {
+	switch name {
+	case cryptopaymentreceipt.FieldChainID:
+		m.ResetChainID()
+		return nil
+	case cryptopaymentreceipt.FieldTxHash:
+		m.ResetTxHash()
+		return nil
+	case cryptopaymentreceipt.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case cryptopaymentreceipt.FieldTokenContract:
+		m.ResetTokenContract()
+		return nil
+	case cryptopaymentreceipt.FieldEventIndex:
+		m.ResetEventIndex()
+		return nil
+	case cryptopaymentreceipt.FieldAmountAtomic:
+		m.ResetAmountAtomic()
+		return nil
+	case cryptopaymentreceipt.FieldSource:
+		m.ResetSource()
+		return nil
+	case cryptopaymentreceipt.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CryptoPaymentReceipt field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CryptoPaymentReceiptMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CryptoPaymentReceiptMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CryptoPaymentReceiptMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CryptoPaymentReceiptMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CryptoPaymentReceiptMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CryptoPaymentReceiptMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CryptoPaymentReceiptMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown CryptoPaymentReceipt unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CryptoPaymentReceiptMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown CryptoPaymentReceipt edge %s", name)
+}
+
 // ErrorPassthroughRuleMutation represents an operation that mutates the ErrorPassthroughRule nodes in the graph.
 type ErrorPassthroughRuleMutation struct {
 	config
@@ -31485,6 +32289,7 @@ type PaymentOrderMutation struct {
 	addbonus_amount          *float64
 	recharge_code            *string
 	out_trade_no             *string
+	client_request_id        *string
 	payment_type             *string
 	payment_trade_no         *string
 	pay_url                  *string
@@ -32080,6 +32885,55 @@ func (m *PaymentOrderMutation) OldOutTradeNo(ctx context.Context) (v string, err
 // ResetOutTradeNo resets all changes to the "out_trade_no" field.
 func (m *PaymentOrderMutation) ResetOutTradeNo() {
 	m.out_trade_no = nil
+}
+
+// SetClientRequestID sets the "client_request_id" field.
+func (m *PaymentOrderMutation) SetClientRequestID(s string) {
+	m.client_request_id = &s
+}
+
+// ClientRequestID returns the value of the "client_request_id" field in the mutation.
+func (m *PaymentOrderMutation) ClientRequestID() (r string, exists bool) {
+	v := m.client_request_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClientRequestID returns the old "client_request_id" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldClientRequestID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClientRequestID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClientRequestID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClientRequestID: %w", err)
+	}
+	return oldValue.ClientRequestID, nil
+}
+
+// ClearClientRequestID clears the value of the "client_request_id" field.
+func (m *PaymentOrderMutation) ClearClientRequestID() {
+	m.client_request_id = nil
+	m.clearedFields[paymentorder.FieldClientRequestID] = struct{}{}
+}
+
+// ClientRequestIDCleared returns if the "client_request_id" field was cleared in this mutation.
+func (m *PaymentOrderMutation) ClientRequestIDCleared() bool {
+	_, ok := m.clearedFields[paymentorder.FieldClientRequestID]
+	return ok
+}
+
+// ResetClientRequestID resets all changes to the "client_request_id" field.
+func (m *PaymentOrderMutation) ResetClientRequestID() {
+	m.client_request_id = nil
+	delete(m.clearedFields, paymentorder.FieldClientRequestID)
 }
 
 // SetPaymentType sets the "payment_type" field.
@@ -33681,7 +34535,7 @@ func (m *PaymentOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PaymentOrderMutation) Fields() []string {
-	fields := make([]string, 0, 43)
+	fields := make([]string, 0, 44)
 	if m.user != nil {
 		fields = append(fields, paymentorder.FieldUserID)
 	}
@@ -33711,6 +34565,9 @@ func (m *PaymentOrderMutation) Fields() []string {
 	}
 	if m.out_trade_no != nil {
 		fields = append(fields, paymentorder.FieldOutTradeNo)
+	}
+	if m.client_request_id != nil {
+		fields = append(fields, paymentorder.FieldClientRequestID)
 	}
 	if m.payment_type != nil {
 		fields = append(fields, paymentorder.FieldPaymentType)
@@ -33839,6 +34696,8 @@ func (m *PaymentOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.RechargeCode()
 	case paymentorder.FieldOutTradeNo:
 		return m.OutTradeNo()
+	case paymentorder.FieldClientRequestID:
+		return m.ClientRequestID()
 	case paymentorder.FieldPaymentType:
 		return m.PaymentType()
 	case paymentorder.FieldPaymentTradeNo:
@@ -33934,6 +34793,8 @@ func (m *PaymentOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldRechargeCode(ctx)
 	case paymentorder.FieldOutTradeNo:
 		return m.OldOutTradeNo(ctx)
+	case paymentorder.FieldClientRequestID:
+		return m.OldClientRequestID(ctx)
 	case paymentorder.FieldPaymentType:
 		return m.OldPaymentType(ctx)
 	case paymentorder.FieldPaymentTradeNo:
@@ -34078,6 +34939,13 @@ func (m *PaymentOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetOutTradeNo(v)
+		return nil
+	case paymentorder.FieldClientRequestID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClientRequestID(v)
 		return nil
 	case paymentorder.FieldPaymentType:
 		v, ok := value.(string)
@@ -34454,6 +35322,9 @@ func (m *PaymentOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(paymentorder.FieldUserNotes) {
 		fields = append(fields, paymentorder.FieldUserNotes)
 	}
+	if m.FieldCleared(paymentorder.FieldClientRequestID) {
+		fields = append(fields, paymentorder.FieldClientRequestID)
+	}
 	if m.FieldCleared(paymentorder.FieldPayURL) {
 		fields = append(fields, paymentorder.FieldPayURL)
 	}
@@ -34527,6 +35398,9 @@ func (m *PaymentOrderMutation) ClearField(name string) error {
 	switch name {
 	case paymentorder.FieldUserNotes:
 		m.ClearUserNotes()
+		return nil
+	case paymentorder.FieldClientRequestID:
+		m.ClearClientRequestID()
 		return nil
 	case paymentorder.FieldPayURL:
 		m.ClearPayURL()
@@ -34622,6 +35496,9 @@ func (m *PaymentOrderMutation) ResetField(name string) error {
 		return nil
 	case paymentorder.FieldOutTradeNo:
 		m.ResetOutTradeNo()
+		return nil
+	case paymentorder.FieldClientRequestID:
+		m.ResetClientRequestID()
 		return nil
 	case paymentorder.FieldPaymentType:
 		m.ResetPaymentType()

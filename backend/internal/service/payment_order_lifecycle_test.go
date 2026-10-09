@@ -918,11 +918,11 @@ func TestReconcilePendingCryptoOrdersFulfillsBalanceRecharge(t *testing.T) {
 	provider := &paymentOrderLifecycleQueryProvider{
 		key: payment.TypeUSDTBSC,
 		resp: &payment.QueryOrderResponse{
-			TradeNo: "0xcrypto-paid",
+			TradeNo: "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
 			Status:  payment.ProviderStatusPaid,
 			Amount:  10,
 			Metadata: map[string]string{
-				"tx_hash":       "0xcrypto-paid",
+				"tx_hash":       "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
 				"confirmations": "21",
 			},
 		},
@@ -945,7 +945,7 @@ func TestReconcilePendingCryptoOrdersFulfillsBalanceRecharge(t *testing.T) {
 	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
 	require.NoError(t, err)
 	require.Equal(t, OrderStatusCompleted, reloaded.Status)
-	require.Equal(t, "0xcrypto-paid", reloaded.PaymentTradeNo)
+	require.Equal(t, "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", reloaded.PaymentTradeNo)
 	require.Equal(t, 10.0, userRepo.getByIDUser.Balance)
 }
 
@@ -1017,11 +1017,11 @@ func TestReconcilePendingCryptoOrdersPreservesUSDTBSCAuditMetadata(t *testing.T)
 	provider := &paymentOrderLifecycleQueryProvider{
 		key: payment.TypeUSDTBSC,
 		resp: &payment.QueryOrderResponse{
-			TradeNo: "0xcrypto-audit-paid",
+			TradeNo: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			Status:  payment.ProviderStatusPaid,
 			Amount:  67.7,
 			Metadata: map[string]string{
-				"tx_hash":             "0xcrypto-audit-paid",
+				"tx_hash":             "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 				"confirmations":       "21",
 				"network":             "BSC",
 				"token_amount":        "10.000123",
@@ -1047,14 +1047,14 @@ func TestReconcilePendingCryptoOrdersPreservesUSDTBSCAuditMetadata(t *testing.T)
 	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
 	require.NoError(t, err)
 	require.Equal(t, OrderStatusCompleted, reloaded.Status)
-	require.Equal(t, "0xcrypto-audit-paid", reloaded.PaymentTradeNo)
+	require.Equal(t, "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", reloaded.PaymentTradeNo)
 	usdtSnapshot, ok := reloaded.ProviderSnapshot["usdt_bsc"].(map[string]any)
 	require.True(t, ok, "snapshot = %+v", reloaded.ProviderSnapshot)
 	require.Equal(t, "6.770000", usdtSnapshot["locked_cny_per_usdt"])
 	require.Equal(t, "2026-06-23T08:00:00Z", usdtSnapshot["locked_at"])
 	require.Equal(t, "binance_p2p_cny_sell", usdtSnapshot["rate_source"])
 	require.Equal(t, "10.000123", usdtSnapshot["token_amount"])
-	require.Equal(t, "0xcrypto-audit-paid", usdtSnapshot["tx_hash"])
+	require.Equal(t, "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", usdtSnapshot["tx_hash"])
 	require.Equal(t, "21", usdtSnapshot["confirmations"])
 	require.Equal(t, "BSC", usdtSnapshot["network"])
 }

@@ -8912,6 +8912,7 @@
           <PaymentProviderList
             v-if="form.payment_enabled"
             :providers="providers"
+            :checking-provider-id="checkingProviderId"
             :loading="providersLoading"
             :can-create="hasAnyPaymentTypeEnabled"
             :enabled-payment-types="form.payment_enabled_types"
@@ -8924,6 +8925,7 @@
             @toggle-field="handleToggleField"
             @toggle-type="handleToggleType"
             @reorder="handleReorderProviders"
+            @check="checkPaymentProvider"
           />
           <TelegramPaymentSettings />
         </div>
@@ -13202,6 +13204,7 @@ const allPaymentTypes = computed(() => [
   { value: "stripe", label: t("payment.methods.stripe") },
   { value: "airwallex", label: t("payment.methods.airwallex") },
   { value: "usdt_bsc", label: t("payment.methods.usdt_bsc") },
+  { value: "usdt_gateway", label: t("payment.methods.usdt_gateway") },
 ]);
 
 function isPaymentTypeEnabled(type: string): boolean {
@@ -13226,7 +13229,7 @@ function togglePaymentType(type: string) {
 
 async function disableProvidersByType(type: string) {
   const matching = providers.value.filter(
-    (p) => p.provider_key === type && p.enabled,
+    (p) => p.provider_key === (type === "usdt_gateway" ? "bepusdt" : type) && p.enabled,
   );
   for (const p of matching) {
     try {
@@ -13243,6 +13246,19 @@ function slog(...args: unknown[]) {
 }
 
 const providersLoading = ref(false);
+const checkingProviderId = ref<number | null>(null);
+async function checkPaymentProvider(provider: ProviderInstance) {
+  if (checkingProviderId.value !== null || provider.provider_key !== "bepusdt") return;
+  checkingProviderId.value = provider.id;
+  try {
+    await adminAPI.payment.checkProvider(provider.id);
+    appStore.showSuccess(t("admin.settings.payment.gatewayCheckSuccess"));
+  } catch {
+    appStore.showError(t("admin.settings.payment.gatewayCheckFailed"));
+  } finally {
+    checkingProviderId.value = null;
+  }
+}
 const providerSaving = ref(false);
 const providers = ref<ProviderInstance[]>([]);
 const showProviderDialog = ref(false);
@@ -13260,11 +13276,12 @@ const providerKeyOptions = computed(() => [
   { value: "stripe", label: t("admin.settings.payment.providerStripe") },
   { value: "airwallex", label: t("admin.settings.payment.providerAirwallex") },
   { value: "usdt_bsc", label: t("admin.settings.payment.providerUsdtBsc") },
+  { value: "bepusdt", label: t("admin.settings.payment.providerBepusdt") },
 ]);
 
 const enabledProviderKeyOptions = computed(() => {
   const enabled = form.payment_enabled_types;
-  return providerKeyOptions.value.filter((opt) => enabled.includes(opt.value));
+  return providerKeyOptions.value.filter((opt) => enabled.includes(opt.value === "bepusdt" ? "usdt_gateway" : opt.value));
 });
 
 const loadBalanceOptions = computed(() => [

@@ -34,6 +34,8 @@ const (
 	FieldRechargeCode = "recharge_code"
 	// FieldOutTradeNo holds the string denoting the out_trade_no field in the database.
 	FieldOutTradeNo = "out_trade_no"
+	// FieldClientRequestID holds the string denoting the client_request_id field in the database.
+	FieldClientRequestID = "client_request_id"
 	// FieldPaymentType holds the string denoting the payment_type field in the database.
 	FieldPaymentType = "payment_type"
 	// FieldPaymentTradeNo holds the string denoting the payment_trade_no field in the database.
@@ -126,6 +128,7 @@ var Columns = []string{
 	FieldBonusAmount,
 	FieldRechargeCode,
 	FieldOutTradeNo,
+	FieldClientRequestID,
 	FieldPaymentType,
 	FieldPaymentTradeNo,
 	FieldPayURL,
@@ -186,6 +189,8 @@ var (
 	DefaultOutTradeNo string
 	// OutTradeNoValidator is a validator for the "out_trade_no" field. It is called by the builders before save.
 	OutTradeNoValidator func(string) error
+	// ClientRequestIDValidator is a validator for the "client_request_id" field. It is called by the builders before save.
+	ClientRequestIDValidator func(string) error
 	// PaymentTypeValidator is a validator for the "payment_type" field. It is called by the builders before save.
 	PaymentTypeValidator func(string) error
 	// PaymentTradeNoValidator is a validator for the "payment_trade_no" field. It is called by the builders before save.
@@ -286,6 +291,11 @@ func ByRechargeCode(opts ...sql.OrderTermOption) OrderOption {
 // ByOutTradeNo orders the results by the out_trade_no field.
 func ByOutTradeNo(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOutTradeNo, opts...).ToFunc()
+}
+
+// ByClientRequestID orders the results by the client_request_id field.
+func ByClientRequestID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldClientRequestID, opts...).ToFunc()
 }
 
 // ByPaymentType orders the results by the payment_type field.

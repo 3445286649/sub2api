@@ -105,6 +105,11 @@ func OutTradeNo(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldOutTradeNo, v))
 }
 
+// ClientRequestID applies equality check predicate on the "client_request_id" field. It's identical to ClientRequestIDEQ.
+func ClientRequestID(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldClientRequestID, v))
+}
+
 // PaymentType applies equality check predicate on the "payment_type" field. It's identical to PaymentTypeEQ.
 func PaymentType(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldPaymentType, v))
@@ -778,6 +783,81 @@ func OutTradeNoEqualFold(v string) predicate.PaymentOrder {
 // OutTradeNoContainsFold applies the ContainsFold predicate on the "out_trade_no" field.
 func OutTradeNoContainsFold(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldContainsFold(FieldOutTradeNo, v))
+}
+
+// ClientRequestIDEQ applies the EQ predicate on the "client_request_id" field.
+func ClientRequestIDEQ(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldClientRequestID, v))
+}
+
+// ClientRequestIDNEQ applies the NEQ predicate on the "client_request_id" field.
+func ClientRequestIDNEQ(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldClientRequestID, v))
+}
+
+// ClientRequestIDIn applies the In predicate on the "client_request_id" field.
+func ClientRequestIDIn(vs ...string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldClientRequestID, vs...))
+}
+
+// ClientRequestIDNotIn applies the NotIn predicate on the "client_request_id" field.
+func ClientRequestIDNotIn(vs ...string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldClientRequestID, vs...))
+}
+
+// ClientRequestIDGT applies the GT predicate on the "client_request_id" field.
+func ClientRequestIDGT(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldClientRequestID, v))
+}
+
+// ClientRequestIDGTE applies the GTE predicate on the "client_request_id" field.
+func ClientRequestIDGTE(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldClientRequestID, v))
+}
+
+// ClientRequestIDLT applies the LT predicate on the "client_request_id" field.
+func ClientRequestIDLT(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldClientRequestID, v))
+}
+
+// ClientRequestIDLTE applies the LTE predicate on the "client_request_id" field.
+func ClientRequestIDLTE(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldClientRequestID, v))
+}
+
+// ClientRequestIDContains applies the Contains predicate on the "client_request_id" field.
+func ClientRequestIDContains(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldContains(FieldClientRequestID, v))
+}
+
+// ClientRequestIDHasPrefix applies the HasPrefix predicate on the "client_request_id" field.
+func ClientRequestIDHasPrefix(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldHasPrefix(FieldClientRequestID, v))
+}
+
+// ClientRequestIDHasSuffix applies the HasSuffix predicate on the "client_request_id" field.
+func ClientRequestIDHasSuffix(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldHasSuffix(FieldClientRequestID, v))
+}
+
+// ClientRequestIDIsNil applies the IsNil predicate on the "client_request_id" field.
+func ClientRequestIDIsNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIsNull(FieldClientRequestID))
+}
+
+// ClientRequestIDNotNil applies the NotNil predicate on the "client_request_id" field.
+func ClientRequestIDNotNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotNull(FieldClientRequestID))
+}
+
+// ClientRequestIDEqualFold applies the EqualFold predicate on the "client_request_id" field.
+func ClientRequestIDEqualFold(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEqualFold(FieldClientRequestID, v))
+}
+
+// ClientRequestIDContainsFold applies the ContainsFold predicate on the "client_request_id" field.
+func ClientRequestIDContainsFold(v string) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldContainsFold(FieldClientRequestID, v))
 }
 
 // PaymentTypeEQ applies the EQ predicate on the "payment_type" field.

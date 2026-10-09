@@ -43,13 +43,14 @@ export const PROVIDER_SUPPORTED_TYPES: Record<string, string[]> = {
   stripe: ['card', 'alipay', 'wxpay', 'link'],
   airwallex: ['airwallex'],
   usdt_bsc: ['usdt_bsc'],
+  bepusdt: ['usdt_gateway'],
 }
 
 /** Available payment modes for EasyPay providers. */
 export const EASYPAY_PAYMENT_MODES = ['qrcode', 'popup'] as const
 
 /** Fixed display order for user-facing payment methods */
-export const METHOD_ORDER = ['alipay', 'alipay_direct', 'wxpay', 'wxpay_direct', 'stripe', 'airwallex', 'usdt_bsc'] as const
+export const METHOD_ORDER = ['alipay', 'alipay_direct', 'wxpay', 'wxpay_direct', 'stripe', 'airwallex', 'usdt_bsc', 'usdt_gateway'] as const
 
 export function isBuiltInAlipayMethod(type: string): boolean {
   return type === 'alipay' || type === 'alipay_direct'
@@ -111,6 +112,7 @@ export const WEBHOOK_PATHS: Record<string, string> = {
   wxpay: '/api/v1/payment/webhook/wxpay',
   stripe: '/api/v1/payment/webhook/stripe',
   airwallex: '/api/v1/payment/webhook/airwallex',
+  bepusdt: '/api/v1/payment/webhook/bepusdt',
 }
 
 export const RETURN_PATH = '/payment/result'
@@ -126,6 +128,13 @@ export const PROVIDER_CALLBACK_PATHS: Record<string, CallbackPaths> = {
 
 /** Per-provider config fields (excludes notifyUrl/returnUrl which are handled separately). */
 export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
+  bepusdt: [
+    { key: 'apiUrl', label: 'API URL', sensitive: false },
+    { key: 'merchantId', label: 'Merchant ID', sensitive: false },
+    { key: 'keyId', label: 'Key ID', sensitive: false },
+    { key: 'apiSecret', label: '', sensitive: true },
+    { key: 'callbackSecret', label: '', sensitive: true },
+  ],
   easypay: [
     { key: 'pid', label: 'PID', sensitive: false },
     { key: 'pkey', label: 'PKey', sensitive: true },

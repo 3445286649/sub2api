@@ -21,6 +21,8 @@ func CreateProvider(providerKey string, instanceID string, config map[string]str
 		return NewAirwallex(instanceID, config)
 	case payment.TypeUSDTBSC:
 		return NewUSDTBSC(instanceID, config)
+	case payment.ProviderBepusdt:
+		return NewBepusdt(instanceID, config)
 	default:
 		return nil, fmt.Errorf("unknown provider key: %s", providerKey)
 	}

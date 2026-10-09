@@ -13,6 +13,7 @@ vi.mock('@/api/client', () => ({
 }))
 
 import { paymentAPI } from '@/api/payment'
+import { adminPaymentAPI } from '@/api/admin/payment'
 
 describe('payment api', () => {
   beforeEach(() => {
@@ -36,5 +37,11 @@ describe('payment api', () => {
     expect(post).toHaveBeenCalledWith('/payment/public/orders/resolve', {
       resume_token: 'resume-token-123',
     })
+  })
+
+  it('checks only a saved provider through the admin API without creating a payment', async () => {
+    await adminPaymentAPI.checkProvider(42)
+    expect(post).toHaveBeenCalledWith('/admin/payment/providers/42/check')
+    expect(post).toHaveBeenCalledTimes(1)
   })
 })

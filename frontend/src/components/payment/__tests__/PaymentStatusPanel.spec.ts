@@ -99,6 +99,44 @@ describe('PaymentStatusPanel', () => {
     vi.useRealTimers()
   })
 
+  it('recovers gateway quotes, shows confirmations/review and waits for fulfillment before success', async () => {
+    const props = { ...usdtProps(), paymentType: 'usdt_gateway', qrCode: '', cryptoAmount: '', receiveAddress: '', cryptoNetwork: 'tron_mainnet', createStage: 'unknown' }
+    pollOrderStatus.mockResolvedValue(orderFactory('PENDING', { payment_type: 'usdt_gateway', create_stage: 'unknown', crypto_network: 'tron_mainnet' }))
+    verifyOrder.mockResolvedValue({ data: orderFactory('PENDING', { payment_type: 'usdt_gateway', create_stage: 'unknown', crypto_network: 'tron_mainnet' }) })
+    const wrapper = mount(PaymentStatusPanel, { props, global: { stubs: usdtStubs } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('payment.gateway.creating')
+    const quote = { payment_type: 'usdt_gateway', create_stage: 'ready', crypto_network: 'tron_mainnet', crypto_amount: '10.000123', receive_address: 'T' + 'A'.repeat(33), gateway_status: 'WAITING', confirmations: 0, required_confirmations: 30 }
+    pollOrderStatus.mockResolvedValue(orderFactory('PENDING', quote))
+    await vi.advanceTimersByTimeAsync(5000)
+    await flushPromises()
+    expect(wrapper.get('[data-test="gateway-amount"]').text()).toContain('10.000123')
+    expect(toCanvas).toHaveBeenCalledWith(expect.any(HTMLCanvasElement), quote.receive_address, expect.any(Object))
+    pollOrderStatus.mockResolvedValue(orderFactory('PENDING', { ...quote, gateway_status: 'CONFIRMING', confirmations: 8 }))
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.text()).toContain('payment.gateway.confirming')
+    expect(wrapper.find('[data-test="gateway-copy-address"]').exists()).toBe(false)
+    pollOrderStatus.mockResolvedValue(orderFactory('PAID', { ...quote, gateway_status: 'PAID', paid_at: '2026-10-09T00:00:00Z' }))
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.text()).toContain('payment.gateway.accepted')
+    expect(wrapper.emitted('success')).toBeUndefined()
+    pollOrderStatus.mockResolvedValue(orderFactory('COMPLETED', { ...quote, paid_at: '2026-10-09T00:00:00Z' }))
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.emitted('success')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('does not show payable details for a gateway REVIEW state', async () => {
+    pollOrderStatus.mockResolvedValue(orderFactory('PENDING', { payment_type: 'usdt_gateway', gateway_status: 'REVIEW', crypto_network: 'bsc_mainnet' }))
+    verifyOrder.mockResolvedValue({ data: orderFactory('PENDING', { payment_type: 'usdt_gateway', gateway_status: 'REVIEW', crypto_network: 'bsc_mainnet' }) })
+    const wrapper = mount(PaymentStatusPanel, { props: { ...usdtProps(), paymentType: 'usdt_gateway', cryptoNetwork: 'bsc_mainnet' }, global: { stubs: usdtStubs } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('payment.gateway.review')
+    expect(wrapper.find('[data-test="gateway-copy-address"]').exists()).toBe(false)
+    expect(wrapper.emitted('success')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('treats RECHARGING as a successful terminal state', async () => {
     pollOrderStatus.mockResolvedValue(orderFactory('RECHARGING'))
 

@@ -46,6 +46,10 @@
             :receive-address="paymentState.receiveAddress"
             :out-trade-no="paymentState.outTradeNo"
             :mobile-alipay-deep-link="paymentState.alipayMobilePrecreateDeepLink"
+            :create-stage="paymentState.createStage"
+            :gateway-status="paymentState.gatewayStatus"
+            :confirmations="paymentState.confirmations"
+            :required-confirmations="paymentState.requiredConfirmations"
             @done="onPaymentDone"
             @success="onPaymentSuccess"
             @settled="onPaymentSettled"
@@ -110,6 +114,7 @@
                     :selected="selectedMethod"
                     @select="selectedMethod = $event"
                   />
+                  <CryptoNetworkSelector v-if="selectedMethod === 'usdt_gateway'" v-model="selectedCryptoNetwork" :networks="gatewayNetworks" name="recharge-network" />
                   <button
                     v-if="storefrontChannels.length > 0"
                     type="button"
@@ -242,6 +247,8 @@
                   :selected="selectedMethod"
                   @select="selectedMethod = $event"
                 />
+                <CryptoNetworkSelector v-if="selectedMethod === 'usdt_gateway'" v-model="selectedCryptoNetwork" :networks="gatewayNetworks" name="subscription-network" />
+                <p v-if="selectedMethod === 'usdt_gateway' && gatewayPlanPrice === null" class="mt-3 text-sm text-amber-700 dark:text-amber-300">{{ t('payment.gateway.planCurrencyUnavailable') }}</p>
               </div>
               <div v-if="feeRate > 0 && selectedPlan.price > 0" class="card p-6">
                 <div class="space-y-2 text-sm">
@@ -431,12 +438,14 @@ import { paymentAPI } from '@/api/payment'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
-import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
+import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType, CryptoNetwork } from '@/types/payment'
 import { normalizeRechargeBonusTiers, normalizeRechargeBonusMode, quoteRechargeBonus } from '@/utils/rechargeBonus'
 import type { PointsProduct } from '@/types/points'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
+import CryptoNetworkSelector from '@/components/payment/CryptoNetworkSelector.vue'
+import { clearCryptoPaymentIntent, cryptoPaymentRequestId, gatewaySubscriptionPrice, supportedCryptoNetworks } from '@/components/payment/cryptoGateway'
 import { METHOD_ORDER, getPaymentPopupFeatures } from '@/components/payment/providerConfig'
 import {
   PAYMENT_RECOVERY_STORAGE_KEY,
@@ -499,6 +508,7 @@ const purchaseMode = ref<'subscription' | 'reset'>('subscription')
 const resetGroupId = ref<number | null>(null)
 const amount = ref<number | null>(null)
 const selectedMethod = ref('')
+const selectedCryptoNetwork = ref<CryptoNetwork | ''>('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
 const previewImage = ref('')
 const selectedPointsProduct = ref<PointsProduct | null>(null)
@@ -676,6 +686,7 @@ function buildWechatOAuthAuthorizeUrl(
 }
 
 function onPaymentDone() {
+  if (paymentState.value.paymentType === 'usdt_gateway' && user.value?.id) clearCryptoPaymentIntent(window.localStorage, user.value.id)
   const wasSubscription = paymentState.value.orderType === 'subscription'
   resetPayment()
   selectedPlan.value = null
@@ -685,6 +696,7 @@ function onPaymentDone() {
 }
 
 async function onPaymentSuccess() {
+  if (paymentState.value.paymentType === 'usdt_gateway' && user.value?.id) clearCryptoPaymentIntent(window.localStorage, user.value.id)
   const completedPayment = { ...paymentState.value }
   removeRecoverySnapshot()
   authStore.refreshUser()
@@ -856,6 +868,11 @@ const globalMaxAmount = computed(() => {
 
 // Selected method's limits (for validation and error messages)
 const selectedLimit = computed(() => visibleMethods.value[selectedMethod.value])
+const gatewayNetworks = computed(() => supportedCryptoNetworks(visibleMethods.value.usdt_gateway?.networks))
+const networkSelected = computed(() => selectedMethod.value !== 'usdt_gateway' || gatewayNetworks.value.includes(selectedCryptoNetwork.value as CryptoNetwork))
+watch(gatewayNetworks, networks => {
+  if (!networks.includes(selectedCryptoNetwork.value as CryptoNetwork)) selectedCryptoNetwork.value = networks[0] || ''
+}, { immediate: true })
 const selectedCurrency = computed(() => normalizePaymentCurrency(selectedLimit.value?.currency))
 const localeCode = computed(() => {
   const raw = i18n.locale as unknown
@@ -907,6 +924,11 @@ function creditedBalanceAmountFor(inputAmount: number): number {
 }
 
 function formatSelectedSubscriptionPaymentAmount(value: number): string {
+  if (selectedMethod.value === 'usdt_gateway') {
+    const converted = gatewaySubscriptionPrice(value, selectedPlan.value?.currency, checkout.value.subscription_usd_to_cny_rate)
+    if (converted === null) return formatPaymentAmount(value, selectedPlan.value?.currency || 'USD', localeCode.value)
+    return formatSelectedPaymentAmount(roundPaymentAmount(converted, 'CNY'))
+  }
   return formatSelectedPaymentAmount(roundPaymentAmount(value, selectedCurrency.value))
 }
 
@@ -952,6 +974,7 @@ const canSubmit = computed(() =>
   payBaseAmount.value > 0
     && amountFitsMethod(payBaseAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
+    && networkSelected.value
 )
 
 // 标签滑块：按标签数量平分宽度，用 translateX 移到选中项，避免逐格重排
@@ -1012,9 +1035,10 @@ const submitButtonLabel = computed(() => {
   return `${t('payment.createOrder')} ${formatSelectedPaymentAmount(totalAmount.value)}`
 })
 
+const gatewayPlanPrice = computed(() => gatewaySubscriptionPrice(selectedPlan.value?.price || 0, selectedPlan.value?.currency, checkout.value.subscription_usd_to_cny_rate))
 const subPaymentAmount = computed(() => {
   const price = selectedPlan.value?.price ?? 0
-  return roundPaymentAmount(price, selectedCurrency.value)
+  return roundPaymentAmount(selectedMethod.value === 'usdt_gateway' ? gatewayPlanPrice.value || 0 : price, selectedCurrency.value)
 })
 
 const subFeeAmount = computed(() => {
@@ -1027,8 +1051,8 @@ const subTotalAmount = computed(() => {
   return roundPaymentAmount(subPaymentAmount.value + subFeeAmount.value, selectedCurrency.value)
 })
 
-function subscriptionTotalAmountForCurrency(value: number, currency: string): number {
-  const paymentAmount = roundPaymentAmount(value, currency)
+function subscriptionTotalAmountForCurrency(value: number, currency: string, method?: string): number {
+  const paymentAmount = roundPaymentAmount(method === 'usdt_gateway' ? gatewayPlanPrice.value || 0 : value, currency)
   if (feeRate.value <= 0 || paymentAmount <= 0) return paymentAmount
   const fee = ceilPaymentAmount((paymentAmount * feeRate.value) / 100, currency)
   return roundPaymentAmount(paymentAmount + fee, currency)
@@ -1043,7 +1067,7 @@ const subMethodOptions = computed<PaymentMethodOption[]>(() => {
     return {
       type,
       fee_rate: ml?.fee_rate ?? 0,
-      available: ml?.available !== false && amountFitsMethod(subscriptionTotalAmountForCurrency(price, currency), type),
+      available: ml?.available !== false && (type !== 'usdt_gateway' || gatewayPlanPrice.value !== null) && amountFitsMethod(subscriptionTotalAmountForCurrency(price, currency, type), type),
     }
   })
 })
@@ -1052,6 +1076,8 @@ const canSubmitSubscription = computed(() =>
   selectedPlan.value !== null
     && amountFitsMethod(subTotalAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
+    && networkSelected.value
+    && (selectedMethod.value !== 'usdt_gateway' || gatewayPlanPrice.value !== null)
 )
 
 // Auto-switch to first available method when current selection can't handle the amount
@@ -1140,6 +1166,7 @@ async function confirmSubscribe() {
 }
 
 async function createOrder(orderAmount: number, orderType: OrderType, planId?: number, options: CreateOrderOptions = {}) {
+  if (submitting.value) return
   submitting.value = true
   errorMessage.value = ''
   errorHintMessage.value = ''
@@ -1155,6 +1182,12 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
       forceQRCode: !!(checkout.value.alipay_force_qrcode && normalizeVisibleMethod(requestType) === 'alipay'),
       mobilePrecreateDeepLink: checkout.value.alipay_mobile_precreate_deep_link === true,
+      ...(requestType === 'usdt_gateway' && selectedCryptoNetwork.value && user.value?.id ? {
+        cryptoNetwork: selectedCryptoNetwork.value,
+        clientRequestId: cryptoPaymentRequestId(window.localStorage, user.value.id, {
+          amount: orderAmount, orderType, planId, network: selectedCryptoNetwork.value,
+        }),
+      } : {}),
     })
     if (options.openid) {
       payload.openid = options.openid
@@ -1224,6 +1257,10 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       return
     }
 
+    if (requestType === 'usdt_gateway') {
+      decision.paymentState.ownerUserId = user.value?.id
+      decision.recovery.ownerUserId = user.value?.id
+    }
     paymentState.value = decision.paymentState
     paymentPhase.value = 'paying'
     persistRecoverySnapshot(decision.recovery)
@@ -1501,7 +1538,7 @@ onMounted(async () => {
         window.localStorage.getItem(PAYMENT_RECOVERY_STORAGE_KEY),
         { resumeToken: routeResumeToken },
       )
-      if (restored) {
+      if (restored && (restored.paymentType !== 'usdt_gateway' || !!user.value?.id && restored.ownerUserId === user.value.id)) {
         paymentState.value = restored
         paymentPhase.value = 'paying'
         const restoredMethod = normalizeVisibleMethod(restored.paymentType)

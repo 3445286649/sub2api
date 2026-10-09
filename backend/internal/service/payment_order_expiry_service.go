@@ -96,6 +96,26 @@ func (s *PaymentOrderExpiryService) runOnce() {
 		return
 	}
 	defer release()
+	nonceCtx, nonceCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if _, err := s.paymentSvc.entClient.ExecContext(nonceCtx, "DELETE FROM payment_callback_nonces WHERE expires_at < CURRENT_TIMESTAMP"); err != nil {
+		slog.Warn("gateway callback nonce cleanup failed", "error", err)
+	}
+	nonceCancel()
+	recoveryCtx, recoveryCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if _, err := s.paymentSvc.BackfillLegacyCryptoReceipts(recoveryCtx); err != nil {
+		slog.Error("crypto receipt backfill requires review", "error", err)
+	}
+	recoveryCancel()
+	recoveryCtx, recoveryCancel = context.WithTimeout(context.Background(), 20*time.Second)
+	if _, err := s.paymentSvc.ReconcileBepusdtOrders(recoveryCtx); err != nil {
+		slog.Warn("gateway recovery failed", "error", err)
+	}
+	recoveryCancel()
+	recoveryCtx, recoveryCancel = context.WithTimeout(context.Background(), 10*time.Second)
+	if _, err := s.paymentSvc.RecoverCryptoFulfillment(recoveryCtx); err != nil {
+		slog.Warn("crypto fulfillment recovery failed", "error", err)
+	}
+	recoveryCancel()
 
 	reconcileCtx, cancel := context.WithTimeout(context.Background(), expiryCheckTimeout)
 	recovered, err := s.paymentSvc.ReconcilePendingPaymentOrders(reconcileCtx)

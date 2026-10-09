@@ -194,6 +194,11 @@ export const adminPaymentAPI = {
     return apiClient.put<ProviderInstance>(`/admin/payment/providers/${id}`, data)
   },
 
+  /** Check a saved gateway connection without creating a payment order. */
+  checkProvider(id: number) {
+    return apiClient.post(`/admin/payment/providers/${id}/check`)
+  },
+
   /** Delete a provider instance */
   deleteProvider(id: number) {
     return apiClient.delete(`/admin/payment/providers/${id}`)

@@ -61,6 +61,7 @@ func (PaymentOrder) Fields() []ent.Field {
 		field.String("out_trade_no").
 			MaxLen(64).
 			Default(""),
+		field.String("client_request_id").Optional().Nillable().MaxLen(36),
 		field.String("payment_type").
 			MaxLen(30),
 		field.String("payment_trade_no").
@@ -198,6 +199,7 @@ func (PaymentOrder) Edges() []ent.Edge {
 
 func (PaymentOrder) Indexes() []ent.Index {
 	return []ent.Index{
+		index.Fields("user_id", "client_request_id").Unique(),
 		index.Fields("out_trade_no").
 			Unique().
 			Annotations(entsql.IndexWhere("out_trade_no <> ''")),

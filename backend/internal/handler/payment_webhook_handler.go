@@ -67,6 +67,25 @@ func (h *PaymentWebhookHandler) AirwallexWebhook(c *gin.Context) {
 	h.handleNotify(c, payment.TypeAirwallex)
 }
 
+func (h *PaymentWebhookHandler) BepusdtWebhook(c *gin.Context) {
+	body, err := io.ReadAll(io.LimitReader(c.Request.Body, maxWebhookBodySize+1))
+	if err != nil || len(body) > maxWebhookBodySize {
+		c.String(http.StatusBadRequest, "invalid callback body")
+		return
+	}
+	headers := map[string]string{"request-path": c.Request.URL.EscapedPath()}
+	for key := range c.Request.Header {
+		headers[strings.ToLower(key)] = c.GetHeader(key)
+	}
+	eventID, err := h.paymentService.HandleBepusdtEvent(c.Request.Context(), string(body), headers)
+	if err != nil {
+		slog.Warn("gateway callback was not accepted", "error", err)
+		c.String(http.StatusBadGateway, "callback not accepted")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ack_event_id": eventID})
+}
+
 // handleNotify is the shared logic for all provider webhook handlers.
 func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string) {
 	var rawBody string

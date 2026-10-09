@@ -66,6 +66,29 @@ func (s *PaymentService) beginCryptoAllocation(ctx context.Context, orderID int6
 		}
 		reserved = append(reserved, amount)
 	}
+	// A gateway's exposed quote is permanent even after cancelling or disabling
+	// its instance. Switching back to the legacy allocator must not reuse it.
+	var cursor int64
+	for {
+		gatewayOrders, err := client.PaymentOrder.Query().Where(paymentorder.IDGT(cursor), paymentorder.ProviderKeyEQ(payment.ProviderBepusdt)).Order(dbent.Asc(paymentorder.FieldID)).Limit(200).All(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("read permanent gateway amount reservations: %w", err)
+		}
+		for _, order := range gatewayOrders {
+			cursor = order.ID
+			quote := bepusdtSnapshotOrder(order)
+			if quote == nil && psSnapshotStringValue(bepusdtSnapshot(order)["network"]) == "bsc_mainnet" && psSnapshotStringValue(bepusdtSnapshot(order)["create_stage"]) != "rejected" {
+				return nil, fmt.Errorf("gateway BSC quote for order %d remains unresolved", order.ID)
+			}
+			if quote == nil || quote.Network != "bsc_mainnet" || !strings.EqualFold(quote.ReceiveAddress, result.ReceiveAddress) {
+				continue
+			}
+			reserved = append(reserved, quote.CryptoAmount)
+		}
+		if len(gatewayOrders) < 200 {
+			break
+		}
+	}
 	if err := provider.ReserveUSDTBSCAmount(result, reserved); err != nil {
 		return nil, err
 	}

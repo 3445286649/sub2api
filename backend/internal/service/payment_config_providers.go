@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -111,12 +112,13 @@ var pendingOrderStatuses = []string{
 // Key matching is case-insensitive. Non-listed keys (e.g. appId, notifyUrl,
 // stripe publishableKey) are returned in plaintext by the admin GET API.
 var providerSensitiveConfigFields = map[string]map[string]struct{}{
-	payment.TypeEasyPay:   {"pkey": {}},
-	payment.TypeAlipay:    {"privatekey": {}, "publickey": {}, "alipaypublickey": {}},
-	payment.TypeWxpay:     {"privatekey": {}, "apiv3key": {}, "publickey": {}},
-	payment.TypeStripe:    {"secretkey": {}, "webhooksecret": {}},
-	payment.TypeAirwallex: {"apikey": {}, "webhooksecret": {}},
-	payment.TypeUSDTBSC:   {"bscscanapikey": {}, "apikey": {}},
+	payment.TypeEasyPay:     {"pkey": {}},
+	payment.TypeAlipay:      {"privatekey": {}, "publickey": {}, "alipaypublickey": {}},
+	payment.TypeWxpay:       {"privatekey": {}, "apiv3key": {}, "publickey": {}},
+	payment.TypeStripe:      {"secretkey": {}, "webhooksecret": {}},
+	payment.TypeAirwallex:   {"apikey": {}, "webhooksecret": {}},
+	payment.TypeUSDTBSC:     {"bscscanapikey": {}, "apikey": {}},
+	payment.ProviderBepusdt: {"apisecret": {}, "callbacksecret": {}},
 }
 
 // providerPendingOrderProtectedConfigFields lists config keys that cannot be
@@ -181,9 +183,34 @@ func (s *PaymentConfigService) countPendingOrdersByPlan(ctx context.Context, pla
 
 var validProviderKeys = map[string]bool{
 	payment.TypeEasyPay: true, payment.TypeAlipay: true, payment.TypeWxpay: true, payment.TypeStripe: true, payment.TypeAirwallex: true, payment.TypeUSDTBSC: true,
+	payment.ProviderBepusdt: true,
 }
 
 func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req CreateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
+	if !isCryptoProviderKey(req.ProviderKey) {
+		return s.createProviderInstance(ctx, req)
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	copyService := *s
+	copyService.entClient = tx.Client()
+	inst, err := copyService.createProviderInstance(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return inst, nil
+}
+
+func (s *PaymentConfigService) createProviderInstance(ctx context.Context, req CreateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
+	if req.ProviderKey == payment.ProviderBepusdt && (req.RefundEnabled || req.AllowUserRefund) {
+		return nil, infraerrors.BadRequest("REFUND_UNSUPPORTED", "bepusdt does not support refunds")
+	}
 	typesStr := joinTypes(req.SupportedTypes)
 	if err := validateProviderRequest(req.ProviderKey, req.Name, typesStr); err != nil {
 		return nil, err
@@ -197,6 +224,9 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 		return nil, err
 	}
 	if req.Enabled {
+		if err := s.validateCryptoEnablement(ctx, 0, req.ProviderKey, req.Config); err != nil {
+			return nil, err
+		}
 		if err := s.validateProviderConfig(req.ProviderKey, req.Config); err != nil {
 			return nil, err
 		}
@@ -220,6 +250,13 @@ func validateProviderRequest(providerKey, name, supportedTypes string) error {
 	}
 	if !validProviderKeys[providerKey] {
 		return infraerrors.BadRequest("VALIDATION_ERROR", fmt.Sprintf("invalid provider key: %s", providerKey))
+	}
+	if providerKey == payment.ProviderBepusdt {
+		for _, entry := range splitTypes(supportedTypes) {
+			if entry != payment.TypeUSDTGateway {
+				return infraerrors.BadRequest("VALIDATION_ERROR", "bepusdt only supports usdt_gateway")
+			}
+		}
 	}
 	// supported_types can be empty (provider accepts no payment types until configured)
 	return nil
@@ -291,6 +328,34 @@ func easyPayCustomMethodTypeConflictsWithBuiltin(methodType string) bool {
 // NOTE: This function exceeds 30 lines due to per-field nil-check patch update
 // boilerplate and pending-order safety checks.
 func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id int64, req UpdateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
+	inst, err := s.entClient.PaymentProviderInstance.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if !isCryptoProviderKey(inst.ProviderKey) {
+		return s.updateProviderInstance(ctx, id, req)
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if err = lockCryptoProviderInstance(ctx, tx.Client(), id); err != nil {
+		return nil, err
+	}
+	copyService := *s
+	copyService.entClient = tx.Client()
+	updated, err := copyService.updateProviderInstance(ctx, id, req)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+func (s *PaymentConfigService) updateProviderInstance(ctx context.Context, id int64, req UpdateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
 	current, err := s.entClient.PaymentProviderInstance.Get(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("load provider instance: %w", err)
@@ -315,6 +380,9 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 	if req.SupportedTypes != nil {
 		nextSupportedTypes = joinTypes(req.SupportedTypes)
 	}
+	if err := validateProviderRequest(current.ProviderKey, current.Name, nextSupportedTypes); err != nil {
+		return nil, err
+	}
 	if err := s.validateVisibleMethodEnablementConflicts(ctx, id, current.ProviderKey, nextSupportedTypes, nextEnabled); err != nil {
 		return nil, err
 	}
@@ -328,6 +396,15 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 		if err != nil {
 			return nil, err
 		}
+		if isCryptoProviderKey(current.ProviderKey) && !reflect.DeepEqual(currentConfig, mergedConfig) {
+			count, e := s.countProviderHistory(ctx, id)
+			if e != nil {
+				return nil, e
+			}
+			if count > 0 {
+				return nil, infraerrors.Conflict("PROVIDER_HISTORY_FROZEN", "crypto provider configuration is frozen after an order is created; create a new instance")
+			}
+		}
 		if hasPendingOrderProtectedConfigChange(current.ProviderKey, currentConfig, mergedConfig) {
 			count, err := getPendingOrderCount()
 			if err != nil {
@@ -339,7 +416,7 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 			}
 		}
 	}
-	if req.Enabled != nil && !*req.Enabled {
+	if req.Enabled != nil && !*req.Enabled && !isCryptoProviderKey(current.ProviderKey) {
 		count, err := getPendingOrderCount()
 		if err != nil {
 			return nil, err
@@ -369,9 +446,15 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 		finalEnabled = *req.Enabled
 	}
 	if finalEnabled {
+		if err := s.validateCryptoEnablement(ctx, id, current.ProviderKey, configToValidate); err != nil {
+			return nil, err
+		}
 		if err := s.validateProviderConfig(current.ProviderKey, configToValidate); err != nil {
 			return nil, err
 		}
+	}
+	if current.ProviderKey == payment.ProviderBepusdt && ((req.RefundEnabled != nil && *req.RefundEnabled) || (req.AllowUserRefund != nil && *req.AllowUserRefund)) {
+		return nil, infraerrors.BadRequest("REFUND_UNSUPPORTED", "bepusdt does not support refunds")
 	}
 	u := s.entClient.PaymentProviderInstance.UpdateOneID(id)
 	if req.Name != nil {
@@ -516,6 +599,33 @@ func (s *PaymentConfigService) decryptConfig(stored string) (map[string]string, 
 }
 
 func (s *PaymentConfigService) DeleteProviderInstance(ctx context.Context, id int64) error {
+	inst, loadErr := s.entClient.PaymentProviderInstance.Get(ctx, id)
+	if loadErr != nil {
+		return loadErr
+	}
+	if isCryptoProviderKey(inst.ProviderKey) {
+		tx, err := s.entClient.Tx(ctx)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		if err = lockCryptoProviderInstance(ctx, tx.Client(), id); err != nil {
+			return err
+		}
+		copyService := *s
+		copyService.entClient = tx.Client()
+		count, err := copyService.countProviderHistory(ctx, id)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			return infraerrors.Conflict("PROVIDER_HISTORY_FROZEN", "crypto provider is referenced by historical orders and cannot be deleted")
+		}
+		if err = tx.PaymentProviderInstance.DeleteOneID(id).Exec(ctx); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
 	count, err := s.countPendingOrders(ctx, id)
 	if err != nil {
 		return fmt.Errorf("check pending orders: %w", err)

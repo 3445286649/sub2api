@@ -10,6 +10,7 @@ import compat from './compat'
 import local from './local'
 import dailyCheckin from './dailyCheckin'
 import backupRecharge from './backupRecharge'
+import cryptoGateway from './cryptoGateway'
 import { mergeLocaleFallback } from '../merge'
 
 const upstream = {
@@ -24,4 +25,4 @@ const upstream = {
 }
 
 const current = mergeLocaleFallback(mergeLocaleFallback(mergeLocaleFallback(upstream, local), dailyCheckin), backupRecharge)
-export default mergeLocaleFallback(current, compat)
+export default mergeLocaleFallback(mergeLocaleFallback(current, compat), cryptoGateway)

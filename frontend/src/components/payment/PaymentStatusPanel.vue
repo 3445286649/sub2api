@@ -22,7 +22,7 @@
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderNo') }}</span>
                 <span class="font-medium text-gray-900 dark:text-white">{{ paidOrder.out_trade_no }}</span>
               </div>
-              <div class="flex justify-between">
+              <div v-if="!(isGateway && paidOrder.order_type === 'subscription')" class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
                 <span class="font-medium text-gray-900 dark:text-white">
                   {{ paidOrder.order_type === 'balance' ? '$' + paidOrder.amount.toFixed(2) : formatGatewayAmount(paidOrder.amount, paidOrder.currency) }}
@@ -36,10 +36,11 @@
                 <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(paidOrder.pay_amount, paidOrder.currency) }}</span>
               </div>
               <CryptoTxReceipt
-                v-if="isUsdtBsc"
+                v-if="isUsdtBsc || isGateway"
                 :tx-hash="paidOrder.crypto_tx_hash"
                 :amount="paidOrder.crypto_amount || cryptoAmountText"
                 :currency="paidOrder.crypto_currency || cryptoCurrencyText"
+                :network="paidOrder.crypto_network || props.cryptoNetwork"
               />
             </div>
           </div>
@@ -47,6 +48,28 @@
         </div>
       </div>
     </template>
+
+    <CryptoGatewayCheckout
+      v-else-if="isGateway"
+      :network="gatewayOrder?.crypto_network || props.cryptoNetwork || ''"
+      :crypto-amount="gatewayOrder?.crypto_amount || props.cryptoAmount || ''"
+      :receive-address="gatewayOrder?.receive_address || props.receiveAddress || ''"
+      :order-no="gatewayOrder?.out_trade_no || props.outTradeNo || ''"
+      :order-amount="displayPaymentAmount"
+      :remaining-seconds="remainingSeconds"
+      :gateway-status="gatewayOrder?.gateway_status || props.gatewayStatus"
+      :create-stage="gatewayOrder?.create_stage || props.createStage"
+      :order-status="gatewayOrder?.status"
+      :confirmations="gatewayOrder?.confirmations ?? props.confirmations"
+      :required-confirmations="gatewayOrder?.required_confirmations ?? props.requiredConfirmations"
+      :tx-hash="gatewayOrder?.crypto_tx_hash"
+      :checking="gatewayChecking"
+      :cancelling="cancelling"
+      :show-support="supportEnabled"
+      @check="checkGatewayOrder"
+      @cancel="handleCancel"
+      @done="handleDone"
+    />
 
     <!-- USDT-BSC 过期 / 取消：宽限期内仍可能入账，继续自动核对一段时间 -->
     <template v-else-if="usdtWatchStarted && (outcome === 'expired' || outcome === 'cancelled')">
@@ -308,6 +331,7 @@ import type { PaymentOrder } from '@/types/payment'
 import Icon from '@/components/icons/Icon.vue'
 import CryptoTxReceipt from './CryptoTxReceipt.vue'
 import UsdtBscCheckout from './UsdtBscCheckout.vue'
+import CryptoGatewayCheckout from './CryptoGatewayCheckout.vue'
 import { formatCountdown } from './usdtBsc'
 import QRCode from 'qrcode'
 import alipayIcon from '@/assets/icons/alipay.svg'
@@ -336,6 +360,10 @@ const props = defineProps<{
   receiveAddress?: string
   outTradeNo?: string
   mobileAlipayDeepLink?: boolean
+  createStage?: string
+  gatewayStatus?: string
+  confirmations?: number
+  requiredConfirmations?: number
 }>()
 
 type PaymentOutcome = 'success' | 'cancelled' | 'expired'
@@ -354,6 +382,9 @@ const remainingSeconds = ref(0)
 const orderLifetimeSeconds = ref(0)
 const cancelling = ref(false)
 const paidOrder = ref<PaymentOrder | null>(null)
+const gatewayOrder = ref<PaymentOrder | null>(null)
+const gatewayChecking = ref(false)
+const isGateway = computed(() => props.paymentType === 'usdt_gateway')
 const deepLinkState = ref<AlipayDeepLinkState>('idle')
 const deepLinkFallbackVisible = ref(false)
 const paymentCurrency = computed(() => normalizePaymentCurrency(props.currency))
@@ -593,6 +624,33 @@ async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder
   }
 }
 
+let gatewayDisposed = false
+async function checkGatewayOrder() {
+  if (!props.orderId || gatewayChecking.value || gatewayDisposed || outcome.value === 'success') return
+  gatewayChecking.value = true
+  try {
+    let order = await paymentStore.pollOrderStatus(props.orderId)
+    if (!order || gatewayDisposed) return
+    const now = Date.now()
+    if (order.out_trade_no && !order.paid_at && now - lastVerifyAt >= USDT_VERIFY_INTERVAL_MS) {
+      lastVerifyAt = now
+      try { order = (await paymentAPI.verifyOrder(order.out_trade_no)).data || order } catch { /* The next poll recovers without issuing another order. */ }
+    }
+    if (gatewayDisposed) return
+    gatewayOrder.value = order
+    if (order.status === 'COMPLETED') {
+      paidOrder.value = order
+      cleanup()
+      setOutcome('success')
+      emit('success')
+    }
+  } catch {
+    // Poll failures keep the payment instruction intact.
+  } finally {
+    gatewayChecking.value = false
+  }
+}
+
 let pollInFlight = false
 async function pollStatus() {
   if (!props.orderId || outcome.value) return
@@ -639,6 +697,10 @@ async function handleCancel() {
   cancelling.value = true
   try {
     await paymentAPI.cancelOrder(props.orderId)
+    if (isGateway.value) {
+      await checkGatewayOrder()
+      return
+    }
     cleanup()
     setOutcome('cancelled')
   } catch (err: unknown) {
@@ -665,8 +727,15 @@ let seconds = 30 * 60
 if (props.expiresAt) {
   seconds = Math.floor((new Date(props.expiresAt).getTime() - Date.now()) / 1000)
 }
-startCountdown(seconds)
-pollTimer = setInterval(pollStatus, 3000)
+if (isGateway.value) {
+  remainingSeconds.value = Math.max(0, seconds)
+  countdownTimer = setInterval(() => { remainingSeconds.value = Math.max(0, remainingSeconds.value - 1) }, 1000)
+  pollTimer = setInterval(checkGatewayOrder, 5000)
+  void checkGatewayOrder()
+} else {
+  startCountdown(seconds)
+  pollTimer = setInterval(pollStatus, 3000)
+}
 renderQR()
 
 watch([() => qrUrl.value, showQRCode], () => renderQR())
@@ -682,7 +751,7 @@ onMounted(() => {
   })
   alipayLauncher.launch()
 })
-onUnmounted(() => { cleanup(); stopUsdtWatch() })
+onUnmounted(() => { gatewayDisposed = true; cleanup(); stopUsdtWatch() })
 </script>
 
 <style scoped>

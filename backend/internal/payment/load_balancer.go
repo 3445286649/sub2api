@@ -138,6 +138,15 @@ func (lb *DefaultLoadBalancer) queryEnabledInstances(
 	var matched []*dbent.PaymentProviderInstance
 	expectedWxpayJSAPIAppID := wxpayJSAPIAppIDFromContext(ctx)
 	for _, inst := range instances {
+		if paymentType == TypeUSDTGateway {
+			if inst.ProviderKey != ProviderBepusdt {
+				continue
+			}
+			cfg, cfgErr := lb.decryptConfig(inst.Config)
+			if cfgErr != nil || !cryptoNetworkAllowed(cfg, cryptoNetworkFromContext(ctx)) {
+				continue
+			}
+		}
 		// Stripe: match by provider_key because supported_types lists sub-types (card,link,alipay,wxpay),
 		// not "stripe" itself. The checkout page aggregates all sub-types under "stripe".
 		if paymentType == TypeStripe {

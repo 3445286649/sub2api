@@ -96,6 +96,26 @@ function mountDialog(options: { editing?: ProviderInstance | null } = {}) {
 }
 
 describe('PaymentProviderDialog callback URLs', () => {
+  it('edits gateway networks without exposing stored secrets or enabling refunds', async () => {
+    const provider = providerFactory({ provider_key: 'bepusdt', name: 'Gateway', supported_types: ['usdt_gateway'], refund_enabled: true, allow_user_refund: true, config: {
+      apiUrl: 'https://gateway.example.com', merchantId: 'merchant', keyId: 'key', allowedNetworks: 'tron_mainnet', apiSecret: 'must-never-fill-api-secret', callbackSecret: 'must-never-fill-notify-secret',
+    } })
+    const wrapper = mountDialog({ editing: provider })
+    ;(wrapper.vm as unknown as { loadProvider: (value: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    expect(wrapper.findAll('input[type="password"]').map(input => (input.element as HTMLInputElement).value)).toEqual(['', ''])
+    expect(wrapper.text()).not.toContain('must-never-fill')
+    expect(wrapper.text()).not.toContain('admin.settings.payment.refundEnabled')
+    await wrapper.get('[data-network="bsc_mainnet"]').setValue(true)
+    await wrapper.get('form').trigger('submit')
+    const payload = wrapper.emitted('save')?.[0]?.[0] as { config: Record<string, string>; refund_enabled: boolean; allow_user_refund: boolean }
+    expect(payload.config.allowedNetworks).toBe('bsc_mainnet,tron_mainnet')
+    expect(payload.config).not.toHaveProperty('apiSecret')
+    expect(payload.config).not.toHaveProperty('callbackSecret')
+    expect(payload.refund_enabled).toBe(false)
+    expect(payload.allow_user_refund).toBe(false)
+    wrapper.unmount()
+  })
   it.each([
     ['https://notify.example.com/', 'https://return.example.com///', 'https://notify.example.com', 'https://return.example.com'],
     [' https://notify.example.com/sub/ ', ' https://return.example.com/site/ ', 'https://notify.example.com/sub', 'https://return.example.com/site'],

@@ -115,6 +115,20 @@ func (_c *PaymentOrderCreate) SetNillableOutTradeNo(v *string) *PaymentOrderCrea
 	return _c
 }
 
+// SetClientRequestID sets the "client_request_id" field.
+func (_c *PaymentOrderCreate) SetClientRequestID(v string) *PaymentOrderCreate {
+	_c.mutation.SetClientRequestID(v)
+	return _c
+}
+
+// SetNillableClientRequestID sets the "client_request_id" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableClientRequestID(v *string) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetClientRequestID(*v)
+	}
+	return _c
+}
+
 // SetPaymentType sets the "payment_type" field.
 func (_c *PaymentOrderCreate) SetPaymentType(v string) *PaymentOrderCreate {
 	_c.mutation.SetPaymentType(v)
@@ -668,6 +682,11 @@ func (_c *PaymentOrderCreate) check() error {
 			return &ValidationError{Name: "out_trade_no", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.out_trade_no": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.ClientRequestID(); ok {
+		if err := paymentorder.ClientRequestIDValidator(v); err != nil {
+			return &ValidationError{Name: "client_request_id", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.client_request_id": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.PaymentType(); !ok {
 		return &ValidationError{Name: "payment_type", err: errors.New(`ent: missing required field "PaymentOrder.payment_type"`)}
 	}
@@ -830,6 +849,10 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.OutTradeNo(); ok {
 		_spec.SetField(paymentorder.FieldOutTradeNo, field.TypeString, value)
 		_node.OutTradeNo = value
+	}
+	if value, ok := _c.mutation.ClientRequestID(); ok {
+		_spec.SetField(paymentorder.FieldClientRequestID, field.TypeString, value)
+		_node.ClientRequestID = &value
 	}
 	if value, ok := _c.mutation.PaymentType(); ok {
 		_spec.SetField(paymentorder.FieldPaymentType, field.TypeString, value)
@@ -1179,6 +1202,24 @@ func (u *PaymentOrderUpsert) SetOutTradeNo(v string) *PaymentOrderUpsert {
 // UpdateOutTradeNo sets the "out_trade_no" field to the value that was provided on create.
 func (u *PaymentOrderUpsert) UpdateOutTradeNo() *PaymentOrderUpsert {
 	u.SetExcluded(paymentorder.FieldOutTradeNo)
+	return u
+}
+
+// SetClientRequestID sets the "client_request_id" field.
+func (u *PaymentOrderUpsert) SetClientRequestID(v string) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldClientRequestID, v)
+	return u
+}
+
+// UpdateClientRequestID sets the "client_request_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateClientRequestID() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldClientRequestID)
+	return u
+}
+
+// ClearClientRequestID clears the value of the "client_request_id" field.
+func (u *PaymentOrderUpsert) ClearClientRequestID() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldClientRequestID)
 	return u
 }
 
@@ -1927,6 +1968,27 @@ func (u *PaymentOrderUpsertOne) SetOutTradeNo(v string) *PaymentOrderUpsertOne {
 func (u *PaymentOrderUpsertOne) UpdateOutTradeNo() *PaymentOrderUpsertOne {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.UpdateOutTradeNo()
+	})
+}
+
+// SetClientRequestID sets the "client_request_id" field.
+func (u *PaymentOrderUpsertOne) SetClientRequestID(v string) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetClientRequestID(v)
+	})
+}
+
+// UpdateClientRequestID sets the "client_request_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateClientRequestID() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateClientRequestID()
+	})
+}
+
+// ClearClientRequestID clears the value of the "client_request_id" field.
+func (u *PaymentOrderUpsertOne) ClearClientRequestID() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearClientRequestID()
 	})
 }
 
@@ -2929,6 +2991,27 @@ func (u *PaymentOrderUpsertBulk) SetOutTradeNo(v string) *PaymentOrderUpsertBulk
 func (u *PaymentOrderUpsertBulk) UpdateOutTradeNo() *PaymentOrderUpsertBulk {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.UpdateOutTradeNo()
+	})
+}
+
+// SetClientRequestID sets the "client_request_id" field.
+func (u *PaymentOrderUpsertBulk) SetClientRequestID(v string) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetClientRequestID(v)
+	})
+}
+
+// UpdateClientRequestID sets the "client_request_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateClientRequestID() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateClientRequestID()
+	})
+}
+
+// ClearClientRequestID clears the value of the "client_request_id" field.
+func (u *PaymentOrderUpsertBulk) ClearClientRequestID() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearClientRequestID()
 	})
 }
 

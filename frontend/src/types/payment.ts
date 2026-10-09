@@ -19,7 +19,9 @@ export type OrderStatus =
   | 'REFUNDED'
   | 'REFUND_FAILED'
 
-export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex' | 'usdt_bsc'
+export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex' | 'usdt_bsc' | 'usdt_gateway'
+
+export type CryptoNetwork = 'bsc_mainnet' | 'tron_mainnet'
 
 export type OrderType = 'balance' | 'subscription'
 export type SubscriptionPlanType = 'subscription' | 'quota_reset'
@@ -49,6 +51,7 @@ export interface PaymentConfig {
 }
 
 export interface MethodLimit {
+  networks?: string[]
   currency?: string
   daily_limit: number
   daily_used: number
@@ -68,6 +71,7 @@ export interface MethodLimitsResponse {
 
 /** Response from /payment/checkout-info API — single call for the payment page */
 export interface CheckoutInfoResponse {
+  subscription_usd_to_cny_rate?: number
   methods: Record<string, MethodLimit>
   global_min: number
   global_max: number
@@ -124,6 +128,14 @@ export interface PaymentOrder {
   crypto_tx_hash?: string
   crypto_amount?: string
   crypto_currency?: string
+  crypto_network?: string
+  receive_address?: string
+  crypto_rate?: string
+  crypto_explorer_url?: string
+  create_stage?: string
+  gateway_status?: string
+  required_confirmations?: number
+  confirmations?: number
 }
 
 // ==================== Plans & Channels ====================
@@ -200,6 +212,8 @@ export interface CreateOrderRequest {
   openid?: string
   wechat_resume_token?: string
   is_mobile?: boolean
+  crypto_network?: CryptoNetwork
+  client_request_id?: string
 }
 
 export type CreateOrderResultType = 'order_created' | 'oauth_required' | 'jsapi_ready'
@@ -238,6 +252,10 @@ export interface CreateOrderResult {
   crypto_rate?: string
   crypto_rate_source?: string
   receive_address?: string
+  create_stage?: string
+  gateway_status?: string
+  required_confirmations?: number
+  confirmations?: number
   pay_amount: number
   fee_rate: number
   bonus_amount?: number

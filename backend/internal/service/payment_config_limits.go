@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
+	"github.com/Wei-Shaw/sub2api/internal/payment/provider"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
@@ -34,6 +36,16 @@ func (s *PaymentConfigService) GetAvailableMethodLimits(ctx context.Context) (*M
 		ml := pcAggregateMethodLimits(pt, insts)
 		ml.DisplayName = s.pcAggregateMethodDisplayName(pt, insts)
 		ml.Currency = currency
+		if pt == payment.TypeUSDTGateway {
+			for _, inst := range insts {
+				cfg, _ := s.decryptConfig(inst.Config)
+				for _, network := range provider.BepusdtNetworks(cfg) {
+					if !slices.Contains(ml.Networks, network) {
+						ml.Networks = append(ml.Networks, network)
+					}
+				}
+			}
+		}
 		resp.Methods[ml.PaymentType] = ml
 	}
 	resp.GlobalMin, resp.GlobalMax = pcComputeGlobalRange(resp.Methods)
@@ -231,11 +243,20 @@ func pcGroupByPaymentType(instances []*dbent.PaymentProviderInstance) map[string
 	}
 	for _, inst := range instances {
 		// Stripe provider: all sub-types → single "stripe" group
+		if inst.ProviderKey == payment.ProviderBepusdt {
+			if payment.InstanceSupportsType(inst.SupportedTypes, payment.TypeUSDTGateway) {
+				add(payment.TypeUSDTGateway, inst)
+			}
+			continue
+		}
 		if inst.ProviderKey == payment.TypeStripe {
 			add(payment.TypeStripe, inst)
 			continue
 		}
 		for _, t := range splitTypes(inst.SupportedTypes) {
+			if t == payment.TypeUSDTGateway {
+				continue
+			}
 			add(t, inst)
 		}
 	}

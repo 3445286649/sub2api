@@ -7,7 +7,7 @@
   >
     <form id="provider-form" @submit.prevent="handleSave" class="space-y-4">
       <!-- Name + Key -->
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid gap-4 sm:grid-cols-2">
         <div>
           <label class="input-label">
             {{ t('admin.settings.payment.providerName') }}
@@ -32,8 +32,8 @@
       <!-- Toggles + Payment mode + Supported types (single row) -->
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
         <ToggleSwitch :label="t('common.enabled')" :checked="form.enabled" @toggle="form.enabled = !form.enabled" />
-        <ToggleSwitch :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
-        <ToggleSwitch v-if="form.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="form.allow_user_refund" @toggle="form.allow_user_refund = !form.allow_user_refund" />
+        <ToggleSwitch v-if="form.provider_key !== 'bepusdt'" :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
+        <ToggleSwitch v-if="form.provider_key !== 'bepusdt' && form.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="form.allow_user_refund" @toggle="form.allow_user_refund = !form.allow_user_refund" />
         <div v-if="supportsPaymentMode" class="flex items-center gap-2">
           <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.paymentMode') }}</span>
           <div class="flex gap-1.5">
@@ -186,6 +186,8 @@
               <button
                 type="button"
                 @click="visibleFields[field.key] = !visibleFields[field.key]"
+                :aria-label="field.label"
+                :title="field.label"
                 class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <svg v-if="visibleFields[field.key]" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" /></svg>
@@ -210,6 +212,16 @@
             </p>
           </div>
         </div>
+
+        <fieldset v-if="form.provider_key === 'bepusdt'" class="mt-4">
+          <legend class="input-label">{{ t('admin.settings.payment.allowedNetworks') }}</legend>
+          <div class="flex flex-wrap gap-4">
+            <label v-for="network in CRYPTO_NETWORKS" :key="network.value" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+              <input type="checkbox" :data-network="network.value" :checked="gatewayNetworks.includes(network.value)" @change="toggleGatewayNetwork(network.value)" />
+              {{ network.label }}
+            </label>
+          </div>
+        </fieldset>
 
         <!-- Callback URLs (each = editable URL + fixed path) -->
         <div v-if="callbackPaths" class="mt-4 space-y-3">
@@ -312,6 +324,8 @@ import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Select from '@/components/common/Select.vue'
 import type { SelectOption } from '@/components/common/Select.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
+import { CRYPTO_NETWORKS, supportedCryptoNetworks } from './cryptoGateway'
+import type { CryptoNetwork } from '@/types/payment'
 import type { ProviderInstance } from '@/types/payment'
 import type { EasyPayCustomMethod, TypeOption } from './providerConfig'
 import {
@@ -418,6 +432,7 @@ const defaultBaseUrl = typeof window !== 'undefined' ? window.location.origin : 
 const providerWebhookHintMap: Record<string, string> = {
   stripe: 'admin.settings.payment.stripeWebhookHint',
   airwallex: 'admin.settings.payment.airwallexWebhookHint',
+  bepusdt: 'admin.settings.payment.bepusdtWebhookHint',
 }
 
 const providerWebhookUrl = computed(() => {
@@ -432,6 +447,13 @@ const providerWebhookHint = computed(() =>
 const callbackPaths = computed(() => PROVIDER_CALLBACK_PATHS[form.provider_key] || null)
 
 const supportsPaymentMode = computed(() => providerSupportsPaymentMode(form.provider_key))
+const gatewayNetworks = computed(() => supportedCryptoNetworks((config.allowedNetworks || '').split(',')))
+
+function toggleGatewayNetwork(network: CryptoNetwork) {
+  config.allowedNetworks = CRYPTO_NETWORKS
+    .filter(item => item.value === network ? !gatewayNetworks.value.includes(network) : gatewayNetworks.value.includes(item.value))
+    .map(item => item.value).join(',')
+}
 
 const paymentModeOptions = computed(() => {
   if (form.provider_key === 'alipay') {
@@ -593,6 +615,10 @@ function onKeyChange() {
   form.payment_mode = defaultPaymentMode(form.provider_key)
   clearConfig()
   applyDefaults()
+  if (form.provider_key === 'bepusdt') {
+    form.refund_enabled = false
+    form.allow_user_refund = false
+  }
 }
 
 function clearConfig() {
@@ -609,6 +635,7 @@ function applyDefaults() {
   for (const f of PROVIDER_CONFIG_FIELDS[form.provider_key] || []) {
     if (f.defaultValue && !config[f.key]) config[f.key] = f.defaultValue
   }
+  if (form.provider_key === 'bepusdt' && !config.allowedNetworks) config.allowedNetworks = 'bsc_mainnet,tron_mainnet'
 }
 
 function getLimitVal(paymentType: string, field: string): string {
@@ -659,6 +686,19 @@ function handleSave() {
   if (!form.name.trim()) {
     emitValidationError(t('admin.settings.payment.validationNameRequired'))
     return
+  }
+  if (form.provider_key === 'bepusdt') {
+    try {
+      const url = new URL((config.apiUrl || '').trim())
+      if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('invalid URL')
+    } catch {
+      emitValidationError(t('admin.settings.payment.gatewayUrlInvalid'))
+      return
+    }
+    if (!gatewayNetworks.value.length) {
+      emitValidationError(t('admin.settings.payment.gatewayNetworksRequired'))
+      return
+    }
   }
   if (form.provider_key === 'easypay') {
     const validationError = validateEasyPayCustomMethods()
@@ -719,8 +759,8 @@ function handleSave() {
     supported_types: form.supported_types,
     enabled: form.enabled,
     payment_mode: supportsPaymentMode.value ? form.payment_mode : '',
-    refund_enabled: form.refund_enabled,
-    allow_user_refund: form.refund_enabled ? form.allow_user_refund : false,
+    refund_enabled: form.provider_key !== 'bepusdt' && form.refund_enabled,
+    allow_user_refund: form.provider_key !== 'bepusdt' && form.refund_enabled ? form.allow_user_refund : false,
     config: filteredConfig,
     limits: serializeLimits(),
   })
@@ -821,6 +861,7 @@ function loadProvider(provider: ProviderInstance) {
         easyPayCustomMethods.push(...parseEasyPayCustomMethods(v))
         continue
       }
+      if (provider.provider_key === 'bepusdt' && PROVIDER_CONFIG_FIELDS.bepusdt.some(field => field.key.toLowerCase() === k.toLowerCase() && field.sensitive)) continue
       config[k] = v
     }
     // Extract base URLs from existing callback URLs

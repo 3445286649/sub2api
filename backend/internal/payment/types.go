@@ -19,6 +19,8 @@ const (
 	TypeEasyPay      PaymentType = "easypay"
 	TypeAirwallex    PaymentType = "airwallex"
 	TypeUSDTBSC      PaymentType = "usdt_bsc"
+	TypeUSDTGateway  PaymentType = "usdt_gateway"
+	ProviderBepusdt  PaymentType = "bepusdt"
 )
 
 // Order status constants shared across payment and service layers.
@@ -116,6 +118,8 @@ type CreatePaymentRequest struct {
 	// ReservedCryptoAmounts lists crypto amounts still claimable by other orders
 	// on the same receive address; USDT-BSC avoids reusing them as unique tails.
 	ReservedCryptoAmounts []string
+	CryptoNetwork         string
+	ExpiresAt             string
 }
 
 // CreatePaymentResultType describes the shape of the create-payment result.

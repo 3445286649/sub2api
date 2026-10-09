@@ -59,7 +59,7 @@
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.bonusAmount') }}</span>
               <span class="font-medium text-amber-600 dark:text-amber-400">+${{ orderBonusAmount(order).toFixed(2) }}</span>
             </div>
-            <div v-if="hasAmountFields(order) && (order.amount !== order.pay_amount || orderBonusAmount(order) > 0)" class="flex justify-between">
+            <div v-if="hasAmountFields(order) && !(hasPaymentType(order) && order.payment_type === 'usdt_gateway' && order.order_type === 'subscription') && (order.amount !== order.pay_amount || orderBonusAmount(order) > 0)" class="flex justify-between">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.creditedAmount') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ order.order_type === 'balance' ? '$' + order.amount.toFixed(2) : formatGatewayAmount(order.amount) }}</span>
             </div>
@@ -72,6 +72,7 @@
               :tx-hash="cryptoReceipt.crypto_tx_hash"
               :amount="cryptoReceipt.crypto_amount"
               :currency="cryptoReceipt.crypto_currency"
+              :network="cryptoReceipt.crypto_network"
             />
             <!-- 充值后余额：从充值前的余额滚到新值，让用户看到钱确实到账了 -->
             <div v-if="showBalanceRoll" class="flex justify-between border-t border-gray-100 pt-3 dark:border-dark-700">
@@ -221,6 +222,7 @@ const isPending = computed(() => {
 })
 
 const statusTitle = computed(() => {
+  if (order.value && 'gateway_status' in order.value && order.value.gateway_status === 'REVIEW') return t('payment.gateway.review')
   if (isSuccess.value) {
     return t('payment.result.success')
   }
@@ -287,10 +289,12 @@ function displayOrderStatus(status: string): OrderStatus {
 }
 
 function isSuccessStatus(status: string | null | undefined): boolean {
+  if (order.value && 'payment_type' in order.value && order.value.payment_type === 'usdt_gateway') return normalizeOrderStatus(status) === 'COMPLETED'
   return SUCCESS_STATUSES.has(normalizeOrderStatus(status))
 }
 
 function isPendingStatus(status: string | null | undefined): boolean {
+  if (order.value && 'payment_type' in order.value && order.value.payment_type === 'usdt_gateway' && ['PAID', 'RECHARGING'].includes(normalizeOrderStatus(status))) return true
   return PENDING_STATUSES.has(normalizeOrderStatus(status))
 }
 

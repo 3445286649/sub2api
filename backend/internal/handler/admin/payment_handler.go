@@ -465,6 +465,28 @@ func (h *PaymentHandler) DeleteProvider(c *gin.Context) {
 	response.Success(c, gin.H{"message": "deleted"})
 }
 
+func (h *PaymentHandler) CheckProvider(c *gin.Context) {
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	result, err := h.configService.CheckBepusdtConnection(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *PaymentHandler) ExportLegacyBSCReservations(c *gin.Context) {
+	rows, digest, err := h.configService.LegacyBSCReservationExport(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"network": "bsc_mainnet", "token_contract": "0x55d398326f99059ff775485246999027b3197955", "count": len(rows), "digest": digest, "reservations": rows})
+}
+
 // parseIDParam parses an int64 path parameter.
 // Returns the parsed ID and true on success; on failure it writes a BadRequest response and returns false.
 func parseIDParam(c *gin.Context, paramName string) (int64, bool) {

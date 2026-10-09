@@ -296,9 +296,11 @@ func providerMerchantIdentityMetadata(prov payment.Provider) map[string]string {
 // PaymentOrderCryptoReceipt is the on-chain proof shown to the user after a
 // crypto order is paid.
 type PaymentOrderCryptoReceipt struct {
-	TxHash   string
-	Amount   string
-	Currency string
+	TxHash      string
+	Amount      string
+	Currency    string
+	Network     string
+	ExplorerURL string
 }
 
 var (
@@ -313,6 +315,9 @@ var (
 func PaymentOrderCryptoReceiptOf(order *dbent.PaymentOrder) *PaymentOrderCryptoReceipt {
 	if order == nil || order.PaidAt == nil {
 		return nil
+	}
+	if quote := bepusdtSnapshotOrder(order); quote != nil && quote.Payment != nil && quote.Status == "PAID" {
+		return &PaymentOrderCryptoReceipt{TxHash: quote.Payment.TxHash, Amount: quote.CryptoAmount, Currency: "USDT", Network: quote.Network, ExplorerURL: cryptoReceiptExplorer(quote.Network, quote.Payment.TxHash)}
 	}
 	switch order.Status {
 	case OrderStatusPending, OrderStatusExpired, OrderStatusCancelled:
@@ -329,7 +334,7 @@ func PaymentOrderCryptoReceiptOf(order *dbent.PaymentOrder) *PaymentOrderCryptoR
 	if !cryptoTxHashPattern.MatchString(hash) {
 		return nil
 	}
-	receipt := &PaymentOrderCryptoReceipt{TxHash: strings.ToLower(hash), Currency: "USDT"}
+	receipt := &PaymentOrderCryptoReceipt{TxHash: strings.ToLower(hash), Currency: "USDT", Network: "bsc_mainnet", ExplorerURL: cryptoReceiptExplorer("bsc_mainnet", strings.ToLower(hash))}
 	if amount := psSnapshotStringValue(usdt["token_amount"]); cryptoAmountPattern.MatchString(amount) {
 		receipt.Amount = amount
 	}

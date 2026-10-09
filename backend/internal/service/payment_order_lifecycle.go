@@ -123,6 +123,9 @@ func (s *PaymentService) AdminCancelOrder(ctx context.Context, orderID int64) (s
 }
 
 func (s *PaymentService) cancelCore(ctx context.Context, o *dbent.PaymentOrder, fs, op, ad string) (string, error) {
+	if psStringValue(o.ProviderKey) == payment.ProviderBepusdt {
+		return s.cancelBepusdtOrder(ctx, o, fs, op)
+	}
 	if o.PaymentTradeNo != "" || o.PaymentType != "" {
 		if s.checkPaid(ctx, o) == checkPaidResultAlreadyPaid {
 			return checkPaidResultAlreadyPaid, nil
@@ -151,6 +154,16 @@ func (s *PaymentService) reconcilePaid(ctx context.Context, o *dbent.PaymentOrde
 }
 
 func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.PaymentOrder, opts checkPaidOptions) string {
+	if psStringValue(o.ProviderKey) == payment.ProviderBepusdt {
+		if err := s.reconcileBepusdtOrder(ctx, o); err != nil {
+			return ""
+		}
+		fresh, err := s.entClient.PaymentOrder.Get(ctx, o.ID)
+		if err == nil && fresh.PaidAt != nil {
+			return checkPaidResultAlreadyPaid
+		}
+		return ""
+	}
 	prov, err := s.getOrderProvider(ctx, o)
 	if err != nil {
 		return ""
