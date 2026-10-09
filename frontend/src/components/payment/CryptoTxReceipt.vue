@@ -1,7 +1,7 @@
 <template>
-  <div v-if="amountText" class="flex justify-between gap-3">
-    <span class="text-gray-500 dark:text-gray-400">{{ t('payment.crypto.paidOnChain') }}</span>
-    <span data-test="crypto-paid-amount" class="font-mono font-medium text-gray-900 dark:text-white">{{ amountText }}</span>
+  <div v-if="amountText" class="flex items-start justify-between gap-3">
+    <span class="shrink-0 text-gray-500 dark:text-gray-400">{{ t('payment.crypto.paidOnChain') }}</span>
+    <span data-test="crypto-paid-amount" class="min-w-0 break-all text-right font-mono font-medium text-gray-900 dark:text-white">{{ amountText }}</span>
   </div>
   <div v-if="hasHash" class="flex items-center justify-between gap-3">
     <span class="shrink-0 text-gray-500 dark:text-gray-400">{{ t('payment.crypto.txHash') }}</span>
@@ -11,7 +11,7 @@
         :href="explorerUrl"
         target="_blank"
         rel="noopener noreferrer"
-        :title="t('payment.crypto.viewOnExplorer')"
+        :title="t('payment.gateway.viewOnExplorer', { explorer: network === 'tron_mainnet' ? 'TronScan' : 'BscScan' })"
         class="inline-flex min-w-0 items-center gap-1 font-mono font-medium text-primary-600 hover:underline dark:text-primary-400"
       >
         <span class="truncate">{{ shortHash }}</span>

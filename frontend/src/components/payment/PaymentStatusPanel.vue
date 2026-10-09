@@ -4,36 +4,36 @@
 
     <!-- Success -->
     <template v-if="outcome === 'success'">
-      <div class="card p-6">
+      <div class="card p-6" :class="{ 'mx-auto w-full max-w-2xl': isGateway }">
         <div class="flex flex-col items-center space-y-4 py-4">
           <div class="cp-success-badge flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
             <svg class="h-8 w-8 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path class="cp-success-check" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
           </div>
-          <p class="text-lg font-bold text-gray-900 dark:text-white">{{ props.orderType === 'subscription' ? t('payment.result.subscriptionSuccess') : t('payment.result.success') }}</p>
+          <p class="text-lg font-bold text-gray-900 dark:text-white" :class="{ 'break-words text-center': isGateway }">{{ props.orderType === 'subscription' ? t('payment.result.subscriptionSuccess') : t('payment.result.success') }}</p>
           <div v-if="paidOrder" class="w-full rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
             <div class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">#{{ paidOrder.id }}</span>
+              <div class="flex justify-between" :class="{ 'items-start gap-4': isGateway }">
+                <span class="text-gray-500 dark:text-gray-400" :class="{ 'shrink-0': isGateway }">{{ t('payment.orders.orderId') }}</span>
+                <span class="font-medium text-gray-900 dark:text-white" :class="{ 'min-w-0 break-all text-right': isGateway }">#{{ paidOrder.id }}</span>
               </div>
-              <div v-if="paidOrder.out_trade_no" class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderNo') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ paidOrder.out_trade_no }}</span>
+              <div v-if="paidOrder.out_trade_no" class="flex justify-between" :class="{ 'items-start gap-4': isGateway }">
+                <span class="text-gray-500 dark:text-gray-400" :class="{ 'shrink-0': isGateway }">{{ t('payment.orders.orderNo') }}</span>
+                <span class="font-medium text-gray-900 dark:text-white" :class="{ 'min-w-0 break-all text-right': isGateway }">{{ paidOrder.out_trade_no }}</span>
               </div>
-              <div v-if="!(isGateway && paidOrder.order_type === 'subscription')" class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">
+              <div v-if="!(isGateway && paidOrder.order_type === 'subscription')" class="flex justify-between" :class="{ 'items-start gap-4': isGateway }">
+                <span class="text-gray-500 dark:text-gray-400" :class="{ 'shrink-0': isGateway }">{{ t('payment.orders.amount') }}</span>
+                <span class="font-medium text-gray-900 dark:text-white" :class="{ 'min-w-0 break-all text-right': isGateway }">
                   {{ paidOrder.order_type === 'balance' ? '$' + paidOrder.amount.toFixed(2) : formatGatewayAmount(paidOrder.amount, paidOrder.currency) }}
                   <span v-if="(paidOrder.bonus_amount ?? 0) > 0" class="ml-1 text-xs font-normal text-amber-600 dark:text-amber-400">
                     ({{ t('payment.orders.bonusIncluded', { amount: '$' + (paidOrder.bonus_amount ?? 0).toFixed(2) }) }})
                   </span>
                 </span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(paidOrder.pay_amount, paidOrder.currency) }}</span>
+              <div class="flex justify-between" :class="{ 'items-start gap-4': isGateway }">
+                <span class="text-gray-500 dark:text-gray-400" :class="{ 'shrink-0': isGateway }">{{ t('payment.orders.payAmount') }}</span>
+                <span class="font-medium text-gray-900 dark:text-white" :class="{ 'min-w-0 break-all text-right': isGateway }">{{ formatGatewayAmount(paidOrder.pay_amount, paidOrder.currency) }}</span>
               </div>
               <CryptoTxReceipt
                 v-if="isUsdtBsc || isGateway"
@@ -53,10 +53,12 @@
       v-else-if="isGateway"
       :network="gatewayOrder?.crypto_network || props.cryptoNetwork || ''"
       :crypto-amount="gatewayOrder?.crypto_amount || props.cryptoAmount || ''"
+      :crypto-rate="gatewayOrder?.crypto_rate || props.cryptoRate"
       :receive-address="gatewayOrder?.receive_address || props.receiveAddress || ''"
       :order-no="gatewayOrder?.out_trade_no || props.outTradeNo || ''"
       :order-amount="displayPaymentAmount"
       :remaining-seconds="remainingSeconds"
+      :total-seconds="orderLifetimeSeconds"
       :gateway-status="gatewayOrder?.gateway_status || props.gatewayStatus"
       :create-stage="gatewayOrder?.create_stage || props.createStage"
       :order-status="gatewayOrder?.status"
@@ -64,6 +66,7 @@
       :required-confirmations="gatewayOrder?.required_confirmations ?? props.requiredConfirmations"
       :tx-hash="gatewayOrder?.crypto_tx_hash"
       :checking="gatewayChecking"
+      :query-failed="gatewayQueryFailed"
       :cancelling="cancelling"
       :show-support="supportEnabled"
       @check="checkGatewayOrder"
@@ -384,6 +387,7 @@ const cancelling = ref(false)
 const paidOrder = ref<PaymentOrder | null>(null)
 const gatewayOrder = ref<PaymentOrder | null>(null)
 const gatewayChecking = ref(false)
+const gatewayQueryFailed = ref(false)
 const isGateway = computed(() => props.paymentType === 'usdt_gateway')
 const deepLinkState = ref<AlipayDeepLinkState>('idle')
 const deepLinkFallbackVisible = ref(false)
@@ -630,14 +634,27 @@ async function checkGatewayOrder() {
   gatewayChecking.value = true
   try {
     let order = await paymentStore.pollOrderStatus(props.orderId)
-    if (!order || gatewayDisposed) return
+    if (gatewayDisposed) return
+    if (!order) {
+      gatewayQueryFailed.value = true
+      return
+    }
+    let queryFailed = false
     const now = Date.now()
     if (order.out_trade_no && !order.paid_at && now - lastVerifyAt >= USDT_VERIFY_INTERVAL_MS) {
       lastVerifyAt = now
-      try { order = (await paymentAPI.verifyOrder(order.out_trade_no)).data || order } catch { /* The next poll recovers without issuing another order. */ }
+      try {
+        order = (await paymentAPI.verifyOrder(order.out_trade_no)).data || order
+      } catch {
+        queryFailed = true
+      }
     }
     if (gatewayDisposed) return
     gatewayOrder.value = order
+    gatewayQueryFailed.value = queryFailed
+    orderLifetimeSeconds.value = orderLifetimeOf(order)
+    const expiresAt = Date.parse(order.expires_at)
+    if (Number.isFinite(expiresAt)) remainingSeconds.value = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000))
     if (order.status === 'COMPLETED') {
       paidOrder.value = order
       cleanup()
@@ -645,7 +662,7 @@ async function checkGatewayOrder() {
       emit('success')
     }
   } catch {
-    // Poll failures keep the payment instruction intact.
+    if (!gatewayDisposed) gatewayQueryFailed.value = true
   } finally {
     gatewayChecking.value = false
   }
