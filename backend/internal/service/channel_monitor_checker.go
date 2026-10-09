@@ -446,13 +446,13 @@ func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt
 	}
 	body, err := buildRequestBody(adapter, provider, apiMode, model, prompt, opts)
 	if err != nil {
-		return providerCallOutcome{err: err, requestPath: adapter.buildPath(model), failureCategory: MonitorFailureConfigError, localFailure: true}
+		return providerCallOutcome{err: err, requestPath: monitorRequestPath(provider, endpoint, adapter, model), failureCategory: MonitorFailureConfigError, localFailure: true}
 	}
 	streamResponse := false
 	if (provider == MonitorProviderOpenAI || provider == MonitorProviderGrok) && apiMode == MonitorAPIModeResponses {
 		streamResponse, err = responseStreamEnabled(body)
 		if err != nil {
-			return providerCallOutcome{err: err, requestPath: adapter.buildPath(model), failureCategory: MonitorFailureConfigError, localFailure: true}
+			return providerCallOutcome{err: err, requestPath: monitorRequestPath(provider, endpoint, adapter, model), failureCategory: MonitorFailureConfigError, localFailure: true}
 		}
 	}
 	headers := mergeHeaders(adapter.buildHeaders(apiKey), opts)
@@ -462,7 +462,7 @@ func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt
 	if signer != nil {
 		signer.SignHeaderMap(headers, excludedAccountIDs, time.Now())
 	}
-	path := adapter.buildPath(model)
+	path := monitorRequestPath(provider, endpoint, adapter, model)
 	full := joinURL(endpoint, path)
 	respBytes, status, respHeaders, err := postRawJSON(ctx, full, body, headers)
 	selectedID := selectedMonitorAccountID(respHeaders)
@@ -932,6 +932,37 @@ func postRawJSON(ctx context.Context, fullURL string, payload []byte, headers ma
 		return respBody[:monitorResponseMaxBytes], resp.StatusCode, resp.Header.Clone(), fmt.Errorf("%w: limit is %d bytes", errMonitorResponseTooLarge, monitorResponseMaxBytes)
 	}
 	return respBody, resp.StatusCode, resp.Header.Clone(), nil
+}
+
+// monitorRequestPath 返回探测请求路径。智谱按 endpoint 区分：
+//   - 已带 /paas/v4（含 Coding Plan 的 /api/coding/paas/v4）：只追加 /chat/completions
+//   - 官方域名根地址：/api/paas/v4/chat/completions
+//   - 中转站 / 本站网关：只暴露 OpenAI 兼容的 /v1/chat/completions，与 Kimi / DeepSeek 一致
+func monitorRequestPath(provider, endpoint string, adapter providerAdapter, model string) string {
+	if provider != MonitorProviderZhipu {
+		return adapter.buildPath(model)
+	}
+	u, err := url.Parse(strings.TrimSpace(endpoint))
+	if err != nil {
+		return providerOpenAIPath
+	}
+	if strings.Contains(u.EscapedPath(), "/paas/v4") {
+		return "/chat/completions"
+	}
+	if isZhipuOfficialHost(u) {
+		return adapter.buildPath(model)
+	}
+	return providerOpenAIPath
+}
+
+func isZhipuOfficialHost(u *url.URL) bool {
+	host := strings.ToLower(u.Hostname())
+	for _, official := range []string{"bigmodel.cn", "z.ai"} {
+		if host == official || strings.HasSuffix(host, "."+official) {
+			return true
+		}
+	}
+	return false
 }
 
 // joinURL 保留 base 的上游路径前缀，并避免重复追加已有的 API 路径前缀。

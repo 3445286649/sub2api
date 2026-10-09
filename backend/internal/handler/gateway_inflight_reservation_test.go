@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -198,7 +199,15 @@ func TestWebSearch_RejectsWhenInflightExceedsBalance(t *testing.T) {
 
 	h.WebSearch(c)
 
-	require.NotEqual(t, http.StatusOK, w.Code)
-	require.Contains(t, w.Body.String(), "balance")
+	require.Equal(t, http.StatusForbidden, w.Code)
+	var response struct {
+		Error struct {
+			Type    string `json:"type"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	require.Equal(t, "billing_error", response.Error.Type)
+	require.Equal(t, userFacingInsufficientBalanceMessage, response.Error.Message)
 	require.Equal(t, 1, cache.count(), "rejected request must not leave a reservation behind")
 }

@@ -2716,6 +2716,7 @@ func setEnvReachableDefaults() {
 		viper.SetDefault(provider+".frontend_redirect_url", "")
 	}
 
+	viper.SetDefault("github_oauth.additional_redirect_urls", "")
 	viper.SetDefault("google_oauth.additional_redirect_urls", "")
 	viper.SetDefault("dingtalk_connect.client_id", "")
 	viper.SetDefault("dingtalk_connect.client_secret", "")
