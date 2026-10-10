@@ -50,6 +50,98 @@ func TestBepusdtExactAmountsAndProof(t *testing.T) {
 		require.Error(t, err)
 	}
 }
+
+func TestBepusdtBSCIsolationQuoteVersion(t *testing.T) {
+	quote := bepusdtFixture("bsc_mainnet")
+	quote.QuoteVersion = 2
+	quote.Rounding = "ceil_6dp_bsc_7"
+	quote.CryptoAmount = "1.0001231"
+	quote.AmountAtomic, _ = BepusdtAmountAtomic(quote.CryptoAmount, quote.TokenDecimals)
+	require.NoError(t, ValidateBepusdtOrder(&quote))
+	for _, tc := range []struct {
+		name   string
+		mutate func(*BepusdtOrder)
+	}{
+		{"v1_with_seventh_digit", func(q *BepusdtOrder) { q.QuoteVersion = 1; q.Rounding = "ceil_6dp" }},
+		{"v2_with_old_rounding", func(q *BepusdtOrder) { q.Rounding = "ceil_6dp" }},
+		{"unknown_version", func(q *BepusdtOrder) { q.QuoteVersion = 3 }},
+		{"tron_v2", func(q *BepusdtOrder) {
+			q.Network = "tron_mainnet"
+			q.TokenContract, q.TokenDecimals, _ = BepusdtAsset(q.Network)
+			q.ReceiveAddress = "TYrRGMhFiCVJ3D9s1VsFxbbxFtq5eER3qJ"
+			q.RequiredConfirmations = 30
+			q.CryptoAmount = "1.000123"
+			q.AmountAtomic, _ = BepusdtAmountAtomic(q.CryptoAmount, q.TokenDecimals)
+		}},
+		{"wrong_isolation_digit", func(q *BepusdtOrder) {
+			q.CryptoAmount = "1.0001232"
+			q.AmountAtomic, _ = BepusdtAmountAtomic(q.CryptoAmount, q.TokenDecimals)
+		}},
+		{"extra_precision", func(q *BepusdtOrder) {
+			q.CryptoAmount = "1.00012311"
+			q.AmountAtomic, _ = BepusdtAmountAtomic(q.CryptoAmount, q.TokenDecimals)
+		}},
+		{"zero_tail", func(q *BepusdtOrder) {
+			q.CryptoAmount = "1.0000001"
+			q.AmountAtomic, _ = BepusdtAmountAtomic(q.CryptoAmount, q.TokenDecimals)
+		}},
+		{"excessive_tail", func(q *BepusdtOrder) {
+			q.CryptoAmount = "1.0009001"
+			q.AmountAtomic, _ = BepusdtAmountAtomic(q.CryptoAmount, q.TokenDecimals)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			changed := quote
+			tc.mutate(&changed)
+			require.Error(t, ValidateBepusdtOrder(&changed))
+		})
+	}
+	for _, amount := range []string{"1.0000011", "1.0008991"} {
+		quote.CryptoAmount = amount
+		quote.AmountAtomic, _ = BepusdtAmountAtomic(amount, quote.TokenDecimals)
+		require.NoError(t, ValidateBepusdtOrder(&quote))
+	}
+}
+
+func TestBepusdtBSCIsolationRejectsSelfTransferAndPreservesV1(t *testing.T) {
+	quote := bepusdtFixture("bsc_mainnet")
+	quote.Status = "PAID"
+	quote.Payment = &BepusdtPayment{TxHash: "0x" + strings.Repeat("b", 64), EventIndex: 0, BlockNumber: 100, BlockHash: "0x" + strings.Repeat("c", 64), BlockTime: time.Now().UTC().Truncate(time.Second).Format(time.RFC3339), FromAddress: quote.ReceiveAddress, ToAddress: quote.ReceiveAddress, AmountAtomic: quote.AmountAtomic, Confirmations: 20, Confirmed: true}
+	require.NoError(t, ValidateBepusdtOrder(&quote), "historical v1 receipt remains readable")
+	quote.QuoteVersion = 2
+	quote.Rounding = "ceil_6dp_bsc_7"
+	quote.CryptoAmount = "1.0001231"
+	quote.AmountAtomic, _ = BepusdtAmountAtomic(quote.CryptoAmount, quote.TokenDecimals)
+	quote.Payment.AmountAtomic = quote.AmountAtomic
+	require.ErrorContains(t, ValidateBepusdtOrder(&quote), "self-transfer")
+	quote.Payment.FromAddress = "0x2222222222222222222222222222222222222222"
+	require.NoError(t, ValidateBepusdtOrder(&quote))
+	quote.Payment.FromAddress = ""
+	require.ErrorContains(t, ValidateBepusdtOrder(&quote), "sender")
+}
+
+func TestBepusdtQuoteArithmeticKeepsLegacyBounds(t *testing.T) {
+	for _, network := range []string{"bsc_mainnet", "tron_mainnet"} {
+		for _, amount := range []string{"1.000000", "1.000900", "1.0001231"} {
+			t.Run(network+"/"+amount, func(t *testing.T) {
+				quote := bepusdtFixture(network)
+				quote.CryptoAmount = amount
+				quote.AmountAtomic, _ = BepusdtAmountAtomic(amount, quote.TokenDecimals)
+				require.Error(t, ValidateBepusdtOrder(&quote))
+			})
+		}
+	}
+	quote := bepusdtFixture("bsc_mainnet")
+	quote.FiatAmount = "7.01"
+	quote.QuoteVersion = 2
+	quote.Rounding = "ceil_6dp_bsc_7"
+	quote.CryptoAmount = "1.0015521"
+	quote.AmountAtomic, _ = BepusdtAmountAtomic(quote.CryptoAmount, quote.TokenDecimals)
+	require.NoError(t, ValidateBepusdtOrder(&quote), "ceiling remains at six decimals before tail and isolation digit")
+	quote.CryptoAmount = "1.0014281"
+	quote.AmountAtomic, _ = BepusdtAmountAtomic(quote.CryptoAmount, quote.TokenDecimals)
+	require.Error(t, ValidateBepusdtOrder(&quote), "amount below ceiling is not a valid quote")
+}
 func TestBepusdtTransportSignsQueryAndCreate(t *testing.T) {
 	secret := strings.Repeat("a", 32)
 	callback := strings.Repeat("b", 32)

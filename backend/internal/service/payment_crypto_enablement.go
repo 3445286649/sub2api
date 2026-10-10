@@ -1,18 +1,23 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"entgo.io/ent/dialect"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/cryptopaymentreceipt"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
@@ -125,15 +130,26 @@ func (s *PaymentConfigService) legacyBSCReservationRows(ctx context.Context) ([]
 			if intent == "" {
 				intent = order.PaymentTradeNo
 			}
-			if intent == "" && order.PaidAt == nil && order.Status == OrderStatusFailed {
+			var recovered string
+			if raw, exists := nested["recovered_reservation_evidence"]; exists {
+				recovered, err = s.reviewedLegacyBSCReservation(ctx, order, raw)
+				if err != nil {
+					return nil, fmt.Errorf("legacy order %d recovery evidence: %w", order.ID, err)
+				}
+			}
+			if intent == "" && recovered == "" && order.PaidAt == nil && order.Status == OrderStatusFailed {
 				continue
 			}
-			if intent == "" {
+			if intent == "" && recovered == "" {
 				return nil, fmt.Errorf("legacy order %d is unresolved; finish or reject its payment creation before gateway BSC enablement", order.ID)
 			}
 			amount, valid := provider.USDTBSCIntentTokenAmount(intent)
 			parts := strings.Split(intent, "|")
 			if !valid || len(parts) < 5 {
+				if recovered != "" {
+					distinct[recovered] = struct{}{}
+					continue
+				}
 				return nil, fmt.Errorf("legacy order %d lacks its immutable exposed payment intent; restore historical evidence before importing", order.ID)
 			}
 			address := strings.ToLower(strings.TrimSpace(parts[4]))
@@ -144,7 +160,11 @@ func (s *PaymentConfigService) legacyBSCReservationRows(ctx context.Context) ([]
 			if err != nil {
 				return nil, err
 			}
-			distinct["bsc_mainnet|0x55d398326f99059ff775485246999027b3197955|"+address+"|"+atomic] = struct{}{}
+			row := "bsc_mainnet|0x55d398326f99059ff775485246999027b3197955|" + address + "|" + atomic
+			if recovered != "" && recovered != row {
+				return nil, fmt.Errorf("legacy order %d recovery evidence conflicts with its original payment intent", order.ID)
+			}
+			distinct[row] = struct{}{}
 		}
 		if len(orders) < 200 {
 			break
@@ -156,6 +176,79 @@ func (s *PaymentConfigService) legacyBSCReservationRows(ctx context.Context) ([]
 	}
 	sort.Strings(rows)
 	return rows, nil
+}
+
+type legacyBSCReservationEvidence struct {
+	SchemaVersion  int    `json:"schema_version"`
+	Source         string `json:"source"`
+	ChainID        string `json:"chain_id"`
+	TokenContract  string `json:"token_contract"`
+	ReceiveAddress string `json:"receive_address"`
+	AmountAtomic   string `json:"amount_atomic"`
+	TxHash         string `json:"tx_hash"`
+	EventIndex     *int64 `json:"event_index"`
+	BlockNumber    int64  `json:"block_number"`
+	BlockHash      string `json:"block_hash"`
+	BlockTime      string `json:"block_time"`
+	ReviewedAt     string `json:"reviewed_at"`
+	EvidenceDigest string `json:"evidence_digest"`
+}
+
+// Reviewed observations restore only a permanent reservation, never an original
+// quote or paid state. The existing durable receipt supplies ownership binding.
+func (s *PaymentConfigService) reviewedLegacyBSCReservation(ctx context.Context, order *dbent.PaymentOrder, raw any) (string, error) {
+	if order.PaidAt == nil {
+		return "", errors.New("reservation recovery requires an already paid order")
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil || len(encoded) > 4096 {
+		return "", errors.New("invalid reservation recovery evidence")
+	}
+	var evidence legacyBSCReservationEvidence
+	decoder := json.NewDecoder(bytes.NewReader(encoded))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&evidence) != nil || evidence.SchemaVersion != 1 || evidence.Source != "chain_receipt_review" || evidence.ChainID != "bsc_mainnet" || evidence.EventIndex == nil || *evidence.EventIndex < 0 || evidence.BlockNumber <= 0 {
+		return "", errors.New("invalid reservation recovery identity or event")
+	}
+	contract := strings.ToLower(strings.TrimSpace(evidence.TokenContract))
+	address := strings.ToLower(strings.TrimSpace(evidence.ReceiveAddress))
+	hash := strings.ToLower(strings.TrimSpace(evidence.TxHash))
+	if contract != "0x55d398326f99059ff775485246999027b3197955" || !bepusdtLegacyAddressValid(address) || order.QrCode == nil || !strings.EqualFold(strings.TrimSpace(*order.QrCode), address) || !cryptoTxHashPattern.MatchString(hash) || !cryptoTxHashPattern.MatchString(evidence.BlockHash) {
+		return "", errors.New("reservation recovery address, contract or hash mismatch")
+	}
+	amount, ok := new(big.Int).SetString(evidence.AmountAtomic, 10)
+	if !ok || amount.Sign() <= 0 || len(evidence.AmountAtomic) > 78 || amount.String() != evidence.AmountAtomic {
+		return "", errors.New("invalid reservation recovery atomic amount")
+	}
+	nested, _ := order.ProviderSnapshot[payment.TypeUSDTBSC].(map[string]any)
+	if tokenAmount := psSnapshotStringValue(nested["token_amount"]); tokenAmount != "" {
+		atomic, parseErr := provider.BepusdtAmountAtomic(tokenAmount, 18)
+		if parseErr != nil || atomic != evidence.AmountAtomic {
+			return "", errors.New("reservation recovery amount conflicts with paid order snapshot")
+		}
+	}
+	orderHash := strings.ToLower(strings.TrimSpace(order.PaymentTradeNo))
+	snapshotHash := strings.ToLower(strings.TrimSpace(psSnapshotStringValue(nested["tx_hash"])))
+	if (cryptoTxHashPattern.MatchString(orderHash) && orderHash != hash) || (snapshotHash != "" && snapshotHash != hash) || (!cryptoTxHashPattern.MatchString(orderHash) && snapshotHash != hash) {
+		return "", errors.New("reservation recovery transaction conflicts with paid order")
+	}
+	blockTime, blockErr := time.Parse(time.RFC3339, evidence.BlockTime)
+	reviewedAt, reviewErr := time.Parse(time.RFC3339, evidence.ReviewedAt)
+	if blockErr != nil || reviewErr != nil || blockTime.Before(order.CreatedAt) || !blockTime.Before(order.ExpiresAt) || blockTime.After(*order.PaidAt) || reviewedAt.Before(*order.PaidAt) || reviewedAt.After(time.Now().Add(5*time.Minute)) {
+		return "", errors.New("reservation recovery times do not match paid order")
+	}
+	// This digest records provenance, not authentication of the supplied evidence.
+	if digest, digestErr := hex.DecodeString(evidence.EvidenceDigest); digestErr != nil || len(digest) != sha256.Size {
+		return "", errors.New("invalid reservation recovery provenance digest")
+	}
+	receipt, err := s.entClient.CryptoPaymentReceipt.Query().Where(cryptopaymentreceipt.ChainIDEQ(evidence.ChainID), cryptopaymentreceipt.TxHashEQ(hash)).Only(ctx)
+	if err != nil {
+		return "", fmt.Errorf("reservation recovery requires an existing receipt: %w", err)
+	}
+	if receipt.OrderID != order.ID || !strings.EqualFold(receipt.TokenContract, contract) || receipt.AmountAtomic != evidence.AmountAtomic || receipt.EventIndex == nil || *receipt.EventIndex != *evidence.EventIndex || (receipt.Source != "legacy_usdt_bsc" && receipt.Source != payment.TypeUSDTBSC) {
+		return "", errors.New("reservation recovery conflicts with durable receipt")
+	}
+	return evidence.ChainID + "|" + contract + "|" + address + "|" + evidence.AmountAtomic, nil
 }
 
 func bepusdtLegacyAddressValid(address string) bool {

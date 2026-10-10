@@ -50,8 +50,9 @@ missing hashes or conflicting historical ownership fail closed and require revie
 
 ## Shared BSC address and channel switching
 
-The legacy allocator and the gateway cannot accept BSC orders simultaneously.
-A TRON-only gateway can coexist with legacy BSC. Before switching from legacy
+Within one SubAPI installation, the legacy allocator and gateway cannot accept
+BSC orders simultaneously. A TRON-only gateway can coexist with legacy BSC.
+Before switching from legacy
 BSC to gateway BSC, disable legacy new orders and drain unresolved local create
 operations. Export all historical exposed tuples, permanently import them using
 the gateway's offline tool, then verify the signed health import digest. The
@@ -64,8 +65,32 @@ administrator downloads these rows with
 `GET /api/v1/admin/payment/legacy-bsc-reservations`; the response includes
 `count`, `digest`, and `reservations`.
 Import source must be `subapi_usdt_bsc`. Missing old intent evidence is a blocker;
-do not substitute a configuration bypass. Existing old instances with lost
-history should use a new observation address pool.
+do not substitute a configuration bypass. For an already paid legacy order whose
+original intent was lost, an audited chain review may record a separate
+`usdt_bsc.recovered_reservation_evidence` object with schema version 1 and source
+`chain_receipt_review`. It must contain BSC contract, address, exact atomic amount,
+transaction hash, event index, block number/hash/time, review time and provenance
+digest. Export accepts it only when the order's receipt binds the same chain,
+hash, order, contract, amount and event; the address matches the retained QR field;
+and chain time is within the original order window and no later than recorded
+payment. Settlement after expiry remains valid if the chain transfer was in time.
+An existing original intent takes precedence and conflicting recovery evidence is
+rejected. The evidence digest describes provenance, not authentication. Recovery
+does not restore an original quote, rate or lock time, nor alter paid state or
+credit the order again. Unpaid orders cannot use this recovery path. Other missing
+history still requires a new observation address pool.
+
+When another site continues to allocate six-decimal legacy BSC quotes to the same
+wallet, a one-time import alone cannot prevent future allocation overlap. New BSC
+gateway quotes therefore use quote version 2, rounding `ceil_6dp_bsc_7`: the
+existing six-decimal ceiling plus a tail of 1-899 micro-USDT, followed by exactly
+one fixed seventh digit `1`. In atomic BSC units, the remainder modulo `10^12`
+must be `10^11`. This namespace never equals a legacy six-decimal quote. Wallets
+must preserve all seven displayed digits; rounding to six digits cannot pay the
+new order. TRON retains quote version 1 and `ceil_6dp`. Existing version 1 orders
+remain readable. Version 2 paid proofs reject collection-wallet self-transfers,
+which do not establish incoming funds. Each site's balances and transaction
+receipts remain separate; namespace isolation is not cross-site data replication.
 
 When switching back to legacy BSC, disable gateway new orders and resolve every
 unknown gateway quote first. The legacy allocator permanently excludes every

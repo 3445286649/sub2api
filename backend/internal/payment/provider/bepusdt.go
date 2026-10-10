@@ -280,8 +280,11 @@ func BepusdtAmountAtomic(amount string, decimals int) (string, error) {
 }
 
 func ValidateBepusdtOrder(order *BepusdtOrder) error {
-	if order == nil || order.ProtocolVersion != "2" || order.MerchantID == "" || !bepusdtIDPattern.MatchString(order.OutTradeNo) || order.GatewayOrderID == "" || len(order.RequestDigest) != 64 || order.OrderVersion <= 0 || order.FiatCurrency != "CNY" || order.Asset != "USDT" || order.QuoteVersion != 1 || order.Rounding != "ceil_6dp" || order.RequiredConfirmations <= 0 {
+	if order == nil || order.ProtocolVersion != "2" || order.MerchantID == "" || !bepusdtIDPattern.MatchString(order.OutTradeNo) || order.GatewayOrderID == "" || len(order.RequestDigest) != 64 || order.OrderVersion <= 0 || order.FiatCurrency != "CNY" || order.Asset != "USDT" || order.RequiredConfirmations <= 0 {
 		return errors.New("invalid bepusdt order identity or quote")
+	}
+	if !((order.QuoteVersion == 1 && order.Rounding == "ceil_6dp") || (order.QuoteVersion == 2 && order.Rounding == "ceil_6dp_bsc_7" && order.Network == "bsc_mainnet")) {
+		return errors.New("invalid bepusdt quote version or rounding")
 	}
 	if len(order.FiatAmount) > 64 || !regexp.MustCompile(`^[0-9]+\.[0-9]{2}$`).MatchString(order.FiatAmount) {
 		return errors.New("invalid bepusdt fiat amount")
@@ -334,6 +337,14 @@ func ValidateBepusdtOrder(order *BepusdtOrder) error {
 		if proof == nil || !proof.Confirmed || proof.Confirmations < order.RequiredConfirmations || proof.EventIndex < 0 || proof.BlockNumber <= 0 || proof.AmountAtomic != order.AmountAtomic || !bepusdtSameAddress(order.Network, proof.ToAddress, order.ReceiveAddress) {
 			return errors.New("bepusdt payment proof mismatch")
 		}
+		if order.QuoteVersion == 2 {
+			if !bepusdtEVMPattern.MatchString(proof.FromAddress) {
+				return errors.New("invalid bepusdt BSC payment sender")
+			}
+			if bepusdtSameAddress(order.Network, proof.FromAddress, proof.ToAddress) {
+				return errors.New("bepusdt self-transfer is not an incoming payment")
+			}
+		}
 		blockTime, err := time.Parse(time.RFC3339, proof.BlockTime)
 		if err != nil || blockTime.Before(created) || !blockTime.Before(expires) {
 			return errors.New("bepusdt payment is outside quote window")
@@ -374,7 +385,12 @@ func validateBepusdtQuoteArithmetic(order *BepusdtOrder) error {
 	shift := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(order.TokenDecimals-6)), nil)
 	micro, residue := new(big.Int), new(big.Int)
 	micro.QuoRem(atomic, shift, residue)
-	if residue.Sign() != 0 {
+	if order.QuoteVersion == 2 {
+		// One fixed seventh digit cannot overlap any legacy six-decimal quote.
+		if residue.Cmp(new(big.Int).Quo(new(big.Int).Set(shift), big.NewInt(10))) != 0 {
+			return errors.New("gateway BSC quote must use its fixed seventh isolation digit")
+		}
+	} else if residue.Sign() != 0 {
 		return errors.New("gateway quote must use six decimal USDT precision")
 	}
 	tail := new(big.Int).Sub(micro, base)
