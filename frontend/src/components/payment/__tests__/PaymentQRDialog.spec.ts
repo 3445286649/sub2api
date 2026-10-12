@@ -62,6 +62,7 @@ const paidOrder = {
 describe('PaymentQRDialog currency display', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
     pollOrderStatus.mockReset().mockResolvedValue(paidOrder)
     cancelOrder.mockReset()
     verifyOrder.mockReset()
@@ -70,7 +71,33 @@ describe('PaymentQRDialog currency display', () => {
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.useRealTimers()
+  })
+
+  it.each([
+    ['PENDING', 'pending', 'payment.fmVerifying'],
+    ['PAID', 'crediting', 'payment.fmCrediting'],
+    ['EXPIRED', 'review', 'payment.fmReviewRequired'],
+  ])('shows FM %s/%s until credit completes', async (status, reviewStatus, message) => {
+    pollOrderStatus.mockResolvedValue({ ...paidOrder, status, payment_review_status: reviewStatus })
+    const wrapper = mount(PaymentQRDialog, {
+      props: { show: false, orderId: 42, qrCode: 'https://pay.example/qr', expiresAt: '2099-01-01T10:30:00Z', paymentType: 'wxpay' },
+      global: { stubs: { BaseDialog: { props: ['show'], template: '<div v-if="show"><slot /><slot name="footer" /></div>' }, Icon: true } },
+    })
+    await wrapper.setProps({ show: true })
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+    expect(wrapper.text()).toContain(message)
+    expect(wrapper.find('canvas').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('payment.qr.cancelOrder')
+    expect(wrapper.emitted('success')).toBeUndefined()
+    expect(verifyOrder).not.toHaveBeenCalled()
+    pollOrderStatus.mockResolvedValue(paidOrder)
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+    expect(wrapper.emitted('success')).toHaveLength(1)
+    wrapper.unmount()
   })
 
   it('uses order currency for pay_amount and USD for credited amount', async () => {

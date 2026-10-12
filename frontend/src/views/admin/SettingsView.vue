@@ -8908,6 +8908,8 @@
             v-model:notice="form.payment_recharge_bonus_notice"
           />
 
+          <FMPaymentRouting v-if="form.payment_enabled && providers.some(p => p.provider_key === 'zhifufm')" :providers="providers" />
+
           <!-- Provider Management -->
           <PaymentProviderList
             v-if="form.payment_enabled"
@@ -9481,6 +9483,7 @@ import {
   type SiteBillingMode,
 } from "@/utils/siteBillingMode";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import FMPaymentRouting from "@/components/admin/settings/FMPaymentRouting.vue";
 import PaymentProviderList from "@/components/payment/PaymentProviderList.vue";
 import PaymentProviderDialog from "@/components/payment/PaymentProviderDialog.vue";
 import GroupBadge from "@/components/common/GroupBadge.vue";
@@ -13199,6 +13202,7 @@ async function saveBetaPolicySettings() {
 
 const allPaymentTypes = computed(() => [
   { value: "easypay", label: t("payment.methods.easypay") },
+  { value: "zhifufm", label: t("payment.methods.zhifufm") },
   { value: "alipay", label: t("payment.methods.alipay") },
   { value: "wxpay", label: t("payment.methods.wxpay") },
   { value: "stripe", label: t("payment.methods.stripe") },
@@ -13271,6 +13275,7 @@ const providerDialogRef = ref<InstanceType<
 
 const providerKeyOptions = computed(() => [
   { value: "easypay", label: t("admin.settings.payment.providerEasypay") },
+  { value: "zhifufm", label: t("admin.settings.payment.providerZhifufm") },
   { value: "alipay", label: t("admin.settings.payment.providerAlipay") },
   { value: "wxpay", label: t("admin.settings.payment.providerWxpay") },
   { value: "stripe", label: t("admin.settings.payment.providerStripe") },
@@ -13358,7 +13363,7 @@ function getProviderVisibleMethods(
         }
       });
     }
-  } else if (provider.provider_key === "easypay") {
+  } else if (["easypay", "zhifufm"].includes(provider.provider_key)) {
     supportedTypes.forEach(addMethod);
   }
 
@@ -13368,13 +13373,14 @@ function getProviderVisibleMethods(
 function findProviderEnablementConflict(
   candidate: ProviderEnablementCandidate,
 ): { method: "alipay" | "wxpay"; conflicting: ProviderInstance } | null {
+  if (candidate.provider_key === "zhifufm") return null;
   const claimedMethods = getProviderVisibleMethods(candidate);
   if (claimedMethods.length === 0) {
     return null;
   }
 
   for (const other of providers.value) {
-    if (other.id === candidate.id || !other.enabled) {
+    if (other.id === candidate.id || !other.enabled || other.provider_key === "zhifufm") {
       continue;
     }
 

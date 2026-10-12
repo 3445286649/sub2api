@@ -96,6 +96,27 @@ const recoverySnapshotFactory = (resumeToken: string) => ({
 })
 
 describe('PaymentResultView', () => {
+  it.each([
+    ['PENDING', 'pending', 'payment.fmVerifying'],
+    ['PAID', 'crediting', 'payment.fmCrediting'],
+    ['RECHARGING', 'crediting', 'payment.fmCrediting'],
+    ['EXPIRED', 'review', 'payment.fmReviewRequired'],
+  ])('waits for FM %s/%s before showing recharge success', async (status, reviewStatus, message) => {
+    vi.useFakeTimers()
+    routeState.query = { resume_token: 'resume-42' }
+    resolveOrderPublicByResumeToken.mockResolvedValue({ data: { ...orderFactory(status), payment_review_status: reviewStatus } })
+    const wrapper = mount(PaymentResultView, { global: { stubs: { OrderStatusBadge: true } } })
+    await flushPromises()
+    expect(wrapper.text()).toContain(message)
+    expect(wrapper.text()).not.toContain('payment.result.success')
+    expect(verifyOrder).not.toHaveBeenCalled()
+    expect(verifyOrderPublic).not.toHaveBeenCalled()
+    resolveOrderPublicByResumeToken.mockResolvedValue({ data: orderFactory('COMPLETED') })
+    await vi.advanceTimersByTimeAsync(6000)
+    await flushPromises()
+    expect(wrapper.text()).toContain('payment.result.success')
+    wrapper.unmount()
+  })
   beforeEach(() => {
     routeState.query = {}
     routerPush.mockReset()

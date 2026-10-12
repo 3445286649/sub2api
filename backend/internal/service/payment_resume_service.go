@@ -33,6 +33,8 @@ const (
 	VisibleMethodSourceEasyPayAlipay  = "easypay_alipay"
 	VisibleMethodSourceOfficialWechat = "official_wxpay"
 	VisibleMethodSourceEasyPayWechat  = "easypay_wxpay"
+	VisibleMethodSourceFMAlipay       = "zhifufm_alipay"
+	VisibleMethodSourceFMWechat       = "zhifufm_wxpay"
 
 	wechatPaymentResumeTokenType = "wechat_payment_resume"
 
@@ -154,6 +156,8 @@ func NormalizeVisibleMethodSource(method, source string) string {
 		switch strings.TrimSpace(strings.ToLower(source)) {
 		case VisibleMethodSourceOfficialAlipay, payment.TypeAlipay, payment.TypeAlipayDirect, "official":
 			return VisibleMethodSourceOfficialAlipay
+		case VisibleMethodSourceFMAlipay, payment.ProviderZhifuFM:
+			return VisibleMethodSourceFMAlipay
 		case VisibleMethodSourceEasyPayAlipay, payment.TypeEasyPay:
 			return VisibleMethodSourceEasyPayAlipay
 		}
@@ -161,6 +165,8 @@ func NormalizeVisibleMethodSource(method, source string) string {
 		switch strings.TrimSpace(strings.ToLower(source)) {
 		case VisibleMethodSourceOfficialWechat, payment.TypeWxpay, payment.TypeWxpayDirect, "wechat", "official":
 			return VisibleMethodSourceOfficialWechat
+		case VisibleMethodSourceFMWechat, payment.ProviderZhifuFM:
+			return VisibleMethodSourceFMWechat
 		case VisibleMethodSourceEasyPayWechat, payment.TypeEasyPay:
 			return VisibleMethodSourceEasyPayWechat
 		}
@@ -170,6 +176,10 @@ func NormalizeVisibleMethodSource(method, source string) string {
 
 func VisibleMethodProviderKeyForSource(method, source string) (string, bool) {
 	switch NormalizeVisibleMethodSource(method, source) {
+	case VisibleMethodSourceFMAlipay:
+		return payment.ProviderZhifuFM, NormalizeVisibleMethod(method) == payment.TypeAlipay
+	case VisibleMethodSourceFMWechat:
+		return payment.ProviderZhifuFM, NormalizeVisibleMethod(method) == payment.TypeWxpay
 	case VisibleMethodSourceOfficialAlipay:
 		return payment.TypeAlipay, NormalizeVisibleMethod(method) == payment.TypeAlipay
 	case VisibleMethodSourceEasyPayAlipay:

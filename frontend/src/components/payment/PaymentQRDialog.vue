@@ -1,7 +1,8 @@
 <template>
   <BaseDialog :show="show" :title="dialogTitle" width="narrow" @close="handleClose">
+    <FMPaymentReview v-if="paymentReviewStatus" :status="paymentReviewStatus" :order-no="props.outTradeNo || `#${props.orderId}`" />
     <!-- QR Code + Polling State -->
-    <div v-if="!success" class="flex flex-col items-center space-y-4">
+    <div v-else-if="!success" class="flex flex-col items-center space-y-4">
       <!-- QR Code mode -->
       <template v-if="qrUrl">
         <div class="rounded-2xl bg-white p-4 shadow-sm dark:bg-dark-800">
@@ -56,7 +57,7 @@
     </div>
     <template #footer>
       <div class="flex justify-end gap-3">
-        <button v-if="!success && !expired" class="btn btn-secondary" :disabled="cancelling" @click="handleCancel">
+        <button v-if="!success && !expired && !paymentReviewStatus" class="btn btn-secondary" :disabled="cancelling" @click="handleCancel">
           {{ cancelling ? t('common.processing') : t('payment.qr.cancelOrder') }}
         </button>
         <button v-if="success" class="btn btn-primary" @click="handleDone">
@@ -75,6 +76,7 @@ import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
+import FMPaymentReview from './FMPaymentReview.vue'
 import { usePaymentStore } from '@/stores/payment'
 import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
@@ -88,6 +90,7 @@ import wxpayIcon from '@/assets/icons/wxpay.svg'
 
 const props = defineProps<{
   show: boolean
+  outTradeNo?: string
   orderId: number
   qrCode: string
   expiresAt: string
@@ -112,6 +115,7 @@ const expired = ref(false)
 const cancelling = ref(false)
 const success = ref(false)
 const paidOrder = ref<PaymentOrder | null>(null)
+const paymentReviewStatus = ref('')
 const creditedAmountSymbol = currencySymbol('USD')
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -199,7 +203,10 @@ async function pollStatus() {
   if (!props.orderId) return
   let order = await paymentStore.pollOrderStatus(props.orderId)
   if (!order) return
+  paymentReviewStatus.value = order.payment_review_status || ''
   order = await tryRecoverPendingOrder(order)
+  paymentReviewStatus.value = order.payment_review_status || ''
+  if (paymentReviewStatus.value) return
   if (order.status === 'COMPLETED' || order.status === 'PAID') {
     cleanup()
     paidOrder.value = order
@@ -212,6 +219,7 @@ async function pollStatus() {
 }
 
 async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder> {
+  if (order.payment_review_status) return order
   if (!isWxpay.value) return order
   const outTradeNo = String(order.out_trade_no || '').trim()
   if (!outTradeNo) return order
@@ -240,7 +248,7 @@ function startCountdown(seconds: number) {
   }
   countdownTimer = setInterval(() => {
     remainingSeconds.value--
-    if (remainingSeconds.value <= 0) {
+    if (remainingSeconds.value <= 0 && !paymentReviewStatus.value) {
       expired.value = true
       cleanup()
     }
@@ -279,6 +287,7 @@ function cleanup() {
 function init() {
   // Reset state
   success.value = false
+  paymentReviewStatus.value = ''
   paidOrder.value = null
   expired.value = false
   cancelling.value = false

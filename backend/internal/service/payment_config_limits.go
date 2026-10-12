@@ -198,7 +198,7 @@ func (s *PaymentConfigService) pcAggregateMethodDisplayName(pt string, instances
 }
 
 func (s *PaymentConfigService) pcInstanceEasyPayCustomMethodDisplayName(inst *dbent.PaymentProviderInstance, pt string) string {
-	if inst == nil || inst.ProviderKey != payment.TypeEasyPay {
+	if inst == nil || (inst.ProviderKey != payment.TypeEasyPay && inst.ProviderKey != payment.ProviderZhifuFM) {
 		return ""
 	}
 	cfg := map[string]string{}

@@ -2,8 +2,10 @@
   <div class="space-y-4">
     <!-- ═══ Terminal States: show result, user clicks to return ═══ -->
 
+    <FMPaymentReview v-if="paymentReviewStatus" :status="paymentReviewStatus" :order-no="displayOrderNumber" />
+
     <!-- Success -->
-    <template v-if="outcome === 'success'">
+    <template v-else-if="outcome === 'success'">
       <div class="card p-6" :class="{ 'mx-auto w-full max-w-2xl': isGateway }">
         <div class="flex flex-col items-center space-y-4 py-4">
           <div class="cp-success-badge flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
@@ -335,6 +337,7 @@ import Icon from '@/components/icons/Icon.vue'
 import CryptoTxReceipt from './CryptoTxReceipt.vue'
 import UsdtBscCheckout from './UsdtBscCheckout.vue'
 import CryptoGatewayCheckout from './CryptoGatewayCheckout.vue'
+import FMPaymentReview from './FMPaymentReview.vue'
 import { formatCountdown } from './usdtBsc'
 import QRCode from 'qrcode'
 import alipayIcon from '@/assets/icons/alipay.svg'
@@ -387,6 +390,7 @@ const cancelling = ref(false)
 const paidOrder = ref<PaymentOrder | null>(null)
 const gatewayOrder = ref<PaymentOrder | null>(null)
 const gatewayChecking = ref(false)
+const paymentReviewStatus = ref('')
 const gatewayQueryFailed = ref(false)
 const isGateway = computed(() => props.paymentType === 'usdt_gateway')
 const deepLinkState = ref<AlipayDeepLinkState>('idle')
@@ -606,6 +610,7 @@ function saveQRCode() {
 }
 
 async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder> {
+  if (order.payment_review_status) return order
   if (!isWxpay.value && !isAlipay.value && !isUsdtBsc.value) return order
   const outTradeNo = String(order.out_trade_no || '').trim()
   if (!outTradeNo) return order
@@ -677,10 +682,13 @@ async function pollStatus() {
   try {
     let order = await paymentStore.pollOrderStatus(props.orderId)
     if (!order) return
+    paymentReviewStatus.value = order.payment_review_status || ''
     // 已进入终态则不再处理迟到的响应。
     if (outcome.value) return
     if (!orderLifetimeSeconds.value) orderLifetimeSeconds.value = orderLifetimeOf(order)
     order = await tryRecoverPendingOrder(order)
+    paymentReviewStatus.value = order.payment_review_status || ''
+    if (paymentReviewStatus.value) return
     if (outcome.value) return
     if (isSuccessStatus(order.status)) {
       cleanup()
@@ -705,7 +713,7 @@ function startCountdown(seconds: number) {
   if (remainingSeconds.value <= 0) { setOutcome('expired'); return }
   countdownTimer = setInterval(() => {
     remainingSeconds.value--
-    if (remainingSeconds.value <= 0) { setOutcome('expired'); cleanup() }
+    if (remainingSeconds.value <= 0 && !paymentReviewStatus.value) { setOutcome('expired'); cleanup() }
   }, 1000)
 }
 

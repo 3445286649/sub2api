@@ -83,6 +83,11 @@ type PaymentConfig struct {
 	RechargeBonusMode                  string              `json:"recharge_bonus_mode"`
 	RechargeBonusNotice                string              `json:"recharge_bonus_notice"`
 
+	VisibleMethodAlipaySource  string `json:"payment_visible_method_alipay_source"`
+	VisibleMethodWxpaySource   string `json:"payment_visible_method_wxpay_source"`
+	VisibleMethodAlipayEnabled bool   `json:"payment_visible_method_alipay_enabled"`
+	VisibleMethodWxpayEnabled  bool   `json:"payment_visible_method_wxpay_enabled"`
+
 	// Cancel rate limit settings
 	CancelRateLimitEnabled bool   `json:"cancel_rate_limit_enabled"`
 	CancelRateLimitMax     int    `json:"cancel_rate_limit_max"`
@@ -321,6 +326,10 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 		}
 		cfg.EnabledTypes = NormalizeVisibleMethods(types)
 	}
+	cfg.VisibleMethodAlipaySource = NormalizeVisibleMethodSource(payment.TypeAlipay, vals[SettingPaymentVisibleMethodAlipaySource])
+	cfg.VisibleMethodWxpaySource = NormalizeVisibleMethodSource(payment.TypeWxpay, vals[SettingPaymentVisibleMethodWxpaySource])
+	cfg.VisibleMethodAlipayEnabled = !isFalseSettingValue(vals[SettingPaymentVisibleMethodAlipayEnabled])
+	cfg.VisibleMethodWxpayEnabled = !isFalseSettingValue(vals[SettingPaymentVisibleMethodWxpayEnabled])
 	return cfg
 }
 
@@ -622,6 +631,15 @@ func buildVisibleMethodSourceAvailability(instances []*dbent.PaymentProviderInst
 		case payment.TypeWxpay:
 			if inst.SupportedTypes == "" || payment.InstanceSupportsType(inst.SupportedTypes, payment.TypeWxpay) || payment.InstanceSupportsType(inst.SupportedTypes, payment.TypeWxpayDirect) {
 				available[VisibleMethodSourceOfficialWechat] = true
+			}
+		case payment.ProviderZhifuFM:
+			for _, t := range splitTypes(inst.SupportedTypes) {
+				if NormalizeVisibleMethod(t) == payment.TypeAlipay {
+					available[VisibleMethodSourceFMAlipay] = true
+				}
+				if NormalizeVisibleMethod(t) == payment.TypeWxpay {
+					available[VisibleMethodSourceFMWechat] = true
+				}
 			}
 		case payment.TypeEasyPay:
 			for _, supportedType := range splitTypes(inst.SupportedTypes) {

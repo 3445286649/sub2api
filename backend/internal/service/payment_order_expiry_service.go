@@ -58,7 +58,8 @@ func (s *PaymentOrderExpiryService) Start() {
 	if s == nil || s.paymentSvc == nil || s.interval <= 0 {
 		return
 	}
-	s.wg.Add(1)
+	s.wg.Add(2)
+	go s.runFMReviews()
 	go func() {
 		defer s.wg.Done()
 		ticker := time.NewTicker(s.interval)

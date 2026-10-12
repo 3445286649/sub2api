@@ -38,6 +38,7 @@ export interface CallbackPaths {
 /** Maps provider key → available payment types. */
 export const PROVIDER_SUPPORTED_TYPES: Record<string, string[]> = {
   easypay: ['alipay', 'wxpay'],
+  zhifufm: ['alipay', 'wxpay'],
   alipay: ['alipay'],
   wxpay: ['wxpay'],
   stripe: ['card', 'alipay', 'wxpay', 'link'],
@@ -108,6 +109,7 @@ export function getPaymentPopupFeatures(): string {
 /** Webhook paths for each provider (relative to origin). */
 export const WEBHOOK_PATHS: Record<string, string> = {
   easypay: '/api/v1/payment/webhook/easypay',
+  zhifufm: '/api/v1/payment/webhook/zhifufm',
   alipay: '/api/v1/payment/webhook/alipay',
   wxpay: '/api/v1/payment/webhook/wxpay',
   stripe: '/api/v1/payment/webhook/stripe',
@@ -120,6 +122,7 @@ export const RETURN_PATH = '/payment/result'
 /** Fixed callback paths per provider — displayed as read-only after base URL. */
 export const PROVIDER_CALLBACK_PATHS: Record<string, CallbackPaths> = {
   easypay: { notifyUrl: WEBHOOK_PATHS.easypay, returnUrl: RETURN_PATH },
+  zhifufm: { notifyUrl: WEBHOOK_PATHS.zhifufm, returnUrl: RETURN_PATH },
   alipay: { notifyUrl: WEBHOOK_PATHS.alipay, returnUrl: RETURN_PATH },
   wxpay: { notifyUrl: WEBHOOK_PATHS.wxpay },
   // stripe: 不需要回调 URL 配置，Webhook 单独配置。
@@ -134,6 +137,15 @@ export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
     { key: 'keyId', label: 'Key ID', sensitive: false },
     { key: 'apiSecret', label: '', sensitive: true },
     { key: 'callbackSecret', label: '', sensitive: true },
+  ],
+  zhifufm: [
+    { key: 'pid', label: '', sensitive: false },
+    { key: 'pkey', label: '', sensitive: true },
+    { key: 'apiBase', label: '', sensitive: false, hintKey: 'admin.settings.payment.fmCheckoutHint' },
+    { key: 'queryBase', label: '', sensitive: false, hintKey: 'admin.settings.payment.fmQueryBaseHint' },
+    { key: 'verifyAfterCallback', label: '', sensitive: false, defaultValue: 'true', hintKey: 'admin.settings.payment.fmVerifyHint', options: [{ value: 'true', label: 'On' }, { value: 'false', label: 'Off' }] },
+    { key: 'cidAlipay', label: '', sensitive: false, optional: true },
+    { key: 'cidWxpay', label: '', sensitive: false, optional: true },
   ],
   easypay: [
     { key: 'pid', label: 'PID', sensitive: false },

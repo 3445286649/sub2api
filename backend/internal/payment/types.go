@@ -21,6 +21,7 @@ const (
 	TypeUSDTBSC      PaymentType = "usdt_bsc"
 	TypeUSDTGateway  PaymentType = "usdt_gateway"
 	ProviderBepusdt  PaymentType = "bepusdt"
+	ProviderZhifuFM  PaymentType = "zhifufm"
 )
 
 // Order status constants shared across payment and service layers.

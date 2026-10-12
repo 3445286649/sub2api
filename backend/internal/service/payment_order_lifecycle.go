@@ -123,6 +123,15 @@ func (s *PaymentService) AdminCancelOrder(ctx context.Context, orderID int64) (s
 }
 
 func (s *PaymentService) cancelCore(ctx context.Context, o *dbent.PaymentOrder, fs, op, ad string) (string, error) {
+	if isFMOrder(o) {
+		active, err := s.fmOrderHasReview(ctx, o.ID)
+		if err != nil {
+			return "", err
+		}
+		if active {
+			return "", infraerrors.Conflict("PAYMENT_REVIEW_REQUIRED", "payment is being verified; cancellation is unavailable")
+		}
+	}
 	if psStringValue(o.ProviderKey) == payment.ProviderBepusdt {
 		return s.cancelBepusdtOrder(ctx, o, fs, op)
 	}
@@ -154,6 +163,9 @@ func (s *PaymentService) reconcilePaid(ctx context.Context, o *dbent.PaymentOrde
 }
 
 func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.PaymentOrder, opts checkPaidOptions) string {
+	if isFMOrder(o) {
+		return ""
+	} // FM queries are reserved for persisted, verified callback tasks.
 	if psStringValue(o.ProviderKey) == payment.ProviderBepusdt {
 		if err := s.reconcileBepusdtOrder(ctx, o); err != nil {
 			return ""
@@ -266,7 +278,7 @@ func paymentOrderQueryReference(order *dbent.PaymentOrder, prov payment.Provider
 	}
 
 	switch payment.GetBasePaymentType(providerKey) {
-	case payment.TypeAlipay, payment.TypeEasyPay, payment.TypeWxpay:
+	case payment.TypeAlipay, payment.TypeEasyPay, payment.TypeWxpay, payment.ProviderZhifuFM:
 		return strings.TrimSpace(order.OutTradeNo)
 	default:
 		if tradeNo := strings.TrimSpace(order.PaymentTradeNo); tradeNo != "" {
@@ -318,7 +330,7 @@ func (s *PaymentService) VerifyOrderByOutTradeNo(ctx context.Context, outTradeNo
 			}
 		}
 	}
-	return o, nil
+	return s.attachFMReviewStatus(ctx, o), nil
 }
 
 // ReconcilePendingPaymentOrders actively checks recent pending Alipay and WeChat
@@ -417,7 +429,7 @@ func (s *PaymentService) VerifyOrderPublic(ctx context.Context, outTradeNo strin
 	if err != nil {
 		return nil, infraerrors.NotFound("NOT_FOUND", "order not found")
 	}
-	return o, nil
+	return s.attachFMReviewStatus(ctx, o), nil
 }
 
 func normalizeOrderLookupOutTradeNo(raw string) (string, error) {

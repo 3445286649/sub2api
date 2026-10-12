@@ -19,7 +19,7 @@ export type OrderStatus =
   | 'REFUNDED'
   | 'REFUND_FAILED'
 
-export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex' | 'usdt_bsc' | 'usdt_gateway'
+export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'zhifufm' | 'airwallex' | 'usdt_bsc' | 'usdt_gateway'
 
 export type CryptoNetwork = 'bsc_mainnet' | 'tron_mainnet'
 
@@ -133,6 +133,7 @@ export interface PaymentOrder {
   crypto_rate?: string
   crypto_explorer_url?: string
   create_stage?: string
+  payment_review_status?: string
   gateway_status?: string
   required_confirmations?: number
   confirmations?: number
@@ -253,6 +254,7 @@ export interface CreateOrderResult {
   crypto_rate_source?: string
   receive_address?: string
   create_stage?: string
+  payment_review_status?: string
   gateway_status?: string
   required_confirmations?: number
   confirmations?: number

@@ -530,6 +530,7 @@ type PublicOrderResult struct {
 	ReceiveAddress        string     `json:"receive_address,omitempty"`
 	CreateStage           string     `json:"create_stage,omitempty"`
 	GatewayStatus         string     `json:"gateway_status,omitempty"`
+	PaymentReviewStatus   string     `json:"payment_review_status,omitempty"`
 	RequiredConfirmations int        `json:"required_confirmations,omitempty"`
 	Confirmations         int        `json:"confirmations,omitempty"`
 	CryptoExplorerURL     string     `json:"crypto_explorer_url,omitempty"`
@@ -539,13 +540,14 @@ type PublicOrderResult struct {
 // PublicOrderVerifyResult is returned by the legacy anonymous out_trade_no
 // lookup. Keep this intentionally minimal because out_trade_no is not secret.
 type PublicOrderVerifyResult struct {
-	OutTradeNo  string     `json:"out_trade_no"`
-	Status      string     `json:"status"`
-	Paid        bool       `json:"paid"`
-	CreatedAt   time.Time  `json:"created_at"`
-	ExpiresAt   time.Time  `json:"expires_at"`
-	PaidAt      *time.Time `json:"paid_at,omitempty"`
-	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	PaymentReviewStatus string     `json:"payment_review_status,omitempty"`
+	OutTradeNo          string     `json:"out_trade_no"`
+	Status              string     `json:"status"`
+	Paid                bool       `json:"paid"`
+	CreatedAt           time.Time  `json:"created_at"`
+	ExpiresAt           time.Time  `json:"expires_at"`
+	PaidAt              *time.Time `json:"paid_at,omitempty"`
+	CompletedAt         *time.Time `json:"completed_at,omitempty"`
 }
 
 func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
@@ -571,6 +573,7 @@ func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
 		RefundRequestReason: order.RefundRequestReason,
 		PlanID:              order.PlanID,
 	}
+	result.PaymentReviewStatus, _ = order.ProviderSnapshot["fm_review_status"].(string)
 	if receipt := service.PaymentOrderCryptoReceiptOf(order); receipt != nil {
 		result.CryptoTxHash, result.CryptoAmount, result.CryptoCurrency = receipt.TxHash, receipt.Amount, receipt.Currency
 		result.CryptoNetwork, result.CryptoExplorerURL = receipt.Network, receipt.ExplorerURL
@@ -584,14 +587,16 @@ func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
 }
 
 func buildPublicOrderVerifyResult(order *dbent.PaymentOrder) PublicOrderVerifyResult {
+	reviewStatus, _ := order.ProviderSnapshot["fm_review_status"].(string)
 	return PublicOrderVerifyResult{
-		OutTradeNo:  order.OutTradeNo,
-		Status:      order.Status,
-		Paid:        publicOrderStatusPaid(order.Status),
-		CreatedAt:   order.CreatedAt,
-		ExpiresAt:   order.ExpiresAt,
-		PaidAt:      order.PaidAt,
-		CompletedAt: order.CompletedAt,
+		PaymentReviewStatus: reviewStatus,
+		OutTradeNo:          order.OutTradeNo,
+		Status:              order.Status,
+		Paid:                publicOrderStatusPaid(order.Status),
+		CreatedAt:           order.CreatedAt,
+		ExpiresAt:           order.ExpiresAt,
+		PaidAt:              order.PaidAt,
+		CompletedAt:         order.CompletedAt,
 	}
 }
 
@@ -698,6 +703,7 @@ type PaymentOrderResult struct {
 	ReceiveAddress        string     `json:"receive_address,omitempty"`
 	CreateStage           string     `json:"create_stage,omitempty"`
 	GatewayStatus         string     `json:"gateway_status,omitempty"`
+	PaymentReviewStatus   string     `json:"payment_review_status,omitempty"`
 	RequiredConfirmations int        `json:"required_confirmations,omitempty"`
 	Confirmations         int        `json:"confirmations,omitempty"`
 	CryptoExplorerURL     string     `json:"crypto_explorer_url,omitempty"`
@@ -742,6 +748,7 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 		PlanID:              order.PlanID,
 		ProviderInstanceID:  order.ProviderInstanceID,
 	}
+	result.PaymentReviewStatus, _ = order.ProviderSnapshot["fm_review_status"].(string)
 	if receipt := service.PaymentOrderCryptoReceiptOf(order); receipt != nil {
 		result.CryptoTxHash, result.CryptoAmount, result.CryptoCurrency = receipt.TxHash, receipt.Amount, receipt.Currency
 		result.CryptoNetwork, result.CryptoExplorerURL = receipt.Network, receipt.ExplorerURL

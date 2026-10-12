@@ -105,7 +105,7 @@ func (s *PaymentService) confirmPaymentWithVerification(ctx context.Context, oid
 		s.notifyPaymentReview(ctx, o, "PAYMENT_PROVIDER_MISMATCH", "回调支付渠道与订单绑定渠道不一致")
 		return fmt.Errorf("provider mismatch: expected %s, got %s", expectedProviderKey, pk)
 	}
-	if strings.EqualFold(expectedProviderKey, payment.TypeEasyPay) && strings.TrimSpace(tradeNo) == "" {
+	if (strings.EqualFold(expectedProviderKey, payment.TypeEasyPay) || expectedProviderKey == payment.ProviderZhifuFM) && strings.TrimSpace(tradeNo) == "" {
 		s.writeAuditLog(ctx, o.ID, "PAYMENT_MISSING_TRADE_NO", pk, map[string]any{
 			"expectedProvider": expectedProviderKey,
 		})
@@ -129,6 +129,11 @@ func (s *PaymentService) confirmPaymentWithVerification(ctx context.Context, oid
 		s.notifyPaymentReview(ctx, o, "PAYMENT_INVALID_AMOUNT", "支付回调金额无效")
 		return fmt.Errorf("invalid paid amount from provider: %v", paid)
 	}
+	if expectedProviderKey == payment.ProviderZhifuFM && !fmAmountsEqual(paid, o.PayAmount) {
+		s.writeAuditLog(ctx, o.ID, "PAYMENT_AMOUNT_MISMATCH", pk, map[string]any{"expected": o.PayAmount, "paid": paid})
+		s.notifyPaymentReview(ctx, o, "PAYMENT_AMOUNT_MISMATCH", "FM 回调金额与订单不一致，未入账")
+		return fmt.Errorf("FM callback amount mismatch")
+	}
 	if math.Abs(paid-o.PayAmount) > paymentAmountToleranceForCurrency(PaymentOrderCurrency(o)) {
 		s.writeAuditLog(ctx, o.ID, "PAYMENT_AMOUNT_MISMATCH", pk, map[string]any{"expected": o.PayAmount, "paid": paid, "tradeNo": tradeNo})
 		s.notifyPaymentReview(ctx, o, "PAYMENT_AMOUNT_MISMATCH", "支付回调金额与订单应付金额不一致")
@@ -138,6 +143,9 @@ func (s *PaymentService) confirmPaymentWithVerification(ctx context.Context, oid
 		if err := s.ensureCryptoTradeNotReused(ctx, o.ID, tradeNo, pk); err != nil {
 			return err
 		}
+	}
+	if !fromQuery && expectedProviderKey == payment.ProviderZhifuFM && o.PaidAt == nil {
+		return s.acceptFMCallback(ctx, o, tradeNo, paid, metadata)
 	}
 	if !fromQuery {
 		if err := s.verifyNewEasyPayNotification(ctx, o, expectedProviderKey, tradeNo, paid); err != nil {
@@ -213,15 +221,16 @@ func (s *PaymentService) toPaid(ctx context.Context, o *dbent.PaymentOrder, trad
 	if pk == payment.TypeUSDTBSC && !o.ExpiresAt.After(grace) {
 		return fmt.Errorf("crypto order %d is beyond its payment grace period", o.ID)
 	}
+	expiredEligibility := paymentorder.And(paymentorder.StatusEQ(OrderStatusExpired), paymentorder.UpdatedAtGTE(grace))
+	if pk == payment.ProviderZhifuFM {
+		expiredEligibility = paymentorder.StatusEQ(OrderStatusExpired)
+	} // FM callback age and durable proof are checked before fulfillment.
 	update := s.entClient.PaymentOrder.Update().Where(
 		paymentorder.IDEQ(o.ID),
 		paymentorder.Or(
 			paymentorder.StatusEQ(OrderStatusPending),
 			paymentorder.StatusEQ(OrderStatusCancelled),
-			paymentorder.And(
-				paymentorder.StatusEQ(OrderStatusExpired),
-				paymentorder.UpdatedAtGTE(grace),
-			),
+			expiredEligibility,
 		),
 	).SetStatus(OrderStatusPaid).SetPayAmount(paid).SetPaymentTradeNo(tradeNo).SetPaidAt(now).ClearFailedAt().ClearFailedReason()
 	if providerSnapshot := mergePaymentProviderMetadata(o.ProviderSnapshot, pk, metadata); providerSnapshot != nil {
@@ -516,7 +525,11 @@ func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrde
 	}
 	if tx != nil {
 		if updated > 0 {
-			event := telegramPaymentEventForOrder(o, TelegramOutcomeRechargeSuccess, now, "支付校验通过，余额已入账")
+			reason, err := fmPaymentCompletionReason(ctx, client, o)
+			if err != nil {
+				return fmt.Errorf("%w: read payment verification proof: %v", errPaymentCompletionPending, err)
+			}
+			event := telegramPaymentEventForOrder(o, TelegramOutcomeRechargeSuccess, now, reason)
 			if err := s.telegramService.enqueueForTargetTx(ctx, tx, event, telegramChatID); err != nil {
 				return fmt.Errorf("%w: persist payment notification: %v", errPaymentCompletionPending, err)
 			}

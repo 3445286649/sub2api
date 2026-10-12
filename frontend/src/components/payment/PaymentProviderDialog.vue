@@ -32,8 +32,8 @@
       <!-- Toggles + Payment mode + Supported types (single row) -->
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
         <ToggleSwitch :label="t('common.enabled')" :checked="form.enabled" @toggle="form.enabled = !form.enabled" />
-        <ToggleSwitch v-if="form.provider_key !== 'bepusdt'" :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
-        <ToggleSwitch v-if="form.provider_key !== 'bepusdt' && form.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="form.allow_user_refund" @toggle="form.allow_user_refund = !form.allow_user_refund" />
+        <ToggleSwitch v-if="!['bepusdt', 'zhifufm'].includes(form.provider_key)" :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
+        <ToggleSwitch v-if="!['bepusdt', 'zhifufm'].includes(form.provider_key) && form.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="form.allow_user_refund" @toggle="form.allow_user_refund = !form.allow_user_refund" />
         <div v-if="supportsPaymentMode" class="flex items-center gap-2">
           <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.paymentMode') }}</span>
           <div class="flex gap-1.5">
@@ -70,14 +70,14 @@
         </div>
       </div>
 
-      <div v-if="form.provider_key === 'easypay'" class="space-y-3 rounded-lg border border-gray-100 p-3 dark:border-dark-700">
+      <div v-if="['easypay', 'zhifufm'].includes(form.provider_key)" class="space-y-3 rounded-lg border border-gray-100 p-3 dark:border-dark-700">
         <div class="flex items-center justify-between gap-3">
           <div>
             <h5 class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ t('admin.settings.payment.easypayCustomMethods') }}
+              {{ t(form.provider_key === 'zhifufm' ? 'admin.settings.payment.fmCustomMethods' : 'admin.settings.payment.easypayCustomMethods') }}
             </h5>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {{ t('admin.settings.payment.easypayCustomMethodsHint') }}
+              {{ t(form.provider_key === 'zhifufm' ? 'admin.settings.payment.fmCustomMethodsHint' : 'admin.settings.payment.easypayCustomMethodsHint') }}
             </p>
           </div>
           <button type="button" class="btn btn-secondary btn-sm" @click="addEasyPayCustomMethod">
@@ -154,7 +154,7 @@
         </p>
         <div class="space-y-3">
           <div v-for="field in resolvedFields" :key="field.key">
-            <label class="input-label">
+            <label v-if="field.key !== 'verifyAfterCallback'" class="input-label">
               {{ field.label }}
               <span v-if="field.optional" class="text-xs text-gray-400">({{ t('common.optional') }})</span>
               <span v-else class="text-red-500"> *</span>
@@ -194,6 +194,13 @@
                 <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
               </button>
             </div>
+            <ToggleSwitch
+              v-else-if="field.key === 'verifyAfterCallback'"
+              data-test="fm-auto-query-switch"
+              :label="field.label"
+              :checked="config[field.key] !== 'false'"
+              @toggle="config[field.key] = config[field.key] === 'false' ? 'true' : 'false'"
+            />
             <Select
               v-else-if="field.options?.length"
               v-model="config[field.key]"
@@ -346,20 +353,20 @@ import {
 /** Default payment_mode per provider key — "" means "no preference, use
  * provider's built-in default behavior". */
 function defaultPaymentMode(providerKey: string): string {
-  if (providerKey === 'easypay') return PAYMENT_MODE_QRCODE
+  if (['easypay', 'zhifufm'].includes(providerKey)) return PAYMENT_MODE_QRCODE
   return ''
 }
 
 /** Provider keys whose admin UI exposes a payment_mode selector.
  * Other providers always send payment_mode = ''. */
 function providerSupportsPaymentMode(providerKey: string): boolean {
-  return providerKey === 'easypay' || providerKey === 'alipay'
+  return ['easypay', 'zhifufm'].includes(providerKey) || providerKey === 'alipay'
 }
 
 /** Allowed payment_mode values per provider. Used to coerce DB values
  * from a different provider (or stale data) back to the default. */
 function isValidPaymentMode(providerKey: string, mode: string): boolean {
-  if (providerKey === 'easypay') {
+  if (['easypay', 'zhifufm'].includes(providerKey)) {
     return mode === PAYMENT_MODE_QRCODE || mode === PAYMENT_MODE_POPUP
   }
   if (providerKey === 'alipay') {
@@ -472,7 +479,7 @@ const paymentModeOptions = computed(() => {
 
 const availableTypes = computed(() => {
   const base = getAvailableTypes(form.provider_key, props.allPaymentTypes, props.redirectLabel)
-  if (form.provider_key === 'easypay') {
+  if (['easypay', 'zhifufm'].includes(form.provider_key)) {
     for (const method of normalizedEasyPayCustomMethods()) {
       if (!base.some(opt => opt.value === method.type)) {
         base.push({
@@ -615,7 +622,7 @@ function onKeyChange() {
   form.payment_mode = defaultPaymentMode(form.provider_key)
   clearConfig()
   applyDefaults()
-  if (form.provider_key === 'bepusdt') {
+  if (['bepusdt', 'zhifufm'].includes(form.provider_key)) {
     form.refund_enabled = false
     form.allow_user_refund = false
   }
@@ -700,7 +707,7 @@ function handleSave() {
       return
     }
   }
-  if (form.provider_key === 'easypay') {
+  if (['easypay', 'zhifufm'].includes(form.provider_key)) {
     const validationError = validateEasyPayCustomMethods()
     if (validationError) {
       emitValidationError(validationError)
@@ -737,7 +744,7 @@ function handleSave() {
     }
     filteredConfig[k] = v
   }
-  if (form.provider_key === 'easypay') {
+  if (['easypay', 'zhifufm'].includes(form.provider_key)) {
     filteredConfig.customMethods = serializeEasyPayCustomMethods(normalizedEasyPayCustomMethods())
   }
 
@@ -759,15 +766,15 @@ function handleSave() {
     supported_types: form.supported_types,
     enabled: form.enabled,
     payment_mode: supportsPaymentMode.value ? form.payment_mode : '',
-    refund_enabled: form.provider_key !== 'bepusdt' && form.refund_enabled,
-    allow_user_refund: form.provider_key !== 'bepusdt' && form.refund_enabled ? form.allow_user_refund : false,
+    refund_enabled: !['bepusdt', 'zhifufm'].includes(form.provider_key) && form.refund_enabled,
+    allow_user_refund: !['bepusdt', 'zhifufm'].includes(form.provider_key) && form.refund_enabled ? form.allow_user_refund : false,
     config: filteredConfig,
     limits: serializeLimits(),
   })
 }
 
 function syncEasyPayCustomMethods(): string[] {
-  if (form.provider_key !== 'easypay') return []
+  if (!['easypay', 'zhifufm'].includes(form.provider_key)) return []
   const baseTypes = new Set(PROVIDER_SUPPORTED_TYPES.easypay || [])
   const customTypes: string[] = []
   const seen = new Set<string>()
@@ -857,10 +864,11 @@ function loadProvider(provider: ProviderInstance) {
     for (const [k, v] of Object.entries(provider.config)) {
       // Skip notifyUrl/returnUrl — they are derived from callbackBaseUrl
       if (k === 'notifyUrl' || k === 'returnUrl') continue
-      if (k === 'customMethods' && provider.provider_key === 'easypay') {
+      if (k === 'customMethods' && ['easypay', 'zhifufm'].includes(provider.provider_key)) {
         easyPayCustomMethods.push(...parseEasyPayCustomMethods(v))
         continue
       }
+      if (provider.provider_key === 'zhifufm' && PROVIDER_CONFIG_FIELDS.zhifufm.some(field => field.key.toLowerCase() === k.toLowerCase() && field.sensitive)) continue
       if (provider.provider_key === 'bepusdt' && PROVIDER_CONFIG_FIELDS.bepusdt.some(field => field.key.toLowerCase() === k.toLowerCase() && field.sensitive)) continue
       config[k] = v
     }

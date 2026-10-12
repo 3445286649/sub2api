@@ -80,6 +80,8 @@ func RegisterPaymentRoutes(
 	webhook := v1.Group("/payment/webhook")
 	{
 		// EasyPay sends GET callbacks with query params
+		webhook.GET("/zhifufm", webhookHandler.ZhifuFMNotify)
+		webhook.POST("/zhifufm", webhookHandler.ZhifuFMNotify)
 		webhook.GET("/easypay", webhookHandler.EasyPayNotify)
 		webhook.POST("/easypay", webhookHandler.EasyPayNotify)
 		webhook.POST("/alipay", webhookHandler.AlipayNotify)

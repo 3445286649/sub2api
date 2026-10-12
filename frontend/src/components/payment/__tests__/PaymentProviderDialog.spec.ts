@@ -88,7 +88,9 @@ function mountDialog(options: { editing?: ProviderInstance | null } = {}) {
           template: '<div />',
         },
         ToggleSwitch: {
-          template: '<div />',
+          props: ['label', 'checked'],
+          emits: ['toggle'],
+          template: '<button type="button" role="switch" :aria-checked="checked" @click="$emit(\'toggle\')">{{ label }}</button>',
         },
       },
     },
@@ -96,6 +98,46 @@ function mountDialog(options: { editing?: ProviderInstance | null } = {}) {
 }
 
 describe('PaymentProviderDialog callback URLs', () => {
+  it('saves the FM auto-query switch in the provider config and restores it when editing', async () => {
+    const provider = providerFactory({ provider_key: 'zhifufm', name: 'FM', config: {
+      pid: '123', apiBase: 'https://fm.example/epay', queryBase: 'https://fm.example/api/pay', verifyAfterCallback: 'false',
+      notifyUrl: 'https://codeplan.codes/api/v1/payment/webhook/zhifufm', returnUrl: 'https://codeplan.codes/payment/result',
+    } })
+    const wrapper = mountDialog({ editing: provider })
+    ;(wrapper.vm as unknown as { loadProvider: (value: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    const toggle = wrapper.get('[data-test="fm-auto-query-switch"]')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    await wrapper.get('form').trigger('submit')
+    expect((wrapper.emitted('save')?.[0]?.[0] as ProviderInstance).config.verifyAfterCallback).toBe('true')
+    await toggle.trigger('click')
+    await wrapper.get('form').trigger('submit')
+    expect((wrapper.emitted('save')?.[1]?.[0] as ProviderInstance).config.verifyAfterCallback).toBe('false')
+    wrapper.unmount()
+  })
+  it('configures FM independently with native query, visible methods and no refunds', async () => {
+    const provider = providerFactory({ provider_key: 'zhifufm', name: 'FM', supported_types: ['alipay', 'wxpay'], config: {
+      pid: '123', pkey: 'must-not-populate-secret', apiBase: 'https://fm.example/epay', queryBase: 'https://fm.example/api/pay',
+      notifyUrl: 'https://codeplan.codes/api/v1/payment/webhook/zhifufm', returnUrl: 'https://codeplan.codes/payment/result',
+    } })
+    const wrapper = mountDialog({ editing: provider })
+    ;(wrapper.vm as unknown as { loadProvider: (value: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    expect(wrapper.findAll('input[type="password"]').map(input => (input.element as HTMLInputElement).value)).toEqual([''])
+    expect(wrapper.text()).toContain('/api/v1/payment/webhook/zhifufm')
+    expect(wrapper.text()).not.toContain('admin.settings.payment.refundEnabled')
+    await wrapper.get('form').trigger('submit')
+    const payload = wrapper.emitted('save')?.[0]?.[0] as ProviderInstance
+    expect(payload.provider_key).toBe('zhifufm')
+    expect(payload.supported_types).toEqual(['alipay', 'wxpay'])
+    expect(payload.config.queryBase).toBe('https://fm.example/api/pay')
+    expect(payload.config.verifyAfterCallback).toBe('true')
+    expect(payload.config).not.toHaveProperty('pkey')
+    expect(payload.refund_enabled).toBe(false)
+    wrapper.unmount()
+  })
   it('edits gateway networks without exposing stored secrets or enabling refunds', async () => {
     const provider = providerFactory({ provider_key: 'bepusdt', name: 'Gateway', supported_types: ['usdt_gateway'], refund_enabled: true, allow_user_refund: true, config: {
       apiUrl: 'https://gateway.example.com', merchantId: 'merchant', keyId: 'key', allowedNetworks: 'tron_mainnet', apiSecret: 'must-never-fill-api-secret', callbackSecret: 'must-never-fill-notify-secret',

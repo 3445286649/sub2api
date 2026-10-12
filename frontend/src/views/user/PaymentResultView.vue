@@ -28,7 +28,7 @@
           <h2 class="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
             {{ statusTitle }}
           </h2>
-          <p v-if="isPending" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          <p v-if="isPending && !order?.payment_review_status" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
             {{ t('payment.result.processingHint') }}
           </p>
         </div>
@@ -190,7 +190,7 @@ const localeCode = computed(() => {
 })
 
 const isSuccess = computed(() => {
-  return isSuccessStatus(order.value?.status)
+  return !order.value?.payment_review_status && isSuccessStatus(order.value?.status)
 })
 
 // 余额滚动：useCountUp 在 setup 时以当时的余额为起点（此时还是充值前的旧值），
@@ -218,10 +218,11 @@ const cryptoReceipt = computed(() => {
 })
 
 const isPending = computed(() => {
-  return isPendingStatus(order.value?.status)
+  return Boolean(order.value?.payment_review_status) || isPendingStatus(order.value?.status)
 })
 
 const statusTitle = computed(() => {
+  if (order.value?.payment_review_status) return t(order.value.payment_review_status === 'review' ? 'payment.fmReviewRequired' : order.value.payment_review_status === 'crediting' ? 'payment.fmCrediting' : 'payment.fmVerifying')
   if (order.value && 'gateway_status' in order.value && order.value.gateway_status === 'REVIEW') return t('payment.gateway.review')
   if (isSuccess.value) {
     return t('payment.result.success')
@@ -399,10 +400,10 @@ function scheduleStatusRefresh(refreshOrder: (() => Promise<ResolvedOrder | null
     const refreshedOrder = await refreshOrder()
     if (refreshedOrder) {
       setResolvedOrder(refreshedOrder)
-      clearRecoverySnapshotForTerminalStatus(refreshedOrder.status)
+      if (!refreshedOrder.payment_review_status) clearRecoverySnapshotForTerminalStatus(refreshedOrder.status)
     }
 
-    if (isPendingStatus(order.value?.status)) {
+    if (isPending.value) {
       scheduleStatusRefresh(refreshOrder)
     }
   }, STATUS_REFRESH_INTERVAL_MS)
@@ -500,7 +501,7 @@ onMounted(async () => {
     return null
   }
 
-  if (isPendingStatus(order.value?.status)) {
+  if (isPending.value) {
     scheduleStatusRefresh(refreshOrder)
   } else if (order.value) {
     clearRecoverySnapshotForTerminalStatus(order.value.status)

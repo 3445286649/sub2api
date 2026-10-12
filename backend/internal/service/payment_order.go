@@ -383,10 +383,13 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 			snapshot["merchant_app_id"] = merchantAppID
 		}
 	}
-	if providerKey == payment.TypeEasyPay {
+	if providerKey == payment.TypeEasyPay || providerKey == payment.ProviderZhifuFM {
 		if merchantID := strings.TrimSpace(sel.Config["pid"]); merchantID != "" {
 			snapshot["merchant_id"] = merchantID
 		}
+	}
+	if providerKey == payment.ProviderZhifuFM {
+		snapshot["fm_verify_after_callback"] = sel.Config["verifyAfterCallback"] != "false"
 	}
 	if providerKey == payment.TypeStripe {
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
@@ -941,7 +944,7 @@ func (s *PaymentService) GetOrder(ctx context.Context, orderID, userID int64) (*
 			o = fresh
 		}
 	}
-	return o, nil
+	return s.attachFMReviewStatus(ctx, o), nil
 }
 
 func (s *PaymentService) GetOrderByID(ctx context.Context, orderID int64) (*dbent.PaymentOrder, error) {
@@ -949,7 +952,7 @@ func (s *PaymentService) GetOrderByID(ctx context.Context, orderID int64) (*dben
 	if err != nil {
 		return nil, infraerrors.NotFound("NOT_FOUND", "order not found")
 	}
-	return o, nil
+	return s.attachFMReviewStatus(ctx, o), nil
 }
 
 func (s *PaymentService) GetUserOrders(ctx context.Context, userID int64, p OrderListParams) ([]*dbent.PaymentOrder, int, error) {

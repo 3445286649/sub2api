@@ -121,6 +121,33 @@ describe('PaymentStatusPanel', () => {
     vi.useRealTimers()
   })
 
+  it.each([
+    ['PENDING', 'pending', 'payment.fmVerifying'],
+    ['PAID', 'crediting', 'payment.fmCrediting'],
+    ['RECHARGING', 'crediting', 'payment.fmCrediting'],
+    ['EXPIRED', 'review', 'payment.fmReviewRequired'],
+  ])('shows FM %s/%s without announcing success or querying from the browser', async (status, reviewStatus, message) => {
+    pollOrderStatus.mockResolvedValue(orderFactory(status, { payment_review_status: reviewStatus }))
+    const wrapper = mount(PaymentStatusPanel, {
+      props: { ...usdtProps(), paymentType: 'alipay', qrCode: 'https://pay.example/qr' }, global: { stubs: usdtStubs },
+    })
+    await vi.advanceTimersByTimeAsync(4000)
+    await flushPromises()
+    expect(wrapper.text()).toContain(message)
+    expect(wrapper.find('[data-test="fm-payment-review"]').exists()).toBe(true)
+    expect(wrapper.find('canvas').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('payment.qr.waitingPayment')
+    expect(wrapper.text()).not.toContain('payment.qr.cancelOrder')
+    expect(wrapper.emitted('success')).toBeUndefined()
+    expect(verifyOrder).not.toHaveBeenCalled()
+    pollOrderStatus.mockResolvedValue(orderFactory('COMPLETED'))
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+    expect(wrapper.emitted('success')).toHaveLength(1)
+    expect(wrapper.find('[data-test="fm-payment-review"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('passes the fallback rate and then synchronizes the gateway quote rate and server lifetime', async () => {
     vi.setSystemTime(new Date('2026-10-09T11:00:00Z'))
     const firstOrder = orderFactory('PENDING', gatewayQuote({

@@ -44,7 +44,7 @@ func enabledVisibleMethodsForProvider(providerKey, supportedTypes string) []stri
 				break
 			}
 		}
-	case payment.TypeEasyPay:
+	case payment.TypeEasyPay, payment.ProviderZhifuFM:
 		for _, supportedType := range splitTypes(supportedTypes) {
 			addMethod(supportedType)
 		}
@@ -189,6 +189,45 @@ func (s *PaymentConfigService) resolveVisibleMethodProviderKey(
 	method string,
 	matching []*dbent.PaymentProviderInstance,
 ) (string, error) {
+	// Honor an explicit source even when only a different provider is enabled.
+	if method == payment.TypeAlipay || method == payment.TypeWxpay {
+		if s.settingRepo != nil {
+			value, err := s.settingRepo.GetValue(ctx, visibleMethodEnabledSettingKey(method))
+			if err != nil && !errors.Is(err, ErrSettingNotFound) {
+				return "", err
+			}
+			if isFalseSettingValue(value) {
+				return "", infraerrors.Forbidden("PAYMENT_METHOD_DISABLED", "payment method is disabled")
+			}
+		}
+		key, err := s.resolveVisibleMethodSourceProviderKey(ctx, method)
+		if err != nil {
+			return "", err
+		}
+		if key != "" {
+			if selectVisibleMethodInstanceByProviderKey(matching, key) == nil {
+				return "", infraerrors.BadRequest("INVALID_PAYMENT_VISIBLE_METHOD_SOURCE", "selected payment source has no enabled instance")
+			}
+			return key, nil
+		}
+		// Adding FM must not silently reroute an existing visible method.
+		var legacy []*dbent.PaymentProviderInstance
+		hasFM := false
+		for _, inst := range matching {
+			if inst.ProviderKey == payment.ProviderZhifuFM {
+				hasFM = true
+			} else {
+				legacy = append(legacy, inst)
+			}
+		}
+		if hasFM {
+			keys := distinctVisibleMethodProviderKeys(legacy)
+			if len(keys) == 1 {
+				return keys[0], nil
+			}
+			return "", infraerrors.BadRequest("INVALID_PAYMENT_VISIBLE_METHOD_SOURCE", "select a payment source before routing through FM")
+		}
+	}
 	switch providerKeys := distinctVisibleMethodProviderKeys(matching); len(providerKeys) {
 	case 0:
 		return "", nil

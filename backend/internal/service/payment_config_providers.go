@@ -113,6 +113,7 @@ var pendingOrderStatuses = []string{
 // stripe publishableKey) are returned in plaintext by the admin GET API.
 var providerSensitiveConfigFields = map[string]map[string]struct{}{
 	payment.TypeEasyPay:     {"pkey": {}},
+	payment.ProviderZhifuFM: {"pkey": {}},
 	payment.TypeAlipay:      {"privatekey": {}, "publickey": {}, "alipaypublickey": {}},
 	payment.TypeWxpay:       {"privatekey": {}, "apiv3key": {}, "publickey": {}},
 	payment.TypeStripe:      {"secretkey": {}, "webhooksecret": {}},
@@ -126,12 +127,13 @@ var providerSensitiveConfigFields = map[string]map[string]struct{}{
 // all provider identity fields that are snapshotted into orders or used by
 // webhook/refund verification.
 var providerPendingOrderProtectedConfigFields = map[string]map[string]struct{}{
-	payment.TypeEasyPay:   {"pkey": {}, "pid": {}},
-	payment.TypeAlipay:    {"privatekey": {}, "publickey": {}, "alipaypublickey": {}, "appid": {}},
-	payment.TypeWxpay:     {"privatekey": {}, "apiv3key": {}, "publickey": {}, "appid": {}, "mpappid": {}, "mchid": {}, "publickeyid": {}, "certserial": {}},
-	payment.TypeStripe:    {"secretkey": {}, "webhooksecret": {}, "currency": {}},
-	payment.TypeAirwallex: {"clientid": {}, "apikey": {}, "webhooksecret": {}, "apibase": {}, "accountid": {}, "currency": {}},
-	payment.TypeUSDTBSC:   {"receiveaddress": {}, "tokencontract": {}, "cnyperusdt": {}, "ratemode": {}, "rateapiurl": {}, "ratejsonpath": {}, "ratecacheseconds": {}, "ratefallbacktomanual": {}, "confirmations": {}, "bscscanapibase": {}, "bscscanapikey": {}, "apikey": {}},
+	payment.TypeEasyPay:     {"pkey": {}, "pid": {}},
+	payment.ProviderZhifuFM: {"pkey": {}, "pid": {}, "apibase": {}, "querybase": {}, "verifyaftercallback": {}},
+	payment.TypeAlipay:      {"privatekey": {}, "publickey": {}, "alipaypublickey": {}, "appid": {}},
+	payment.TypeWxpay:       {"privatekey": {}, "apiv3key": {}, "publickey": {}, "appid": {}, "mpappid": {}, "mchid": {}, "publickeyid": {}, "certserial": {}},
+	payment.TypeStripe:      {"secretkey": {}, "webhooksecret": {}, "currency": {}},
+	payment.TypeAirwallex:   {"clientid": {}, "apikey": {}, "webhooksecret": {}, "apibase": {}, "accountid": {}, "currency": {}},
+	payment.TypeUSDTBSC:     {"receiveaddress": {}, "tokencontract": {}, "cnyperusdt": {}, "ratemode": {}, "rateapiurl": {}, "ratejsonpath": {}, "ratecacheseconds": {}, "ratefallbacktomanual": {}, "confirmations": {}, "bscscanapibase": {}, "bscscanapikey": {}, "apikey": {}},
 }
 
 func isSensitiveProviderConfigField(providerKey, fieldName string) bool {
@@ -183,7 +185,7 @@ func (s *PaymentConfigService) countPendingOrdersByPlan(ctx context.Context, pla
 
 var validProviderKeys = map[string]bool{
 	payment.TypeEasyPay: true, payment.TypeAlipay: true, payment.TypeWxpay: true, payment.TypeStripe: true, payment.TypeAirwallex: true, payment.TypeUSDTBSC: true,
-	payment.ProviderBepusdt: true,
+	payment.ProviderBepusdt: true, payment.ProviderZhifuFM: true,
 }
 
 func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req CreateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
@@ -208,14 +210,14 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 }
 
 func (s *PaymentConfigService) createProviderInstance(ctx context.Context, req CreateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
-	if req.ProviderKey == payment.ProviderBepusdt && (req.RefundEnabled || req.AllowUserRefund) {
-		return nil, infraerrors.BadRequest("REFUND_UNSUPPORTED", "bepusdt does not support refunds")
+	if (req.ProviderKey == payment.ProviderBepusdt || req.ProviderKey == payment.ProviderZhifuFM) && (req.RefundEnabled || req.AllowUserRefund) {
+		return nil, infraerrors.BadRequest("REFUND_UNSUPPORTED", "this provider does not support refunds")
 	}
 	typesStr := joinTypes(req.SupportedTypes)
 	if err := validateProviderRequest(req.ProviderKey, req.Name, typesStr); err != nil {
 		return nil, err
 	}
-	if req.ProviderKey == payment.TypeEasyPay {
+	if req.ProviderKey == payment.TypeEasyPay || req.ProviderKey == payment.ProviderZhifuFM {
 		if err := validateEasyPayCustomMethods(req.Config, typesStr); err != nil {
 			return nil, err
 		}
@@ -405,6 +407,15 @@ func (s *PaymentConfigService) updateProviderInstance(ctx context.Context, id in
 				return nil, infraerrors.Conflict("PROVIDER_HISTORY_FROZEN", "crypto provider configuration is frozen after an order is created; create a new instance")
 			}
 		}
+		if current.ProviderKey == payment.ProviderZhifuFM && hasPendingOrderProtectedConfigChange(current.ProviderKey, currentConfig, mergedConfig) {
+			count, e := s.fmPendingReviews(ctx, id)
+			if e != nil {
+				return nil, e
+			}
+			if count > 0 {
+				return nil, infraerrors.Conflict("PENDING_ORDERS", "FM instance has unresolved callback reviews")
+			}
+		}
 		if hasPendingOrderProtectedConfigChange(current.ProviderKey, currentConfig, mergedConfig) {
 			count, err := getPendingOrderCount()
 			if err != nil {
@@ -416,7 +427,7 @@ func (s *PaymentConfigService) updateProviderInstance(ctx context.Context, id in
 			}
 		}
 	}
-	if req.Enabled != nil && !*req.Enabled && !isCryptoProviderKey(current.ProviderKey) {
+	if req.Enabled != nil && !*req.Enabled && !isCryptoProviderKey(current.ProviderKey) && current.ProviderKey != payment.ProviderZhifuFM {
 		count, err := getPendingOrderCount()
 		if err != nil {
 			return nil, err
@@ -433,7 +444,7 @@ func (s *PaymentConfigService) updateProviderInstance(ctx context.Context, id in
 			return nil, fmt.Errorf("decrypt existing config: %w", err)
 		}
 	}
-	if current.ProviderKey == payment.TypeEasyPay {
+	if current.ProviderKey == payment.TypeEasyPay || current.ProviderKey == payment.ProviderZhifuFM {
 		if err := validateEasyPayCustomMethods(configToValidate, nextSupportedTypes); err != nil {
 			return nil, err
 		}
@@ -453,8 +464,8 @@ func (s *PaymentConfigService) updateProviderInstance(ctx context.Context, id in
 			return nil, err
 		}
 	}
-	if current.ProviderKey == payment.ProviderBepusdt && ((req.RefundEnabled != nil && *req.RefundEnabled) || (req.AllowUserRefund != nil && *req.AllowUserRefund)) {
-		return nil, infraerrors.BadRequest("REFUND_UNSUPPORTED", "bepusdt does not support refunds")
+	if (current.ProviderKey == payment.ProviderBepusdt || current.ProviderKey == payment.ProviderZhifuFM) && ((req.RefundEnabled != nil && *req.RefundEnabled) || (req.AllowUserRefund != nil && *req.AllowUserRefund)) {
+		return nil, infraerrors.BadRequest("REFUND_UNSUPPORTED", "this provider does not support refunds")
 	}
 	u := s.entClient.PaymentProviderInstance.UpdateOneID(id)
 	if req.Name != nil {
@@ -629,6 +640,13 @@ func (s *PaymentConfigService) DeleteProviderInstance(ctx context.Context, id in
 	count, err := s.countPendingOrders(ctx, id)
 	if err != nil {
 		return fmt.Errorf("check pending orders: %w", err)
+	}
+	if inst.ProviderKey == payment.ProviderZhifuFM {
+		pending, queryErr := s.fmPendingReviews(ctx, id)
+		if queryErr != nil {
+			return queryErr
+		}
+		count += pending
 	}
 	if count > 0 {
 		return infraerrors.Conflict("PENDING_ORDERS",
