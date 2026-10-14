@@ -12,8 +12,22 @@ describe('canvas access boundaries', () => {
       { ...key, user_id: 2 }, { ...key, status: 'inactive' }, { ...key, quota_used: 10 },
       { ...key, expires_at: '2020-01-01' }, { ...key, expires_at: 'invalid' }, { ...key, key: '' },
       { ...key, group: { ...key.group, allow_image_generation: false } },
-      { ...key, group: { ...key.group, platform: 'gemini' } }, { ...key, group: undefined },
+      { ...key, group: { ...key.group, platform: 'anthropic' } }, { ...key, group: undefined },
     ]) expect(isCanvasKeyAvailable(candidate as ApiKey, 1)).toBe(false)
+  })
+
+  it('offers Gemini image keys only with image permission and valid ownership and status', () => {
+    const gemini = { ...key, group: { ...key.group, platform: 'gemini' } } as ApiKey
+    expect(isCanvasKeyAvailable(gemini, 1, 'image')).toBe(true)
+    expect(isCanvasKeyAvailable(gemini, 1, 'text')).toBe(false)
+    expect(isCanvasKeyAvailable(gemini, 1, 'video')).toBe(false)
+    for (const candidate of [
+      { ...gemini, user_id: 2 }, { ...gemini, status: 'inactive' }, { ...gemini, quota_used: 10 },
+      { ...gemini, expires_at: '2020-01-01' }, { ...gemini, key: '' },
+      { ...gemini, group: { ...gemini.group, status: 'inactive' } },
+      { ...gemini, group: { ...gemini.group, allow_image_generation: false } },
+      { ...gemini, group: { ...gemini.group, allow_image_generation: undefined } },
+    ]) expect(isCanvasKeyAvailable(candidate as ApiKey, 1, 'image')).toBe(false)
   })
 
   it('supports text independently of image permission and restricts video to enabled Grok groups', () => {

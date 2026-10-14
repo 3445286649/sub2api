@@ -16,7 +16,7 @@ export function isCanvasKeyAvailable(key: ApiKey, userId: number, capability: Ca
   const platform = key.group?.platform
   const supported = capability === 'text'
     ? ['openai', 'grok', 'kimi', 'zhipu', 'deepseek', 'minimax', 'opencode_go'].includes(platform || '')
-    : capability === 'video' ? platform === 'grok' : platform === 'openai' || platform === 'grok'
+    : capability === 'video' ? platform === 'grok' : ['openai', 'grok', 'gemini'].includes(platform || '')
   return key.user_id === userId && key.status === 'active'
     && Boolean(key.key) && supported && (!key.group?.status || key.group.status === 'active')
     && (capability === 'text' || key.group?.allow_image_generation === true)

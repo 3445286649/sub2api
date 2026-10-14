@@ -56,6 +56,29 @@ beforeEach(() => {
 afterEach(() => { wrapper?.unmount(); wrapper = undefined; vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('Infinite Canvas multi-connection host', () => {
+  it('lists Gemini image keys and sends their platform through the acknowledged handshake', async () => {
+    const gemini = { ...ownKey, group: { ...ownKey.group, platform: 'gemini' } } as ApiKey
+    mocks.list.mockResolvedValue({ items: [gemini], total: 1, page_size: 100 })
+    mocks.getById.mockResolvedValue(gemini)
+    const w = await open()
+    const post = vi.mocked((w.get('iframe').element as HTMLIFrameElement).contentWindow!.postMessage)
+    const init = post.mock.calls.find(([data]) => data.type === 'INIT')![0]
+    expect(init.config.connections).toEqual([expect.objectContaining({ capability: 'image', platform: 'gemini', apiKeyId: 1 })])
+    expect(JSON.parse(localStorage.getItem('sub2api.canvas.connections.1')!).selection).toEqual({ image: [1], text: [], video: [] })
+    expect(JSON.stringify(localStorage)).not.toContain(gemini.key)
+  })
+  it('disconnects a Gemini image connection when its group revokes image permission', async () => {
+    vi.useFakeTimers()
+    const gemini = { ...ownKey, group: { ...ownKey.group, platform: 'gemini' } } as ApiKey
+    mocks.list.mockResolvedValue({ items: [gemini], total: 1, page_size: 100 })
+    mocks.getById.mockResolvedValue(gemini)
+    const w = await open()
+    mocks.getById.mockResolvedValue({ ...gemini, group: { ...gemini.group, allow_image_generation: false } })
+    await vi.advanceTimersByTimeAsync(CANVAS_SETTINGS_REFRESH_MS)
+    await flushPromises()
+    expect(w.find('iframe').exists()).toBe(false)
+    expect(localStorage.getItem('sub2api.canvas.connections.1')).toBeNull()
+  })
   it('starts empty with three optional purposes and never renders secrets', async () => {
     const w = view(); await flushPromises()
     expect(w.findAll('fieldset')).toHaveLength(3)
