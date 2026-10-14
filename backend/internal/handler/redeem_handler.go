@@ -62,7 +62,7 @@ func (h *RedeemHandler) Redeem(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, buildRedeemResponse(result))
+	response.Success(c, buildRedeemResponse(result, c.GetHeader("Accept-Language")))
 }
 
 // GetHistory returns the user's redemption history
@@ -101,7 +101,7 @@ func (h *RedeemHandler) GetHistory(c *gin.Context) {
 		}
 		out := make([]dto.RedeemCode, 0, len(codes))
 		for i := range codes {
-			out = append(out, *dto.RedeemCodeFromService(&codes[i]))
+			out = append(out, *dto.RedeemCodeFromService(&codes[i]).Localized(c.GetHeader("Accept-Language")))
 		}
 		response.Paginated(c, out, result.Total, page, pageSize)
 		return
@@ -118,12 +118,12 @@ func (h *RedeemHandler) GetHistory(c *gin.Context) {
 
 	out := make([]dto.RedeemCode, 0, len(codes))
 	for i := range codes {
-		out = append(out, *dto.RedeemCodeFromService(&codes[i]))
+		out = append(out, *dto.RedeemCodeFromService(&codes[i]).Localized(c.GetHeader("Accept-Language")))
 	}
 	response.Success(c, out)
 }
 
-func buildRedeemResponse(result *service.RedeemCode) RedeemResponse {
+func buildRedeemResponse(result *service.RedeemCode, acceptLanguage ...string) RedeemResponse {
 	resp := RedeemResponse{
 		Message: buildRedeemSuccessMessage(result),
 	}
@@ -137,6 +137,11 @@ func buildRedeemResponse(result *service.RedeemCode) RedeemResponse {
 	resp.QuotaResetScope = result.QuotaResetScope
 	if result.Group != nil {
 		resp.GroupName = result.Group.Name
+		if len(acceptLanguage) > 0 {
+			if localized := dto.RedeemCodeFromService(result).Localized(acceptLanguage[0]); localized.Group != nil {
+				resp.GroupName = localized.Group.Name
+			}
+		}
 	}
 	return resp
 }

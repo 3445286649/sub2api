@@ -3,11 +3,18 @@
 package service
 
 import (
+	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"image"
+	"image/png"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
@@ -62,7 +69,7 @@ func TestProcessGeminiStream_EmitsImageEvent(t *testing.T) {
 
 func TestCreateGeminiTestPayloadForMode_CustomImageModel(t *testing.T) {
 	t.Parallel()
-	payload := createGeminiTestPayloadForMode("nano-banana-2", "draw a red apple", true)
+	payload := createGeminiTestPayloadForMode("draw a red apple", true)
 	require.Equal(t, "draw a red apple", gjson.GetBytes(payload, "contents.0.parts.0.text").String())
 	require.Equal(t, "IMAGE", gjson.GetBytes(payload, "generationConfig.responseModalities.1").String())
 }
@@ -77,10 +84,57 @@ func TestProcessGeminiImageResponse_RequiresActualImage(t *testing.T) {
 	require.NotContains(t, recorder.Body.String(), `"success":true`)
 
 	ctx, recorder = newTestContext()
-	imageData := base64.StdEncoding.EncodeToString([]byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n', 0, 0, 0, 0})
+	var picture bytes.Buffer
+	require.NoError(t, png.Encode(&picture, image.NewRGBA(image.Rect(0, 0, 2, 2))))
+	imageData := base64.StdEncoding.EncodeToString(picture.Bytes())
 	body, marshalErr := json.Marshal(map[string]any{"candidates": []any{map[string]any{"content": map[string]any{"parts": []any{map[string]any{"inlineData": map[string]any{"mimeType": "image/png", "data": imageData}}}}}}})
 	require.NoError(t, marshalErr)
 	require.NoError(t, svc.processGeminiImageResponse(ctx, strings.NewReader(string(body))))
 	require.Contains(t, recorder.Body.String(), `"type":"image"`)
 	require.Contains(t, recorder.Body.String(), `"success":true`)
+}
+
+func TestGeminiCustomImageProbe_UsesNativeNonStreamingRequest(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"candidates":[{"content":{"parts":[{"text":"no image"}]}}]}`)),
+	}}
+	svc := &AccountTestService{httpUpstream: upstream, cfg: &config.Config{}}
+	account := &Account{ID: 1, Platform: PlatformGemini, Type: AccountTypeAPIKey,
+		Credentials: map[string]any{"api_key": "fixture", "base_url": "https://gemini.example", "model_mapping": map[string]any{"banana": "nano-banana-2"}},
+		Extra:       map[string]any{accountImageModelsKey: []string{"banana"}},
+	}
+	err := svc.testGeminiAccountConnection(ctx, account, "banana", "draw an apple", "default")
+	require.Error(t, err, "text-only responses must fail image probes")
+	require.Equal(t, "/v1beta/models/nano-banana-2:generateContent", upstream.lastReq.URL.Path)
+	require.Empty(t, upstream.lastReq.URL.RawQuery)
+	require.Equal(t, "fixture", upstream.lastReq.Header.Get("x-goog-api-key"))
+	require.NotContains(t, recorder.Body.String(), `"success":true`)
+
+	req, err := svc.buildGeminiAPIKeyRequest(context.Background(), account, "nano-banana-2", createGeminiTestPayloadForMode("hi", false), false)
+	require.NoError(t, err)
+	require.Contains(t, req.URL.Path, ":streamGenerateContent")
+}
+
+func TestGeminiImageProbe_RejectsCorruptImage(t *testing.T) {
+	_, valid := validatedGeminiProbeImage(base64.StdEncoding.EncodeToString([]byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}))
+	require.False(t, valid)
+	ctx, recorder := newTestContext()
+	svc := &AccountTestService{}
+	err := svc.processGeminiStream(ctx, strings.NewReader("data: {\"candidates\":[{\"finishReason\":\"STOP\",\"content\":{\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"QUJD\"}}]}}]}\n\n"), true)
+	require.Error(t, err)
+	require.NotContains(t, recorder.Body.String(), `"success":true`)
+}
+
+func TestValidateAccountImageModelsExtra(t *testing.T) {
+	for _, value := range []any{"nano", []any{12}, []string{"../invalid"}, make([]string, 51)} {
+		require.Error(t, ValidateAccountImageModelsExtra(map[string]any{accountImageModelsKey: value}))
+	}
+	extra := map[string]any{accountImageModelsKey: []any{" nano-banana-2 ", "nano-banana-2"}}
+	require.NoError(t, ValidateAccountImageModelsExtra(extra))
+	require.Equal(t, []string{"nano-banana-2"}, extra[accountImageModelsKey])
+	require.NoError(t, ValidateAccountImageModelsExtra(map[string]any{accountImageModelsKey: []string{}}))
 }

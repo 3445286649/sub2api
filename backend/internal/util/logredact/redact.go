@@ -45,6 +45,8 @@ var (
 	reOpenAIKey   = regexp.MustCompile(`\bsk-[0-9A-Za-z_-]{16,}\b`)
 	reBearerToken = regexp.MustCompile(`(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{16,}`)
 	reSlackToken  = regexp.MustCompile(`\bxox[baprs]-[0-9A-Za-z-]{10,}\b`)
+	// Gemini auth key：AQ.Ab 前缀 + 48 位，长度放宽以覆盖格式变体。
+	reGeminiAuthKey = regexp.MustCompile(`AQ\.Ab[0-9A-Za-z_-]{40,}`)
 
 	defaultTextRedactPatterns = compileTextRedactPatterns(nil)
 	extraTextPatternCache     sync.Map // map[string]*textRedactPatterns
@@ -105,6 +107,7 @@ func RedactText(input string, extraKeys ...string) string {
 	out = reOpenAIKey.ReplaceAllString(out, "sk-***")
 	out = reBearerToken.ReplaceAllString(out, "Bearer ***")
 	out = reSlackToken.ReplaceAllString(out, "xox*-***")
+	out = reGeminiAuthKey.ReplaceAllString(out, "AQ.***")
 	out = patterns.reJSONLike.ReplaceAllString(out, `$1***$3`)
 	out = patterns.reQueryLike.ReplaceAllString(out, `$1=***`)
 	out = patterns.rePlain.ReplaceAllString(out, `$1$2***`)

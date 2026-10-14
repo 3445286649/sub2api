@@ -462,10 +462,12 @@ const supportsGeminiImageTest = computed(() => {
 
 watch(selectedModelId, (modelID) => {
   if (!isGeminiAccount.value) return
-  const lower = modelID.toLowerCase()
+  const mapping = props.account?.credentials?.model_mapping as Record<string, string> | undefined
+  const mapped = mapping?.[modelID] || modelID
+  const lower = mapped.toLowerCase()
   const marked = props.account?.extra?.image_generation_models
   geminiTestMode.value = (lower.startsWith('gemini-') && (lower.endsWith('-image') || lower.includes('-image-')))
-    || (Array.isArray(marked) && marked.includes(modelID)) ? 'image' : 'text'
+    || (Array.isArray(marked) && (marked.includes(modelID) || marked.includes(mapped))) ? 'image' : 'text'
 })
 
 const supportsOpenAIImageTest = computed(() => {
@@ -737,6 +739,10 @@ const applyDefaultPromptForMode = () => {
     testPrompt.value = t('admin.accounts.grok.ttsTextDefault')
   }
 }
+
+watch(geminiTestMode, () => {
+  if (isGeminiAccount.value) applyDefaultPromptForMode()
+})
 
 const pickDefaultModelForMode = () => {
   const opts = modelOptionsForMode.value

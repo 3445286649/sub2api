@@ -77,7 +77,11 @@ function mountModal(account: Record<string, unknown> = {
     global: {
       stubs: {
         BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
-        Select: { template: '<div class="select-stub"></div>' },
+        Select: {
+          props: ['modelValue', 'options', 'valueKey', 'labelKey'],
+          emits: ['update:modelValue'],
+          template: `<select class="select-stub" :value="modelValue" @change="$emit('update:modelValue', $event.target.value)"><option v-for="option in options" :key="option[valueKey || 'value']" :value="option[valueKey || 'value']">{{ option[labelKey || 'label'] }}</option></select>`
+        },
         TextArea: {
           props: ['modelValue'],
           emits: ['update:modelValue'],
@@ -175,6 +179,24 @@ describe('AccountTestModal', () => {
       prompt: 'draw a red apple',
       mode: 'image'
     })
+  })
+
+  it('未知 Gemini 模型可以手动切换生图和文本', async () => {
+    getAvailableModels.mockResolvedValue([{ id: 'nano-banana-2', display_name: 'nano-banana-2' }])
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    expect(wrapper.find('textarea.textarea-stub').exists()).toBe(false)
+    const mode = wrapper.findAll('select.select-stub')[1]
+    await mode.setValue('image')
+    expect(wrapper.find('textarea.textarea-stub').exists()).toBe(true)
+    await wrapper.find('textarea.textarea-stub').setValue('draw a pear')
+    const startButton = wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))!
+    await startButton.trigger('click')
+    await flushPromises()
+    expect(JSON.parse((global.fetch as any).mock.calls[0][1].body)).toMatchObject({ mode: 'image', prompt: 'draw a pear' })
+    await mode.setValue('text')
+    expect(wrapper.find('textarea.textarea-stub').exists()).toBe(false)
   })
 
   it('OpenAI APIKEY 账号的 Gemini 图片模型会使用生图提示词并渲染预览', async () => {
