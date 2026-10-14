@@ -81,6 +81,13 @@
         />
       </div>
 
+      <div v-if="isGeminiAccount" class="space-y-1.5">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {{ t('admin.accounts.gemini.testMode') }}
+        </label>
+        <Select v-model="geminiTestMode" :options="geminiTestModeOptions" :disabled="status === 'connecting'" />
+      </div>
+
       <div v-if="supportsPromptInput" class="space-y-1.5">
         <TextArea
           v-model="testPrompt"
@@ -414,6 +421,7 @@ const generatedAudios = ref<PreviewMedia[]>([])
 const generatedVideos = ref<PreviewMedia[]>([])
 const previewImageUrl = ref('')
 const testMode = ref<'default' | 'compact'>('default')
+const geminiTestMode = ref<'text' | 'image'>('text')
 const grokTestMode = ref<'text' | 'image' | 'video' | 'search' | 'tts' | 'stt' | 'realtime'>('text')
 const uploadImageDataURL = ref('')
 const uploadImagePreview = ref('')
@@ -423,10 +431,15 @@ const uploadAudioName = ref('')
 const imageFileInput = ref<HTMLInputElement | null>(null)
 const audioFileInput = ref<HTMLInputElement | null>(null)
 const isOpenAIAccount = computed(() => props.account?.platform === 'openai')
+const isGeminiAccount = computed(() => props.account?.platform === 'gemini')
 const isGrokAccount = computed(() => props.account?.platform === 'grok')
 const openAITestModeOptions = computed(() => [
   { value: 'default', label: t('admin.accounts.openai.testModeDefault') },
   { value: 'compact', label: t('admin.accounts.openai.testModeCompact') }
+])
+const geminiTestModeOptions = computed(() => [
+  { value: 'text', label: t('admin.accounts.gemini.testModeText') },
+  { value: 'image', label: t('admin.accounts.gemini.testModeImage') }
 ])
 const grokTestModeOptions = computed(() => [
   { value: 'text', label: t('admin.accounts.grok.testModeText') },
@@ -440,11 +453,19 @@ const grokTestModeOptions = computed(() => [
 const prioritizedGeminiModels = ['gemini-3.1-flash-image', 'gemini-2.5-flash-image', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-2.0-flash']
 const supportsGeminiImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
-  if (!modelID.startsWith('gemini-') || (!modelID.endsWith('-image') && !modelID.includes('-image-'))) return false
+  return (isGeminiAccount.value && geminiTestMode.value === 'image')
+    || ((modelID.startsWith('gemini-') && (modelID.endsWith('-image') || modelID.includes('-image-')))
+      && props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
+    || ((modelID.startsWith('gemini-') && (modelID.endsWith('-image') || modelID.includes('-image-')))
+      && props.account?.platform === 'openai' && props.account?.type === 'apikey')
+})
 
-  return props.account?.platform === 'gemini'
-    || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
-    || (props.account?.platform === 'openai' && props.account?.type === 'apikey')
+watch(selectedModelId, (modelID) => {
+  if (!isGeminiAccount.value) return
+  const lower = modelID.toLowerCase()
+  const marked = props.account?.extra?.image_generation_models
+  geminiTestMode.value = (lower.startsWith('gemini-') && (lower.endsWith('-image') || lower.includes('-image-')))
+    || (Array.isArray(marked) && marked.includes(modelID)) ? 'image' : 'text'
 })
 
 const supportsOpenAIImageTest = computed(() => {
@@ -858,6 +879,9 @@ const startTest = async () => {
     }
     if (isOpenAIAccount.value) {
       requestBody.mode = testMode.value
+    }
+    if (isGeminiAccount.value) {
+      requestBody.mode = geminiTestMode.value
     }
     if (isGrokAccount.value) {
       // Always send explicit Grok mode. search/tts/stt/realtime are standalone

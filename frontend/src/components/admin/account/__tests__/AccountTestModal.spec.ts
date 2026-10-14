@@ -140,12 +140,41 @@ describe('AccountTestModal', () => {
     const [, request] = (global.fetch as any).mock.calls[0]
     expect(JSON.parse(request.body)).toEqual({
       model_id: 'gemini-3.1-flash-image',
-      prompt: 'draw a tiny orange cat astronaut'
+      prompt: 'draw a tiny orange cat astronaut',
+      mode: 'image'
     })
 
     const preview = wrapper.find('img[alt="test-image-1"]')
     expect(preview.exists()).toBe(true)
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
+  })
+
+  it('已标记的自定义 Gemini 模型默认使用生图探测', async () => {
+    getAvailableModels.mockResolvedValue([{ id: 'nano-banana-2', display_name: 'nano-banana-2' }])
+    const wrapper = mountModal({
+      id: 55,
+      name: 'Custom Gemini Image',
+      platform: 'gemini',
+      type: 'apikey',
+      status: 'active',
+      extra: { image_generation_models: ['nano-banana-2'] }
+    })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const promptInput = wrapper.find('textarea.textarea-stub')
+    expect(promptInput.exists()).toBe(true)
+    await promptInput.setValue('draw a red apple')
+    const startButton = wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))
+    await startButton!.trigger('click')
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model_id: 'nano-banana-2',
+      prompt: 'draw a red apple',
+      mode: 'image'
+    })
   })
 
   it('OpenAI APIKEY 账号的 Gemini 图片模型会使用生图提示词并渲染预览', async () => {

@@ -25,6 +25,17 @@
         ></textarea>
         <p class="input-hint">{{ t('admin.accounts.notesHint') }}</p>
       </div>
+      <div v-if="account.platform === 'gemini'">
+        <label class="input-label" for="gemini-image-models">{{ t('admin.accounts.gemini.imageModelsLabel') }}</label>
+        <textarea
+          id="gemini-image-models"
+          v-model="geminiImageModelsInput"
+          rows="2"
+          class="input font-mono"
+          placeholder="nano-banana-2, nano-banana-2.1, nano-banana-pro"
+        />
+        <p class="input-hint">{{ t('admin.accounts.gemini.imageModelsHint') }}</p>
+      </div>
 
       <!-- API Key fields (only for apikey type) -->
       <div v-if="account.type === 'apikey'" class="space-y-4">
@@ -3703,6 +3714,7 @@ const modelMappings = ref<ModelMapping[]>([])
 const openAICompactModelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
+const geminiImageModelsInput = ref('')
 const DEFAULT_POOL_MODE_RETRY_COUNT = 3
 const MAX_POOL_MODE_RETRY_COUNT = 10
 const DEFAULT_POOL_MODE_RETRY_STATUS_CODES = [401, 403, 429]
@@ -4363,6 +4375,10 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   mixedChannelWarningAction.value = null
   form.name = newAccount.name
   form.notes = newAccount.notes || ''
+  const imageModels = newAccount.extra?.image_generation_models
+  geminiImageModelsInput.value = Array.isArray(imageModels)
+    ? imageModels.filter((model): model is string => typeof model === 'string').join(', ')
+    : ''
   form.proxy_id = newAccount.proxy_id
   form.concurrency = newAccount.concurrency
   form.load_factor = newAccount.load_factor ?? null
@@ -6159,6 +6175,22 @@ const handleSubmit = async () => {
       }
       // Quota notify config
       writeQuotaNotifyToExtra(newExtra, 'update')
+      updatePayload.extra = newExtra
+    }
+
+    if (props.account.platform === 'gemini') {
+      const imageModels = [...new Set(geminiImageModelsInput.value.split(/[,\n]/).map(model => model.trim()).filter(Boolean))]
+      if (imageModels.length > 50 || imageModels.some(model => model.length > 128 || !/^[A-Za-z0-9._-]+$/.test(model))) {
+        appStore.showError(t('admin.accounts.gemini.imageModelsInvalid'))
+        return
+      }
+      const currentExtra = (updatePayload.extra as Record<string, unknown>) || (props.account.extra as Record<string, unknown>) || {}
+      const newExtra = { ...currentExtra }
+      if (imageModels.length > 0) {
+        newExtra.image_generation_models = imageModels
+      } else {
+        delete newExtra.image_generation_models
+      }
       updatePayload.extra = newExtra
     }
 

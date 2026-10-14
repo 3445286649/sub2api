@@ -1573,6 +1573,12 @@ export default {
       },
       // Gemini specific (platform-wide)
       gemini: {
+        testMode: '探测类型',
+        testModeText: '文本',
+        testModeImage: '生图',
+        imageModelsLabel: '生图模型',
+        imageModelsHint: '填写对外模型 ID，逗号或换行分隔。用于默认选中生图探测；正式请求仍走 Gemini 原生接口。',
+        imageModelsInvalid: '生图模型最多 50 个；每个 ID 最长 128 字符，只能包含字母、数字、点、下划线和连字符。',
         helpButton: '使用帮助',
         helpDialog: {
           title: 'Gemini 使用指南',

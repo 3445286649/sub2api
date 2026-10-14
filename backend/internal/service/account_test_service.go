@@ -404,7 +404,7 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	}
 
 	if account.IsGemini() {
-		return s.testGeminiAccountConnection(c, account, modelID, prompt)
+		return s.testGeminiAccountConnection(c, account, modelID, prompt, mode)
 	}
 
 	if account.Platform == PlatformGrok {
@@ -2410,7 +2410,7 @@ func (s *AccountTestService) reconcileOpenAI429State(ctx context.Context, accoun
 }
 
 // testGeminiAccountConnection tests a Gemini account's connection
-func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account *Account, modelID string, prompt string) error {
+func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account *Account, modelID string, prompt string, modes ...string) error {
 	ctx := c.Request.Context()
 
 	// Determine the model to use
@@ -2429,6 +2429,16 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 		}
 	}
 
+	imageMode := isImageGenerationModel(testModelID)
+	if len(modes) > 0 {
+		switch modes[0] {
+		case "image":
+			imageMode = true
+		case "text":
+			imageMode = false
+		}
+	}
+
 	// Set SSE headers
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
@@ -2437,7 +2447,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	c.Writer.Flush()
 
 	// Create test payload (Gemini format)
-	payload := createGeminiTestPayload(testModelID, prompt)
+	payload := createGeminiTestPayloadForMode(testModelID, prompt, imageMode)
 
 	// Build request based on account type
 	var req *http.Request
@@ -2445,7 +2455,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 
 	switch account.Type {
 	case AccountTypeAPIKey:
-		req, err = s.buildGeminiAPIKeyRequest(ctx, account, testModelID, payload)
+		req, err = s.buildGeminiAPIKeyRequest(ctx, account, testModelID, payload, imageMode)
 	case AccountTypeOAuth:
 		req, err = s.buildGeminiOAuthRequest(ctx, account, testModelID, payload)
 	case AccountTypeServiceAccount:
@@ -2478,8 +2488,53 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
 
+	if imageMode && account.Type == AccountTypeAPIKey {
+		return s.processGeminiImageResponse(c, resp.Body)
+	}
 	// Process SSE stream
-	return s.processGeminiStream(c, resp.Body)
+	return s.processGeminiStream(c, resp.Body, imageMode)
+}
+
+func (s *AccountTestService) processGeminiImageResponse(c *gin.Context, body io.Reader) error {
+	payload, err := io.ReadAll(io.LimitReader(body, 32<<20+1))
+	if err != nil || len(payload) > 32<<20 {
+		return s.sendErrorAndEnd(c, "Failed to read Gemini image response")
+	}
+	var response struct {
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					InlineData struct {
+						MimeType string `json:"mimeType"`
+						Data     string `json:"data"`
+					} `json:"inlineData"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
+	}
+	if err := json.Unmarshal(payload, &response); err != nil {
+		return s.sendErrorAndEnd(c, "Invalid Gemini image response")
+	}
+	imageCount := 0
+	for _, candidate := range response.Candidates {
+		for _, part := range candidate.Content.Parts {
+			mimeType := part.InlineData.MimeType
+			if !strings.HasPrefix(strings.ToLower(mimeType), "image/") {
+				continue
+			}
+			decoded, err := base64.StdEncoding.DecodeString(part.InlineData.Data)
+			if err != nil || !strings.HasPrefix(http.DetectContentType(decoded), "image/") {
+				continue
+			}
+			s.sendEvent(c, TestEvent{Type: "image", ImageURL: fmt.Sprintf("data:%s;base64,%s", mimeType, part.InlineData.Data), MimeType: mimeType})
+			imageCount++
+		}
+	}
+	if imageCount == 0 {
+		return s.sendErrorAndEnd(c, "Gemini returned no image")
+	}
+	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+	return nil
 }
 
 // routeAntigravityTest 路由 Antigravity 账号的测试请求。
@@ -2538,7 +2593,7 @@ func antigravityConnectionTestModel(modelID string) string {
 }
 
 // buildGeminiAPIKeyRequest builds request for Gemini API Key accounts
-func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, account *Account, modelID string, payload []byte) (*http.Request, error) {
+func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, account *Account, modelID string, payload []byte, imageMode ...bool) (*http.Request, error) {
 	apiKey := account.GetCredential("api_key")
 	if strings.TrimSpace(apiKey) == "" {
 		return nil, fmt.Errorf("no API key available")
@@ -2553,8 +2608,12 @@ func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, accou
 		return nil, err
 	}
 
-	// Use streamGenerateContent for real-time feedback
-	fullURL, err := buildGeminiAIStudioModelActionURL(normalizedBaseURL, modelID, "streamGenerateContent", true)
+	action := "streamGenerateContent"
+	stream := true
+	if len(imageMode) > 0 && imageMode[0] {
+		action, stream = "generateContent", false
+	}
+	fullURL, err := buildGeminiAIStudioModelActionURL(normalizedBaseURL, modelID, action, stream)
 	if err != nil {
 		return nil, err
 	}
@@ -2667,7 +2726,11 @@ func (s *AccountTestService) buildCodeAssistRequest(ctx context.Context, accessT
 // createGeminiTestPayload creates a minimal test payload for Gemini API.
 // Image models use the image-generation path so the frontend can preview the returned image.
 func createGeminiTestPayload(modelID string, prompt string) []byte {
-	if isImageGenerationModel(modelID) {
+	return createGeminiTestPayloadForMode(modelID, prompt, isImageGenerationModel(modelID))
+}
+
+func createGeminiTestPayloadForMode(modelID string, prompt string, imageMode bool) []byte {
+	if imageMode {
 		imagePrompt := strings.TrimSpace(prompt)
 		if imagePrompt == "" {
 			imagePrompt = defaultGeminiImageTestPrompt
@@ -2718,15 +2781,23 @@ func createGeminiTestPayload(modelID string, prompt string) []byte {
 }
 
 // processGeminiStream processes SSE stream from Gemini API
-func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader) error {
+func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader, imageModes ...bool) error {
+	requireImage := len(imageModes) > 0 && imageModes[0]
+	imageReceived := false
+	complete := func() error {
+		if requireImage && !imageReceived {
+			return s.sendErrorAndEnd(c, "Gemini returned no image")
+		}
+		s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+		return nil
+	}
 	reader := bufio.NewReader(body)
 
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
-				s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
-				return nil
+				return complete()
 			}
 			return s.sendErrorAndEnd(c, fmt.Sprintf("Stream read error: %s", err.Error()))
 		}
@@ -2738,8 +2809,7 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader)
 
 		jsonStr := strings.TrimPrefix(line, "data: ")
 		if jsonStr == "[DONE]" {
-			s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
-			return nil
+			return complete()
 		}
 
 		var data map[string]any
@@ -2767,6 +2837,7 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader)
 									mimeType, _ := inlineData["mimeType"].(string)
 									data, _ := inlineData["data"].(string)
 									if strings.HasPrefix(strings.ToLower(mimeType), "image/") && data != "" {
+										imageReceived = true
 										s.sendEvent(c, TestEvent{
 											Type:     "image",
 											ImageURL: fmt.Sprintf("data:%s;base64,%s", mimeType, data),
@@ -2781,8 +2852,7 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader)
 
 				// Check for completion after extracting content
 				if finishReason, ok := candidate["finishReason"].(string); ok && finishReason != "" {
-					s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
-					return nil
+					return complete()
 				}
 			}
 		}

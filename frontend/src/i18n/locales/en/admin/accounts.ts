@@ -1481,6 +1481,12 @@ export default {
                   }
                 },      // Gemini specific (platform-wide)
       gemini: {
+        testMode: 'Probe mode',
+        testModeText: 'Text',
+        testModeImage: 'Image generation',
+        imageModelsLabel: 'Image generation models',
+        imageModelsHint: 'Enter public model IDs separated by commas or newlines. This defaults the probe to image mode; requests still use the native Gemini API.',
+        imageModelsInvalid: 'Use at most 50 model IDs, each up to 128 letters, digits, dots, underscores or hyphens.',
         helpButton: 'Help',
         helpDialog: {
           title: 'Gemini Usage Guide',
