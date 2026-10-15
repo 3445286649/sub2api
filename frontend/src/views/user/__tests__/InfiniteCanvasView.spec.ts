@@ -86,6 +86,19 @@ describe('Infinite Canvas multi-connection host', () => {
     expect(w.html()).not.toContain(ownKey.key)
     expect(w.get('#canvas-video-key').findAll('option')).toHaveLength(1)
   })
+  it('keeps the remove action separate from a long group label', async () => {
+    const longName = 'Very long image generation group '.repeat(12)
+    mocks.list.mockResolvedValue({ items: [{ ...ownKey, group: { ...ownKey.group, name: longName } }], total: 1, page_size: 100 })
+    const w = view(); await flushPromises()
+    await w.get('#canvas-image-key').setValue('1')
+    const label = w.get(`span[title*="${longName.slice(0, 30)}"]`)
+    expect(label.classes()).toContain('truncate')
+    expect(label.element.parentElement?.className).toContain('grid-cols-[auto_minmax(0,1fr)_auto_auto]')
+    const remove = w.findAll('button').find(b => b.text() === 'infiniteCanvas.remove')!
+    expect(remove.classes()).toContain('shrink-0')
+    await remove.trigger('click')
+    expect(w.findAll('button').some(b => b.text() === 'infiniteCanvas.remove')).toBe(false)
+  })
   it('persists only IDs after acknowledged initialization and restores with ownership validation', async () => {
     const w = await open()
     expect(JSON.parse(localStorage.getItem('sub2api.canvas.connections.1')!).selection.image).toEqual([1])

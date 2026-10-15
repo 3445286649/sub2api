@@ -1662,6 +1662,13 @@ export default {
       reAuthorizedSuccess: 'Account re-authorized successfully',
       // Test Modal
       testAccountConnection: 'Test Account Connection',
+      testCategory: 'Test category',
+      connectionTest: 'Connectivity test',
+      pelicanTest: 'Pelican test',
+      sendingPelicanRequest: 'Requesting a pelican riding a bicycle as SVG...',
+      technicalDetails: 'Technical details (redacted)',
+      pelicanPreview: 'Pelican SVG preview',
+      noPelicanSvg: 'The model responded without a previewable SVG.',
       errorPrefix: 'Error: {message}',
       imagePreviewAlt: 'Test image {index}',
       imageLightboxAlt: 'Image preview',

@@ -1349,6 +1349,10 @@ func (h *AccountHandler) Test(c *gin.Context) {
 		ImageDataURL: req.ImageDataURL,
 		AudioDataURL: req.AudioDataURL,
 	}
+	if req.Mode == service.AccountTestModePelican {
+		_ = h.accountTestService.TestPelican(c, accountID, req.ModelID)
+		return
+	}
 
 	// Use AccountTestService to test the account with SSE streaming
 	if err := h.accountTestService.TestAccountConnection(c, accountID, req.ModelID, req.Prompt, req.Mode, opts); err != nil {

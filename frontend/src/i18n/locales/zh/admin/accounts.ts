@@ -1752,6 +1752,13 @@ export default {
       reAuthorizedSuccess: '账号重新授权成功',
       // Test Modal
       testAccountConnection: '测试账号连接',
+      testCategory: '测试类别',
+      connectionTest: '连通测试',
+      pelicanTest: '鹈鹕测试',
+      sendingPelicanRequest: '请求模型绘制骑自行车的鹈鹕 SVG...',
+      technicalDetails: '技术详情（已脱敏）',
+      pelicanPreview: '鹈鹕测试图',
+      noPelicanSvg: '模型已响应，但没有返回可预览的 SVG。',
       errorPrefix: '错误：{message}',
       imagePreviewAlt: '测试图片 {index}',
       imageLightboxAlt: '图片预览',

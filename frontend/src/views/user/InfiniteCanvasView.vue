@@ -49,13 +49,13 @@
     <BaseDialog :show="settingsOpen && enabled" :title="t('infiniteCanvas.connectionSettings')" width="normal" @close="closeSettings">
       <div class="space-y-4">
         <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('infiniteCanvas.description') }}</p>
-        <fieldset v-for="role in CANVAS_CAPABILITIES" :key="role" class="space-y-2 rounded-xl border border-gray-200 p-3 dark:border-dark-700">
+        <fieldset v-for="role in CANVAS_CAPABILITIES" :key="role" class="min-w-0 space-y-2 rounded-xl border border-gray-200 p-3 dark:border-dark-700">
           <legend class="px-1 text-sm font-semibold">{{ t(`infiniteCanvas.${role}`) }}</legend>
-          <div v-for="(id, index) in draft[role]" :key="id" class="flex items-center gap-2 text-sm">
+          <div v-for="(id, index) in draft[role]" :key="id" class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 text-sm">
             <button type="button" :aria-label="t('infiniteCanvas.setDefault')" :disabled="connecting" :class="index === 0 ? 'text-primary-600' : 'text-gray-400'" @click="makeDefault(role, id)">{{ index === 0 ? '●' : '○' }}</button>
-            <span class="min-w-0 flex-1 truncate">{{ keyLabel(id) }}</span>
-            <span v-if="index === 0" class="text-xs text-primary-600">{{ t('infiniteCanvas.default') }}</span>
-            <button type="button" class="text-gray-500 hover:text-red-600" :disabled="connecting" @click="draft[role] = draft[role].filter(value => value !== id)">{{ t('infiniteCanvas.remove') }}</button>
+            <span class="min-w-0 truncate" :title="keyLabel(id)">{{ keyLabel(id) }}</span>
+            <span v-if="index === 0" class="shrink-0 text-xs text-primary-600">{{ t('infiniteCanvas.default') }}</span>
+            <button type="button" class="shrink-0 whitespace-nowrap text-gray-500 hover:text-red-600" :disabled="connecting" @click="draft[role] = draft[role].filter(value => value !== id)">{{ t('infiniteCanvas.remove') }}</button>
           </div>
           <label :for="`canvas-${role}-key`" class="sr-only">{{ t(`infiniteCanvas.${role}`) }}</label>
           <select :id="`canvas-${role}-key`" class="input w-full" value="" :disabled="loading || connecting" @change="addKey(role, $event)">

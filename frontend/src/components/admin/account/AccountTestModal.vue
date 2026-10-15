@@ -41,8 +41,13 @@
         </span>
       </div>
 
+      <div v-if="supportsPelicanTest" class="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-700" role="group" :aria-label="t('admin.accounts.testCategory')">
+        <button type="button" class="min-w-0 flex-1 rounded-md px-3 py-1.5 text-sm" :class="testCategory === 'connection' ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-dark-500 dark:text-white' : 'text-gray-600 dark:text-gray-300'" :disabled="status === 'connecting'" @click="testCategory = 'connection'">{{ t('admin.accounts.connectionTest') }}</button>
+        <button type="button" class="min-w-0 flex-1 rounded-md px-3 py-1.5 text-sm" :class="testCategory === 'pelican' ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-dark-500 dark:text-white' : 'text-gray-600 dark:text-gray-300'" :disabled="status === 'connecting'" @click="testCategory = 'pelican'">{{ t('admin.accounts.pelicanTest') }}</button>
+      </div>
+
       <!-- Grok: mode first, then optional model / mode params -->
-      <div v-if="isGrokAccount" class="space-y-1.5">
+      <div v-if="isGrokAccount && !isPelicanTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.grok.testMode') }}
         </label>
@@ -70,7 +75,7 @@
         />
       </div>
 
-      <div v-if="isOpenAIAccount" class="space-y-1.5">
+      <div v-if="isOpenAIAccount && !isPelicanTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.openai.testMode') }}
         </label>
@@ -81,14 +86,14 @@
         />
       </div>
 
-      <div v-if="isGeminiAccount" class="space-y-1.5">
+      <div v-if="isGeminiAccount && !isPelicanTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.gemini.testMode') }}
         </label>
         <Select v-model="geminiTestMode" :options="geminiTestModeOptions" :disabled="status === 'connecting'" />
       </div>
 
-      <div v-if="supportsPromptInput" class="space-y-1.5">
+      <div v-if="supportsPromptInput && !isPelicanTest" class="space-y-1.5">
         <TextArea
           v-model="testPrompt"
           :label="promptInputLabel"
@@ -99,14 +104,14 @@
         />
       </div>
       <p
-        v-else-if="isGrokAccount && promptInputHint"
+        v-else-if="isGrokAccount && !isPelicanTest && promptInputHint"
         class="text-xs text-gray-500 dark:text-gray-400"
       >
         {{ promptInputHint }}
       </p>
 
       <!-- Optional media uploads for real generation / transcription -->
-      <div v-if="supportsImageUpload" class="space-y-1.5">
+      <div v-if="supportsImageUpload && !isPelicanTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ imageUploadLabel }}
         </label>
@@ -145,7 +150,7 @@
         </div>
       </div>
 
-      <div v-if="supportsAudioUpload" class="space-y-1.5">
+      <div v-if="supportsAudioUpload && !isPelicanTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.grok.audioUploadLabel') }}
         </label>
@@ -175,6 +180,16 @@
           />
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.grok.audioUploadHint') }}</p>
+      </div>
+
+      <div v-if="isPelicanTest && technicalDetails" class="space-y-1.5">
+        <div class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.accounts.technicalDetails') }}</div>
+        <pre class="max-h-48 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-200">{{ JSON.stringify(technicalDetails, null, 2) }}</pre>
+      </div>
+      <div v-if="isPelicanTest && status === 'success'" class="space-y-1.5">
+        <div class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.accounts.pelicanPreview') }}</div>
+        <iframe v-if="pelicanPreview" :srcdoc="pelicanPreview" sandbox="" :title="t('admin.accounts.pelicanPreview')" class="h-72 w-full rounded-lg border border-gray-200 bg-white dark:border-dark-500" />
+        <p v-else class="text-sm text-amber-700 dark:text-amber-400">{{ t('admin.accounts.noPelicanSvg') }}</p>
       </div>
 
       <!-- Terminal Output -->
@@ -373,6 +388,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
+import DOMPurify from 'dompurify'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
@@ -421,6 +437,8 @@ const generatedAudios = ref<PreviewMedia[]>([])
 const generatedVideos = ref<PreviewMedia[]>([])
 const previewImageUrl = ref('')
 const testMode = ref<'default' | 'compact'>('default')
+const testCategory = ref<'connection' | 'pelican'>('connection')
+const technicalDetails = ref<Record<string, unknown> | null>(null)
 const geminiTestMode = ref<'text' | 'image'>('text')
 const grokTestMode = ref<'text' | 'image' | 'video' | 'search' | 'tts' | 'stt' | 'realtime'>('text')
 const uploadImageDataURL = ref('')
@@ -433,6 +451,22 @@ const audioFileInput = ref<HTMLInputElement | null>(null)
 const isOpenAIAccount = computed(() => props.account?.platform === 'openai')
 const isGeminiAccount = computed(() => props.account?.platform === 'gemini')
 const isGrokAccount = computed(() => props.account?.platform === 'grok')
+const supportsPelicanTest = computed(() => (props.account?.platform === 'gemini' && ['apikey', 'oauth', 'service_account'].includes(props.account.type)) ||
+  ((props.account?.platform === 'openai' || props.account?.platform === 'anthropic') && props.account?.type === 'apikey'))
+const isPelicanTest = computed(() => supportsPelicanTest.value && testCategory.value === 'pelican')
+const pelicanPreview = computed(() => {
+  if (!isPelicanTest.value) return ''
+  const output = outputLines.value.map(line => line.text).join('') + streamingContent.value
+  const start = output.indexOf('<svg')
+  const end = output.lastIndexOf('</svg>')
+  if (start < 0 || end < start || end + 6 - start > 256 * 1024) return ''
+  const svg = DOMPurify.sanitize(output.slice(start, end + 6), {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    FORBID_TAGS: ['script', 'foreignObject', 'iframe', 'image', 'animate', 'set']
+  })
+  if (!svg.startsWith('<svg')) return ''
+  return `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><body style="margin:0;display:grid;place-items:center;height:100vh">${svg}</body>`
+})
 const openAITestModeOptions = computed(() => [
   { value: 'default', label: t('admin.accounts.openai.testModeDefault') },
   { value: 'compact', label: t('admin.accounts.openai.testModeCompact') }
@@ -503,11 +537,20 @@ const supportsImageTest = computed(
 
 // Model select only when the mode needs a model.
 const showModelSelect = computed(() => {
+  if (isPelicanTest.value) return true
   if (!isGrokAccount.value) return true
   return grokTestMode.value === 'text' || grokTestMode.value === 'image' || grokTestMode.value === 'video'
 })
 
 const modelOptionsForMode = computed(() => {
+  if (isPelicanTest.value) {
+    const marked = props.account?.extra?.image_generation_models
+    const mapped = props.account?.credentials?.model_mapping as Record<string, string> | undefined
+    return availableModels.value.filter(model => {
+      const target = mapped?.[model.id] || model.id
+      return ![model.id, target].some(id => id.toLowerCase().includes('image') || id.toLowerCase().includes('imagine') || (Array.isArray(marked) && marked.includes(id)))
+    })
+  }
   if (!isGrokAccount.value) return availableModels.value
   if (grokTestMode.value === 'image') {
     return availableModels.value.filter((m) => isGrokImageModel(m.id))
@@ -676,6 +719,7 @@ const promptInputHint = computed(() => {
 })
 
 const testModeSummary = computed(() => {
+  if (isPelicanTest.value) return t('admin.accounts.pelicanTest')
   if (isGrokAccount.value) {
     switch (grokTestMode.value) {
       case 'video':
@@ -768,6 +812,7 @@ watch(
     if (newVal && props.account) {
       testPrompt.value = ''
       testMode.value = 'default'
+      testCategory.value = 'connection'
       grokTestMode.value = 'text'
       resetState()
       await loadAvailableModels()
@@ -780,6 +825,13 @@ watch(
     }
   }
 )
+
+watch(testCategory, () => {
+  resetState()
+  if (isPelicanTest.value && !modelOptionsForMode.value.some(model => model.id === selectedModelId.value)) {
+    selectedModelId.value = modelOptionsForMode.value[0]?.id || ''
+  }
+})
 
 watch(grokTestMode, () => {
   if (!isGrokAccount.value) return
@@ -824,6 +876,7 @@ const resetState = () => {
   outputLines.value = []
   streamingContent.value = ''
   errorMessage.value = ''
+  technicalDetails.value = null
   generatedImages.value = []
   generatedAudios.value = []
   generatedVideos.value = []
@@ -881,15 +934,17 @@ const startTest = async () => {
       audio_data_url?: string
     } = {
       model_id: showModelSelect.value ? selectedModelId.value : '',
-      prompt: supportsPromptInput.value ? testPrompt.value.trim() : ''
+      prompt: !isPelicanTest.value && supportsPromptInput.value ? testPrompt.value.trim() : ''
     }
-    if (isOpenAIAccount.value) {
+    if (isPelicanTest.value) {
+      requestBody.mode = 'pelican'
+    } else if (isOpenAIAccount.value) {
       requestBody.mode = testMode.value
     }
-    if (isGeminiAccount.value) {
+    if (!isPelicanTest.value && isGeminiAccount.value) {
       requestBody.mode = geminiTestMode.value
     }
-    if (isGrokAccount.value) {
+    if (!isPelicanTest.value && isGrokAccount.value) {
       // Always send explicit Grok mode. search/tts/stt/realtime are standalone
       // endpoints (no free-form model select). text/image/video use optional model.
       requestBody.mode = grokTestMode.value
@@ -980,14 +1035,15 @@ const handleEvent = (event: {
   audio_url?: string
   video_url?: string
   mime_type?: string
+  data?: Record<string, unknown>
 }) => {
   switch (event.type) {
     case 'test_start':
-      addLine(t('admin.accounts.connectedToApi'), 'text-green-400')
+      if (!isPelicanTest.value) addLine(t('admin.accounts.connectedToApi'), 'text-green-400')
       if (event.model) {
         addLine(t('admin.accounts.usingModel', { model: event.model }), 'text-cyan-400')
       }
-      addLine(
+      addLine(isPelicanTest.value ? t('admin.accounts.sendingPelicanRequest') :
         isGrokAccount.value
           ? grokTestMode.value === 'video'
             ? t('admin.accounts.sendingVideoRequest')
@@ -1011,9 +1067,17 @@ const handleEvent = (event: {
       addLine(t('admin.accounts.response'), 'text-yellow-400')
       break
 
+    case 'technical_details':
+      if (isPelicanTest.value && event.data) technicalDetails.value = event.data
+      break
+
     case 'content':
       if (event.text) {
-        streamingContent.value += event.text
+        if (isPelicanTest.value) {
+          streamingContent.value += event.text.slice(0, Math.max(0, 256 * 1024 - streamingContent.value.length))
+        } else {
+          streamingContent.value += event.text
+        }
         scrollToBottom()
       }
       break
@@ -1061,7 +1125,12 @@ const handleEvent = (event: {
         streamingContent.value = ''
       }
       if (event.success) {
-        status.value = 'success'
+        if (isPelicanTest.value && !pelicanPreview.value) {
+          status.value = 'error'
+          errorMessage.value = t('admin.accounts.noPelicanSvg')
+        } else {
+          status.value = 'success'
+        }
       } else {
         status.value = 'error'
         errorMessage.value = event.error || t('admin.accounts.testFailed')

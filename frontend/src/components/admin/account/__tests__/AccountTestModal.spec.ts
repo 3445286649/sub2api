@@ -153,6 +153,47 @@ describe('AccountTestModal', () => {
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
   })
 
+  it('runs the independent pelican test and shows a sandboxed SVG preview', async () => {
+    getAvailableModels.mockResolvedValue([{ id: 'gemini-2.5-flash', display_name: 'Gemini Flash' }])
+    global.fetch = vi.fn().mockResolvedValue(createStreamResponse([
+      'data: {"type":"test_start","model":"gemini-2.5-flash"}\n',
+      'data: {"type":"technical_details","data":{"method":"POST","path":"/v1beta/models/gemini-2.5-flash:streamGenerateContent","headers":{"x-goog-api-key":"***"}}}\n',
+      `data: ${JSON.stringify({ type: 'content', text: '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle r="20"/></svg>' })}\n`,
+      'data: {"type":"test_complete","success":true}\n'
+    ])) as any
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.pelicanTest'))!.trigger('click')
+    expect(wrapper.find('textarea.textarea-stub').exists()).toBe(false)
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))!.trigger('click')
+    await flushPromises()
+    expect(JSON.parse((global.fetch as any).mock.calls[0][1].body)).toEqual({ model_id: 'gemini-2.5-flash', prompt: '', mode: 'pelican' })
+    expect(wrapper.text()).toContain('/v1beta/models/gemini-2.5-flash:streamGenerateContent')
+    const preview = wrapper.get('iframe[title="admin.accounts.pelicanPreview"]')
+    expect(preview.attributes('sandbox')).toBe('')
+    expect(preview.attributes('srcdoc')).toContain('<circle')
+    expect(preview.attributes('srcdoc')).not.toContain('<script')
+  })
+
+  it('does not report a successful pelican image when the model returns plain text', async () => {
+    getAvailableModels.mockResolvedValue([{ id: 'gemini-2.5-flash', display_name: 'Gemini Flash' }])
+    global.fetch = vi.fn().mockResolvedValue(createStreamResponse([
+      'data: {"type":"test_start","model":"gemini-2.5-flash"}\n',
+      'data: {"type":"content","text":"I cannot draw that."}\n',
+      'data: {"type":"test_complete","success":true}\n'
+    ])) as any
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.pelicanTest'))!.trigger('click')
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('admin.accounts.noPelicanSvg')
+    expect(wrapper.text()).not.toContain('admin.accounts.testCompleted')
+    expect(wrapper.find('iframe[title="admin.accounts.pelicanPreview"]').exists()).toBe(false)
+  })
+
   it('已标记的自定义 Gemini 模型默认使用生图探测', async () => {
     getAvailableModels.mockResolvedValue([{ id: 'nano-banana-2', display_name: 'nano-banana-2' }])
     const wrapper = mountModal({
