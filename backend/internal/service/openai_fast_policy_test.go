@@ -358,6 +358,47 @@ func TestApplyOpenAIFastPolicyToBody_GroupForceInjectsAndOverridesTier(t *testin
 	}
 }
 
+func TestApplyOpenAIFastPolicyToBody_GroupModelTiersAreIsolated(t *testing.T) {
+	svc := newOpenAIGatewayServiceWithSettings(t, DefaultOpenAIFastPolicySettings())
+	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	group := &Group{
+		ID: 7, Platform: PlatformOpenAI, Status: StatusActive, Hydrated: true,
+		ForceOpenAIFast: true, ForceOpenAIUltrafast: true,
+		OpenAIModelTiers: map[string]string{"gpt-6-astra": OpenAIFastTierUltrafast},
+	}
+	ctx := context.WithValue(context.Background(), ctxkey.Group, group)
+	ctx = context.WithValue(ctx, ctxkey.Model, "gpt-6-astra")
+	body := []byte(`{"model":"mapped-upstream-model","service_tier":"default"}`)
+	updated, err := svc.applyOpenAIFastPolicyToBody(ctx, account, "mapped-upstream-model", body)
+	require.NoError(t, err)
+	require.Equal(t, OpenAIFastTierUltrafast, gjson.GetBytes(updated, "service_tier").String())
+
+	otherModelCtx := context.WithValue(ctx, ctxkey.Model, "gpt-6-sol")
+	updated, err = svc.applyOpenAIFastPolicyToBody(otherModelCtx, account, "mapped-upstream-model", body)
+	require.NoError(t, err)
+	require.Equal(t, OpenAIFastTierPriority, gjson.GetBytes(updated, "service_tier").String())
+
+	group.ForceOpenAIUltrafast = false
+	updated, err = svc.applyOpenAIFastPolicyToBody(ctx, account, "mapped-upstream-model", body)
+	require.NoError(t, err)
+	require.Equal(t, OpenAIFastTierPriority, gjson.GetBytes(updated, "service_tier").String())
+
+	otherGroup := &Group{ID: 8, Platform: PlatformOpenAI, Status: StatusActive, Hydrated: true}
+	otherGroupCtx := context.WithValue(ctx, ctxkey.Group, otherGroup)
+	updated, err = svc.applyOpenAIFastPolicyToBody(otherGroupCtx, account, "mapped-upstream-model", body)
+	require.NoError(t, err)
+	require.Equal(t, "default", gjson.GetBytes(updated, "service_tier").String())
+
+	group.ForceOpenAIFast = false
+	group.ForceOpenAIUltrafast = true
+	updated, err = svc.applyOpenAIFastPolicyToBody(otherModelCtx, account, "mapped-upstream-model", body)
+	require.NoError(t, err)
+	require.Equal(t, "default", gjson.GetBytes(updated, "service_tier").String())
+	updated, err = svc.applyOpenAIFastPolicyToBody(ctx, account, "mapped-upstream-model", body)
+	require.NoError(t, err)
+	require.Equal(t, OpenAIFastTierUltrafast, gjson.GetBytes(updated, "service_tier").String())
+}
+
 func TestApplyOpenAIFastPolicyToBody_GroupForceStillHonorsGlobalPolicy(t *testing.T) {
 	svc := newOpenAIGatewayServiceWithSettings(t, openAIFastFilterPriorityPolicy())
 	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}

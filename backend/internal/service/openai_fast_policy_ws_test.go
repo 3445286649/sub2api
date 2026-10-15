@@ -136,6 +136,22 @@ func TestWSResponseCreate_GroupForceInjectsMissingTier(t *testing.T) {
 	require.Equal(t, OpenAIFastTierPriority, gjson.GetBytes(updated, "service_tier").String())
 }
 
+func TestWSResponseCreate_GroupModelUltrafast(t *testing.T) {
+	svc := newOpenAIGatewayServiceWithSettings(t, DefaultOpenAIFastPolicySettings())
+	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	ctx := context.WithValue(context.Background(), ctxkey.Group, &Group{
+		ID: 7, Platform: PlatformOpenAI, Status: StatusActive, Hydrated: true,
+		ForceOpenAIUltrafast: true,
+		OpenAIModelTiers:     map[string]string{"gpt-6-astra": OpenAIFastTierUltrafast},
+	})
+	ctx = context.WithValue(ctx, ctxkey.Model, "gpt-6-astra")
+	frame := []byte(`{"type":"response.create","model":"mapped-upstream-model"}`)
+	updated, blocked, err := svc.applyOpenAIFastPolicyToWSResponseCreate(ctx, account, "mapped-upstream-model", frame)
+	require.NoError(t, err)
+	require.Nil(t, blocked)
+	require.Equal(t, OpenAIFastTierUltrafast, gjson.GetBytes(updated, "service_tier").String())
+}
+
 func TestWSResponseCreate_ForcePriorityInjectsMissingTier(t *testing.T) {
 	settings := &OpenAIFastPolicySettings{
 		Rules: []OpenAIFastPolicyRule{{

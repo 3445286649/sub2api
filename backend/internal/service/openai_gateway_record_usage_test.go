@@ -3250,6 +3250,36 @@ func TestOpenAIGatewayServiceRecordUsage_FreeOpenAIFastChargesStandard(t *testin
 	require.InDelta(t, standardTotal*0.5, usageRepo.lastLog.ActualCost, 1e-10)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_FreeUltrafastChargesStandard(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{}, nil)
+	svc.resolver = NewModelPricingResolver(nil, svc.billingService)
+	groupID := int64(79)
+	tier := OpenAIFastTierUltrafast
+	tokens := UsageTokens{InputTokens: 1000, OutputTokens: 500}
+	apiKey := &APIKey{ID: 1022, GroupID: &groupID, Group: &Group{
+		ID: groupID, Platform: PlatformOpenAI, Status: StatusActive,
+		Hydrated: true, RateMultiplier: 1, FreeOpenAIFast: true,
+	}}
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_free_ultrafast", ServiceTier: &tier,
+			Usage: OpenAIUsage{InputTokens: tokens.InputTokens, OutputTokens: tokens.OutputTokens},
+			Model: "gpt-6-astra", Duration: time.Second,
+		},
+		APIKey: apiKey, User: &User{ID: 2022},
+		Account: &Account{ID: 3022, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+	})
+	require.NoError(t, err)
+	require.Equal(t, tier, *usageRepo.lastLog.ServiceTier)
+	standard, err := svc.billingService.CalculateCostWithServiceTier("gpt-6-astra", tokens, 1, "")
+	require.NoError(t, err)
+	ultrafast, err := svc.billingService.CalculateCostWithServiceTier("gpt-6-astra", tokens, 1, tier)
+	require.NoError(t, err)
+	require.InDelta(t, ultrafast.TotalCost, usageRepo.lastLog.TotalCost, 1e-10)
+	require.InDelta(t, standard.TotalCost, usageRepo.lastLog.ActualCost, 1e-10)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_FreeOpenAIFastMissingPricingRecordsZeroCostUsageLog(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	svc := newOpenAIRecordUsageServiceForTest(
@@ -3302,6 +3332,11 @@ func TestGroupBillsOpenAIFastAtStandardRequiresOpenAIAccount(t *testing.T) {
 		apiKey,
 		&Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth},
 		"priority",
+	))
+	require.True(t, groupBillsOpenAIFastAtStandard(
+		apiKey,
+		&Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth},
+		"ultrafast",
 	))
 	require.False(t, groupBillsOpenAIFastAtStandard(
 		apiKey,

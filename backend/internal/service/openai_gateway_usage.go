@@ -144,7 +144,7 @@ func groupBillsOpenAIFastAtStandard(apiKey *APIKey, account *Account, serviceTie
 		return false
 	}
 	switch normalizeBillingServiceTier(serviceTier) {
-	case "priority", "fast":
+	case "priority", "fast", "ultrafast":
 		return true
 	default:
 		return false
@@ -299,7 +299,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		}
 	}
 
-	// Free Fast changes only the customer charge. Keep priority TotalCost and
+	// Free Fast changes only the customer charge. Keep Fast/Ultrafast TotalCost and
 	// service_tier for upstream accounting, but evaluate ActualCost once more at
 	// the Standard tier using the same channel, peak, and long-context policy.
 	if groupBillsOpenAIFastAtStandard(apiKey, billingAccount, serviceTier) {

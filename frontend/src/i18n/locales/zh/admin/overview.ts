@@ -1269,9 +1269,18 @@ export default {
       openaiFast: {
         title: 'OpenAI Fast 模式',
         force: '强制使用 Fast（priority）',
-        hint: '开启后，此分组的 OpenAI 请求会强制写入 service_tier=priority；全局 Fast/Flex 策略仍可过滤或拦截。保存后新请求立即生效，已建立的 WebSocket 会话需重连。',
+        hint: '开启后，未单独指定档位的模型默认使用 Fast；全局 Fast/Flex 策略仍可过滤或拦截。',
+        ultrafast: '开启 Ultrafast',
+        ultrafastHint: '仅为下方指定的模型强制使用 Ultrafast；关闭后保留模型选择，但暂不生效。',
         free: '免费 Fast',
-        freeHint: '该分组的 Fast 请求仍使用 priority 档位，但客户实际费用按同一请求的 Standard 价格计算。'
+        freeHint: '本分组使用 Fast 或 Ultrafast 的请求，用户均按 Standard 档位收费；上游成本仍按实际档位承担。',
+        loadModels: '获取模型候选',
+        modelsHint: '候选来自站内默认模型与本分组账号映射，并非上游实时清单。选择仅影响本分组。',
+        loadError: '模型候选获取失败，请重试。',
+        customModel: '输入自定义公开模型名',
+        addModel: '添加模型',
+        invalidModel: '请输入不超过 100 个字符的模型名，不支持通配符；最多 256 个模型。',
+        followDefault: '跟随分组默认'
       },
       invalidRequestFallback: {
         title: '无效请求兜底分组',

@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	openaiwsv2 "github.com/Wei-Shaw/sub2api/internal/service/openai_ws_v2"
@@ -769,7 +770,8 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		firstClientMessage = accountScopedFirst
 	}
 	usageMeta := newOpenAIWSPassthroughUsageMeta(initialRequestModel, firstClientMessage)
-	updatedFirst, blocked, policyErr := s.applyOpenAIFastPolicyToWSResponseCreate(ctx, account, capturedSessionModel, firstClientMessage)
+	firstPolicyCtx := context.WithValue(ctx, ctxkey.RequestedPublicModel, initialRequestModel)
+	updatedFirst, blocked, policyErr := s.applyOpenAIFastPolicyToWSResponseCreate(firstPolicyCtx, account, capturedSessionModel, firstClientMessage)
 	if policyErr != nil {
 		return fmt.Errorf("apply openai fast policy on first ws frame: %w", policyErr)
 	}
@@ -1095,7 +1097,8 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			if isResponseCreate && model != "" && model != strings.TrimSpace(gjson.GetBytes(payload, "model").String()) {
 				payload = s.ReplaceModelInBody(payload, model)
 			}
-			out, blocked, policyErr := s.applyOpenAIFastPolicyToWSResponseCreate(ctx, account, model, payload)
+			framePolicyCtx := context.WithValue(ctx, ctxkey.RequestedPublicModel, requestModelForThisFrame)
+			out, blocked, policyErr := s.applyOpenAIFastPolicyToWSResponseCreate(framePolicyCtx, account, model, payload)
 			// 多轮 passthrough usage：仅在成功（non-block / non-err）
 			// 的 response.create 帧上更新 usageMeta，使用
 			// filter 处理后的 payload，与首帧 policy-after-extract 语义

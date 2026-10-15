@@ -250,9 +250,16 @@ func (Group) Fields() []ent.Field {
 		field.Bool("force_openai_fast").
 			Default(false).
 			Comment("是否强制此 OpenAI/Composite 分组请求使用 service_tier=priority"),
+		field.Bool("force_openai_ultrafast").
+			Default(false).
+			Comment("是否允许此 OpenAI/Composite 分组按模型强制 service_tier=ultrafast"),
+		field.JSON("openai_model_tiers", map[string]string{}).
+			Default(map[string]string{}).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("分组内公开模型名对应的 Fast/Ultrafast 档位"),
 		field.Bool("free_openai_fast").
 			Default(false).
-			Comment("是否让此 OpenAI/Composite 分组的 Fast 请求按 Standard 价格计费"),
+			Comment("是否让此 OpenAI/Composite 分组的 Fast/Ultrafast 请求按 Standard 价格计费"),
 		field.Bool("require_oauth_only").
 			Default(false).
 			Comment("仅允许非 apikey 类型账号关联到此分组"),

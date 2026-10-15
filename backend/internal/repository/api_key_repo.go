@@ -1024,6 +1024,8 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		AllowMessagesDispatch:           g.AllowMessagesDispatch,
 		AllowLive:                       g.AllowLive,
 		ForceOpenAIFast:                 g.ForceOpenaiFast,
+		ForceOpenAIUltrafast:            g.ForceOpenaiUltrafast,
+		OpenAIModelTiers:                g.OpenaiModelTiers,
 		FreeOpenAIFast:                  g.FreeOpenaiFast,
 		RequireOAuthOnly:                g.RequireOauthOnly,
 		RequirePrivacySet:               g.RequirePrivacySet,

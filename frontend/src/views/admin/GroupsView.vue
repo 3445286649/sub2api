@@ -1580,6 +1580,19 @@
           </p>
           <div class="flex items-center justify-between gap-4 mt-4">
             <label class="text-sm text-gray-600 dark:text-gray-400">
+              {{ t("admin.groups.openaiFast.ultrafast") }}
+            </label>
+            <Toggle
+              data-testid="create-force-openai-ultrafast"
+              :aria-label="t('admin.groups.openaiFast.ultrafast')"
+              v-model="createForm.force_openai_ultrafast"
+            />
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {{ t("admin.groups.openaiFast.ultrafastHint") }}
+          </p>
+          <div class="flex items-center justify-between gap-4 mt-4">
+            <label class="text-sm text-gray-600 dark:text-gray-400">
               {{ t("admin.groups.openaiFast.free") }}
             </label>
             <Toggle
@@ -1591,6 +1604,28 @@
           <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
             {{ t("admin.groups.openaiFast.freeHint") }}
           </p>
+          <div class="mt-4">
+            <button type="button" class="btn btn-secondary btn-sm" :disabled="createTierModelsLoading" @click="loadOpenAITierModels('create')">
+              {{ t("admin.groups.openaiFast.loadModels") }}
+            </button>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ t("admin.groups.openaiFast.modelsHint") }}</p>
+            <p v-if="createTierModelsError" class="text-xs text-red-600 mt-1">{{ t("admin.groups.openaiFast.loadError") }}</p>
+            <div class="flex gap-2 mt-2">
+              <input v-model="createTierModelInput" type="text" class="input min-w-0 flex-1" :placeholder="t('admin.groups.openaiFast.customModel')" @keyup.enter.prevent="addOpenAITierModel('create')" />
+              <button type="button" class="btn btn-secondary shrink-0" @click="addOpenAITierModel('create')">{{ t("admin.groups.openaiFast.addModel") }}</button>
+            </div>
+            <p v-if="createTierModelInputError" class="text-xs text-red-600 mt-1">{{ t("admin.groups.openaiFast.invalidModel") }}</p>
+            <div v-if="createTierModels.length" class="mt-2 max-h-64 overflow-y-auto border border-gray-200 dark:border-dark-400 rounded-md divide-y divide-gray-200 dark:divide-dark-400">
+              <div v-for="model in createTierModels" :key="model" class="flex items-center justify-between gap-3 px-3 py-2">
+                <span class="min-w-0 break-all text-sm text-gray-700 dark:text-gray-300">{{ model }}</span>
+                <select class="input w-36 shrink-0" :aria-label="model" :value="createForm.openai_model_tiers[model] ?? ''" @change="updateOpenAIModelTier(createForm.openai_model_tiers, model, $event)">
+                  <option value="">{{ t("admin.groups.openaiFast.followDefault") }}</option>
+                  <option value="priority" :disabled="!createForm.force_openai_fast">Fast</option>
+                  <option value="ultrafast" :disabled="!createForm.force_openai_ultrafast">Ultrafast</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Codex Live 开关（OpenAI 与 Composite 平台） -->
@@ -3230,6 +3265,19 @@
           </p>
           <div class="flex items-center justify-between gap-4 mt-4">
             <label class="text-sm text-gray-600 dark:text-gray-400">
+              {{ t("admin.groups.openaiFast.ultrafast") }}
+            </label>
+            <Toggle
+              data-testid="edit-force-openai-ultrafast"
+              :aria-label="t('admin.groups.openaiFast.ultrafast')"
+              v-model="editForm.force_openai_ultrafast"
+            />
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {{ t("admin.groups.openaiFast.ultrafastHint") }}
+          </p>
+          <div class="flex items-center justify-between gap-4 mt-4">
+            <label class="text-sm text-gray-600 dark:text-gray-400">
               {{ t("admin.groups.openaiFast.free") }}
             </label>
             <Toggle
@@ -3241,6 +3289,28 @@
           <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
             {{ t("admin.groups.openaiFast.freeHint") }}
           </p>
+          <div class="mt-4">
+            <button type="button" class="btn btn-secondary btn-sm" :disabled="editTierModelsLoading" @click="loadOpenAITierModels('edit')">
+              {{ t("admin.groups.openaiFast.loadModels") }}
+            </button>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ t("admin.groups.openaiFast.modelsHint") }}</p>
+            <p v-if="editTierModelsError" class="text-xs text-red-600 mt-1">{{ t("admin.groups.openaiFast.loadError") }}</p>
+            <div class="flex gap-2 mt-2">
+              <input v-model="editTierModelInput" type="text" class="input min-w-0 flex-1" :placeholder="t('admin.groups.openaiFast.customModel')" @keyup.enter.prevent="addOpenAITierModel('edit')" />
+              <button type="button" class="btn btn-secondary shrink-0" @click="addOpenAITierModel('edit')">{{ t("admin.groups.openaiFast.addModel") }}</button>
+            </div>
+            <p v-if="editTierModelInputError" class="text-xs text-red-600 mt-1">{{ t("admin.groups.openaiFast.invalidModel") }}</p>
+            <div v-if="editTierModels.length" class="mt-2 max-h-64 overflow-y-auto border border-gray-200 dark:border-dark-400 rounded-md divide-y divide-gray-200 dark:divide-dark-400">
+              <div v-for="model in editTierModels" :key="model" class="flex items-center justify-between gap-3 px-3 py-2">
+                <span class="min-w-0 break-all text-sm text-gray-700 dark:text-gray-300">{{ model }}</span>
+                <select class="input w-36 shrink-0" :aria-label="model" :value="editForm.openai_model_tiers[model] ?? ''" @change="updateOpenAIModelTier(editForm.openai_model_tiers, model, $event)">
+                  <option value="">{{ t("admin.groups.openaiFast.followDefault") }}</option>
+                  <option value="priority" :disabled="!editForm.force_openai_fast">Fast</option>
+                  <option value="ultrafast" :disabled="!editForm.force_openai_ultrafast">Ultrafast</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Codex Live 开关（OpenAI 与 Composite 平台） -->
@@ -4884,6 +4954,68 @@ const createModelAllowlistState = reactive(createInitialModelAllowlistState());
 const editModelAllowlistState = reactive(createInitialModelAllowlistState());
 const createModelAllowlistLoading = ref(false);
 const editModelAllowlistLoading = ref(false);
+type OpenAIModelTier = "priority" | "ultrafast";
+const createTierModels = ref<string[]>([]);
+const editTierModels = ref<string[]>([]);
+const createTierModelsLoading = ref(false);
+const editTierModelsLoading = ref(false);
+const createTierModelsError = ref(false);
+const editTierModelsError = ref(false);
+const createTierModelInput = ref("");
+const editTierModelInput = ref("");
+const createTierModelInputError = ref(false);
+const editTierModelInputError = ref(false);
+let tierModelsRequestID = 0;
+const addOpenAITierModel = (mode: "create" | "edit") => {
+  const inputRef = mode === "create" ? createTierModelInput : editTierModelInput;
+  const modelsRef = mode === "create" ? createTierModels : editTierModels;
+  const form = mode === "create" ? createForm : editForm;
+  const errorRef = mode === "create" ? createTierModelInputError : editTierModelInputError;
+  const model = inputRef.value.trim();
+  if (
+    !model ||
+    model.length > 100 ||
+    /[*?]/.test(model) ||
+    model.includes(String.fromCharCode(0)) ||
+    ["__proto__", "prototype", "constructor"].includes(model) ||
+    Object.keys(form.openai_model_tiers).length >= 256
+  ) {
+    errorRef.value = true;
+    return;
+  }
+  modelsRef.value = [...new Set([...modelsRef.value, model])].sort();
+  inputRef.value = "";
+  errorRef.value = false;
+};
+const updateOpenAIModelTier = (
+  tiers: Record<string, OpenAIModelTier>,
+  model: string,
+  event: Event,
+) => {
+  if (["__proto__", "prototype", "constructor"].includes(model)) return;
+  const tier = (event.target as HTMLSelectElement).value;
+  if (tier === "priority" || tier === "ultrafast") tiers[model] = tier;
+  else delete tiers[model];
+};
+const loadOpenAITierModels = async (mode: "create" | "edit") => {
+  const form = mode === "create" ? createForm : editForm;
+  const modelsRef = mode === "create" ? createTierModels : editTierModels;
+  const loadingRef = mode === "create" ? createTierModelsLoading : editTierModelsLoading;
+  const errorRef = mode === "create" ? createTierModelsError : editTierModelsError;
+  const groupID = mode === "edit" ? editingGroup.value?.id ?? 0 : 0;
+  const requestID = ++tierModelsRequestID;
+  loadingRef.value = true;
+  errorRef.value = false;
+  try {
+    const candidates = await adminAPI.groups.getModelAllowlistCandidates(groupID, form.platform);
+    if (requestID !== tierModelsRequestID) return;
+    modelsRef.value = [...new Set([...modelsRef.value, ...Object.keys(form.openai_model_tiers), ...candidates])].sort();
+  } catch {
+    if (requestID === tierModelsRequestID) errorRef.value = true;
+  } finally {
+    if (requestID === tierModelsRequestID) loadingRef.value = false;
+  }
+};
 type ReasoningEffortPolicyFieldsExpose = {
   validate: () => boolean;
   resetValidation: () => void;
@@ -4953,6 +5085,8 @@ const createForm = reactive({
   monthly_limit_usd: null as number | null,
   long_context_pricing_enabled: true,
   force_openai_fast: false,
+  force_openai_ultrafast: false,
+  openai_model_tiers: {} as Record<string, OpenAIModelTier>,
   free_openai_fast: false,
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
@@ -5319,6 +5453,8 @@ const editForm = reactive({
   monthly_limit_usd: null as number | null,
   long_context_pricing_enabled: true,
   force_openai_fast: false,
+  force_openai_ultrafast: false,
+  openai_model_tiers: {} as Record<string, OpenAIModelTier>,
   free_openai_fast: false,
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
@@ -5797,6 +5933,11 @@ const closeCreateModal = () => {
   createForm.video_model_prices = createVideoModelPricesForm();
   createForm.long_context_pricing_enabled = true;
   createForm.force_openai_fast = false;
+  createForm.force_openai_ultrafast = false;
+  createForm.openai_model_tiers = {};
+  createTierModels.value = [];
+  createTierModelInput.value = "";
+  createTierModelInputError.value = false;
   createForm.free_openai_fast = false;
   createForm.model_pricing = [];
   createForm.web_search_price_per_call = null;
@@ -5923,6 +6064,8 @@ const handleCreateGroup = async () => {
         createForm.platform,
         createForm.force_openai_fast,
       ),
+      force_openai_ultrafast: normalizeGroupOpenAIFast(createForm.platform, createForm.force_openai_ultrafast),
+      openai_model_tiers: supportsGroupOpenAIFast(createForm.platform) ? createForm.openai_model_tiers : {},
       free_openai_fast: normalizeGroupOpenAIFast(
         createForm.platform,
         createForm.free_openai_fast,
@@ -6072,6 +6215,11 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.long_context_pricing_enabled =
     group.long_context_pricing_enabled ?? true;
   editForm.force_openai_fast = group.force_openai_fast ?? false;
+  editForm.force_openai_ultrafast = group.force_openai_ultrafast ?? false;
+  editForm.openai_model_tiers = { ...(group.openai_model_tiers ?? {}) };
+  editTierModels.value = Object.keys(editForm.openai_model_tiers).sort();
+  editTierModelInput.value = "";
+  editTierModelInputError.value = false;
   editForm.free_openai_fast = group.free_openai_fast ?? false;
   editForm.model_pricing = groupPricingFromAPI(group.model_pricing);
   editForm.allow_image_generation = group.allow_image_generation ?? false;
@@ -6206,6 +6354,11 @@ const closeEditModal = () => {
   editForm.video_model_prices = createVideoModelPricesForm();
   editForm.long_context_pricing_enabled = true;
   editForm.force_openai_fast = false;
+  editForm.force_openai_ultrafast = false;
+  editForm.openai_model_tiers = {};
+  editTierModels.value = [];
+  editTierModelInput.value = "";
+  editTierModelInputError.value = false;
   editForm.free_openai_fast = false;
   editForm.model_pricing = [];
   editForm.web_search_price_per_call = null;
@@ -6266,6 +6419,8 @@ const handleUpdateGroup = async () => {
         editForm.platform,
         editForm.force_openai_fast,
       ),
+      force_openai_ultrafast: normalizeGroupOpenAIFast(editForm.platform, editForm.force_openai_ultrafast),
+      openai_model_tiers: supportsGroupOpenAIFast(editForm.platform) ? editForm.openai_model_tiers : {},
       free_openai_fast: normalizeGroupOpenAIFast(
         editForm.platform,
         editForm.free_openai_fast,
@@ -6727,6 +6882,10 @@ watch(
       createForm.require_privacy_set = false;
     }
     resetDisabledBatchImagePricing(createForm);
+    tierModelsRequestID++;
+    createTierModels.value = Object.keys(createForm.openai_model_tiers).sort();
+    createTierModelsError.value = false;
+    createTierModelsLoading.value = false;
     resetModelAllowlistState(createModelAllowlistState);
     loadModelAllowlistCandidates("create", 0, newVal);
   },
@@ -6784,6 +6943,10 @@ watch(
       editForm.require_privacy_set = false;
     }
     resetDisabledBatchImagePricing(editForm);
+    tierModelsRequestID++;
+    editTierModels.value = Object.keys(editForm.openai_model_tiers).sort();
+    editTierModelsError.value = false;
+    editTierModelsLoading.value = false;
     if (editingGroup.value) {
       resetModelAllowlistState(editModelAllowlistState, editForm.platform === editingGroup.value.platform ? editingGroup.value.model_allowlist : undefined);
       loadModelAllowlistCandidates("edit", editingGroup.value.id, newVal);

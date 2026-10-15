@@ -10,16 +10,22 @@ import (
 
 func TestGroupMapperExposesForceOpenAIFastOnlyToAdmins(t *testing.T) {
 	group := &service.Group{
-		ID: 7, Name: "fast", Platform: service.PlatformOpenAI, Status: service.StatusActive, ForceOpenAIFast: true, FreeOpenAIFast: true,
+		ID: 7, Name: "fast", Platform: service.PlatformOpenAI, Status: service.StatusActive,
+		ForceOpenAIFast: true, ForceOpenAIUltrafast: true,
+		OpenAIModelTiers: map[string]string{"gpt-6-astra": "ultrafast"}, FreeOpenAIFast: true,
 	}
 
 	userJSON, err := json.Marshal(GroupFromService(group))
 	require.NoError(t, err)
 	require.NotContains(t, string(userJSON), "force_openai_fast")
+	require.NotContains(t, string(userJSON), "force_openai_ultrafast")
+	require.NotContains(t, string(userJSON), "openai_model_tiers")
 	require.NotContains(t, string(userJSON), "free_openai_fast")
 
 	adminJSON, err := json.Marshal(GroupFromServiceAdmin(group))
 	require.NoError(t, err)
 	require.Contains(t, string(adminJSON), `"force_openai_fast":true`)
+	require.Contains(t, string(adminJSON), `"force_openai_ultrafast":true`)
+	require.Contains(t, string(adminJSON), `"openai_model_tiers":{"gpt-6-astra":"ultrafast"}`)
 	require.Contains(t, string(adminJSON), `"free_openai_fast":true`)
 }

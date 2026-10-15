@@ -362,9 +362,32 @@ func sanitizeGroupOpenAIFast(group *Group) {
 	if group == nil || !groupSupportsOpenAIFast(group.Platform) {
 		if group != nil {
 			group.ForceOpenAIFast = false
+			group.ForceOpenAIUltrafast = false
+			group.OpenAIModelTiers = map[string]string{}
 			group.FreeOpenAIFast = false
 		}
 	}
+}
+
+func normalizeOpenAIModelTiers(tiers map[string]string) (map[string]string, error) {
+	if len(tiers) > 256 {
+		return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIERS", "too many model tier assignments")
+	}
+	result := make(map[string]string, len(tiers))
+	for model, tier := range tiers {
+		model = strings.TrimSpace(model)
+		if model == "" || len(model) > 100 || strings.ContainsAny(model, "*?\x00") || model == "__proto__" || model == "prototype" || model == "constructor" {
+			return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIERS", "invalid model name in tier assignments")
+		}
+		if tier != OpenAIFastTierPriority && tier != OpenAIFastTierUltrafast {
+			return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIERS", "model tier must be priority or ultrafast")
+		}
+		if _, exists := result[model]; exists {
+			return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIERS", "duplicate model in tier assignments")
+		}
+		result[model] = tier
+	}
+	return result, nil
 }
 
 func normalizeCreateGroupInputForSimpleMode(input *CreateGroupInput) {
@@ -565,6 +588,10 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if err != nil {
 		return nil, err
 	}
+	openAIModelTiers, err := normalizeOpenAIModelTiers(input.OpenAIModelTiers)
+	if err != nil {
+		return nil, err
+	}
 
 	group := &Group{
 		Name:                            input.Name,
@@ -616,6 +643,8 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		AllowMessagesDispatch:           input.AllowMessagesDispatch,
 		AllowLive:                       input.AllowLive,
 		ForceOpenAIFast:                 input.ForceOpenAIFast,
+		ForceOpenAIUltrafast:            input.ForceOpenAIUltrafast,
+		OpenAIModelTiers:                openAIModelTiers,
 		FreeOpenAIFast:                  input.FreeOpenAIFast,
 		RequireOAuthOnly:                input.RequireOAuthOnly,
 		RequirePrivacySet:               input.RequirePrivacySet,
@@ -1002,6 +1031,16 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.ForceOpenAIFast != nil {
 		group.ForceOpenAIFast = *input.ForceOpenAIFast
+	}
+	if input.ForceOpenAIUltrafast != nil {
+		group.ForceOpenAIUltrafast = *input.ForceOpenAIUltrafast
+	}
+	if input.OpenAIModelTiers != nil {
+		openAIModelTiers, err := normalizeOpenAIModelTiers(*input.OpenAIModelTiers)
+		if err != nil {
+			return nil, err
+		}
+		group.OpenAIModelTiers = openAIModelTiers
 	}
 	if input.FreeOpenAIFast != nil {
 		group.FreeOpenAIFast = *input.FreeOpenAIFast

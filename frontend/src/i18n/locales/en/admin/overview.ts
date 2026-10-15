@@ -1271,9 +1271,18 @@ export default {
       openaiFast: {
         title: 'OpenAI Fast mode',
         force: 'Force Fast (priority)',
-        hint: 'Forces service_tier=priority on OpenAI requests in this group. The global Fast/Flex policy can still filter or block it. New requests update immediately after saving; existing WebSocket sessions must reconnect.',
+        hint: 'Models without an override default to Fast when enabled. The global Fast/Flex policy may still filter or block it.',
+        ultrafast: 'Enable Ultrafast',
+        ultrafastHint: 'Forces Ultrafast only for models selected below. Saved selections remain inactive while this switch is off.',
         free: 'Free Fast',
-        freeHint: 'Fast requests in this group still use the priority tier, but customers are charged the equivalent Standard price.'
+        freeHint: 'Fast and Ultrafast requests in this group are charged to users at the Standard rate; upstream costs remain at the actual tier.',
+        loadModels: 'Load model candidates',
+        modelsHint: 'Candidates come from site defaults and account mappings in this group, not a live upstream list. Changes affect only this group.',
+        loadError: 'Could not load model candidates. Retry.',
+        customModel: 'Enter a public model name',
+        addModel: 'Add model',
+        invalidModel: 'Use a model name of up to 100 characters without wildcards; at most 256 models.',
+        followDefault: 'Follow group default'
       },
       invalidRequestFallback: {
         title: 'Invalid Request Fallback Group',

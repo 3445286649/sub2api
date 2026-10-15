@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -146,6 +147,8 @@ func cloneGroupForDuplicate(source *Group, operationID string) *Group {
 		AllowMessagesDispatch:           source.AllowMessagesDispatch,
 		AllowLive:                       source.AllowLive,
 		ForceOpenAIFast:                 source.ForceOpenAIFast,
+		ForceOpenAIUltrafast:            source.ForceOpenAIUltrafast,
+		OpenAIModelTiers:                maps.Clone(source.OpenAIModelTiers),
 		FreeOpenAIFast:                  source.FreeOpenAIFast,
 		RequireOAuthOnly:                source.RequireOAuthOnly,
 		RequirePrivacySet:               source.RequirePrivacySet,

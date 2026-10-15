@@ -283,6 +283,8 @@ type CreateGroupInput struct {
 	AllowMessagesDispatch       bool
 	AllowLive                   bool
 	ForceOpenAIFast             bool
+	ForceOpenAIUltrafast        bool
+	OpenAIModelTiers            map[string]string
 	FreeOpenAIFast              bool
 	DefaultMappedModel          string
 	RequireOAuthOnly            bool
@@ -365,6 +367,8 @@ type UpdateGroupInput struct {
 	AllowMessagesDispatch       *bool
 	AllowLive                   *bool
 	ForceOpenAIFast             *bool
+	ForceOpenAIUltrafast        *bool
+	OpenAIModelTiers            *map[string]string
 	FreeOpenAIFast              *bool
 	DefaultMappedModel          *string
 	RequireOAuthOnly            *bool

@@ -1009,6 +1009,8 @@ var (
 		{Name: "allow_messages_dispatch", Type: field.TypeBool, Default: false},
 		{Name: "allow_live", Type: field.TypeBool, Default: false},
 		{Name: "force_openai_fast", Type: field.TypeBool, Default: false},
+		{Name: "force_openai_ultrafast", Type: field.TypeBool, Default: false},
+		{Name: "openai_model_tiers", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "free_openai_fast", Type: field.TypeBool, Default: false},
 		{Name: "require_oauth_only", Type: field.TypeBool, Default: false},
 		{Name: "require_privacy_set", Type: field.TypeBool, Default: false},
