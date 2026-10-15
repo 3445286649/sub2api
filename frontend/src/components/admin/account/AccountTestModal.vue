@@ -2,7 +2,7 @@
   <BaseDialog
     :show="show"
     :title="t('admin.accounts.testAccountConnection')"
-    width="normal"
+    :width="isPelicanTest ? 'wide' : 'normal'"
     @close="handleClose"
   >
     <div class="space-y-4">
@@ -182,18 +182,32 @@
         <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.grok.audioUploadHint') }}</p>
       </div>
 
-      <div v-if="isPelicanTest && technicalDetails" class="space-y-1.5">
-        <div class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.accounts.technicalDetails') }}</div>
-        <pre class="max-h-48 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-200">{{ JSON.stringify(technicalDetails, null, 2) }}</pre>
+      <div v-if="isPelicanTest" class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-dark-500 dark:bg-dark-700" role="status" aria-live="polite">
+        <ol class="space-y-1.5 text-gray-500 dark:text-gray-400">
+          <li :class="status !== 'idle' ? 'text-gray-800 dark:text-gray-100' : ''">{{ status === 'idle' ? '○' : '✓' }} {{ t('admin.accounts.sendingPelicanRequest') }}</li>
+          <li :class="pelicanReceivedChars > 0 ? 'text-gray-800 dark:text-gray-100' : ''">{{ pelicanReceivedChars > 0 ? (status === 'connecting' ? '●' : '✓') : '○' }} {{ pelicanReceivedChars > 0 ? t('admin.accounts.pelicanReceiving', { count: pelicanReceivedChars }) : t('admin.accounts.pelicanWaiting') }}</li>
+          <li :class="status === 'success' ? 'text-green-700 dark:text-green-400' : status === 'error' ? 'text-red-700 dark:text-red-400' : ''">{{ status === 'success' ? '✓' : status === 'error' ? '×' : '○' }} {{ status === 'success' ? t('admin.accounts.pelicanReady') : status === 'error' ? errorMessage : t('admin.accounts.pelicanChecking') }}</li>
+        </ol>
       </div>
       <div v-if="isPelicanTest && status === 'success'" class="space-y-1.5">
         <div class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.accounts.pelicanPreview') }}</div>
-        <iframe v-if="pelicanPreview" :srcdoc="pelicanPreview" sandbox="" :title="t('admin.accounts.pelicanPreview')" class="h-72 w-full rounded-lg border border-gray-200 bg-white dark:border-dark-500" />
+        <iframe v-if="pelicanPreview" :srcdoc="pelicanPreview" sandbox="" :title="t('admin.accounts.pelicanPreview')" class="h-[min(420px,50vh)] w-full rounded-lg border border-gray-200 bg-white dark:border-dark-500" />
         <p v-else class="text-sm text-amber-700 dark:text-amber-400">{{ t('admin.accounts.noPelicanSvg') }}</p>
       </div>
+      <details v-if="isPelicanTest && technicalDetails" class="text-sm text-gray-600 dark:text-gray-300">
+        <summary class="cursor-pointer py-1 font-medium">{{ t('admin.accounts.technicalDetails') }}</summary>
+        <pre class="mt-1 max-h-48 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs dark:border-dark-500 dark:bg-dark-700">{{ JSON.stringify(technicalDetails, null, 2) }}</pre>
+      </details>
+      <details v-if="isPelicanTest && streamingContent" class="text-sm text-gray-600 dark:text-gray-300" @toggle="pelicanSourceOpen = ($event.target as HTMLDetailsElement).open">
+        <summary class="cursor-pointer py-1 font-medium">{{ t('admin.accounts.pelicanSource') }}</summary>
+        <div v-if="pelicanSourceOpen" class="relative mt-1">
+          <button type="button" class="absolute right-2 top-2 rounded bg-gray-700 px-2 py-1 text-xs text-white" @click="copyPelicanSource">{{ t('admin.accounts.copyOutput') }}</button>
+          <pre class="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-gray-900 p-3 pr-20 text-xs text-green-300">{{ streamingContent }}</pre>
+        </div>
+      </details>
 
       <!-- Terminal Output -->
-      <div class="group relative">
+      <div v-if="!isPelicanTest" class="group relative">
         <div
           ref="terminalRef"
           class="max-h-[240px] min-h-[120px] overflow-y-auto rounded-xl border border-gray-700 bg-gray-900 p-4 font-mono text-sm dark:border-gray-800 dark:bg-black"
@@ -439,6 +453,9 @@ const previewImageUrl = ref('')
 const testMode = ref<'default' | 'compact'>('default')
 const testCategory = ref<'connection' | 'pelican'>('connection')
 const technicalDetails = ref<Record<string, unknown> | null>(null)
+const pelicanReceivedChars = ref(0)
+const pelicanOverflow = ref(false)
+const pelicanSourceOpen = ref(false)
 const geminiTestMode = ref<'text' | 'image'>('text')
 const grokTestMode = ref<'text' | 'image' | 'video' | 'search' | 'tts' | 'stt' | 'realtime'>('text')
 const uploadImageDataURL = ref('')
@@ -455,8 +472,8 @@ const supportsPelicanTest = computed(() => (props.account?.platform === 'gemini'
   ((props.account?.platform === 'openai' || props.account?.platform === 'anthropic') && props.account?.type === 'apikey'))
 const isPelicanTest = computed(() => supportsPelicanTest.value && testCategory.value === 'pelican')
 const pelicanPreview = computed(() => {
-  if (!isPelicanTest.value) return ''
-  const output = outputLines.value.map(line => line.text).join('') + streamingContent.value
+  if (!isPelicanTest.value || pelicanOverflow.value) return ''
+  const output = streamingContent.value
   const start = output.indexOf('<svg')
   const end = output.lastIndexOf('</svg>')
   if (start < 0 || end < start || end + 6 - start > 256 * 1024) return ''
@@ -465,7 +482,28 @@ const pelicanPreview = computed(() => {
     FORBID_TAGS: ['script', 'foreignObject', 'iframe', 'image', 'animate', 'set']
   })
   if (!svg.startsWith('<svg')) return ''
-  return `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><body style="margin:0;display:grid;place-items:center;height:100vh">${svg}</body>`
+  const document = new DOMParser().parseFromString(svg, 'image/svg+xml')
+  if (document.querySelector('parsererror') || document.documentElement.localName !== 'svg') return ''
+  const root = document.documentElement as unknown as SVGSVGElement
+  if (!root.getAttribute('viewBox')?.trim()) {
+    const width = root.getAttribute('width')?.match(/^(\d+(?:\.\d+)?)(?:px)?$/)?.[1]
+    const height = root.getAttribute('height')?.match(/^(\d+(?:\.\d+)?)(?:px)?$/)?.[1]
+    if (width && height && Number(width) > 0 && Number(height) > 0) {
+      root.setAttribute('viewBox', `0 0 ${width} ${height}`)
+    }
+  }
+  root.style.setProperty('display', 'block', 'important')
+  root.style.setProperty('max-width', '100%', 'important')
+  root.style.setProperty('max-height', '100%', 'important')
+  root.style.setProperty('object-fit', 'contain', 'important')
+  if (root.getAttribute('viewBox')?.trim()) {
+    root.style.setProperty('width', '100%', 'important')
+    root.style.setProperty('height', '100%', 'important')
+  } else {
+    root.style.setProperty('width', 'auto', 'important')
+    root.style.setProperty('height', 'auto', 'important')
+  }
+  return `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><body style="margin:0;display:grid;place-items:center;height:100vh;overflow:hidden"><div style="width:100%;height:100%;display:grid;place-items:center;overflow:hidden">${root.outerHTML}</div></body>`
 })
 const openAITestModeOptions = computed(() => [
   { value: 'default', label: t('admin.accounts.openai.testModeDefault') },
@@ -877,6 +915,9 @@ const resetState = () => {
   streamingContent.value = ''
   errorMessage.value = ''
   technicalDetails.value = null
+  pelicanReceivedChars.value = 0
+  pelicanOverflow.value = false
+  pelicanSourceOpen.value = false
   generatedImages.value = []
   generatedAudios.value = []
   generatedVideos.value = []
@@ -1013,6 +1054,10 @@ const startTest = async () => {
         }
       }
     }
+    if (isPelicanTest.value && status.value === 'connecting') {
+      status.value = 'error'
+      errorMessage.value = t('admin.accounts.pelicanInterrupted')
+    }
   } catch (error: unknown) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       status.value = 'idle'
@@ -1074,11 +1119,13 @@ const handleEvent = (event: {
     case 'content':
       if (event.text) {
         if (isPelicanTest.value) {
+          pelicanReceivedChars.value += event.text.length
+          if (pelicanReceivedChars.value > 256 * 1024) pelicanOverflow.value = true
           streamingContent.value += event.text.slice(0, Math.max(0, 256 * 1024 - streamingContent.value.length))
         } else {
           streamingContent.value += event.text
+          scrollToBottom()
         }
-        scrollToBottom()
       }
       break
 
@@ -1120,12 +1167,15 @@ const handleEvent = (event: {
 
     case 'test_complete':
       // Move streaming content to output lines
-      if (streamingContent.value) {
+      if (!isPelicanTest.value && streamingContent.value) {
         addLine(streamingContent.value, 'text-green-300')
         streamingContent.value = ''
       }
       if (event.success) {
-        if (isPelicanTest.value && !pelicanPreview.value) {
+        if (isPelicanTest.value && pelicanOverflow.value) {
+          status.value = 'error'
+          errorMessage.value = t('admin.accounts.pelicanTooLarge')
+        } else if (isPelicanTest.value && !pelicanPreview.value) {
           status.value = 'error'
           errorMessage.value = t('admin.accounts.noPelicanSvg')
         } else {
@@ -1140,7 +1190,7 @@ const handleEvent = (event: {
     case 'error':
       status.value = 'error'
       errorMessage.value = event.error || t('common.unknownError')
-      if (streamingContent.value) {
+      if (!isPelicanTest.value && streamingContent.value) {
         addLine(streamingContent.value, 'text-green-300')
         streamingContent.value = ''
       }
@@ -1151,6 +1201,9 @@ const handleEvent = (event: {
 const copyOutput = () => {
   const text = outputLines.value.map((l) => l.text).join('\n')
   copyToClipboard(text, t('admin.accounts.outputCopied'))
+}
+const copyPelicanSource = () => {
+  copyToClipboard(streamingContent.value, t('admin.accounts.outputCopied'))
 }
 </script>
 

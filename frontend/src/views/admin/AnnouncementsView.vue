@@ -183,7 +183,15 @@
 
         <div>
           <label class="input-label">{{ t('admin.announcements.form.content') }}</label>
-          <textarea v-model="form.content" rows="6" class="input" required></textarea>
+          <textarea ref="contentInput" v-model="form.content" rows="6" class="input" required @paste="handleContentPaste"></textarea>
+          <div class="mt-2 flex flex-wrap items-center gap-3">
+            <label class="btn btn-secondary btn-sm cursor-pointer">
+              <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="sr-only" :disabled="uploadingImage" @change="handleImageSelection" />
+              <Icon name="upload" size="sm" class="mr-1.5" />
+              {{ uploadingImage ? t('admin.announcements.form.uploadingImage') : t('admin.announcements.form.addImage') }}
+            </label>
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.announcements.form.imageHint') }}</span>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -222,7 +230,7 @@
           <button type="button" @click="closeEdit" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
-          <button type="submit" form="announcement-form" :disabled="saving" class="btn btn-primary">
+          <button type="submit" form="announcement-form" :disabled="saving || uploadingImage" class="btn btn-primary">
             {{ saving ? t('common.saving') : t('common.save') }}
           </button>
         </div>
@@ -423,6 +431,9 @@ function handleSearch() {
 // ===== Create/Edit dialog =====
 const showEditDialog = ref(false)
 const saving = ref(false)
+const uploadingImage = ref(false)
+const contentInput = ref<HTMLTextAreaElement | null>(null)
+let imageUploadController: AbortController | null = null
 const editingAnnouncement = ref<Announcement | null>(null)
 
 const isEditing = computed(() => !!editingAnnouncement.value)
@@ -485,8 +496,60 @@ function openEditDialog(row: Announcement) {
 }
 
 function closeEdit() {
+  imageUploadController?.abort()
+  imageUploadController = null
+  uploadingImage.value = false
   showEditDialog.value = false
   editingAnnouncement.value = null
+}
+
+function insertImage(url: string, name: string, start: number, end: number) {
+  const input = contentInput.value
+  const markdown = `![${name.replace(/[\[\]\\]/g, '')}](${url})`
+  form.content = `${form.content.slice(0, start)}${markdown}${form.content.slice(end)}`
+  requestAnimationFrame(() => {
+    input?.focus()
+    input?.setSelectionRange(start + markdown.length, start + markdown.length)
+  })
+}
+
+async function uploadImage(file: File) {
+  if (uploadingImage.value) return
+  if (file.size > 5 * 1024 * 1024 || !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) {
+    appStore.showError(t('admin.announcements.form.invalidImage'))
+    return
+  }
+  const input = contentInput.value
+  const start = input?.selectionStart ?? form.content.length
+  const end = input?.selectionEnd ?? start
+  const controller = new AbortController()
+  imageUploadController = controller
+  uploadingImage.value = true
+  try {
+    const url = await adminAPI.announcements.uploadImage(file, controller.signal)
+    if (!controller.signal.aborted) insertImage(url, file.name, start, end)
+  } catch (error: any) {
+    if (!controller.signal.aborted) appStore.showError(error.response?.data?.detail || t('admin.announcements.form.imageUploadFailed'))
+  } finally {
+    if (imageUploadController === controller) {
+      imageUploadController = null
+      uploadingImage.value = false
+    }
+  }
+}
+
+function handleImageSelection(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (file) void uploadImage(file)
+}
+
+function handleContentPaste(event: ClipboardEvent) {
+  const file = Array.from(event.clipboardData?.items ?? []).find(item => item.kind === 'file' && item.type.startsWith('image/'))?.getAsFile()
+  if (!file) return
+  event.preventDefault()
+  void uploadImage(file)
 }
 
 function buildCreatePayload() {
@@ -621,5 +684,6 @@ onMounted(async () => {
 onUnmounted(() => {
   if (searchDebounceTimer) window.clearTimeout(searchDebounceTimer)
   currentController?.abort()
+  imageUploadController?.abort()
 })
 </script>

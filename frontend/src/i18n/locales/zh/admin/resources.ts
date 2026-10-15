@@ -409,6 +409,11 @@ export default {
       form: {
         title: '标题',
         content: '内容（支持 Markdown）',
+        addImage: '插入图片',
+        uploadingImage: '上传中...',
+        imageHint: '支持直接粘贴图片，PNG、JPEG、GIF、WebP，最大 5 MB',
+        invalidImage: '仅支持不超过 5 MB 的 PNG、JPEG、GIF、WebP 图片',
+        imageUploadFailed: '图片上传失败',
         status: '状态',
         notifyMode: '通知方式',
         notifyModeHint: '弹窗模式会自动弹出通知给用户',

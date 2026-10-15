@@ -123,6 +123,7 @@ export default {
 
   // Announcements Page
   announcements: {
+    imagePreview: 'Preview announcement image',
     title: 'Announcements',
     description: 'View system announcements',
     unreadOnly: 'Show unread only',

@@ -12,6 +12,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
+	"github.com/tidwall/gjson"
 )
 
 func TestPelicanRequestDetailsRedactsCredentials(t *testing.T) {
@@ -98,6 +99,9 @@ func TestPelicanUsesConfiguredProtocolWithoutChangingAccountState(t *testing.T) 
 			if !bytes.Contains(body, []byte(pelicanTestPrompt)) {
 				t.Fatalf("pelican prompt missing from %s request", tt.name)
 			}
+			if tt.path == "/v1/responses" && gjson.GetBytes(body, "input").String() != pelicanTestPrompt {
+				t.Fatal("pelican Responses input must contain the pelican prompt")
+			}
 			if !strings.Contains(recorder.Body.String(), `"type":"technical_details"`) || strings.Contains(recorder.Body.String(), "secret") {
 				t.Fatal("technical details missing or secret exposed")
 			}
@@ -105,5 +109,26 @@ func TestPelicanUsesConfiguredProtocolWithoutChangingAccountState(t *testing.T) 
 				t.Fatal("pelican test modified account state")
 			}
 		})
+	}
+}
+
+func TestPelicanUpstreamFailureReportsStatusWithoutLeakingResponse(t *testing.T) {
+	account := &Account{ID: 5, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "sk-secret"}}
+	repo := &openAIAccountTestRepo{mockAccountRepoForGemini: mockAccountRepoForGemini{accountsByID: map[int64]*Account{account.ID: account}}}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{newJSONResponse(http.StatusBadGateway, `{"error":{"code":"upstream_timeout","message":"gateway timed out for sk-secret"}}`)}}
+	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream, cfg: &config.Config{}}
+	ctx, recorder := newTestContext()
+	if err := svc.TestPelican(ctx, account.ID, "gpt-6-astra"); err == nil {
+		t.Fatal("expected the upstream failure to end the test")
+	}
+	output := recorder.Body.String()
+	if !strings.Contains(output, "Pelican upstream returned HTTP 502") {
+		t.Fatal("missing upstream HTTP status")
+	}
+	if strings.Contains(output, "sk-secret") || strings.Contains(output, "gateway timed out") || strings.Contains(output, "upstream_timeout") {
+		t.Fatal("upstream response or credential was exposed")
+	}
+	if repo.setErrorID != 0 || repo.rateLimitedID != 0 {
+		t.Fatal("pelican upstream failure modified account state")
 	}
 }

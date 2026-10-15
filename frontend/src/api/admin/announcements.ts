@@ -36,6 +36,16 @@ export async function getById(id: number): Promise<Announcement> {
   return data
 }
 
+export async function uploadImage(image: File, signal?: AbortSignal): Promise<string> {
+  const form = new FormData()
+  form.append('image', image)
+  const { data } = await apiClient.post<{ url: string }>('/admin/announcements/images', form, {
+    headers: { 'Content-Type': undefined },
+    signal
+  })
+  return data.url
+}
+
 export async function create(request: CreateAnnouncementRequest): Promise<Announcement> {
   const { data } = await apiClient.post<Announcement>('/admin/announcements', request)
   return data
@@ -77,6 +87,7 @@ export async function getReadStatus(
 const announcementsAPI = {
   list,
   getById,
+  uploadImage,
   create,
   update,
   delete: deleteAnnouncement,

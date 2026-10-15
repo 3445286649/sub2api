@@ -19,7 +19,10 @@ func RegisterAdminRoutes(
 	stepUpAuth middleware.StepUpAuthMiddleware,
 	settingService *service.SettingService,
 	panelRateLimiter *middleware.PanelRateLimiter,
+	dataDir string,
 ) {
+	images := newAnnouncementImages(dataDir)
+	v1.GET("/announcement-images/:name", images.serve)
 	// 插件 UI 使用短时能力 URL，仅提供经过安装校验的静态资源。
 	v1.GET("/plugin-ui/:token/*path", h.Admin.Plugin.ServeUIAsset)
 
@@ -47,7 +50,7 @@ func RegisterAdminRoutes(
 		registerAccountRoutes(admin, h, stepUpAuth)
 
 		// 公告管理
-		registerAnnouncementRoutes(admin, h)
+		registerAnnouncementRoutes(admin, h, images)
 
 		// 工单管理
 		registerSupportRoutes(admin, h)
@@ -523,9 +526,10 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 	}
 }
 
-func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers, images *announcementImages) {
 	announcements := admin.Group("/announcements")
 	{
+		announcements.POST("/images", images.upload)
 		announcements.GET("", h.Admin.Announcement.List)
 		announcements.POST("", h.Admin.Announcement.Create)
 		announcements.GET("/:id", h.Admin.Announcement.GetByID)

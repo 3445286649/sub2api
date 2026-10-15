@@ -412,6 +412,11 @@ export default {
       form: {
         title: 'Title',
         content: 'Content (Markdown supported)',
+        addImage: 'Insert image',
+        uploadingImage: 'Uploading...',
+        imageHint: 'Paste an image or upload PNG, JPEG, GIF, WebP (max 5 MB)',
+        invalidImage: 'Use a PNG, JPEG, GIF or WebP image under 5 MB',
+        imageUploadFailed: 'Image upload failed',
         status: 'Status',
         notifyMode: 'Notify Mode',
         notifyModeHint: 'Popup mode will show a popup notification to users',

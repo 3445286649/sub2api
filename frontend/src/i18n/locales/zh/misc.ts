@@ -121,6 +121,7 @@ export default {
 
   // Announcements Page
   announcements: {
+    imagePreview: '预览公告图片',
     title: '公告',
     description: '查看系统公告',
     unreadOnly: '仅显示未读',

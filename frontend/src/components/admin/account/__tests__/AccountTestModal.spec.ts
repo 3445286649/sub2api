@@ -36,6 +36,9 @@ vi.mock('vue-i18n', async () => {
         if (key === 'admin.accounts.imagePreviewAlt' && params?.index) {
           return `test-image-${params.index}`
         }
+        if (key === 'admin.accounts.pelicanReceiving' && params?.count) {
+          return `received-chars-${params.count}`
+        }
         return messages[key] || key
       }
     })
@@ -158,7 +161,7 @@ describe('AccountTestModal', () => {
     global.fetch = vi.fn().mockResolvedValue(createStreamResponse([
       'data: {"type":"test_start","model":"gemini-2.5-flash"}\n',
       'data: {"type":"technical_details","data":{"method":"POST","path":"/v1beta/models/gemini-2.5-flash:streamGenerateContent","headers":{"x-goog-api-key":"***"}}}\n',
-      `data: ${JSON.stringify({ type: 'content', text: '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><circle r="20"/></svg>' })}\n`,
+      `data: ${JSON.stringify({ type: 'content', text: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="640"><script>alert(1)</script><circle r="20"/></svg>' })}\n`,
       'data: {"type":"test_complete","success":true}\n'
     ])) as any
     const wrapper = mountModal()
@@ -174,6 +177,46 @@ describe('AccountTestModal', () => {
     expect(preview.attributes('sandbox')).toBe('')
     expect(preview.attributes('srcdoc')).toContain('<circle')
     expect(preview.attributes('srcdoc')).not.toContain('<script')
+    expect(preview.attributes('srcdoc')).toContain('viewBox="0 0 800 640"')
+    expect(preview.attributes('srcdoc')).toMatch(/object-fit:\s*contain/)
+    expect(wrapper.text()).toContain('admin.accounts.pelicanReady')
+    expect(wrapper.text()).not.toContain('<svg')
+    expect(wrapper.get('details').attributes('open')).toBeUndefined()
+  })
+
+  it('shows the received character count while streaming without printing SVG source', async () => {
+    getAvailableModels.mockResolvedValue([{ id: 'gemini-2.5-flash', display_name: 'Gemini Flash' }])
+    const svgChunk = '<svg width="800" height="640">'
+    let finishStream!: () => void
+    const waiting = new Promise<void>(resolve => { finishStream = resolve })
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: { getReader: () => {
+        let sent = false
+        return { read: async () => {
+          if (!sent) {
+            sent = true
+            return { done: false, value: new TextEncoder().encode(`data: ${JSON.stringify({ type: 'content', text: svgChunk })}\n`) }
+          }
+          await waiting
+          return { done: true }
+        } }
+      } }
+    }) as any
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.pelicanTest'))!.trigger('click')
+    const started = wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('received-chars-')
+    expect(wrapper.text()).toContain(String(svgChunk.length))
+    expect(wrapper.text()).not.toContain(svgChunk)
+    finishStream()
+    await started
+    await flushPromises()
+    expect(wrapper.text()).toContain('admin.accounts.pelicanInterrupted')
+    expect(wrapper.find('iframe[title="admin.accounts.pelicanPreview"]').exists()).toBe(false)
   })
 
   it('does not report a successful pelican image when the model returns plain text', async () => {
@@ -191,6 +234,23 @@ describe('AccountTestModal', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('admin.accounts.noPelicanSvg')
     expect(wrapper.text()).not.toContain('admin.accounts.testCompleted')
+    expect(wrapper.find('iframe[title="admin.accounts.pelicanPreview"]').exists()).toBe(false)
+  })
+
+  it('rejects an oversized pelican response instead of previewing truncated SVG', async () => {
+    getAvailableModels.mockResolvedValue([{ id: 'gemini-2.5-flash', display_name: 'Gemini Flash' }])
+    const oversized = `<svg width="800" height="640">${'x'.repeat(256 * 1024)}</svg>`
+    global.fetch = vi.fn().mockResolvedValue(createStreamResponse([
+      `data: ${JSON.stringify({ type: 'content', text: oversized })}\n`,
+      'data: {"type":"test_complete","success":true}\n'
+    ])) as any
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.pelicanTest'))!.trigger('click')
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('admin.accounts.pelicanTooLarge')
     expect(wrapper.find('iframe[title="admin.accounts.pelicanPreview"]').exists()).toBe(false)
   })
 

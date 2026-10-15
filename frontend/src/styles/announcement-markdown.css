@@ -101,7 +101,43 @@
 }
 
 .markdown-body img {
-  @apply my-5 max-w-full rounded-xl border border-gray-200 shadow-md dark:border-dark-600;
+  @apply my-3 inline-block max-w-full cursor-zoom-in border border-gray-200 object-cover shadow-sm dark:border-dark-600;
+  width: min(100%, 190px);
+  aspect-ratio: 1;
+  border-radius: 8px;
+}
+
+.markdown-body .announcement-image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 600px;
+  margin: 12px 0 20px;
+}
+
+.markdown-body .announcement-image-grid img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+}
+
+@media (max-width: 680px) {
+  .markdown-body .announcement-image-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 392px;
+  }
+}
+
+@media (max-width: 360px) {
+  .markdown-body .announcement-image-grid {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 190px;
+  }
+}
+
+.markdown-body img:focus-visible {
+  @apply outline outline-2 outline-offset-2 outline-blue-500;
 }
 
 .markdown-body strong {
