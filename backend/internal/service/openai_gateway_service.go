@@ -261,7 +261,8 @@ type OpenAIForwardResult struct {
 	// ServiceTier is the final tier sent upstream after policy rewriting.
 	// The upstream response declaration remains separate above and is reconciled
 	// at usage-recording time, where the credential protocol is available.
-	ServiceTier *string
+	ServiceTier       *string
+	groupTierSnapshot *openAIGroupTierSnapshot
 	// ReasoningEffort is extracted from request body (reasoning.effort) or derived from model suffix
 	// after group policy rewriting and model-family remapping.
 	// Stored for usage records display; nil means not provided / not applicable.

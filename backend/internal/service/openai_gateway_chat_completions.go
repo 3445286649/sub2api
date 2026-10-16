@@ -73,7 +73,9 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	promptCacheKey string,
 	defaultMappedModel string,
 	compatPromptCacheTenantIsolated bool,
-) (*OpenAIForwardResult, error) {
+) (forwardResult *OpenAIForwardResult, forwardErr error) {
+	ctx, tierSnapshot := freezeOpenAIGroupTier(ctx, account, gjson.GetBytes(body, "model").String())
+	defer func() { stampOpenAIGroupTier(forwardResult, tierSnapshot) }()
 	rememberOpenCodeInboundBody(c, body)
 	beginUpstreamResponseModelObservation(c)
 	ClearActualOpenAIUpstreamEndpoint(c)

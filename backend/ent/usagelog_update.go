@@ -269,6 +269,18 @@ func (_u *UsageLogUpdate) ClearBillingMode() *UsageLogUpdate {
 	return _u
 }
 
+// SetServiceTierDetails sets the "service_tier_details" field.
+func (_u *UsageLogUpdate) SetServiceTierDetails(v map[string]interface{}) *UsageLogUpdate {
+	_u.mutation.SetServiceTierDetails(v)
+	return _u
+}
+
+// ClearServiceTierDetails clears the value of the "service_tier_details" field.
+func (_u *UsageLogUpdate) ClearServiceTierDetails() *UsageLogUpdate {
+	_u.mutation.ClearServiceTierDetails()
+	return _u
+}
+
 // SetGroupID sets the "group_id" field.
 func (_u *UsageLogUpdate) SetGroupID(v int64) *UsageLogUpdate {
 	_u.mutation.SetGroupID(v)
@@ -1192,6 +1204,12 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.BillingModeCleared() {
 		_spec.ClearField(usagelog.FieldBillingMode, field.TypeString)
 	}
+	if value, ok := _u.mutation.ServiceTierDetails(); ok {
+		_spec.SetField(usagelog.FieldServiceTierDetails, field.TypeJSON, value)
+	}
+	if _u.mutation.ServiceTierDetailsCleared() {
+		_spec.ClearField(usagelog.FieldServiceTierDetails, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.InputTokens(); ok {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)
 	}
@@ -1780,6 +1798,18 @@ func (_u *UsageLogUpdateOne) SetNillableBillingMode(v *string) *UsageLogUpdateOn
 // ClearBillingMode clears the value of the "billing_mode" field.
 func (_u *UsageLogUpdateOne) ClearBillingMode() *UsageLogUpdateOne {
 	_u.mutation.ClearBillingMode()
+	return _u
+}
+
+// SetServiceTierDetails sets the "service_tier_details" field.
+func (_u *UsageLogUpdateOne) SetServiceTierDetails(v map[string]interface{}) *UsageLogUpdateOne {
+	_u.mutation.SetServiceTierDetails(v)
+	return _u
+}
+
+// ClearServiceTierDetails clears the value of the "service_tier_details" field.
+func (_u *UsageLogUpdateOne) ClearServiceTierDetails() *UsageLogUpdateOne {
+	_u.mutation.ClearServiceTierDetails()
 	return _u
 }
 
@@ -2735,6 +2765,12 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.BillingModeCleared() {
 		_spec.ClearField(usagelog.FieldBillingMode, field.TypeString)
+	}
+	if value, ok := _u.mutation.ServiceTierDetails(); ok {
+		_spec.SetField(usagelog.FieldServiceTierDetails, field.TypeJSON, value)
+	}
+	if _u.mutation.ServiceTierDetailsCleared() {
+		_spec.ClearField(usagelog.FieldServiceTierDetails, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.InputTokens(); ok {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)

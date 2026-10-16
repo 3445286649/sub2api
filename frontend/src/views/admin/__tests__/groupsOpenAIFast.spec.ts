@@ -25,14 +25,14 @@ describe("groupsOpenAIFast", () => {
     expect(zh.groups.openaiFast).toMatchObject({
       title: expect.any(String),
       force: expect.any(String),
-      hint: expect.stringContaining("service_tier=priority"),
+      hint: expect.stringContaining("上游返回不改变指定计费档位"),
       free: expect.any(String),
       freeHint: expect.stringContaining("Standard"),
     });
     expect(en.groups.openaiFast).toMatchObject({
       title: expect.any(String),
       force: expect.any(String),
-      hint: expect.stringContaining("service_tier=priority"),
+      hint: expect.stringContaining("Upstream tier reports do not change the configured billing tier"),
       free: expect.any(String),
       freeHint: expect.stringContaining("Standard"),
     });

@@ -40,6 +40,8 @@ const (
 	FieldBillingTier = "billing_tier"
 	// FieldBillingMode holds the string denoting the billing_mode field in the database.
 	FieldBillingMode = "billing_mode"
+	// FieldServiceTierDetails holds the string denoting the service_tier_details field in the database.
+	FieldServiceTierDetails = "service_tier_details"
 	// FieldGroupID holds the string denoting the group_id field in the database.
 	FieldGroupID = "group_id"
 	// FieldSubscriptionID holds the string denoting the subscription_id field in the database.
@@ -173,6 +175,7 @@ var Columns = []string{
 	FieldModelMappingChain,
 	FieldBillingTier,
 	FieldBillingMode,
+	FieldServiceTierDetails,
 	FieldGroupID,
 	FieldSubscriptionID,
 	FieldInputTokens,

@@ -2196,6 +2196,12 @@ type openAIWSTurnBillingAPIKeys struct {
 // begin 在 BeforeTurn 重装利润门前调用：后续 turn 重取计费分组并按 turn 记下，
 // 返回换入该分组的上下文供本 turn 的利润门使用。
 func (k *openAIWSTurnBillingAPIKeys) begin(ctx context.Context, apiKeyService *service.APIKeyService, turn int, conn *service.APIKey) context.Context {
+	k.mu.Lock()
+	existing := k.keys[turn]
+	k.mu.Unlock()
+	if existing != nil {
+		return withOpenAIWSTurnBillingGroup(ctx, existing)
+	}
 	turnKey := conn
 	if turn > 1 && apiKeyService != nil {
 		turnKey = refreshOpenAIWSTurnBillingAPIKey(ctx, apiKeyService, conn)
@@ -3086,6 +3092,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				}
 				turnChannelMapping.Store(&openAIWSTurnChannelMappingSnapshot{turn: turn, mapping: mapping})
 				return mapping.MappedModel, nil
+			},
+			TierPolicyGroup: func(turn int) *service.Group {
+				turnBillingAPIKeys.begin(ctx, h.apiKeyService, turn, apiKey)
+				return turnBillingAPIKeys.forTurn(turn, apiKey).Group
 			},
 			BeforeTurn: func(turn int) error {
 				// turn==1 的会话屏蔽已由握手层检查覆盖；连接内 flag 只拦截后续 turn。

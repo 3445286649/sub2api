@@ -407,7 +407,7 @@ describe('admin UsageTable tooltip', () => {
     const triggers = wrapper.findAll('.group.relative')
     await triggers[triggers.length - 1].trigger('mouseenter')
     const amounts = wrapper.get('.fixed').findAll('span').map(span => span.text()).filter(text => text.startsWith('$'))
-    expect(amounts).toEqual(['$0.00000000', '$0.00000000', '$0.00000000', '$0.00000000'])
+    expect(amounts).toEqual(['$0.00000000', '$0.00000000', '$0.00000000', '$0.00000000', '$0.00000000'])
     wrapper.unmount()
   })
 
@@ -980,5 +980,85 @@ describe('admin UsageTable deleted-user badge', () => {
 
     expect(wrapper.text()).not.toContain('Deleted')
     expect(wrapper.text()).toContain('active@test.com')
+  })
+})
+
+
+describe('usage tier billing receipt', () => {
+  it.each([true, false])('shows frozen acceleration tiers including free Fast in admin=%s without guessing legacy tiers', (admin) => {
+    const base = { ...baseImageRow, image_count: 0, billing_mode: 'token' }
+    const wrapper = mount(UsageTable, {
+      props: { data: [
+        { ...base, request_id: 'fast', service_tier: 'ultrafast', billing_service_tier: 'priority' },
+        { ...base, request_id: 'ultra', service_tier: 'fast', billing_service_tier: 'ultrafast' },
+        { ...base, request_id: 'free-fast', service_tier: 'standard', effective_service_tier: 'priority', billing_service_tier: 'standard', service_tier_source: 'free_fast' },
+        { ...base, request_id: 'free-ultra', service_tier: 'fast', effective_service_tier: 'ultrafast', billing_service_tier: 'standard', service_tier_source: 'free_fast' },
+        { ...base, request_id: 'legacy', service_tier: 'ultrafast' },
+      ], columns: [], showAccountBilling: admin },
+      global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+    })
+    expect(wrapper.findAll('[data-testid="usage-tier-badge"]').map(b => b.attributes('data-tier'))).toEqual(['priority', 'ultrafast', 'priority', 'ultrafast'])
+    // Every row reserves the same slot, including free and historical rows.
+    expect(wrapper.findAll('[data-testid="usage-tier-slot"]')).toHaveLength(5)
+    for (const slot of wrapper.findAll('[data-testid="usage-tier-slot"]')) {
+      expect(slot.classes()).toContain('order-first')
+      expect(slot.classes()).not.toContain('md:order-none')
+    }
+    wrapper.unmount()
+  })
+
+  it.each([true, false])('shows billing source and preserves upstream details for admin=%s only', async (admin) => {
+    const wrapper = mount(UsageTable, {
+      props: { data: [{ ...baseImageRow, image_count: 0, billing_mode: 'token', input_tokens: 1000,
+        input_cost: .06, output_cost: .12, total_cost: .18, actual_cost: .0078,
+        rate_multiplier: .26, account_rate_multiplier: .15,
+        billing_service_tier: 'standard', service_tier_source: 'free_fast',
+        billing_costs: { input_cost: .01, output_cost: .02, cache_creation_cost: 0, cache_read_cost: 0, total_cost: .03 },
+        service_tier_details: { group_tier: 'ultrafast', upstream_tier: 'fast', billing_tier: 'standard', source: 'free_fast' },
+      }], columns: [], showAccountBilling: admin },
+      global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+    })
+    const triggers = wrapper.findAll('.group.relative')
+    await triggers[triggers.length - 1].trigger('mouseenter')
+    expect(wrapper.text()).toContain('usage.customerServiceTier')
+    expect(wrapper.text()).toContain('Standard')
+    expect(wrapper.text()).toContain('usage.serviceTierSourceFreeFast')
+    expect(wrapper.text().includes('usage.upstreamServiceTier')).toBe(admin)
+    expect(wrapper.text()).toContain('$0.01000000')
+    expect(wrapper.text()).toContain('$10.0000 / 1M tokens')
+    expect(wrapper.text()).toContain('$0.03000000')
+    expect(wrapper.text()).toContain('$0.00780000')
+    if (admin) {
+      expect(wrapper.text()).toContain('$0.18000000')
+      expect(wrapper.text()).toContain('$0.02700000')
+    } else {
+      expect(wrapper.text()).not.toContain('Account billed')
+    }
+    expect(wrapper.find('[data-testid="usage-tier-badge"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it.each([null, 0, .12])('keeps account cost basis %s separate from the free Fast customer snapshot', async (accountStatsCost) => {
+    const wrapper = mount(UsageTable, {
+      props: { data: [{ ...baseImageRow, image_count: 0, billing_mode: 'token',
+        input_tokens: 8245, output_tokens: 82, cache_read_tokens: 10483,
+        input_cost: .03298, output_cost: .00164, cache_read_cost: .0020966, total_cost: .0367166,
+        actual_cost: .004773158, rate_multiplier: .26, account_rate_multiplier: .15,
+        account_stats_cost: accountStatsCost,
+        billing_service_tier: 'standard', effective_service_tier: 'priority', service_tier_source: 'free_fast',
+        billing_costs: { input_cost: .01649, output_cost: .00082, cache_creation_cost: 0, cache_read_cost: .0010483, total_cost: .0183583 },
+      }], columns: [] },
+      global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+    })
+    const triggers = wrapper.findAll('.group.relative')
+    await triggers[triggers.length - 1].trigger('mouseenter')
+    expect(wrapper.text()).toContain('$2.0000 / 1M tokens')
+    expect(wrapper.text()).toContain('$10.0000 / 1M tokens')
+    expect(wrapper.text()).toContain('$0.01835830')
+    expect(wrapper.text()).toContain('$0.00477316')
+    expect(wrapper.text()).toContain('$' + (accountStatsCost ?? .0367166).toFixed(8))
+    expect(wrapper.text()).toContain('$' + ((accountStatsCost ?? .0367166) * .15).toFixed(8))
+    expect(wrapper.find('[data-testid="usage-tier-badge"]').attributes('data-tier')).toBe('priority')
+    wrapper.unmount()
   })
 })

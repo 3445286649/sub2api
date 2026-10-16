@@ -332,3 +332,40 @@ func TestUsageLogFromService_PreservesHistoricalMissingImageSize(t *testing.T) {
 func f64Ptr(value float64) *float64 {
 	return &value
 }
+
+func TestUsageLogFromService_TierReceiptVisibilityAndHistoricalUnknown(t *testing.T) {
+	receipt := &service.ServiceTierDetails{GroupTier: "ultrafast", RequestedTier: "ultrafast", UpstreamTier: "fast", BillingTier: "standard", Source: "free_fast", CustomerCosts: &service.ServiceTierCustomerCosts{InputCost: .01, OutputCost: .02, TotalCost: .03}}
+	log := &service.UsageLog{Model: "gpt-6-astra", ServiceTierDetails: receipt}
+	user := UsageLogFromService(log)
+	admin := UsageLogFromServiceAdmin(log)
+	require.Equal(t, "standard", *user.BillingServiceTier)
+	require.Equal(t, "ultrafast", *user.EffectiveServiceTier)
+	require.Equal(t, "ultrafast", *admin.EffectiveServiceTier)
+	require.Equal(t, "free_fast", *user.ServiceTierSource)
+	require.Equal(t, .03, user.BillingCosts.TotalCost)
+	userJSON, err := json.Marshal(user)
+	require.NoError(t, err)
+	for _, private := range []string{"group_tier", "upstream_tier", "requested_tier", "service_tier_details"} {
+		require.NotContains(t, string(userJSON), private)
+	}
+	require.Equal(t, receipt, admin.ServiceTierDetails)
+	legacy := UsageLogFromService(&service.UsageLog{ServiceTier: func() *string { v := "ultrafast"; return &v }()})
+	require.Nil(t, legacy.BillingServiceTier)
+	require.Nil(t, legacy.EffectiveServiceTier)
+	require.Nil(t, legacy.ServiceTierSource)
+}
+
+func TestUsageLogFromService_FreeAccelerationTierDoesNotChangeBilling(t *testing.T) {
+	for _, tier := range []string{"priority", "ultrafast"} {
+		t.Run(tier, func(t *testing.T) {
+			log := &service.UsageLog{ActualCost: .03, ServiceTierDetails: &service.ServiceTierDetails{
+				GroupTier: tier, BillingTier: "standard", Source: "free_fast",
+			}}
+			for _, got := range []*UsageLog{UsageLogFromService(log), &UsageLogFromServiceAdmin(log).UsageLog} {
+				require.Equal(t, tier, *got.EffectiveServiceTier)
+				require.Equal(t, "standard", *got.BillingServiceTier)
+				require.Equal(t, .03, got.ActualCost)
+			}
+		})
+	}
+}

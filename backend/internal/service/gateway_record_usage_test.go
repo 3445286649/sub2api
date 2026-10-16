@@ -788,6 +788,9 @@ func TestGatewayServiceRecordUsage_FastSpeedDowngradedByUpstreamResponse(t *test
 	require.NotNil(t, usageRepo.lastLog)
 	require.NotNil(t, usageRepo.lastLog.ServiceTier)
 	require.Equal(t, "standard", *usageRepo.lastLog.ServiceTier)
+	require.Equal(t, "standard", usageRepo.lastLog.ServiceTierDetails.BillingTier)
+	require.Equal(t, "fast", usageRepo.lastLog.ServiceTierDetails.RequestedTier)
+	require.Equal(t, "standard", usageRepo.lastLog.ServiceTierDetails.UpstreamTier)
 
 	tokens := UsageTokens{InputTokens: 100, OutputTokens: 50}
 	standardCost, err := svc.billingService.CalculateCost("claude-opus-5", tokens, 1.0)
@@ -820,6 +823,8 @@ func TestGatewayServiceRecordUsage_FastSpeedHonouredKeepsPremium(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, usageRepo.lastLog)
 	require.Equal(t, "fast", *usageRepo.lastLog.ServiceTier)
+	require.Equal(t, "priority", usageRepo.lastLog.ServiceTierDetails.BillingTier)
+	require.Equal(t, "existing_policy", usageRepo.lastLog.ServiceTierDetails.Source)
 
 	fastCost, err := svc.billingService.CalculateCostWithServiceTier("claude-opus-5", UsageTokens{InputTokens: 100, OutputTokens: 50}, 1.0, "fast")
 	require.NoError(t, err)

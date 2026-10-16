@@ -1053,7 +1053,7 @@ func TestOpenAIGatewayService_OAuthLegacy_GroupForceOpenAIFastInjectsMissingTier
 	require.Equal(t, OpenAIFastTierPriority, *result.ServiceTier)
 }
 
-func TestOpenAIGatewayService_OAuthLegacy_GroupForceStillHonorsGlobalFilter(t *testing.T) {
+func TestOpenAIGatewayService_OAuthLegacy_GroupForceRejectsConflictingGlobalFilter(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
@@ -1080,10 +1080,12 @@ func TestOpenAIGatewayService_OAuthLegacy_GroupForceStillHonorsGlobalFilter(t *t
 
 	result, err := svc.Forward(ctx, c, account, inputBody)
 
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.False(t, gjson.GetBytes(upstream.lastBody, "service_tier").Exists())
-	require.Nil(t, result.ServiceTier)
+	var blocked *OpenAIFastBlockedError
+	require.ErrorAs(t, err, &blocked)
+	require.Contains(t, blocked.Message, "conflicts")
+	require.Nil(t, result)
+	require.Empty(t, upstream.requests)
+	require.Equal(t, http.StatusForbidden, rec.Code)
 }
 
 func TestOpenAIGatewayService_OAuthLegacy_UpstreamRequestIgnoresClientCancel(t *testing.T) {

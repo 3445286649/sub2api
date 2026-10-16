@@ -1933,7 +1933,11 @@ func (s *OpenAIGatewayService) evaluateOpenAIFastPolicy(ctx context.Context, acc
 		}
 		settings = fetched
 	}
-	return evaluateOpenAIFastPolicyWithSettings(settings, openAIFastPolicyUserID(ctx), account, model, tier)
+	action, errMsg = evaluateOpenAIFastPolicyWithSettings(settings, openAIFastPolicyUserID(ctx), account, model, tier)
+	if conflict := openAIGroupTierPolicyConflict(ctx, account, model, action); conflict != "" {
+		return BetaPolicyActionBlock, conflict
+	}
+	return action, errMsg
 }
 
 // shouldForceOpenAIFastPriorityForMissingTier reports whether a request that
@@ -2046,6 +2050,12 @@ func openAIFastPolicySettingsFromContext(ctx context.Context) *OpenAIFastPolicyS
 func openAIGroupForcedTier(ctx context.Context, account *Account, upstreamModel string) string {
 	if ctx == nil || account == nil || account.Platform != PlatformOpenAI {
 		return ""
+	}
+	if snapshot, _ := ctx.Value(openAIGroupTierSnapshotKey{}).(*openAIGroupTierSnapshot); snapshot != nil {
+		group, _ := ctx.Value(ctxkey.Group).(*Group)
+		if group != nil && group.ID == snapshot.GroupID {
+			return snapshot.Tier
+		}
 	}
 	group, _ := ctx.Value(ctxkey.Group).(*Group)
 	if !IsGroupContextValid(group) || !groupSupportsOpenAIFast(group.Platform) {

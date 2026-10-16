@@ -202,6 +202,12 @@
                 <Icon name="infoCircle" size="xs" class="text-gray-400 group-hover:text-blue-500 dark:text-gray-500 dark:group-hover:text-blue-400" />
               </div>
             </div>
+            <span data-testid="usage-tier-slot" class="order-first inline-flex w-5 shrink-0 items-center justify-center">
+              <UsageServiceTierBadge
+                :tier="row.effective_service_tier ?? row.billing_service_tier"
+                :free="row.service_tier_source === 'free_fast' && row.billing_service_tier === 'standard'"
+              />
+            </span>
           </div>
         </template>
 
@@ -502,7 +508,27 @@
             </div>
           </div>
           <!-- Rate and Summary -->
-          <div class="flex items-center justify-between gap-6">
+          <template v-if="tooltipData?.billing_service_tier">
+            <template v-if="showAccountBilling && tooltipData.service_tier_details">
+              <div v-if="tooltipData.service_tier_details.group_tier" class="flex items-center justify-between gap-6">
+                <span class="text-gray-400">{{ t('usage.groupServiceTier') }}</span>
+                <span>{{ getUsageServiceTierLabel(tooltipData.service_tier_details.group_tier, t) }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-6">
+                <span class="text-gray-400">{{ t('usage.upstreamServiceTier') }}</span>
+                <span>{{ tooltipData.service_tier_details.upstream_tier ? getUsageServiceTierLabel(tooltipData.service_tier_details.upstream_tier, t) : t('usage.serviceTierNotReported') }}</span>
+              </div>
+            </template>
+            <div class="flex items-center justify-between gap-6">
+              <span class="text-gray-400">{{ t('usage.customerServiceTier') }}</span>
+              <span class="font-semibold text-cyan-300">{{ getUsageServiceTierLabel(tooltipData.billing_service_tier, t) }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-6" data-testid="usage-tier-source">
+              <span class="text-gray-400">{{ t('usage.serviceTierSource') }}</span>
+              <span>{{ tierSourceLabel(tooltipData.service_tier_source) }}</span>
+            </div>
+          </template>
+          <div v-else class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t('usage.serviceTier') }}</span>
             <span class="font-semibold text-cyan-300">{{ getUsageServiceTierLabel(tooltipData?.service_tier, t) }}</span>
           </div>
@@ -521,6 +547,10 @@
           <!-- Account billing (separated from user billing) -->
           <template v-if="showAccountBilling">
             <div class="flex items-center justify-between gap-6 border-t border-gray-700 pt-1.5">
+              <span class="text-gray-400">{{ t('usage.accountOriginal') }}</span>
+              <span class="font-medium text-white">${{ (tooltipRow?.account_stats_cost ?? tooltipRow?.total_cost ?? 0).toFixed(8) }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-6">
               <span class="text-gray-400">{{ t('usage.accountMultiplier') }}</span>
               <span class="font-semibold text-blue-400">{{ formatMultiplier(tooltipData?.account_rate_multiplier ?? 1) }}x</span>
             </div>
@@ -528,9 +558,9 @@
               <span class="text-gray-400">{{ t('usage.accountBilled') }}</span>
               <span class="font-semibold text-green-400">
                 ${{ accountBilled({
-                  total_cost: tooltipData?.total_cost,
-                  account_stats_cost: tooltipData?.account_stats_cost,
-                  account_rate_multiplier: tooltipData?.account_rate_multiplier,
+                  total_cost: tooltipRow?.total_cost,
+                  account_stats_cost: tooltipRow?.account_stats_cost,
+                  account_rate_multiplier: tooltipRow?.account_rate_multiplier,
                 }).toFixed(8) }}
               </span>
             </div>
@@ -594,6 +624,7 @@ import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import IpGeoCell from '@/components/common/IpGeoCell.vue'
 import Icon from '@/components/icons/Icon.vue'
+import UsageServiceTierBadge from '@/components/common/UsageServiceTierBadge.vue'
 import { fetchBatch, getEntry } from '@/utils/ipGeoLookup'
 import type { AdminUsageLog } from '@/types'
 import type { Column } from '@/components/common/types'
@@ -626,6 +657,14 @@ const emit = defineEmits<{
   ipGeoBatchFailed: []
 }>()
 const { t } = useI18n()
+function tierSourceLabel(source?: string | null): string {
+  const keys: Record<string, string> = {
+    group_model: 'usage.serviceTierSourceGroupModel',
+    group_default: 'usage.serviceTierSourceGroupDefault',
+    free_fast: 'usage.serviceTierSourceFreeFast',
+  }
+  return t(keys[source ?? ''] ?? 'usage.serviceTierSourceExisting')
+}
 const appStore = useAppStore()
 const copiedRequestId = ref<string | null>(null)
 const showAccountBilling = props.showAccountBilling
@@ -713,7 +752,11 @@ const copyUpstreamRequestId = (upstreamRequestId: string) =>
 // Tooltip state - cost
 const tooltipVisible = ref(false)
 const tooltipPosition = ref({ x: 0, y: 0 })
-const tooltipData = ref<AdminUsageLog | null>(null)
+const tooltipRow = ref<AdminUsageLog | null>(null)
+const tooltipData = computed(() => {
+  const row = tooltipRow.value
+  return row?.billing_costs ? { ...row, ...row.billing_costs } : row
+})
 
 // Tooltip state - token
 const tokenTooltipVisible = ref(false)
@@ -760,7 +803,7 @@ const formatDuration = (ms: number | null | undefined): string => {
 const showTooltip = (event: MouseEvent, row: AdminUsageLog) => {
   const target = event.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
-  tooltipData.value = row
+  tooltipRow.value = row
   tooltipPosition.value.x = rect.right + 8
   tooltipPosition.value.y = rect.top + rect.height / 2
   tooltipVisible.value = true
@@ -768,7 +811,7 @@ const showTooltip = (event: MouseEvent, row: AdminUsageLog) => {
 
 const hideTooltip = () => {
   tooltipVisible.value = false
-  tooltipData.value = null
+  tooltipRow.value = null
 }
 
 // Token tooltip functions

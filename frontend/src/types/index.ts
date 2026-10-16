@@ -1988,6 +1988,16 @@ export interface UsageLog {
   request_id: string
   model: string
   service_tier?: string | null
+  billing_service_tier?: string | null
+  effective_service_tier?: string | null
+  billing_costs?: {
+    input_cost: number
+    output_cost: number
+    cache_creation_cost: number
+    cache_read_cost: number
+    total_cost: number
+  } | null
+  service_tier_source?: string | null
   reasoning_effort?: string | null
   inbound_endpoint?: string | null
   upstream_endpoint?: string | null
@@ -2055,6 +2065,14 @@ export interface UsageLogAccountSummary {
 }
 
 export interface AdminUsageLog extends UsageLog {
+  service_tier_details?: {
+    group_tier?: string
+    requested_tier?: string
+    upstream_tier?: string
+    billing_tier: string
+    source: string
+  } | null
+
   upstream_model?: string | null
   upstream_reasoning_effort?: string | null
   upstream_response_model?: string | null

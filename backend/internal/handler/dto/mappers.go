@@ -706,6 +706,17 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 	if requestedModel == "" {
 		requestedModel = l.Model
 	}
+	var billingTier, effectiveTier, tierSource *string
+	var billingCosts *service.ServiceTierCustomerCosts
+	if l.ServiceTierDetails != nil {
+		billingTier = &l.ServiceTierDetails.BillingTier
+		effectiveTier = billingTier
+		if l.ServiceTierDetails.GroupTier != "" {
+			effectiveTier = &l.ServiceTierDetails.GroupTier
+		}
+		billingCosts = l.ServiceTierDetails.CustomerCosts
+		tierSource = &l.ServiceTierDetails.Source
+	}
 	return UsageLog{
 		ID:                        l.ID,
 		UserID:                    l.UserID,
@@ -714,6 +725,10 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		RequestID:                 l.RequestID,
 		Model:                     requestedModel,
 		ServiceTier:               l.ServiceTier,
+		BillingServiceTier:        billingTier,
+		EffectiveServiceTier:      effectiveTier,
+		BillingCosts:              billingCosts,
+		ServiceTierSource:         tierSource,
 		ReasoningEffort:           userFacingReasoningEffort(l),
 		InboundEndpoint:           l.InboundEndpoint,
 		GroupID:                   l.GroupID,
@@ -783,6 +798,7 @@ func UsageLogFromServiceAdmin(l *service.UsageLog) *AdminUsageLog {
 	usageLog.UpstreamEndpoint = l.UpstreamEndpoint
 	return &AdminUsageLog{
 		UsageLog:                usageLog,
+		ServiceTierDetails:      l.ServiceTierDetails,
 		UpstreamModel:           l.UpstreamModel,
 		UpstreamReasoningEffort: adminUpstreamReasoningEffort(l),
 		UpstreamResponseModel:   l.UpstreamResponseModel,

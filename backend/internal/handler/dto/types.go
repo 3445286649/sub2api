@@ -614,7 +614,11 @@ type UsageLog struct {
 	RequestID string `json:"request_id"`
 	Model     string `json:"model"`
 	// ServiceTier records the OpenAI service tier used for billing, e.g. "priority" / "flex".
-	ServiceTier *string `json:"service_tier,omitempty"`
+	ServiceTier          *string                           `json:"service_tier,omitempty"`
+	BillingServiceTier   *string                           `json:"billing_service_tier,omitempty"`
+	EffectiveServiceTier *string                           `json:"effective_service_tier,omitempty"`
+	BillingCosts         *service.ServiceTierCustomerCosts `json:"billing_costs,omitempty"`
+	ServiceTierSource    *string                           `json:"service_tier_source,omitempty"`
 	// ReasoningEffort is the client-requested effort (mapping-hidden, like Model).
 	// OpenAI: "low"/"medium"/"high"/"xhigh"; Claude: "low"/"medium"/"high"/"max".
 	// Historical rows without requested_reasoning_effort fall back to the stored effective value.
@@ -692,6 +696,7 @@ type UsageLog struct {
 // AdminUsageLog 是管理员接口使用的 usage log DTO（包含管理员字段）。
 type AdminUsageLog struct {
 	UsageLog
+	ServiceTierDetails *service.ServiceTierDetails `json:"service_tier_details,omitempty"`
 
 	// UpstreamModel is the actual model sent to the upstream provider after mapping.
 	// Omitted when no mapping was applied (requested model was used as-is).

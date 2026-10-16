@@ -51015,6 +51015,7 @@ type UsageLogMutation struct {
 	model_mapping_chain          *string
 	billing_tier                 *string
 	billing_mode                 *string
+	service_tier_details         *map[string]interface{}
 	input_tokens                 *int
 	addinput_tokens              *int
 	output_tokens                *int
@@ -51772,6 +51773,55 @@ func (m *UsageLogMutation) BillingModeCleared() bool {
 func (m *UsageLogMutation) ResetBillingMode() {
 	m.billing_mode = nil
 	delete(m.clearedFields, usagelog.FieldBillingMode)
+}
+
+// SetServiceTierDetails sets the "service_tier_details" field.
+func (m *UsageLogMutation) SetServiceTierDetails(value map[string]interface{}) {
+	m.service_tier_details = &value
+}
+
+// ServiceTierDetails returns the value of the "service_tier_details" field in the mutation.
+func (m *UsageLogMutation) ServiceTierDetails() (r map[string]interface{}, exists bool) {
+	v := m.service_tier_details
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldServiceTierDetails returns the old "service_tier_details" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldServiceTierDetails(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldServiceTierDetails is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldServiceTierDetails requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldServiceTierDetails: %w", err)
+	}
+	return oldValue.ServiceTierDetails, nil
+}
+
+// ClearServiceTierDetails clears the value of the "service_tier_details" field.
+func (m *UsageLogMutation) ClearServiceTierDetails() {
+	m.service_tier_details = nil
+	m.clearedFields[usagelog.FieldServiceTierDetails] = struct{}{}
+}
+
+// ServiceTierDetailsCleared returns if the "service_tier_details" field was cleared in this mutation.
+func (m *UsageLogMutation) ServiceTierDetailsCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldServiceTierDetails]
+	return ok
+}
+
+// ResetServiceTierDetails resets all changes to the "service_tier_details" field.
+func (m *UsageLogMutation) ResetServiceTierDetails() {
+	m.service_tier_details = nil
+	delete(m.clearedFields, usagelog.FieldServiceTierDetails)
 }
 
 // SetGroupID sets the "group_id" field.
@@ -53753,7 +53803,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 47)
+	fields := make([]string, 0, 48)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -53792,6 +53842,9 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.billing_mode != nil {
 		fields = append(fields, usagelog.FieldBillingMode)
+	}
+	if m.service_tier_details != nil {
+		fields = append(fields, usagelog.FieldServiceTierDetails)
 	}
 	if m.group != nil {
 		fields = append(fields, usagelog.FieldGroupID)
@@ -53929,6 +53982,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.BillingTier()
 	case usagelog.FieldBillingMode:
 		return m.BillingMode()
+	case usagelog.FieldServiceTierDetails:
+		return m.ServiceTierDetails()
 	case usagelog.FieldGroupID:
 		return m.GroupID()
 	case usagelog.FieldSubscriptionID:
@@ -54032,6 +54087,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldBillingTier(ctx)
 	case usagelog.FieldBillingMode:
 		return m.OldBillingMode(ctx)
+	case usagelog.FieldServiceTierDetails:
+		return m.OldServiceTierDetails(ctx)
 	case usagelog.FieldGroupID:
 		return m.OldGroupID(ctx)
 	case usagelog.FieldSubscriptionID:
@@ -54199,6 +54256,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetBillingMode(v)
+		return nil
+	case usagelog.FieldServiceTierDetails:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetServiceTierDetails(v)
 		return nil
 	case usagelog.FieldGroupID:
 		v, ok := value.(int64)
@@ -54747,6 +54811,9 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldBillingMode) {
 		fields = append(fields, usagelog.FieldBillingMode)
 	}
+	if m.FieldCleared(usagelog.FieldServiceTierDetails) {
+		fields = append(fields, usagelog.FieldServiceTierDetails)
+	}
 	if m.FieldCleared(usagelog.FieldGroupID) {
 		fields = append(fields, usagelog.FieldGroupID)
 	}
@@ -54826,6 +54893,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldBillingMode:
 		m.ClearBillingMode()
+		return nil
+	case usagelog.FieldServiceTierDetails:
+		m.ClearServiceTierDetails()
 		return nil
 	case usagelog.FieldGroupID:
 		m.ClearGroupID()
@@ -54915,6 +54985,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldBillingMode:
 		m.ResetBillingMode()
+		return nil
+	case usagelog.FieldServiceTierDetails:
+		m.ResetServiceTierDetails()
 		return nil
 	case usagelog.FieldGroupID:
 		m.ResetGroupID()

@@ -399,7 +399,7 @@ func TestApplyOpenAIFastPolicyToBody_GroupModelTiersAreIsolated(t *testing.T) {
 	require.Equal(t, OpenAIFastTierUltrafast, gjson.GetBytes(updated, "service_tier").String())
 }
 
-func TestApplyOpenAIFastPolicyToBody_GroupForceStillHonorsGlobalPolicy(t *testing.T) {
+func TestApplyOpenAIFastPolicyToBody_GroupForceRejectsConflictingGlobalPolicy(t *testing.T) {
 	svc := newOpenAIGatewayServiceWithSettings(t, openAIFastFilterPriorityPolicy())
 	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 	ctx := context.WithValue(context.Background(), ctxkey.Group, &Group{
@@ -407,9 +407,10 @@ func TestApplyOpenAIFastPolicyToBody_GroupForceStillHonorsGlobalPolicy(t *testin
 	})
 
 	updated, err := svc.applyOpenAIFastPolicyToBody(ctx, account, "gpt-5.6-sol", []byte(`{"model":"gpt-5.6-sol"}`))
-	require.NoError(t, err)
-	require.False(t, gjson.GetBytes(updated, "service_tier").Exists(),
-		"the global filter remains authoritative after the group requests priority")
+	var blocked *OpenAIFastBlockedError
+	require.ErrorAs(t, err, &blocked)
+	require.Contains(t, blocked.Message, "conflicts")
+	require.Equal(t, "priority", gjson.GetBytes(updated, "service_tier").String())
 }
 
 func TestApplyOpenAIFastPolicyToBody_GroupForceRequiresHydratedGroup(t *testing.T) {
