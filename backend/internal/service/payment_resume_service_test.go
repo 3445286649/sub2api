@@ -828,3 +828,11 @@ func mustCreateFallbackSignedToken(t *testing.T, claims any) string {
 	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 	return encodedPayload + "." + signature
 }
+
+func TestCanonicalizeReturnURLRejectsMalformedTrustedOrigins(t *testing.T) {
+	for _, origin := range []string{"https://a&b=c.example.com", "https://a&b=c@app.example.com"} {
+		if _, err := CanonicalizeReturnURL("app.example.com", []string{origin}); err == nil {
+			t.Fatalf("malformed trusted origin accepted: %s", origin)
+		}
+	}
+}
