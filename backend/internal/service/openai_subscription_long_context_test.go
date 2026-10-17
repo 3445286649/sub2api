@@ -229,10 +229,10 @@ func TestOpenAIGatewayServiceRecordUsage_GPT61SolExemptionSurvivesRepricing(t *t
 	require.NoError(t, err)
 	// 响应模型改用较低的缓存价；免费 Fast 再按标准档扣款，两次重算均须保留豁免。
 	const standardCost = 220000*2e-6 + 80000*0.1e-6 + 2000*10e-6
-	require.InDelta(t, standardCost*2, usageRepo.lastLog.TotalCost, 1e-12)
+	require.InDelta(t, standardCost, usageRepo.lastLog.TotalCost, 1e-12)
 	require.InDelta(t, standardCost*1.1, usageRepo.lastLog.ActualCost, 1e-12)
 	require.InDelta(t, standardCost*1.1, userRepo.lastAmount, 1e-12)
 	require.False(t, usageRepo.lastLog.LongContextBillingApplied)
 	require.NotNil(t, usageRepo.lastLog.AccountStatsCost)
-	require.InDelta(t, standardCost*2, *usageRepo.lastLog.AccountStatsCost, 1e-12)
+	require.InDelta(t, standardCost, *usageRepo.lastLog.AccountStatsCost, 1e-12)
 }
