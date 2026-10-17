@@ -91,6 +91,9 @@ func (s *PaymentService) ConfirmNotificationUpstream(ctx context.Context, prov p
 				return nil
 			}
 		}
+		if order.PaymentTradeNo != "" && order.PaymentTradeNo != n.TradeNo {
+			return fmt.Errorf("JianPay upstream order number mismatch")
+		}
 	}
 	notifiedTradeNo := n.TradeNo
 	finishProviderCall := servertiming.ObserveDependency(ctx, "payment")

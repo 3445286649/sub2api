@@ -204,7 +204,7 @@ func (p *JianPay) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 	if err != nil {
 		// A timeout may have happened after the upstream accepted the order.
 		// Recover by merchant order number rather than creating another charge.
-		if recovered, queryErr := p.query(ctx, req.OrderID); queryErr == nil && (*recovered.Status == 0 || *recovered.Status == 1 || *recovered.Status == 2) && jianPayHTTPSURL(recovered.PayURL) {
+		if recovered, queryErr := p.query(ctx, req.OrderID, ""); queryErr == nil && (*recovered.Status == 0 || *recovered.Status == 1 || *recovered.Status == 2) && jianPayHTTPSURL(recovered.PayURL) {
 			d = recovered
 		} else {
 			return nil, err
@@ -216,22 +216,29 @@ func (p *JianPay) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 	return &payment.CreatePaymentResponse{TradeNo: d.OrderID, PayURL: d.PayURL, QRCode: d.PayURL}, nil
 }
 
-func (p *JianPay) query(ctx context.Context, merchantOrderNo string) (*jianPayOrder, error) {
-	if merchantOrderNo == "" || len(merchantOrderNo) > 128 {
+func (p *JianPay) query(ctx context.Context, merchantOrderNo, orderID string) (*jianPayOrder, error) {
+	if (merchantOrderNo == "" && orderID == "") || len(merchantOrderNo) > 128 || len(orderID) > 128 {
 		return nil, errors.New("invalid JianPay order number")
 	}
-	d, err := p.call(ctx, "/open/payment/pay/info", map[string]any{"merchantOrderNo": merchantOrderNo})
+	// The live gateway rejects merchantOrderNo signatures for existing orders.
+	// Use the saved platform ID; merchant lookup is only for ambiguous creation
+	// where no platform ID has been received yet.
+	params := map[string]any{"orderId": orderID}
+	if orderID == "" {
+		params = map[string]any{"merchantOrderNo": merchantOrderNo}
+	}
+	d, err := p.call(ctx, "/open/payment/pay/info", params)
 	if err != nil {
 		return nil, err
 	}
-	if d.MerchantOrderNo != merchantOrderNo || (d.PayMethod != "alipay" && d.PayMethod != "wx") {
+	if d.MerchantOrderNo == "" || (merchantOrderNo != "" && d.MerchantOrderNo != merchantOrderNo) || (orderID != "" && d.OrderID != orderID) || (d.PayMethod != "alipay" && d.PayMethod != "wx") {
 		return nil, errors.New("JianPay query order or payment method mismatch")
 	}
 	return d, nil
 }
 
-func (p *JianPay) QueryOrder(ctx context.Context, merchantOrderNo string) (*payment.QueryOrderResponse, error) {
-	d, err := p.query(ctx, merchantOrderNo)
+func (p *JianPay) QueryOrder(ctx context.Context, orderID string) (*payment.QueryOrderResponse, error) {
+	d, err := p.query(ctx, "", orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -273,11 +280,11 @@ func (p *JianPay) ConfirmNotification(ctx context.Context, n *payment.PaymentNot
 	if n == nil {
 		return errors.New("missing JianPay notification")
 	}
-	q, err := p.QueryOrder(ctx, n.OrderID)
+	q, err := p.QueryOrder(ctx, n.TradeNo)
 	if err != nil {
 		return err
 	}
-	if q.Status != payment.ProviderStatusPaid || q.TradeNo != n.TradeNo || q.Amount != n.Amount || q.Metadata["payMethod"] != n.Metadata["payMethod"] {
+	if q.Status != payment.ProviderStatusPaid || q.TradeNo != n.TradeNo || q.Metadata["merchantOrderNo"] != n.OrderID || q.Amount != n.Amount || q.Metadata["payMethod"] != n.Metadata["payMethod"] {
 		return errors.New("JianPay query does not confirm the notification")
 	}
 	return nil

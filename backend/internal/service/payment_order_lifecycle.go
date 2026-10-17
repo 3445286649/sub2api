@@ -281,7 +281,11 @@ func paymentOrderQueryReference(order *dbent.PaymentOrder, prov payment.Provider
 	}
 
 	switch payment.GetBasePaymentType(providerKey) {
-	case payment.TypeAlipay, payment.TypeEasyPay, payment.TypeWxpay, payment.ProviderZhifuFM, payment.ProviderJianPay:
+	case payment.ProviderJianPay:
+		// Never send the merchant order number as a platform orderId. Orders
+		// without a saved ID remain recoverable through a verified callback.
+		return strings.TrimSpace(order.PaymentTradeNo)
+	case payment.TypeAlipay, payment.TypeEasyPay, payment.TypeWxpay, payment.ProviderZhifuFM:
 		return strings.TrimSpace(order.OutTradeNo)
 	default:
 		if tradeNo := strings.TrimSpace(order.PaymentTradeNo); tradeNo != "" {

@@ -38,7 +38,10 @@ func TestJianPayCheckoutAndQuery(t *testing.T) {
 			require.Equal(t, "https://site.test/payment/result?resume_token=signed-token", body["returnUrl"])
 			fmt.Fprint(w, `{"code":1000,"data":{"clientNo":"JP-test","merchantOrderNo":"local-order","orderId":"upstream-order","amount":1001,"status":1,"payUrl":"https://jpay.hzjianban.com/#/pay?orderId=upstream-order","payQrcodeUrl":"https://example.test/qr.png"}}`)
 		case "/open/payment/pay/info":
-			require.Equal(t, "local-order", body["merchantOrderNo"])
+			if body["orderId"] != "upstream-order" || body["merchantOrderNo"] != nil {
+				fmt.Fprint(w, `{"code":1001,"message":"signature verification failed"}`)
+				return
+			}
 			fmt.Fprint(w, `{"code":1000,"data":{"clientNo":"JP-test","merchantOrderNo":"local-order","orderId":"upstream-order","amount":1001,"status":2,"payMethod":"alipay"}}`)
 		default:
 			t.Errorf("unexpected path %s", r.URL.Path)
@@ -51,7 +54,7 @@ func TestJianPayCheckoutAndQuery(t *testing.T) {
 	require.Equal(t, "upstream-order", res.TradeNo)
 	require.Equal(t, res.PayURL, res.QRCode)
 	require.NotContains(t, res.QRCode, "qr.png")
-	query, err := p.QueryOrder(context.Background(), "local-order")
+	query, err := p.QueryOrder(context.Background(), "upstream-order")
 	require.NoError(t, err)
 	require.Equal(t, payment.ProviderStatusPaid, query.Status)
 	require.Equal(t, 10.01, query.Amount)
@@ -96,6 +99,46 @@ func TestJianPayNotification(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestJianPayPlatformQueryConfirmationRejectsMismatches(t *testing.T) {
+	for _, mismatch := range []string{"merchant", "platform_order", "merchant_order", "missing_order", "amount", "method", "pending", "failed", "closed"} {
+		t.Run(mismatch, func(t *testing.T) {
+			p := jianPayTestProvider(t)
+			s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var request map[string]any
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+				require.Equal(t, "upstream-order", request["orderId"])
+				require.NotContains(t, request, "merchantOrderNo")
+				d := map[string]any{"clientNo": "JP-test", "merchantOrderNo": "local-order", "orderId": "upstream-order", "amount": 100, "status": 2, "payMethod": "alipay"}
+				switch mismatch {
+				case "merchant":
+					d["clientNo"] = "other"
+				case "platform_order":
+					d["orderId"] = "other"
+				case "merchant_order":
+					d["merchantOrderNo"] = "other"
+				case "missing_order":
+					delete(d, "merchantOrderNo")
+				case "amount":
+					d["amount"] = 101
+				case "method":
+					d["payMethod"] = "wx"
+				case "pending":
+					d["status"] = 1
+				case "failed":
+					d["status"] = 3
+				case "closed":
+					d["status"] = 4
+				}
+				require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"code": 1000, "data": d}))
+			}))
+			defer s.Close()
+			p.apiBase, p.httpClient = s.URL, s.Client()
+			n := &payment.PaymentNotification{OrderID: "local-order", TradeNo: "upstream-order", Amount: 1, Metadata: map[string]string{"clientNo": "JP-test", "payMethod": "alipay"}}
+			require.Error(t, p.ConfirmNotification(context.Background(), n))
+		})
+	}
+}
+
 func TestJianPayRejectInvalidRequests(t *testing.T) {
 	p := jianPayTestProvider(t)
 	for _, amount := range []string{"0", "-1", "NaN", "1.001", "1e2", "99999999999999999999"} {
@@ -135,7 +178,7 @@ func TestJianPayQueryStatuses(t *testing.T) {
 			}))
 			defer s.Close()
 			p.apiBase, p.httpClient = s.URL, s.Client()
-			q, err := p.QueryOrder(context.Background(), "local")
+			q, err := p.QueryOrder(context.Background(), "upstream")
 			if expected == "" {
 				require.Error(t, err)
 			} else {

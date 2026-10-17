@@ -24,12 +24,17 @@ func newJianPayFixture(t *testing.T) (*PaymentService, *dbent.PaymentOrder, *dbe
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
 	calls := new(atomic.Int32)
+	merchantOrderNo := ""
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		require.Equal(t, "/open/payment/pay/info", r.URL.Path)
 		var body map[string]any
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-		fmt.Fprintf(w, `{"code":1000,"data":{"clientNo":"JP-test","merchantOrderNo":%q,"orderId":"jian-trade","amount":8000,"status":2,"payMethod":"alipay"}}`, body["merchantOrderNo"])
+		if body["orderId"] != "jian-trade" || body["merchantOrderNo"] != nil {
+			fmt.Fprint(w, `{"code":1001,"message":"signature verification failed"}`)
+			return
+		}
+		fmt.Fprintf(w, `{"code":1000,"data":{"clientNo":"JP-test","merchantOrderNo":%q,"orderId":"jian-trade","amount":8000,"status":2,"payMethod":"alipay"}}`, merchantOrderNo)
 	}))
 	t.Cleanup(server.Close)
 	savedTransport := http.DefaultTransport
@@ -41,8 +46,9 @@ func newJianPayFixture(t *testing.T) (*PaymentService, *dbent.PaymentOrder, *dbe
 	inst, err := client.PaymentProviderInstance.Create().SetProviderKey(payment.ProviderJianPay).SetName("简付测试").SetConfig(string(raw)).SetSupportedTypes("alipay").Save(ctx)
 	require.NoError(t, err)
 	order := createPendingEasyPayFulfillmentOrder(t, ctx, client)
+	merchantOrderNo = order.OutTradeNo
 	instanceID := strconv.FormatInt(inst.ID, 10)
-	order, err = client.PaymentOrder.UpdateOneID(order.ID).SetProviderKey(payment.ProviderJianPay).SetProviderInstanceID(instanceID).SetPaymentType(payment.TypeAlipay).SetPayAmount(80).SetExpiresAt(time.Now().Add(time.Hour)).SetProviderSnapshot(buildPaymentOrderProviderSnapshot(&payment.InstanceSelection{ProviderKey: payment.ProviderJianPay, InstanceID: instanceID, Config: cfg}, CreateOrderRequest{PaymentType: payment.TypeAlipay})).Save(ctx)
+	order, err = client.PaymentOrder.UpdateOneID(order.ID).SetProviderKey(payment.ProviderJianPay).SetProviderInstanceID(instanceID).SetPaymentTradeNo("jian-trade").SetPaymentType(payment.TypeAlipay).SetPayAmount(80).SetExpiresAt(time.Now().Add(time.Hour)).SetProviderSnapshot(buildPaymentOrderProviderSnapshot(&payment.InstanceSelection{ProviderKey: payment.ProviderJianPay, InstanceID: instanceID, Config: cfg}, CreateOrderRequest{PaymentType: payment.TypeAlipay})).Save(ctx)
 	require.NoError(t, err)
 	credited := new(float64)
 	userRepo := &mockUserRepo{getByIDUser: &User{ID: order.UserID}}
@@ -116,6 +122,63 @@ func TestJianPayRejectsMismatchedPayment(t *testing.T) {
 	}
 }
 
+func TestJianPayReconciliationUsesSavedPlatformOrder(t *testing.T) {
+	svc, order, _, credited, calls := newJianPayFixture(t)
+	recovered, err := svc.ReconcilePendingPaymentOrders(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, recovered)
+	require.Equal(t, int32(1), calls.Load())
+	require.Equal(t, order.Amount, *credited)
+	recovered, err = svc.ReconcilePendingPaymentOrders(context.Background())
+	require.NoError(t, err)
+	require.Zero(t, recovered)
+	require.Equal(t, order.Amount, *credited)
+}
+
+func TestJianPayPlatformQueryKeepsMerchantOrderBinding(t *testing.T) {
+	svc, order, _, credited, _ := newJianPayFixture(t)
+	ctx := context.Background()
+	_, err := svc.entClient.PaymentOrder.UpdateOneID(order.ID).SetOutTradeNo("different-local-order").Save(ctx)
+	require.NoError(t, err)
+	verified, err := svc.VerifyOrderByOutTradeNo(ctx, "different-local-order", order.UserID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusPending, verified.Status)
+	require.Zero(t, *credited)
+}
+
+func TestJianPayCallbackRejectsDifferentSavedPlatformOrder(t *testing.T) {
+	svc, order, _, credited, calls := newJianPayFixture(t)
+	ctx := context.Background()
+	prov, err := svc.GetWebhookProvider(ctx, payment.ProviderJianPay, order.OutTradeNo)
+	require.NoError(t, err)
+	n := jianPayFixtureNotification(order)
+	n.TradeNo = "other-platform-order"
+	require.ErrorContains(t, svc.ConfirmNotificationUpstream(ctx, prov, n), "upstream order number mismatch")
+	require.Zero(t, calls.Load())
+	require.Zero(t, *credited)
+}
+
+func TestJianPayMissingPlatformOrderWaitsForVerifiedCallback(t *testing.T) {
+	svc, order, _, credited, calls := newJianPayFixture(t)
+	ctx := context.Background()
+	order, err := svc.entClient.PaymentOrder.UpdateOneID(order.ID).SetPaymentTradeNo("").Save(ctx)
+	require.NoError(t, err)
+	verified, err := svc.VerifyOrderByOutTradeNo(ctx, order.OutTradeNo, order.UserID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusPending, verified.Status)
+	require.Zero(t, calls.Load())
+	require.Zero(t, *credited)
+	prov, err := svc.GetWebhookProvider(ctx, payment.ProviderJianPay, order.OutTradeNo)
+	require.NoError(t, err)
+	n := jianPayFixtureNotification(order)
+	require.NoError(t, svc.ConfirmNotificationUpstream(ctx, prov, n))
+	require.NoError(t, svc.HandlePaymentNotification(ctx, n, payment.ProviderJianPay))
+	require.Equal(t, order.Amount, *credited)
+	fresh, err := svc.entClient.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, "jian-trade", fresh.PaymentTradeNo)
+}
+
 func TestJianPayRoutingAndCredentialProtection(t *testing.T) {
 	svc, order, inst, _, _ := newJianPayFixture(t)
 	ctx := context.Background()
@@ -131,7 +194,7 @@ func TestJianPayRoutingAndCredentialProtection(t *testing.T) {
 	require.NotContains(t, masked, "merchantKey")
 	require.Equal(t, "JP-test", masked["clientNo"])
 	require.NotContains(t, order.ProviderSnapshot, "merchantKey")
-	require.Equal(t, order.OutTradeNo, paymentOrderQueryReference(order, nil))
+	require.Equal(t, order.PaymentTradeNo, paymentOrderQueryReference(order, nil))
 	require.NoError(t, validateProviderRequest(payment.ProviderJianPay, "简付", "alipay,wxpay"))
 	require.Error(t, validateProviderRequest(payment.ProviderJianPay, "简付", "stripe"))
 	repo := &paymentConfigSettingRepoStub{values: map[string]string{SettingPaymentVisibleMethodAlipaySource: VisibleMethodSourceJianPayAlipay, SettingPaymentVisibleMethodWxpaySource: VisibleMethodSourceJianPayWechat}}
