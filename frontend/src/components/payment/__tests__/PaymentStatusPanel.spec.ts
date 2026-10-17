@@ -121,6 +121,30 @@ describe('PaymentStatusPanel', () => {
     vi.useRealTimers()
   })
 
+  it.each(['https://pay.example.com/qr/42', ''])('uses the branded checkout for QR or popup payment (%s)', async (qrCode) => {
+    const wrapper = mount(PaymentStatusPanel, {
+      props: {
+        orderId: 42, qrCode, expiresAt: '2099-01-01T12:30:00Z',
+        paymentType: 'alipay', orderType: 'balance', amount: 12, payAmount: 88, currency: 'CNY',
+      },
+      global: { stubs: usdtStubs },
+    })
+    await flushPromises()
+    const checkout = wrapper.get('[data-test="payment-checkout"]')
+    expect(checkout.text()).toContain('payment.qr.securePay')
+    expect(checkout.get('[data-test="checkout-pay-amount"]').text()).toContain('88.00')
+    expect(checkout.text()).toContain('$12.00')
+    expect(checkout.text()).toContain('payment.qr.waitingPayment')
+    expect(checkout.find('canvas').exists()).toBe(!!qrCode)
+    const cancel = checkout.findAll('button').find(button => button.text() === 'payment.qr.cancelOrder')!
+    await cancel.trigger('click')
+    await flushPromises()
+    expect(cancelOrder).toHaveBeenCalledWith(42)
+    expect(wrapper.text()).toContain('payment.qr.cancelled')
+    expect(wrapper.emitted('success')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it.each([
     ['PENDING', 'pending', 'payment.fmVerifying'],
     ['PAID', 'crediting', 'payment.fmCrediting'],
@@ -336,7 +360,7 @@ describe('PaymentStatusPanel', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('payment.qr.openPayWindow')
 
-    await wrapper.get('button.btn.btn-secondary.text-sm').trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === 'payment.qr.openPayWindow')!.trigger('click')
     expect(openSpy).toHaveBeenCalledWith(
       'https://pay.example.com/session/42',
       'paymentPopup',

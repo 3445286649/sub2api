@@ -102,7 +102,7 @@ describe('PaymentProviderDialog callback URLs', () => {
     const wrapper = mountDialog()
     ;(wrapper.vm as unknown as { reset: (key: string) => void }).reset('jianpay')
     await nextTick()
-    expect(wrapper.findAll('button').filter(button => button.classes().includes('bg-primary-500')).map(button => button.text())).toEqual(['Alipay'])
+    expect(wrapper.findAll('button').filter(button => button.classes().includes('bg-primary-500')).map(button => button.text())).toEqual(['admin.settings.payment.modeQRCode', 'Alipay'])
     expect(wrapper.text()).not.toContain('admin.settings.payment.refundEnabled')
     const provider = providerFactory({ provider_key: 'jianpay', name: '简付', supported_types: ['alipay'], config: {
       clientNo: 'JP-test', merchantKey: 'must-not-populate-secret',
@@ -122,6 +122,25 @@ describe('PaymentProviderDialog callback URLs', () => {
     expect(payload.config).not.toHaveProperty('merchantKey')
     expect(payload.refund_enabled).toBe(false)
     expect(payload.allow_user_refund).toBe(false)
+    wrapper.unmount()
+  })
+  it.each(['jianpay', 'zhifufm'])('saves and restores QR and popup modes for %s', async (providerKey) => {
+    const provider = providerFactory({ provider_key: providerKey, name: 'Fixture', supported_types: ['alipay'], payment_mode: 'popup', config: providerKey === 'jianpay' ? {
+      clientNo: 'JP-test', notifyUrl: 'https://site.test/api/v1/payment/webhook/jianpay', returnUrl: 'https://site.test/payment/result',
+    } : {
+      pid: '123', apiBase: 'https://fm.test/epay', queryBase: 'https://fm.test/api/pay',
+      notifyUrl: 'https://site.test/api/v1/payment/webhook/zhifufm', returnUrl: 'https://site.test/payment/result',
+    } })
+    const wrapper = mountDialog({ editing: provider })
+    ;(wrapper.vm as unknown as { loadProvider: (value: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    const modeButton = (label: string) => wrapper.findAll('button').find(button => button.text() === `admin.settings.payment.${label}`)!
+    expect(modeButton('modePopup').classes()).toContain('bg-primary-500')
+    await wrapper.get('form').trigger('submit')
+    expect((wrapper.emitted('save')?.[0]?.[0] as ProviderInstance).payment_mode).toBe('popup')
+    await modeButton('modeQRCode').trigger('click')
+    await wrapper.get('form').trigger('submit')
+    expect((wrapper.emitted('save')?.[1]?.[0] as ProviderInstance).payment_mode).toBe('qrcode')
     wrapper.unmount()
   })
   it('saves and restores the independent JianPay auto-query switch', async () => {

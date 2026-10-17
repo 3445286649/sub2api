@@ -266,14 +266,20 @@
       />
     </template>
 
-    <!-- QR Code Mode -->
-    <template v-else-if="showQRCode">
-      <div class="card p-6">
-        <div class="flex flex-col items-center space-y-4">
-          <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ scanTitle }}</p>
-          <div :class="['relative rounded-lg border-2 p-4', qrBorderClass]">
-            <canvas ref="qrCanvas" class="mx-auto"></canvas>
-            <!-- Brand logo overlay -->
+    <!-- Shared checkout for QR and popup payments. -->
+    <div v-else class="card cp-payment-checkout mx-auto w-full max-w-[460px] overflow-hidden" data-test="payment-checkout">
+      <PaymentCheckoutHeader :title="showQRCode ? scanTitle : t('payment.qr.payInNewWindowHint')" />
+      <div class="flex flex-col items-center gap-4 px-4 py-5 sm:px-6">
+        <div v-if="props.payAmount != null || props.amount != null" class="text-center">
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</p>
+          <p class="mt-1 text-3xl font-bold tabular-nums text-gray-900 dark:text-white" data-test="checkout-pay-amount">{{ displayPaymentAmount }}</p>
+          <p v-if="props.orderType === 'balance' && props.amount != null" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('payment.orders.amount') }} · {{ formatGatewayAmount(props.amount, 'USD') }}
+          </p>
+        </div>
+        <template v-if="showQRCode">
+          <div :class="['cp-checkout-qr relative max-w-full rounded-2xl border-2 bg-white p-3', qrBorderClass]">
+            <canvas ref="qrCanvas" class="mx-auto max-w-full rounded-lg"></canvas>
             <div v-if="showQrLogo" class="pointer-events-none absolute inset-0 flex items-center justify-center">
               <span :class="['rounded-full p-2 shadow ring-2 ring-white', qrLogoBgClass]">
                 <img :src="qrLogoIcon" alt="" class="h-5 w-5 brightness-0 invert" />
@@ -281,40 +287,27 @@
             </div>
           </div>
           <p v-if="scanHint" class="text-center text-sm text-gray-500 dark:text-gray-400">{{ scanHint }}</p>
-          <button v-if="payUrl" class="btn btn-secondary text-sm" @click="reopenPopup">
-            {{ t('payment.qr.openPayWindow') }}
-          </button>
-        </div>
-      </div>
-      <div class="card p-4 text-center">
-        <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.expiresIn') }}</p>
-        <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
-        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
-      </div>
-      <button class="btn btn-secondary w-full" :disabled="cancelling" @click="handleCancel">
-        {{ cancelling ? t('common.processing') : t('payment.qr.cancelOrder') }}
-      </button>
-    </template>
-
-    <!-- Waiting for Popup/Redirect Mode -->
-    <template v-else>
-      <div class="card p-6">
-        <div class="flex flex-col items-center space-y-4 py-4">
-          <div class="h-10 w-10 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
+        </template>
+        <div v-else class="flex flex-col items-center gap-3 py-3 text-center">
+          <div class="h-10 w-10 animate-spin rounded-full border-4 border-primary-500 border-t-transparent motion-reduce:animate-none"></div>
           <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.payInNewWindowHint') }}</p>
-          <button v-if="payUrl" class="btn btn-secondary text-sm" @click="reopenPopup">
-            {{ t('payment.qr.openPayWindow') }}
-          </button>
+        </div>
+        <div class="w-full text-center">
+          <p class="text-xs font-bold text-gray-400 dark:text-gray-500">{{ t('payment.qr.expiresIn') }}</p>
+          <p class="mt-1 text-3xl font-extrabold tabular-nums text-primary-600 dark:text-primary-400">{{ countdownDisplay }}</p>
+          <p class="mt-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 dark:text-gray-400" role="status">
+            <span class="cp-checkout-pulse h-1.5 w-1.5 rounded-full bg-primary-500" aria-hidden="true"></span>
+            {{ t('payment.qr.waitingPayment') }}
+          </p>
         </div>
       </div>
-      <div class="card p-4 text-center">
-        <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
-        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
+      <div class="flex flex-wrap justify-end gap-2 border-t border-gray-100 px-4 py-3 dark:border-dark-700 sm:px-6">
+        <button v-if="payUrl" class="btn btn-primary text-sm" @click="reopenPopup">{{ t('payment.qr.openPayWindow') }}</button>
+        <button class="btn btn-secondary text-sm" :disabled="cancelling" @click="handleCancel">
+          {{ cancelling ? t('common.processing') : t('payment.qr.cancelOrder') }}
+        </button>
       </div>
-      <button class="btn btn-secondary w-full" :disabled="cancelling" @click="handleCancel">
-        {{ cancelling ? t('common.processing') : t('payment.qr.cancelOrder') }}
-      </button>
-    </template>
+    </div>
   </div>
 </template>
 
@@ -338,6 +331,7 @@ import CryptoTxReceipt from './CryptoTxReceipt.vue'
 import UsdtBscCheckout from './UsdtBscCheckout.vue'
 import CryptoGatewayCheckout from './CryptoGatewayCheckout.vue'
 import FMPaymentReview from './FMPaymentReview.vue'
+import PaymentCheckoutHeader from './PaymentCheckoutHeader.vue'
 import { formatCountdown } from './usdtBsc'
 import QRCode from 'qrcode'
 import alipayIcon from '@/assets/icons/alipay.svg'
@@ -781,6 +775,18 @@ onUnmounted(() => { gatewayDisposed = true; cleanup(); stopUsdtWatch() })
 </script>
 
 <style scoped>
+.cp-payment-checkout { padding: 0; }
+.cp-checkout-qr {
+  box-shadow: 0 0 24px rgb(13 148 136 / 12%);
+}
+.cp-checkout-pulse { animation: cp-checkout-pulse 2s ease infinite; }
+@keyframes cp-checkout-pulse {
+  50% { opacity: 0.35; transform: scale(0.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-checkout-pulse { animation: none; }
+}
+
 /* ============ 支付成功：圆圈弹入 + 对勾描边画出 ============ */
 /* 成功页是用户刚付完钱看到的一屏，动效只做一次、不循环，总时长约 700ms */
 .cp-success-badge {

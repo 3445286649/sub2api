@@ -478,6 +478,7 @@ export default {
       cancelledDesc: '您已取消本次支付',
       waitingPayment: '等待支付...',
       cancelOrder: '取消订单',
+      securePay: '安全支付',
       alipayOpening: '正在打开支付宝',
       alipayContinueInApp: '请在支付宝中完成支付',
       alipayWaitingHint: '支付结果将由服务端确认，本页面会自动更新',

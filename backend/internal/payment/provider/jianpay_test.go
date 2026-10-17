@@ -64,6 +64,38 @@ func TestJianPayCheckoutAndQuery(t *testing.T) {
 	require.Error(t, p.ConfirmNotification(context.Background(), n))
 }
 
+func TestJianPayCheckoutModes(t *testing.T) {
+	for _, mode := range []string{"", "qrcode", "popup"} {
+		for _, method := range []string{payment.TypeAlipay, payment.TypeWxpay} {
+			t.Run(mode+"/"+method, func(t *testing.T) {
+				p, err := NewJianPay("1", map[string]string{"clientNo": "JP-test", "merchantKey": "fixture-key", "notifyUrl": "https://site.test/api/v1/payment/webhook/jianpay", "returnUrl": "https://site.test/payment/result", "paymentMode": mode})
+				require.NoError(t, err)
+				server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body map[string]any
+					require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+					upstreamMethod := "alipay"
+					if method == payment.TypeWxpay {
+						upstreamMethod = "wx"
+					}
+					require.Equal(t, upstreamMethod, body["payMethod"])
+					fmt.Fprintf(w, `{"code":1000,"data":{"clientNo":"JP-test","merchantOrderNo":"local-order","orderId":"upstream-order","amount":100,"status":1,"payMethod":%q,"payUrl":"https://jpay.hzjianban.com/#/pay?orderId=upstream-order"}}`, upstreamMethod)
+				}))
+				defer server.Close()
+				p.apiBase, p.httpClient = server.URL, server.Client()
+				res, err := p.CreatePayment(context.Background(), payment.CreatePaymentRequest{OrderID: "local-order", Amount: "1.00", PaymentType: method})
+				require.NoError(t, err)
+				require.Equal(t, "upstream-order", res.TradeNo)
+				require.Equal(t, "https://jpay.hzjianban.com/#/pay?orderId=upstream-order", res.PayURL)
+				if mode == "popup" {
+					require.Empty(t, res.QRCode)
+				} else {
+					require.Equal(t, res.PayURL, res.QRCode)
+				}
+			})
+		}
+	}
+}
+
 func TestJianPayNotification(t *testing.T) {
 	p := jianPayTestProvider(t)
 	body := map[string]any{"clientNo": "JP-test", "merchantOrderNo": "local-order", "orderId": "upstream-order", "amount": json.Number("1001"), "status": json.Number("2"), "payMethod": "wx", "sign_type": "MD5"}
@@ -158,6 +190,17 @@ func TestJianPayCallbackQuerySettingValidation(t *testing.T) {
 			"notifyUrl": "https://site.test/api/v1/payment/webhook/jianpay", "returnUrl": "https://site.test/payment/result",
 		})
 		if value == "" || value == "true" || value == "false" {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+		}
+	}
+}
+
+func TestJianPayPaymentModeValidation(t *testing.T) {
+	for _, mode := range []string{"", "qrcode", "popup", "redirect", "POPUP", "invalid"} {
+		_, err := NewJianPay("1", map[string]string{"clientNo": "JP-test", "merchantKey": "fixture-key", "notifyUrl": "https://site.test/api/v1/payment/webhook/jianpay", "returnUrl": "https://site.test/payment/result", "paymentMode": mode})
+		if mode == "" || mode == "qrcode" || mode == "popup" {
 			require.NoError(t, err)
 		} else {
 			require.Error(t, err)

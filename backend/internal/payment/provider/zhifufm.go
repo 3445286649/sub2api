@@ -53,6 +53,20 @@ func NewZhifuFM(instanceID string, config map[string]string) (*ZhifuFM, error) {
 func (f *ZhifuFM) Name() string              { return "支付FM" }
 func (f *ZhifuFM) ProviderKey() string       { return payment.ProviderZhifuFM }
 func (f *ZhifuFM) VerifyAfterCallback() bool { return f.config["verifyAfterCallback"] != "false" }
+
+func (f *ZhifuFM) CreatePayment(ctx context.Context, req payment.CreatePaymentRequest) (*payment.CreatePaymentResponse, error) {
+	result, err := f.EasyPay.CreatePayment(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	// Some FM channels return only a hosted checkout URL from mapi.php.
+	// Keep QR mode on our checkout by encoding that URL when no QR is supplied.
+	if f.config["paymentMode"] != paymentModePopup && result.QRCode == "" {
+		result.QRCode = result.PayURL
+	}
+	return result, nil
+}
+
 func (f *ZhifuFM) Refund(context.Context, payment.RefundRequest) (*payment.RefundResponse, error) {
 	return nil, errors.New("FM refunds are not supported")
 }

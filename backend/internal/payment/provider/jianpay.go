@@ -25,14 +25,19 @@ const jianPayDefaultGateway = "https://jpay.hzjianban.com"
 // JianPay uses the native JSON cashier API, not the EasyPay protocol.
 type JianPay struct {
 	apiBase, clientNo, merchantKey, notifyURL, returnURL string
+	paymentMode                                          string
 	httpClient                                           *http.Client
 }
 
 func NewJianPay(_ string, config map[string]string) (*JianPay, error) {
+	if mode := config["paymentMode"]; mode != "" && mode != "qrcode" && mode != "popup" {
+		return nil, errors.New("invalid JianPay payment mode")
+	}
 	if value := config["verifyAfterCallback"]; value != "" && value != "true" && value != "false" {
 		return nil, errors.New("invalid JianPay verification setting")
 	}
 	p := &JianPay{apiBase: strings.TrimRight(strings.TrimSpace(config["apiBase"]), "/"), clientNo: strings.TrimSpace(config["clientNo"]), merchantKey: config["merchantKey"], notifyURL: strings.TrimSpace(config["notifyUrl"]), returnURL: strings.TrimSpace(config["returnUrl"])}
+	p.paymentMode = config["paymentMode"]
 	if p.apiBase == "" {
 		p.apiBase = jianPayDefaultGateway
 	}
@@ -213,7 +218,11 @@ func (p *JianPay) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 	if d.MerchantOrderNo != req.OrderID || d.Amount != cents || *d.Status > 2 || !jianPayHTTPSURL(d.PayURL) || (d.PayMethod != "" && d.PayMethod != method) {
 		return nil, errors.New("JianPay checkout does not match the requested order")
 	}
-	return &payment.CreatePaymentResponse{TradeNo: d.OrderID, PayURL: d.PayURL, QRCode: d.PayURL}, nil
+	result := &payment.CreatePaymentResponse{TradeNo: d.OrderID, PayURL: d.PayURL}
+	if p.paymentMode != "popup" {
+		result.QRCode = d.PayURL
+	}
+	return result, nil
 }
 
 func (p *JianPay) query(ctx context.Context, merchantOrderNo, orderID string) (*jianPayOrder, error) {

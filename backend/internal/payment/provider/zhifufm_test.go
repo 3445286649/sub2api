@@ -87,3 +87,79 @@ func TestZhifuFMCheckoutAndCallbackSignature(t *testing.T) {
 	_, err = p.VerifyNotification(context.Background(), u.RawQuery, nil)
 	require.Error(t, err, "a signed checkout request must not be accepted as a paid callback")
 }
+
+func TestZhifuFMCheckoutModes(t *testing.T) {
+	for _, mode := range []string{"qrcode", "popup"} {
+		for _, method := range []string{payment.TypeAlipay, payment.TypeWxpay} {
+			for _, mobile := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/%s/mobile=%t", mode, method, mobile), func(t *testing.T) {
+					p, err := NewZhifuFM("1", map[string]string{"pid": "123", "pkey": "fixture-secret", "apiBase": "https://fm.test/epay", "queryBase": "https://fm.test/api/pay", "notifyUrl": "https://site.test/api/v1/payment/webhook/zhifufm", "returnUrl": "https://site.test/payment/result", "paymentMode": mode, "cidAlipay": "ali-channel", "cidWxpay": "wx-channel"})
+					require.NoError(t, err)
+					check := func(values url.Values) {
+						params := map[string]string{}
+						for k := range values {
+							params[k] = values.Get(k)
+						}
+						require.Equal(t, easyPaySign(params, "fixture-secret"), values.Get("sign"))
+						require.Equal(t, method, values.Get("type"))
+						require.Equal(t, "sub2_test", values.Get("out_trade_no"))
+						require.Equal(t, "18.00", values.Get("money"))
+						require.Equal(t, p.config["notifyUrl"], values.Get("notify_url"))
+						require.Equal(t, "https://site.test/payment/result?order_id=1", values.Get("return_url"))
+						cid := "ali-channel"
+						if method == payment.TypeWxpay {
+							cid = "wx-channel"
+						}
+						require.Equal(t, cid, values.Get("cid"))
+						if mobile {
+							require.Equal(t, "mobile", values.Get("device"))
+						}
+					}
+					calls := 0
+					server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						calls++
+						require.Equal(t, "/epay/mapi.php", r.URL.Path)
+						require.NoError(t, r.ParseForm())
+						check(r.PostForm)
+						fmt.Fprint(w, `{"code":1,"trade_no":"fm123","qrcode":"/qr/fm123","payurl":"/pay/fm123","payurl2":"/mobile/fm123"}`)
+					}))
+					defer server.Close()
+					p.config["apiBase"], p.httpClient = server.URL+"/epay", server.Client()
+					res, err := p.CreatePayment(context.Background(), payment.CreatePaymentRequest{OrderID: "sub2_test", PaymentType: method, Amount: "18.00", Subject: "Recharge", IsMobile: mobile, ReturnURL: "https://site.test/payment/result?order_id=1"})
+					require.NoError(t, err)
+					if mode == "popup" {
+						require.Zero(t, calls)
+						require.Empty(t, res.QRCode)
+						u, err := url.Parse(res.PayURL)
+						require.NoError(t, err)
+						require.Equal(t, "/epay/submit.php", u.Path)
+						check(u.Query())
+					} else {
+						require.Equal(t, 1, calls)
+						require.Equal(t, server.URL+"/qr/fm123", res.QRCode)
+						payPath := "/pay/fm123"
+						if mobile {
+							payPath = "/mobile/fm123"
+						}
+						require.Equal(t, server.URL+payPath, res.PayURL)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestZhifuFMQRCodeFallsBackToHostedCheckout(t *testing.T) {
+	p, err := NewZhifuFM("1", map[string]string{"pid": "123", "pkey": "fixture-secret", "apiBase": "https://fm.test/epay", "queryBase": "https://fm.test/api/pay", "notifyUrl": "https://site.test/api/v1/payment/webhook/zhifufm", "returnUrl": "https://site.test/payment/result", "paymentMode": "qrcode"})
+	require.NoError(t, err)
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/epay/mapi.php", r.URL.Path)
+		fmt.Fprint(w, `{"code":1,"trade_no":"fm123","payurl":"https://cashier.fm.test/pay?orderId=fm123"}`)
+	}))
+	defer server.Close()
+	p.config["apiBase"], p.httpClient = server.URL+"/epay", server.Client()
+	result, err := p.CreatePayment(context.Background(), payment.CreatePaymentRequest{OrderID: "sub2_test", PaymentType: payment.TypeAlipay, Amount: "1.00", ReturnURL: "https://site.test/payment/result?order_id=1"})
+	require.NoError(t, err)
+	require.Equal(t, "https://cashier.fm.test/pay?orderId=fm123", result.QRCode)
+	require.Equal(t, result.PayURL, result.QRCode)
+}

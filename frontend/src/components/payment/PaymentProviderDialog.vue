@@ -360,13 +360,13 @@ function defaultPaymentMode(providerKey: string): string {
 /** Provider keys whose admin UI exposes a payment_mode selector.
  * Other providers always send payment_mode = ''. */
 function providerSupportsPaymentMode(providerKey: string): boolean {
-  return ['easypay', 'zhifufm'].includes(providerKey) || providerKey === 'alipay'
+  return ['easypay', 'zhifufm', 'jianpay'].includes(providerKey) || providerKey === 'alipay'
 }
 
 /** Allowed payment_mode values per provider. Used to coerce DB values
  * from a different provider (or stale data) back to the default. */
 function isValidPaymentMode(providerKey: string, mode: string): boolean {
-  if (['easypay', 'zhifufm'].includes(providerKey)) {
+  if (['easypay', 'zhifufm', 'jianpay'].includes(providerKey)) {
     return mode === PAYMENT_MODE_QRCODE || mode === PAYMENT_MODE_POPUP
   }
   if (providerKey === 'alipay') {

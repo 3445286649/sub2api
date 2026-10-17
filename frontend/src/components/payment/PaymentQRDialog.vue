@@ -1,11 +1,24 @@
 <template>
   <BaseDialog :show="show" :title="dialogTitle" width="narrow" @close="handleClose">
+    <!-- ── Branded header ── -->
+    <template #header="{ titleId }">
+      <PaymentCheckoutHeader :title="dialogTitle" :title-id="titleId">
+        <template #actions>
+          <button class="cp-pay-header__close" :aria-label="t('common.close')" @click="handleClose">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </template>
+      </PaymentCheckoutHeader>
+    </template>
+
     <FMPaymentReview v-if="paymentReviewStatus" :status="paymentReviewStatus" :order-no="props.outTradeNo || `#${props.orderId}`" />
     <!-- QR Code + Polling State -->
     <div v-else-if="!success" class="flex flex-col items-center space-y-4">
       <!-- QR Code mode -->
       <template v-if="qrUrl">
-        <div class="rounded-2xl bg-white p-4 shadow-sm dark:bg-dark-800">
+        <div class="rounded-2xl bg-white p-4 shadow-sm dark:bg-dark-800 cp-qr-frame">
           <canvas ref="qrCanvas" class="mx-auto"></canvas>
         </div>
         <p v-if="scanHint" class="text-center text-sm text-gray-500 dark:text-gray-400">
@@ -26,10 +39,17 @@
       <div v-if="expired" class="text-center">
         <p class="text-lg font-medium text-red-500">{{ t('payment.qr.expired') }}</p>
       </div>
-      <div v-else class="text-center">
-        <p class="text-sm text-gray-500 dark:text-gray-400">{{ qrUrl ? t('payment.qr.expiresIn') : '' }}</p>
-        <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
-        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
+      <div v-else class="w-full text-center cp-countdown">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          {{ t('payment.qr.expiresIn') }}
+        </p>
+        <p class="mt-1 text-3xl font-extrabold tabular-nums text-primary-600 dark:text-primary-400">
+          {{ countdownDisplay }}
+        </p>
+        <p class="mt-1 flex items-center justify-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+          <span class="cp-pulse-dot"></span>
+          {{ t('payment.qr.waitingPayment') }}
+        </p>
       </div>
     </div>
     <!-- Success State -->
@@ -75,6 +95,7 @@
 import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import PaymentCheckoutHeader from './PaymentCheckoutHeader.vue'
 import Icon from '@/components/icons/Icon.vue'
 import FMPaymentReview from './FMPaymentReview.vue'
 import { usePaymentStore } from '@/stores/payment'
@@ -319,3 +340,56 @@ watch(qrUrl, () => renderQR())
 
 onUnmounted(() => cleanup())
 </script>
+
+<style scoped>
+/* ── Branded payment header ── */
+.cp-pay-header__close {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: theme('colors.gray.400');
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+}
+.cp-pay-header__close:hover {
+  background: theme('colors.gray.100');
+  color: theme('colors.gray.700');
+}
+.dark .cp-pay-header__close:hover {
+  background: theme('colors.dark.700');
+  color: theme('colors.gray.200');
+}
+
+/* ── QR frame ring glow ── */
+.cp-qr-frame {
+  box-shadow: 0 0 0 1.5px theme('colors.primary.600'), 0 0 28px rgba(13, 148, 136, 0.14);
+  transition: box-shadow 0.3s;
+}
+.dark .cp-qr-frame {
+  box-shadow: 0 0 0 1.5px theme('colors.primary.400'), 0 0 28px rgba(45, 212, 191, 0.18);
+}
+
+/* ── Countdown block ── */
+.cp-countdown {
+  width: 100%;
+}
+.cp-pulse-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: theme('colors.primary.500');
+  border-radius: 50%;
+  animation: cpPulseDot 2s ease infinite;
+}
+@keyframes cpPulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.35; transform: scale(0.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-pulse-dot { animation: none; }
+}
+</style>

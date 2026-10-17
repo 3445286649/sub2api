@@ -212,6 +212,9 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 }
 
 func (s *PaymentConfigService) createProviderInstance(ctx context.Context, req CreateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
+	if err := validateJianPayPaymentMode(req.ProviderKey, req.PaymentMode); err != nil {
+		return nil, err
+	}
 	if (req.ProviderKey == payment.ProviderBepusdt || req.ProviderKey == payment.ProviderZhifuFM || req.ProviderKey == payment.ProviderJianPay) && (req.RefundEnabled || req.AllowUserRefund) {
 		return nil, infraerrors.BadRequest("REFUND_UNSUPPORTED", "this provider does not support refunds")
 	}
@@ -246,6 +249,13 @@ func (s *PaymentConfigService) createProviderInstance(ctx context.Context, req C
 		SetSortOrder(req.SortOrder).SetLimits(req.Limits).SetRefundEnabled(req.RefundEnabled).
 		SetAllowUserRefund(allowUserRefund).
 		Save(ctx)
+}
+
+func validateJianPayPaymentMode(providerKey, mode string) error {
+	if providerKey == payment.ProviderJianPay && mode != "" && mode != "qrcode" && mode != "popup" {
+		return infraerrors.BadRequest("VALIDATION_ERROR", "JianPay payment mode must be qrcode or popup")
+	}
+	return nil
 }
 
 func validateProviderRequest(providerKey, name, supportedTypes string) error {
@@ -370,6 +380,11 @@ func (s *PaymentConfigService) updateProviderInstance(ctx context.Context, id in
 	current, err := s.entClient.PaymentProviderInstance.Get(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("load provider instance: %w", err)
+	}
+	if req.PaymentMode != nil {
+		if err := validateJianPayPaymentMode(current.ProviderKey, *req.PaymentMode); err != nil {
+			return nil, err
+		}
 	}
 	var pendingOrderCount *int
 	getPendingOrderCount := func() (int, error) {

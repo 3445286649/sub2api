@@ -173,6 +173,23 @@ describe('decidePaymentLaunch', () => {
     expect(decision.paymentState.receiveAddress).toBe('0x3b210bdc924c685fDd10Ae96b7f95D0E14536106')
   })
 
+  it.each(['alipay', 'wxpay'])('preserves desktop modes and mobile cashier handoff for %s', (method) => {
+    for (const isMobile of [false, true]) {
+      for (const mode of ['qrcode', 'popup']) {
+        const decision = decidePaymentLaunch(createOrderResult({
+          pay_url: 'https://cashier.example.test/pay/order',
+          qr_code: mode === 'qrcode' ? 'https://cashier.example.test/pay/order' : '',
+          payment_mode: mode,
+          resume_token: 'resume-fixture',
+        }), { visibleMethod: method, orderType: 'balance', isMobile })
+        expect(decision.kind).toBe(mode === 'qrcode' && !isMobile ? 'qr_waiting' : 'redirect_waiting')
+        expect(decision.recovery.paymentMode).toBe(mode)
+        expect(decision.recovery.payUrl).toBe('https://cashier.example.test/pay/order')
+        expect(decision.recovery.resumeToken).toBe('resume-fixture')
+      }
+    }
+  })
+
   it('keeps hosted redirect metadata for recovery flows', () => {
     const decision = decidePaymentLaunch(createOrderResult({
       pay_url: 'https://pay.example.com/session/abc',

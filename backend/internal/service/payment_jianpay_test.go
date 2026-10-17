@@ -65,6 +65,30 @@ func jianPayFixtureNotification(order *dbent.PaymentOrder) *payment.PaymentNotif
 	return &payment.PaymentNotification{OrderID: order.OutTradeNo, TradeNo: "jian-trade", Amount: 80, Status: payment.NotificationStatusSuccess, Metadata: map[string]string{"clientNo": "JP-test", "merchantOrderNo": order.OutTradeNo, "payMethod": "alipay", "amount_cents": "8000"}}
 }
 
+func TestJianPayPaymentModePersistence(t *testing.T) {
+	ctx := context.Background()
+	svc := NewPaymentConfigService(newPaymentConfigServiceTestClient(t), nil, []byte(strings.Repeat("k", 32)))
+	_, err := svc.CreateProviderInstance(ctx, CreateProviderInstanceRequest{ProviderKey: payment.ProviderJianPay, Name: "Fixture", PaymentMode: "redirect"})
+	require.Error(t, err)
+	for _, initial := range []string{"", "qrcode", "popup"} {
+		inst, err := svc.CreateProviderInstance(ctx, CreateProviderInstanceRequest{ProviderKey: payment.ProviderJianPay, Name: "Fixture", SupportedTypes: []string{payment.TypeAlipay}, PaymentMode: initial})
+		require.NoError(t, err)
+		require.Equal(t, initial, inst.PaymentMode)
+		for _, mode := range []string{"popup", "qrcode", "invalid"} {
+			updated, err := svc.UpdateProviderInstance(ctx, inst.ID, UpdateProviderInstanceRequest{PaymentMode: &mode})
+			if mode == "invalid" {
+				require.Error(t, err)
+				saved, err := svc.entClient.PaymentProviderInstance.Get(ctx, inst.ID)
+				require.NoError(t, err)
+				require.Equal(t, "qrcode", saved.PaymentMode)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, mode, updated.PaymentMode)
+			}
+		}
+	}
+}
+
 func TestJianPayQueryAndCallbackFulfillOnce(t *testing.T) {
 	svc, order, inst, credited, _ := newJianPayFixture(t)
 	ctx := context.Background()
