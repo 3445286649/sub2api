@@ -436,6 +436,7 @@ export default {
     fmReviewRequired: '支付需人工复核，当前尚未入账，请联系管理员并提供订单号。',
     methods: {
       zhifufm: '支付FM',
+      jianpay: '简付',
       easypay: '易支付',
       alipay: '支付宝',
       wxpay: '微信支付',

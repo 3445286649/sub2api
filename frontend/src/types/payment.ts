@@ -19,7 +19,7 @@ export type OrderStatus =
   | 'REFUNDED'
   | 'REFUND_FAILED'
 
-export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'zhifufm' | 'airwallex' | 'usdt_bsc' | 'usdt_gateway'
+export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'zhifufm' | 'jianpay' | 'airwallex' | 'usdt_bsc' | 'usdt_gateway'
 
 export type CryptoNetwork = 'bsc_mainnet' | 'tron_mainnet'
 

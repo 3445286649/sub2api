@@ -43,7 +43,7 @@ const error = ref('')
 function options(method: PaymentVisibleMethod) {
   return getPaymentVisibleMethodSourceOptions(method).filter(option => {
     if (!option.value || sources[method] === option.value) return true
-    const providerKey = option.value.startsWith('zhifufm') ? 'zhifufm' : option.value.startsWith('easypay') ? 'easypay' : method
+    const providerKey = option.value.startsWith('jianpay') ? 'jianpay' : option.value.startsWith('zhifufm') ? 'zhifufm' : option.value.startsWith('easypay') ? 'easypay' : method
     return props.providers.some(p => p.enabled && p.provider_key === providerKey && p.supported_types.includes(method))
   })
 }

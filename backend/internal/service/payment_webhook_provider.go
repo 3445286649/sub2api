@@ -66,6 +66,9 @@ func (s *PaymentService) GetWebhookProviders(ctx context.Context, providerKey, o
 		}
 	}
 
+	if strings.TrimSpace(providerKey) == payment.ProviderJianPay {
+		return nil, fmt.Errorf("JianPay notification must match an existing order and its provider instance")
+	}
 	if strings.TrimSpace(providerKey) == payment.TypeWxpay {
 		return s.getEnabledWebhookProvidersByKey(ctx, providerKey)
 	}

@@ -13,6 +13,9 @@ describe('admin settings payment visible method helpers', () => {
     expect(normalizePaymentVisibleMethodSource('alipay', 'zhifufm')).toBe('zhifufm_alipay')
     expect(normalizePaymentVisibleMethodSource('wxpay', 'zhifufm')).toBe('zhifufm_wxpay')
     expect(normalizePaymentVisibleMethodSource('alipay', 'zhifufm_wxpay')).toBe('')
+    expect(normalizePaymentVisibleMethodSource('alipay', 'jianpay')).toBe('jianpay_alipay')
+    expect(normalizePaymentVisibleMethodSource('wxpay', 'jianpay')).toBe('jianpay_wxpay')
+    expect(normalizePaymentVisibleMethodSource('alipay', 'jianpay_wxpay')).toBe('')
 
     expect(normalizePaymentVisibleMethodSource('wxpay', 'official')).toBe('official_wxpay')
     expect(normalizePaymentVisibleMethodSource('wxpay', 'wechat')).toBe('official_wxpay')
@@ -44,6 +47,7 @@ describe('admin settings payment visible method helpers', () => {
         labelEn: 'EasyPay Alipay',
       },
       { value: 'zhifufm_alipay', labelZh: '支付FM 支付宝', labelEn: 'FM Alipay' },
+      { value: 'jianpay_alipay', labelZh: '简付 支付宝', labelEn: 'JianPay Alipay' },
     ])
 
     expect(getPaymentVisibleMethodSourceOptions('wxpay')).toEqual([
@@ -63,6 +67,7 @@ describe('admin settings payment visible method helpers', () => {
         labelEn: 'EasyPay WeChat Pay',
       },
       { value: 'zhifufm_wxpay', labelZh: '支付FM 微信', labelEn: 'FM WeChat Pay' },
+      { value: 'jianpay_wxpay', labelZh: '简付 微信', labelEn: 'JianPay WeChat Pay' },
     ])
   })
 })

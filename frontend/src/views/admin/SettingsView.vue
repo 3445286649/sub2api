@@ -8908,7 +8908,7 @@
             v-model:notice="form.payment_recharge_bonus_notice"
           />
 
-          <FMPaymentRouting v-if="form.payment_enabled && providers.some(p => p.provider_key === 'zhifufm')" :providers="providers" />
+          <FMPaymentRouting v-if="form.payment_enabled && providers.some(p => ['zhifufm', 'jianpay'].includes(p.provider_key))" :providers="providers" />
 
           <!-- Provider Management -->
           <PaymentProviderList
@@ -13203,6 +13203,7 @@ async function saveBetaPolicySettings() {
 const allPaymentTypes = computed(() => [
   { value: "easypay", label: t("payment.methods.easypay") },
   { value: "zhifufm", label: t("payment.methods.zhifufm") },
+  { value: "jianpay", label: t("payment.methods.jianpay") },
   { value: "alipay", label: t("payment.methods.alipay") },
   { value: "wxpay", label: t("payment.methods.wxpay") },
   { value: "stripe", label: t("payment.methods.stripe") },
@@ -13276,6 +13277,7 @@ const providerDialogRef = ref<InstanceType<
 const providerKeyOptions = computed(() => [
   { value: "easypay", label: t("admin.settings.payment.providerEasypay") },
   { value: "zhifufm", label: t("admin.settings.payment.providerZhifufm") },
+  { value: "jianpay", label: t("admin.settings.payment.providerJianpay") },
   { value: "alipay", label: t("admin.settings.payment.providerAlipay") },
   { value: "wxpay", label: t("admin.settings.payment.providerWxpay") },
   { value: "stripe", label: t("admin.settings.payment.providerStripe") },
@@ -13363,7 +13365,7 @@ function getProviderVisibleMethods(
         }
       });
     }
-  } else if (["easypay", "zhifufm"].includes(provider.provider_key)) {
+  } else if (["easypay", "zhifufm", "jianpay"].includes(provider.provider_key)) {
     supportedTypes.forEach(addMethod);
   }
 
@@ -13373,14 +13375,14 @@ function getProviderVisibleMethods(
 function findProviderEnablementConflict(
   candidate: ProviderEnablementCandidate,
 ): { method: "alipay" | "wxpay"; conflicting: ProviderInstance } | null {
-  if (candidate.provider_key === "zhifufm") return null;
+  if (["zhifufm", "jianpay"].includes(candidate.provider_key)) return null;
   const claimedMethods = getProviderVisibleMethods(candidate);
   if (claimedMethods.length === 0) {
     return null;
   }
 
   for (const other of providers.value) {
-    if (other.id === candidate.id || !other.enabled || other.provider_key === "zhifufm") {
+    if (other.id === candidate.id || !other.enabled || ["zhifufm", "jianpay"].includes(other.provider_key)) {
       continue;
     }
 

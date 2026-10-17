@@ -9,6 +9,21 @@ vi.mock('@/api/admin/payment', () => ({ adminPaymentAPI: { getConfig: vi.fn(), u
 vi.mock('@/api/client', () => ({ apiClient: {} }))
 
 describe('FM payment routing', () => {
+  it('offers JianPay without FM and keeps unavailable WeChat hidden', async () => {
+    vi.mocked(adminPaymentAPI.getConfig).mockResolvedValue({ data: { payment_visible_method_alipay_source: 'jianpay_alipay', payment_visible_method_wxpay_source: '' } } as never)
+    vi.mocked(adminPaymentAPI.updateConfig).mockResolvedValue({} as never)
+    const providers = [{ provider_key: 'jianpay', enabled: true, supported_types: ['alipay'] }] as ProviderInstance[]
+    const wrapper = mount(FMPaymentRouting, { props: { providers } })
+    await flushPromises()
+    expect(wrapper.get('#fm-source-alipay').text()).toContain('简付 支付宝')
+    expect(wrapper.get('#fm-source-wxpay').text()).not.toContain('简付 微信')
+    await wrapper.get('form').trigger('submit')
+    expect(adminPaymentAPI.updateConfig).toHaveBeenLastCalledWith(expect.objectContaining({ payment_visible_method_alipay_source: 'jianpay_alipay' }))
+    await wrapper.setProps({ providers: [{ ...providers[0], supported_types: ['alipay', 'wxpay'] }] as ProviderInstance[] })
+    expect(wrapper.get('#fm-source-wxpay').text()).toContain('简付 微信')
+    wrapper.unmount()
+    vi.clearAllMocks()
+  })
   it('loads without changing routing and saves only selected payment sources', async () => {
     vi.mocked(adminPaymentAPI.getConfig).mockResolvedValue({ data: { payment_visible_method_alipay_source: 'easypay_alipay', payment_visible_method_wxpay_source: 'zhifufm_wxpay' } } as never)
     vi.mocked(adminPaymentAPI.updateConfig).mockResolvedValue({} as never)

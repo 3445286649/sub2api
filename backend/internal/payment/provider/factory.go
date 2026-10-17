@@ -9,6 +9,8 @@ import (
 // CreateProvider creates a Provider from a provider key, instance ID and decrypted config.
 func CreateProvider(providerKey string, instanceID string, config map[string]string) (payment.Provider, error) {
 	switch providerKey {
+	case payment.ProviderJianPay:
+		return NewJianPay(instanceID, config)
 	case payment.ProviderZhifuFM:
 		return NewZhifuFM(instanceID, config)
 	case payment.TypeEasyPay:

@@ -114,6 +114,7 @@ var pendingOrderStatuses = []string{
 var providerSensitiveConfigFields = map[string]map[string]struct{}{
 	payment.TypeEasyPay:     {"pkey": {}},
 	payment.ProviderZhifuFM: {"pkey": {}},
+	payment.ProviderJianPay: {"merchantkey": {}},
 	payment.TypeAlipay:      {"privatekey": {}, "publickey": {}, "alipaypublickey": {}},
 	payment.TypeWxpay:       {"privatekey": {}, "apiv3key": {}, "publickey": {}},
 	payment.TypeStripe:      {"secretkey": {}, "webhooksecret": {}},
@@ -129,6 +130,7 @@ var providerSensitiveConfigFields = map[string]map[string]struct{}{
 var providerPendingOrderProtectedConfigFields = map[string]map[string]struct{}{
 	payment.TypeEasyPay:     {"pkey": {}, "pid": {}},
 	payment.ProviderZhifuFM: {"pkey": {}, "pid": {}, "apibase": {}, "querybase": {}, "verifyaftercallback": {}},
+	payment.ProviderJianPay: {"merchantkey": {}, "clientno": {}, "apibase": {}},
 	payment.TypeAlipay:      {"privatekey": {}, "publickey": {}, "alipaypublickey": {}, "appid": {}},
 	payment.TypeWxpay:       {"privatekey": {}, "apiv3key": {}, "publickey": {}, "appid": {}, "mpappid": {}, "mchid": {}, "publickeyid": {}, "certserial": {}},
 	payment.TypeStripe:      {"secretkey": {}, "webhooksecret": {}, "currency": {}},
@@ -185,7 +187,7 @@ func (s *PaymentConfigService) countPendingOrdersByPlan(ctx context.Context, pla
 
 var validProviderKeys = map[string]bool{
 	payment.TypeEasyPay: true, payment.TypeAlipay: true, payment.TypeWxpay: true, payment.TypeStripe: true, payment.TypeAirwallex: true, payment.TypeUSDTBSC: true,
-	payment.ProviderBepusdt: true, payment.ProviderZhifuFM: true,
+	payment.ProviderBepusdt: true, payment.ProviderZhifuFM: true, payment.ProviderJianPay: true,
 }
 
 func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req CreateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
@@ -210,7 +212,7 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 }
 
 func (s *PaymentConfigService) createProviderInstance(ctx context.Context, req CreateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
-	if (req.ProviderKey == payment.ProviderBepusdt || req.ProviderKey == payment.ProviderZhifuFM) && (req.RefundEnabled || req.AllowUserRefund) {
+	if (req.ProviderKey == payment.ProviderBepusdt || req.ProviderKey == payment.ProviderZhifuFM || req.ProviderKey == payment.ProviderJianPay) && (req.RefundEnabled || req.AllowUserRefund) {
 		return nil, infraerrors.BadRequest("REFUND_UNSUPPORTED", "this provider does not support refunds")
 	}
 	typesStr := joinTypes(req.SupportedTypes)
@@ -252,6 +254,13 @@ func validateProviderRequest(providerKey, name, supportedTypes string) error {
 	}
 	if !validProviderKeys[providerKey] {
 		return infraerrors.BadRequest("VALIDATION_ERROR", fmt.Sprintf("invalid provider key: %s", providerKey))
+	}
+	if providerKey == payment.ProviderJianPay {
+		for _, method := range splitTypes(supportedTypes) {
+			if method != payment.TypeAlipay && method != payment.TypeWxpay {
+				return infraerrors.BadRequest("VALIDATION_ERROR", "JianPay only supports alipay and wxpay")
+			}
+		}
 	}
 	if providerKey == payment.ProviderBepusdt {
 		for _, entry := range splitTypes(supportedTypes) {
@@ -334,7 +343,7 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 	if err != nil {
 		return nil, err
 	}
-	if !isCryptoProviderKey(inst.ProviderKey) {
+	if !isCryptoProviderKey(inst.ProviderKey) && inst.ProviderKey != payment.ProviderJianPay {
 		return s.updateProviderInstance(ctx, id, req)
 	}
 	tx, err := s.entClient.Tx(ctx)
@@ -398,6 +407,15 @@ func (s *PaymentConfigService) updateProviderInstance(ctx context.Context, id in
 		if err != nil {
 			return nil, err
 		}
+		if current.ProviderKey == payment.ProviderJianPay && hasPendingOrderProtectedConfigChange(current.ProviderKey, currentConfig, mergedConfig) {
+			count, err := s.countProviderHistory(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if count > 0 {
+				return nil, infraerrors.Conflict("PROVIDER_HISTORY_FROZEN", "JianPay merchant credentials are referenced by orders; create a new instance")
+			}
+		}
 		if isCryptoProviderKey(current.ProviderKey) && !reflect.DeepEqual(currentConfig, mergedConfig) {
 			count, e := s.countProviderHistory(ctx, id)
 			if e != nil {
@@ -427,7 +445,7 @@ func (s *PaymentConfigService) updateProviderInstance(ctx context.Context, id in
 			}
 		}
 	}
-	if req.Enabled != nil && !*req.Enabled && !isCryptoProviderKey(current.ProviderKey) && current.ProviderKey != payment.ProviderZhifuFM {
+	if req.Enabled != nil && !*req.Enabled && !isCryptoProviderKey(current.ProviderKey) && current.ProviderKey != payment.ProviderZhifuFM && current.ProviderKey != payment.ProviderJianPay {
 		count, err := getPendingOrderCount()
 		if err != nil {
 			return nil, err
@@ -464,7 +482,7 @@ func (s *PaymentConfigService) updateProviderInstance(ctx context.Context, id in
 			return nil, err
 		}
 	}
-	if (current.ProviderKey == payment.ProviderBepusdt || current.ProviderKey == payment.ProviderZhifuFM) && ((req.RefundEnabled != nil && *req.RefundEnabled) || (req.AllowUserRefund != nil && *req.AllowUserRefund)) {
+	if (current.ProviderKey == payment.ProviderBepusdt || current.ProviderKey == payment.ProviderZhifuFM || current.ProviderKey == payment.ProviderJianPay) && ((req.RefundEnabled != nil && *req.RefundEnabled) || (req.AllowUserRefund != nil && *req.AllowUserRefund)) {
 		return nil, infraerrors.BadRequest("REFUND_UNSUPPORTED", "this provider does not support refunds")
 	}
 	u := s.entClient.PaymentProviderInstance.UpdateOneID(id)
@@ -614,7 +632,7 @@ func (s *PaymentConfigService) DeleteProviderInstance(ctx context.Context, id in
 	if loadErr != nil {
 		return loadErr
 	}
-	if isCryptoProviderKey(inst.ProviderKey) {
+	if isCryptoProviderKey(inst.ProviderKey) || inst.ProviderKey == payment.ProviderJianPay {
 		tx, err := s.entClient.Tx(ctx)
 		if err != nil {
 			return err
@@ -630,7 +648,7 @@ func (s *PaymentConfigService) DeleteProviderInstance(ctx context.Context, id in
 			return err
 		}
 		if count > 0 {
-			return infraerrors.Conflict("PROVIDER_HISTORY_FROZEN", "crypto provider is referenced by historical orders and cannot be deleted")
+			return infraerrors.Conflict("PROVIDER_HISTORY_FROZEN", "payment provider is referenced by historical orders and cannot be deleted; disable it instead")
 		}
 		if err = tx.PaymentProviderInstance.DeleteOneID(id).Exec(ctx); err != nil {
 			return err

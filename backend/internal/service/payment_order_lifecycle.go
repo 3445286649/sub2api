@@ -207,7 +207,7 @@ func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.Paym
 			resp = retriedResp
 		}
 		notificationTradeNo := o.PaymentTradeNo
-		if upstreamTradeNo := strings.TrimSpace(resp.TradeNo); prov.ProviderKey() == payment.TypeUSDTBSC {
+		if upstreamTradeNo := strings.TrimSpace(resp.TradeNo); prov.ProviderKey() == payment.TypeUSDTBSC || prov.ProviderKey() == payment.ProviderJianPay {
 			if upstreamTradeNo != "" {
 				notificationTradeNo = upstreamTradeNo
 			}
@@ -224,6 +224,9 @@ func (s *PaymentService) checkPaidWithOptions(ctx context.Context, o *dbent.Paym
 		}
 		if err := s.handlePaymentNotification(ctx, &payment.PaymentNotification{TradeNo: notificationTradeNo, OrderID: o.OutTradeNo, Amount: resp.Amount, Status: payment.ProviderStatusSuccess, Metadata: resp.Metadata}, prov.ProviderKey(), true); err != nil {
 			slog.Error("fulfillment failed during checkPaid", "orderID", o.ID, "error", err)
+			if prov.ProviderKey() == payment.ProviderJianPay {
+				return ""
+			}
 			// Still return already_paid — order was paid, fulfillment can be retried
 		}
 		return checkPaidResultAlreadyPaid
@@ -278,7 +281,7 @@ func paymentOrderQueryReference(order *dbent.PaymentOrder, prov payment.Provider
 	}
 
 	switch payment.GetBasePaymentType(providerKey) {
-	case payment.TypeAlipay, payment.TypeEasyPay, payment.TypeWxpay, payment.ProviderZhifuFM:
+	case payment.TypeAlipay, payment.TypeEasyPay, payment.TypeWxpay, payment.ProviderZhifuFM, payment.ProviderJianPay:
 		return strings.TrimSpace(order.OutTradeNo)
 	default:
 		if tradeNo := strings.TrimSpace(order.PaymentTradeNo); tradeNo != "" {

@@ -375,6 +375,7 @@ export default {
     fmReviewRequired: 'Payment needs review and has not been credited. Contact support with your order number.',
     methods: {
       zhifufm: 'Payment FM',
+      jianpay: 'JianPay',
       easypay: 'EasyPay',
       alipay: 'Alipay',
       wxpay: 'WeChat Pay',

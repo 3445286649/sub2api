@@ -39,6 +39,7 @@ export interface CallbackPaths {
 export const PROVIDER_SUPPORTED_TYPES: Record<string, string[]> = {
   easypay: ['alipay', 'wxpay'],
   zhifufm: ['alipay', 'wxpay'],
+  jianpay: ['alipay', 'wxpay'],
   alipay: ['alipay'],
   wxpay: ['wxpay'],
   stripe: ['card', 'alipay', 'wxpay', 'link'],
@@ -110,6 +111,7 @@ export function getPaymentPopupFeatures(): string {
 export const WEBHOOK_PATHS: Record<string, string> = {
   easypay: '/api/v1/payment/webhook/easypay',
   zhifufm: '/api/v1/payment/webhook/zhifufm',
+  jianpay: '/api/v1/payment/webhook/jianpay',
   alipay: '/api/v1/payment/webhook/alipay',
   wxpay: '/api/v1/payment/webhook/wxpay',
   stripe: '/api/v1/payment/webhook/stripe',
@@ -123,6 +125,7 @@ export const RETURN_PATH = '/payment/result'
 export const PROVIDER_CALLBACK_PATHS: Record<string, CallbackPaths> = {
   easypay: { notifyUrl: WEBHOOK_PATHS.easypay, returnUrl: RETURN_PATH },
   zhifufm: { notifyUrl: WEBHOOK_PATHS.zhifufm, returnUrl: RETURN_PATH },
+  jianpay: { notifyUrl: WEBHOOK_PATHS.jianpay, returnUrl: RETURN_PATH },
   alipay: { notifyUrl: WEBHOOK_PATHS.alipay, returnUrl: RETURN_PATH },
   wxpay: { notifyUrl: WEBHOOK_PATHS.wxpay },
   // stripe: 不需要回调 URL 配置，Webhook 单独配置。
@@ -131,6 +134,12 @@ export const PROVIDER_CALLBACK_PATHS: Record<string, CallbackPaths> = {
 
 /** Per-provider config fields (excludes notifyUrl/returnUrl which are handled separately). */
 export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
+  jianpay: [
+    { key: 'clientNo', label: '', sensitive: false },
+    { key: 'merchantKey', label: '', sensitive: true },
+    { key: 'apiBase', label: '', sensitive: false, defaultValue: 'https://jpay.hzjianban.com', hintKey: 'admin.settings.payment.jianpayGatewayHint' },
+    { key: 'verifyAfterCallback', label: '', sensitive: false, defaultValue: 'true', hintKey: 'admin.settings.payment.jianpayVerifyHint', options: [{ value: 'true', label: 'On' }, { value: 'false', label: 'Off' }] },
+  ],
   bepusdt: [
     { key: 'apiUrl', label: 'API URL', sensitive: false },
     { key: 'merchantId', label: 'Merchant ID', sensitive: false },

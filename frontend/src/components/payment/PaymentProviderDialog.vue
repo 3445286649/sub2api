@@ -32,8 +32,8 @@
       <!-- Toggles + Payment mode + Supported types (single row) -->
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
         <ToggleSwitch :label="t('common.enabled')" :checked="form.enabled" @toggle="form.enabled = !form.enabled" />
-        <ToggleSwitch v-if="!['bepusdt', 'zhifufm'].includes(form.provider_key)" :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
-        <ToggleSwitch v-if="!['bepusdt', 'zhifufm'].includes(form.provider_key) && form.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="form.allow_user_refund" @toggle="form.allow_user_refund = !form.allow_user_refund" />
+        <ToggleSwitch v-if="!['bepusdt', 'zhifufm', 'jianpay'].includes(form.provider_key)" :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
+        <ToggleSwitch v-if="!['bepusdt', 'zhifufm', 'jianpay'].includes(form.provider_key) && form.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="form.allow_user_refund" @toggle="form.allow_user_refund = !form.allow_user_refund" />
         <div v-if="supportsPaymentMode" class="flex items-center gap-2">
           <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.paymentMode') }}</span>
           <div class="flex gap-1.5">
@@ -160,7 +160,7 @@
               <span v-else class="text-red-500"> *</span>
             </label>
             <textarea
-              v-if="field.sensitive && field.key.toLowerCase().includes('key') && field.key !== 'pkey'"
+              v-if="field.sensitive && field.key.toLowerCase().includes('key') && !['pkey', 'merchantKey'].includes(field.key)"
               v-model="config[field.key]"
               rows="3"
               class="input font-mono text-xs"
@@ -196,7 +196,7 @@
             </div>
             <ToggleSwitch
               v-else-if="field.key === 'verifyAfterCallback'"
-              data-test="fm-auto-query-switch"
+              :data-test="form.provider_key === 'zhifufm' ? 'fm-auto-query-switch' : 'jianpay-auto-query-switch'"
               :label="field.label"
               :checked="config[field.key] !== 'false'"
               @toggle="config[field.key] = config[field.key] === 'false' ? 'true' : 'false'"
@@ -353,7 +353,7 @@ import {
 /** Default payment_mode per provider key — "" means "no preference, use
  * provider's built-in default behavior". */
 function defaultPaymentMode(providerKey: string): string {
-  if (['easypay', 'zhifufm'].includes(providerKey)) return PAYMENT_MODE_QRCODE
+  if (['easypay', 'zhifufm', 'jianpay'].includes(providerKey)) return PAYMENT_MODE_QRCODE
   return ''
 }
 
@@ -618,11 +618,11 @@ function removeEasyPayCustomMethod(index: number) {
 }
 
 function onKeyChange() {
-  form.supported_types = [...(PROVIDER_SUPPORTED_TYPES[form.provider_key] || [])]
+  form.supported_types = form.provider_key === 'jianpay' ? ['alipay'] : [...(PROVIDER_SUPPORTED_TYPES[form.provider_key] || [])]
   form.payment_mode = defaultPaymentMode(form.provider_key)
   clearConfig()
   applyDefaults()
-  if (['bepusdt', 'zhifufm'].includes(form.provider_key)) {
+  if (['bepusdt', 'zhifufm', 'jianpay'].includes(form.provider_key)) {
     form.refund_enabled = false
     form.allow_user_refund = false
   }
@@ -766,8 +766,8 @@ function handleSave() {
     supported_types: form.supported_types,
     enabled: form.enabled,
     payment_mode: supportsPaymentMode.value ? form.payment_mode : '',
-    refund_enabled: !['bepusdt', 'zhifufm'].includes(form.provider_key) && form.refund_enabled,
-    allow_user_refund: !['bepusdt', 'zhifufm'].includes(form.provider_key) && form.refund_enabled ? form.allow_user_refund : false,
+    refund_enabled: !['bepusdt', 'zhifufm', 'jianpay'].includes(form.provider_key) && form.refund_enabled,
+    allow_user_refund: !['bepusdt', 'zhifufm', 'jianpay'].includes(form.provider_key) && form.refund_enabled ? form.allow_user_refund : false,
     config: filteredConfig,
     limits: serializeLimits(),
   })
@@ -833,7 +833,7 @@ function emitValidationError(msg: string) {
 function reset(defaultKey: string) {
   form.name = ''
   form.provider_key = defaultKey
-  form.supported_types = [...(PROVIDER_SUPPORTED_TYPES[defaultKey] || [])]
+  form.supported_types = defaultKey === 'jianpay' ? ['alipay'] : [...(PROVIDER_SUPPORTED_TYPES[defaultKey] || [])]
   form.enabled = true
   form.payment_mode = defaultPaymentMode(defaultKey)
   form.refund_enabled = false
@@ -868,7 +868,7 @@ function loadProvider(provider: ProviderInstance) {
         easyPayCustomMethods.push(...parseEasyPayCustomMethods(v))
         continue
       }
-      if (provider.provider_key === 'zhifufm' && PROVIDER_CONFIG_FIELDS.zhifufm.some(field => field.key.toLowerCase() === k.toLowerCase() && field.sensitive)) continue
+      if (['zhifufm', 'jianpay'].includes(provider.provider_key) && PROVIDER_CONFIG_FIELDS[provider.provider_key].some(field => field.key.toLowerCase() === k.toLowerCase() && field.sensitive)) continue
       if (provider.provider_key === 'bepusdt' && PROVIDER_CONFIG_FIELDS.bepusdt.some(field => field.key.toLowerCase() === k.toLowerCase() && field.sensitive)) continue
       config[k] = v
     }

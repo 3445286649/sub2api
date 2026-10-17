@@ -138,6 +138,12 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	}
 	resp, err := s.invokeProvider(ctx, order, req, cfg, limitAmount, payAmountStr, payAmount, plan, sel)
 	if err != nil {
+		// An upstream timeout does not prove that no JianPay order was created.
+		// Keep it reconcilable by its original merchant order number.
+		if sel.ProviderKey == payment.ProviderJianPay {
+			s.writeAuditLog(ctx, order.ID, "PAYMENT_CREATION_UNCONFIRMED", sel.ProviderKey, map[string]any{"detail": "query the original order before retrying"})
+			return nil, infraerrors.ServiceUnavailable("PAYMENT_CREATION_UNCONFIRMED", "支付状态暂未确认，请先在订单记录中核验原订单，避免重复下单").WithMetadata(map[string]string{"order_id": strconv.FormatInt(order.ID, 10)})
+		}
 		_, _ = s.entClient.PaymentOrder.UpdateOneID(order.ID).
 			SetStatus(OrderStatusFailed).
 			Save(ctx)
@@ -206,7 +212,7 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if sel != nil && isCryptoProviderKey(sel.ProviderKey) {
+	if sel != nil && (isCryptoProviderKey(sel.ProviderKey) || sel.ProviderKey == payment.ProviderJianPay) {
 		id, e := strconv.ParseInt(sel.InstanceID, 10, 64)
 		if e != nil {
 			return nil, e
@@ -395,6 +401,12 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 	}
 	if providerKey == payment.ProviderZhifuFM {
 		snapshot["fm_verify_after_callback"] = sel.Config["verifyAfterCallback"] != "false"
+	}
+	if providerKey == payment.ProviderJianPay {
+		snapshot["jianpay_verify_after_callback"] = sel.Config["verifyAfterCallback"] != "false"
+		snapshot["merchant_id"] = strings.TrimSpace(sel.Config["clientNo"])
+		snapshot["currency"] = payment.DefaultPaymentCurrency
+		snapshot["payment_method"] = req.PaymentType
 	}
 	if providerKey == payment.TypeStripe {
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)

@@ -73,6 +73,25 @@ func (s *PaymentService) ConfirmNotificationUpstream(ctx context.Context, prov p
 	if !ok || n == nil || n.Status != payment.NotificationStatusSuccess {
 		return nil
 	}
+	// FM embeds EasyPay for checkout/signatures, but its order-snapshot policy
+	// and native query are enforced by acceptFMCallback/ProcessFMCallbackReview.
+	// Do not run the promoted EasyPay confirmer before that durable workflow.
+	if prov.ProviderKey() == payment.ProviderZhifuFM {
+		return nil
+	}
+	if prov.ProviderKey() == payment.ProviderJianPay {
+		order, err := s.entClient.PaymentOrder.Query().Where(paymentorder.OutTradeNo(n.OrderID)).Only(ctx)
+		if err != nil {
+			return fmt.Errorf("load JianPay callback verification policy: %w", err)
+		}
+		// Only an explicit false frozen on this JianPay order disables the query.
+		// Legacy orders keep mandatory confirmation regardless of current config.
+		if snapshot := psOrderProviderSnapshot(order); snapshot != nil && snapshot.ProviderKey == payment.ProviderJianPay {
+			if verify, ok := order.ProviderSnapshot["jianpay_verify_after_callback"].(bool); ok && !verify {
+				return nil
+			}
+		}
+	}
 	notifiedTradeNo := n.TradeNo
 	finishProviderCall := servertiming.ObserveDependency(ctx, "payment")
 	err := confirmer.ConfirmNotification(ctx, n)
@@ -133,7 +152,7 @@ func (s *PaymentService) confirmPaymentWithVerification(ctx context.Context, oid
 		s.notifyPaymentReview(ctx, o, "PAYMENT_PROVIDER_MISMATCH", "回调支付渠道与订单绑定渠道不一致")
 		return fmt.Errorf("provider mismatch: expected %s, got %s", expectedProviderKey, pk)
 	}
-	if (strings.EqualFold(expectedProviderKey, payment.TypeEasyPay) || expectedProviderKey == payment.ProviderZhifuFM) && strings.TrimSpace(tradeNo) == "" {
+	if (strings.EqualFold(expectedProviderKey, payment.TypeEasyPay) || expectedProviderKey == payment.ProviderZhifuFM || expectedProviderKey == payment.ProviderJianPay) && strings.TrimSpace(tradeNo) == "" {
 		s.writeAuditLog(ctx, o.ID, "PAYMENT_MISSING_TRADE_NO", pk, map[string]any{
 			"expectedProvider": expectedProviderKey,
 		})
@@ -147,6 +166,9 @@ func (s *PaymentService) confirmPaymentWithVerification(ctx context.Context, oid
 		})
 		s.notifyPaymentReview(ctx, o, "PAYMENT_PROVIDER_METADATA_MISMATCH", "支付商户或币种信息与订单不一致")
 		return err
+	}
+	if expectedProviderKey == payment.ProviderJianPay && o.PaymentTradeNo != "" && o.PaymentTradeNo != tradeNo {
+		return fmt.Errorf("JianPay upstream order number mismatch")
 	}
 	if !isValidProviderAmount(paid) {
 		s.writeAuditLog(ctx, o.ID, "PAYMENT_INVALID_AMOUNT", pk, map[string]any{
@@ -246,6 +268,11 @@ func (s *PaymentService) toPaid(ctx context.Context, o *dbent.PaymentOrder, trad
 	previousStatus := o.Status
 	now := time.Now()
 	grace := now.Add(-paymentGraceMinutes * time.Minute)
+	if pk == payment.ProviderJianPay && o.Status == OrderStatusExpired && o.UpdatedAt.Before(grace) {
+		s.writeAuditLog(ctx, o.ID, "PAYMENT_AFTER_EXPIRY", pk, map[string]any{"tradeNo": tradeNo, "paidAmount": paid})
+		s.notifyPaymentReview(ctx, o, "PAYMENT_AFTER_EXPIRY", "简付订单超出过期恢复窗口后付款，需要人工核对")
+		return fmt.Errorf("JianPay payment arrived after the recovery window")
+	}
 	if pk == payment.TypeUSDTBSC && !o.ExpiresAt.After(grace) {
 		return fmt.Errorf("crypto order %d is beyond its payment grace period", o.ID)
 	}

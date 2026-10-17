@@ -128,6 +128,9 @@ func expectedNotificationProviderKeyForOrder(registry *payment.Registry, order *
 }
 
 func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey string, metadata map[string]string) error {
+	if providerKey == payment.ProviderJianPay && (order == nil || len(metadata) == 0 || psOrderProviderSnapshot(order) == nil) {
+		return fmt.Errorf("JianPay order identity metadata is required")
+	}
 	if order == nil || len(metadata) == 0 {
 		return nil
 	}
@@ -178,6 +181,24 @@ func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey str
 			if !strings.EqualFold(expected, actual) {
 				return fmt.Errorf("alipay app_id mismatch: expected %s, got %s", expected, actual)
 			}
+		}
+	case payment.ProviderJianPay:
+		if snapshot.MerchantID == "" || metadata["clientNo"] != snapshot.MerchantID {
+			return fmt.Errorf("JianPay merchant mismatch")
+		}
+		if metadata["merchantOrderNo"] != order.OutTradeNo {
+			return fmt.Errorf("JianPay merchant order mismatch")
+		}
+		expectedMethod := "alipay"
+		if order.PaymentType == payment.TypeWxpay {
+			expectedMethod = "wx"
+		}
+		if metadata["payMethod"] != expectedMethod {
+			return fmt.Errorf("JianPay payment method mismatch")
+		}
+		expectedCents := strconv.FormatFloat(order.PayAmount*100, 'f', 0, 64)
+		if metadata["amount_cents"] != expectedCents {
+			return fmt.Errorf("JianPay amount mismatch")
 		}
 	case payment.TypeEasyPay, payment.ProviderZhifuFM:
 		if expected := strings.TrimSpace(snapshot.MerchantID); expected != "" {

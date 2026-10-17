@@ -47,6 +47,10 @@ func (h *PaymentWebhookHandler) ZhifuFMNotify(c *gin.Context) {
 	h.handleNotify(c, payment.ProviderZhifuFM)
 }
 
+func (h *PaymentWebhookHandler) JianPayNotify(c *gin.Context) {
+	h.handleNotify(c, payment.ProviderJianPay)
+}
+
 // AlipayNotify handles Alipay payment notifications.
 // POST /api/v1/payment/webhook/alipay
 func (h *PaymentWebhookHandler) AlipayNotify(c *gin.Context) {
@@ -97,7 +101,11 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 		// GET callbacks (e.g. EasyPay) pass params as URL query string
 		rawBody = c.Request.URL.RawQuery
 	} else {
-		body, err := io.ReadAll(io.LimitReader(c.Request.Body, maxWebhookBodySize))
+		body, err := io.ReadAll(io.LimitReader(c.Request.Body, maxWebhookBodySize+1))
+		if providerKey == payment.ProviderJianPay && len(body) > maxWebhookBodySize {
+			c.String(http.StatusRequestEntityTooLarge, "invalid callback body")
+			return
+		}
 		if err != nil {
 			slog.Error("[Payment Webhook] failed to read body", "provider", providerKey, "error", err)
 			c.String(http.StatusBadRequest, "failed to read body")
@@ -109,11 +117,15 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 	// Extract out_trade_no to look up the order's specific provider instance.
 	// This is needed when multiple instances of the same provider exist (e.g. multiple EasyPay accounts).
 	outTradeNo := extractOutTradeNo(rawBody, providerKey)
+	if providerKey == payment.ProviderJianPay && outTradeNo == "" {
+		c.String(http.StatusBadRequest, "missing merchant order number")
+		return
+	}
 
 	providers, err := h.paymentService.GetWebhookProviders(c.Request.Context(), providerKey, outTradeNo)
 	if err != nil {
 		slog.Warn("[Payment Webhook] provider not found", "provider", providerKey, "outTradeNo", outTradeNo, "error", err)
-		if providerKey == payment.ProviderZhifuFM {
+		if providerKey == payment.ProviderZhifuFM || providerKey == payment.ProviderJianPay {
 			c.String(http.StatusServiceUnavailable, "provider unavailable")
 			return
 		}
@@ -130,9 +142,9 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 		headers[strings.ToLower(k)] = c.GetHeader(k)
 	}
 
-	if providerKey == payment.ProviderZhifuFM {
+	if providerKey == payment.ProviderZhifuFM || providerKey == payment.ProviderJianPay {
 		for _, p := range providers {
-			if p.ProviderKey() != payment.ProviderZhifuFM {
+			if p.ProviderKey() != providerKey {
 				c.String(http.StatusBadRequest, "provider mismatch")
 				return
 			}
@@ -192,6 +204,13 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 // This allows looking up the correct provider instance before verification.
 func extractOutTradeNo(rawBody, providerKey string) string {
 	switch providerKey {
+	case payment.ProviderJianPay:
+		var payload struct {
+			MerchantOrderNo string `json:"merchantOrderNo"`
+		}
+		if json.Unmarshal([]byte(rawBody), &payload) == nil {
+			return strings.TrimSpace(payload.MerchantOrderNo)
+		}
 	case payment.TypeEasyPay, payment.TypeAlipay, payment.ProviderZhifuFM:
 		values, err := url.ParseQuery(rawBody)
 		if err == nil {

@@ -33,6 +33,11 @@ function createOrderResult(overrides: Partial<CreateOrderResult> = {}): CreateOr
 }
 
 describe('getVisibleMethods', () => {
+  it('launches JianPay cashier as desktop QR and mobile redirect', () => {
+    const order = createOrderResult({ pay_url: 'https://jpay.hzjianban.com/#/pay?orderId=test', qr_code: 'https://jpay.hzjianban.com/#/pay?orderId=test' })
+    expect(decidePaymentLaunch(order, { isMobile: false, isWechatBrowser: false, visibleMethod: 'alipay', orderType: 'balance' }).kind).toBe('qr_waiting')
+    expect(decidePaymentLaunch(order, { isMobile: true, isWechatBrowser: false, visibleMethod: 'alipay', orderType: 'balance' }).kind).toBe('redirect_waiting')
+  })
   it('normalizes provider aliases and keeps stripe as a top-level method', () => {
     const visible = getVisibleMethods({
       alipay_direct: methodLimit({ single_min: 5 }),

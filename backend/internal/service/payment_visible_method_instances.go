@@ -44,7 +44,7 @@ func enabledVisibleMethodsForProvider(providerKey, supportedTypes string) []stri
 				break
 			}
 		}
-	case payment.TypeEasyPay, payment.ProviderZhifuFM:
+	case payment.TypeEasyPay, payment.ProviderZhifuFM, payment.ProviderJianPay:
 		for _, supportedType := range splitTypes(supportedTypes) {
 			addMethod(supportedType)
 		}
@@ -214,7 +214,7 @@ func (s *PaymentConfigService) resolveVisibleMethodProviderKey(
 		var legacy []*dbent.PaymentProviderInstance
 		hasFM := false
 		for _, inst := range matching {
-			if inst.ProviderKey == payment.ProviderZhifuFM {
+			if inst.ProviderKey == payment.ProviderZhifuFM || inst.ProviderKey == payment.ProviderJianPay {
 				hasFM = true
 			} else {
 				legacy = append(legacy, inst)
@@ -225,7 +225,7 @@ func (s *PaymentConfigService) resolveVisibleMethodProviderKey(
 			if len(keys) == 1 {
 				return keys[0], nil
 			}
-			return "", infraerrors.BadRequest("INVALID_PAYMENT_VISIBLE_METHOD_SOURCE", "select a payment source before routing through FM")
+			return "", infraerrors.BadRequest("INVALID_PAYMENT_VISIBLE_METHOD_SOURCE", "select a payment source before routing through FM or JianPay")
 		}
 	}
 	switch providerKeys := distinctVisibleMethodProviderKeys(matching); len(providerKeys) {

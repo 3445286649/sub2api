@@ -45,8 +45,8 @@
       <!-- Right: toggles + actions -->
       <div class="flex items-center gap-4">
         <ToggleSwitch :label="t('common.enabled')" :checked="provider.enabled" @toggle="emit('toggleField', 'enabled')" />
-        <ToggleSwitch v-if="!['bepusdt', 'zhifufm'].includes(provider.provider_key)" :label="t('admin.settings.payment.refundEnabled')" :checked="provider.refund_enabled" @toggle="emit('toggleField', 'refund_enabled')" />
-        <ToggleSwitch v-if="!['bepusdt', 'zhifufm'].includes(provider.provider_key) && provider.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="provider.allow_user_refund" @toggle="emit('toggleField', 'allow_user_refund')" />
+        <ToggleSwitch v-if="!['bepusdt', 'zhifufm', 'jianpay'].includes(provider.provider_key)" :label="t('admin.settings.payment.refundEnabled')" :checked="provider.refund_enabled" @toggle="emit('toggleField', 'refund_enabled')" />
+        <ToggleSwitch v-if="!['bepusdt', 'zhifufm', 'jianpay'].includes(provider.provider_key) && provider.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="provider.allow_user_refund" @toggle="emit('toggleField', 'allow_user_refund')" />
         <div class="flex items-center gap-2 border-l border-gray-200 pl-3 dark:border-dark-600">
           <button v-if="provider.provider_key === 'bepusdt'" type="button" :disabled="checking" @click="emit('check')" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:opacity-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400">
             <Icon name="refresh" size="sm" :class="checking ? 'animate-spin' : ''" />
@@ -78,6 +78,7 @@ import { PAYMENT_MODE_QRCODE, PAYMENT_MODE_POPUP, PAYMENT_MODE_REDIRECT } from '
 const PROVIDER_KEY_LABELS: Record<string, string> = {
   easypay: 'admin.settings.payment.providerEasypay',
   zhifufm: 'admin.settings.payment.providerZhifufm',
+  jianpay: 'admin.settings.payment.providerJianpay',
   alipay: 'admin.settings.payment.providerAlipay',
   wxpay: 'admin.settings.payment.providerWxpay',
   stripe: 'admin.settings.payment.providerStripe',

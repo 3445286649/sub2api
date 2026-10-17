@@ -79,6 +79,7 @@ func RegisterPaymentRoutes(
 	// --- Webhook endpoints (no auth) ---
 	webhook := v1.Group("/payment/webhook")
 	{
+		webhook.POST("/jianpay", webhookHandler.JianPayNotify)
 		// EasyPay sends GET callbacks with query params
 		webhook.GET("/zhifufm", webhookHandler.ZhifuFMNotify)
 		webhook.POST("/zhifufm", webhookHandler.ZhifuFMNotify)

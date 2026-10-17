@@ -98,6 +98,52 @@ function mountDialog(options: { editing?: ProviderInstance | null } = {}) {
 }
 
 describe('PaymentProviderDialog callback URLs', () => {
+  it('defaults JianPay to Alipay only and preserves stored secrets when editing', async () => {
+    const wrapper = mountDialog()
+    ;(wrapper.vm as unknown as { reset: (key: string) => void }).reset('jianpay')
+    await nextTick()
+    expect(wrapper.findAll('button').filter(button => button.classes().includes('bg-primary-500')).map(button => button.text())).toEqual(['Alipay'])
+    expect(wrapper.text()).not.toContain('admin.settings.payment.refundEnabled')
+    const provider = providerFactory({ provider_key: 'jianpay', name: '简付', supported_types: ['alipay'], config: {
+      clientNo: 'JP-test', merchantKey: 'must-not-populate-secret',
+      notifyUrl: 'https://site.test/api/v1/payment/webhook/jianpay', returnUrl: 'https://site.test/payment/result',
+    } })
+    await wrapper.setProps({ editing: provider })
+    ;(wrapper.vm as unknown as { loadProvider: (value: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    expect(wrapper.findAll('input[type="password"]').map(input => (input.element as HTMLInputElement).value)).toEqual([''])
+    expect(wrapper.text()).toContain('/api/v1/payment/webhook/jianpay')
+    await wrapper.get('form').trigger('submit')
+    const payload = wrapper.emitted('save')?.[0]?.[0] as ProviderInstance
+    expect(payload.provider_key).toBe('jianpay')
+    expect(payload.supported_types).toEqual(['alipay'])
+    expect(payload.config.apiBase).toBe('https://jpay.hzjianban.com')
+    expect(payload.config.verifyAfterCallback).toBe('true')
+    expect(payload.config).not.toHaveProperty('merchantKey')
+    expect(payload.refund_enabled).toBe(false)
+    expect(payload.allow_user_refund).toBe(false)
+    wrapper.unmount()
+  })
+  it('saves and restores the independent JianPay auto-query switch', async () => {
+    const provider = providerFactory({ provider_key: 'jianpay', name: '简付', supported_types: ['alipay'], config: {
+      clientNo: 'JP-test', verifyAfterCallback: 'false',
+      notifyUrl: 'https://site.test/api/v1/payment/webhook/jianpay', returnUrl: 'https://site.test/payment/result',
+    } })
+    const wrapper = mountDialog({ editing: provider })
+    ;(wrapper.vm as unknown as { loadProvider: (value: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    const toggle = wrapper.get('[data-test="jianpay-auto-query-switch"]')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(wrapper.find('[data-test="fm-auto-query-switch"]').exists()).toBe(false)
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    await wrapper.get('form').trigger('submit')
+    expect((wrapper.emitted('save')?.[0]?.[0] as ProviderInstance).config.verifyAfterCallback).toBe('true')
+    await toggle.trigger('click')
+    await wrapper.get('form').trigger('submit')
+    expect((wrapper.emitted('save')?.[1]?.[0] as ProviderInstance).config.verifyAfterCallback).toBe('false')
+    wrapper.unmount()
+  })
   it('saves the FM auto-query switch in the provider config and restores it when editing', async () => {
     const provider = providerFactory({ provider_key: 'zhifufm', name: 'FM', config: {
       pid: '123', apiBase: 'https://fm.example/epay', queryBase: 'https://fm.example/api/pay', verifyAfterCallback: 'false',
