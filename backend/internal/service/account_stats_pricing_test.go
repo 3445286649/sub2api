@@ -1039,6 +1039,32 @@ func TestApplyAccountStatsCost_UsesUsageLogServiceTier(t *testing.T) {
 	require.InDelta(t, 0.4, *usageLog.AccountStatsCost, 1e-12)
 }
 
+func TestApplyAccountStatsCost_UsesExplicitEffectiveTierOverride(t *testing.T) {
+	channel := &Channel{ID: 1, Status: StatusActive, ApplyPricingToAccountStats: false}
+	cs := newTestChannelServiceForStats(t, channel, 10, "openai")
+	bs := newTestBillingServiceWithPrices(map[string]*ModelPricing{
+		"gpt-5.6-sol": {
+			InputPricePerToken:          0.001,
+			InputPricePerTokenPriority:  0.002,
+			OutputPricePerToken:         0.002,
+			OutputPricePerTokenPriority: 0.004,
+		},
+	})
+	requestedTier := "priority"
+	usageLog := &UsageLog{ServiceTier: &requestedTier}
+
+	// The request was sent with Fast/priority, but free Fast makes Standard the
+	// effective account-cost tier. An explicit empty override means Standard.
+	applyAccountStatsCost(
+		context.Background(), usageLog, cs, bs,
+		1, 10, "gpt-5.6-sol", "gpt-5.6-sol",
+		UsageTokens{InputTokens: 100, OutputTokens: 50}, 999, time.Time{}, true, "",
+	)
+
+	require.NotNil(t, usageLog.AccountStatsCost)
+	require.InDelta(t, 0.2, *usageLog.AccountStatsCost, 1e-12)
+}
+
 func TestApplyAccountStatsCost_LongContextFollowsAccountGate(t *testing.T) {
 	// 渠道售价不参与优先级 3：结果只取模型定价文件。
 	channel := &Channel{

@@ -48,7 +48,11 @@ func TestOpenAIGatewayServiceRecordUsage_GroupTierIsBillingAuthority(t *testing.
 						require.NoError(t, err)
 					}
 					require.Equal(t, tier, *repo.lastLog.ServiceTier)
-					require.InDelta(t, configured.TotalCost, repo.lastLog.TotalCost, 1e-10)
+					expectedTotal := configured.TotalCost
+					if free {
+						expectedTotal = customer.TotalCost
+					}
+					require.InDelta(t, expectedTotal, repo.lastLog.TotalCost, 1e-10)
 					require.InDelta(t, customer.ActualCost, repo.lastLog.ActualCost, 1e-10)
 				})
 			}

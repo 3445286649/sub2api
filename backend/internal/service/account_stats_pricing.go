@@ -273,6 +273,7 @@ func applyAccountStatsCost(
 	totalCost float64,
 	pricingAt time.Time,
 	longContextPricingEnabled bool,
+	accountStatsServiceTierOverride ...string,
 ) {
 	model := upstreamModel
 	if model == "" {
@@ -283,10 +284,15 @@ func applyAccountStatsCost(
 		requestCount = usageLog.ImageCount
 	}
 	serviceTier := ""
-	reasoningEffort := ""
-	if usageLog != nil && usageLog.ServiceTier != nil {
+	if len(accountStatsServiceTierOverride) > 0 {
+		// The caller can override the upstream request tier when account
+		// statistics use a different effective billing basis (for example,
+		// free Fast is billed at Standard).
+		serviceTier = accountStatsServiceTierOverride[0]
+	} else if usageLog != nil && usageLog.ServiceTier != nil {
 		serviceTier = *usageLog.ServiceTier
 	}
+	reasoningEffort := ""
 	if usageLog != nil && usageLog.ReasoningEffort != nil {
 		reasoningEffort = *usageLog.ReasoningEffort
 	}

@@ -302,9 +302,10 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		}
 	}
 
-	// Free Fast changes only the customer charge. Keep Fast/Ultrafast TotalCost and
-	// service_tier for upstream accounting, but evaluate ActualCost once more at
-	// the Standard tier using the same channel, peak, and long-context policy.
+	// Free Fast uses Standard as the effective cost basis for both customer and
+	// account billing. Keep the requested service_tier on the usage row for audit
+	// and upstream-routing visibility, but replace the cost breakdown so account
+	// quota, account statistics, aggregates, and customer billing share one basis.
 	if freeFast {
 		standardCost, standardErr := s.calculateOpenAIRecordUsageCost(
 			ctx,
@@ -324,10 +325,17 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		if standardErr != nil && !isUsagePricingUnavailableError(standardErr) {
 			return standardErr
 		}
-		// Missing pricing already fell back to a zero-cost log above; keep that
-		// usage row instead of dropping it on the Standard re-evaluation.
-		if standardErr == nil && cost != nil && standardCost != nil {
-			cost.ActualCost = standardCost.ActualCost
+		// Never fall back to the Fast/Ultrafast cost when Standard pricing is
+		// unavailable: that would violate free Fast semantics. Keep the usage
+		// row with zero cost, matching the existing missing-pricing behavior.
+		if standardCost == nil {
+			standardCost = &CostBreakdown{}
+			if cost != nil {
+				standardCost.BillingMode = cost.BillingMode
+			}
+		}
+		if cost != nil {
+			*cost = *standardCost
 			tierDetails.BillingTier = "standard"
 			tierDetails.Source = "free_fast"
 			tierDetails.CustomerCosts = &ServiceTierCustomerCosts{InputCost: standardCost.InputCost, OutputCost: standardCost.OutputCost, CacheCreationCost: standardCost.CacheCreationCost, CacheReadCost: standardCost.CacheReadCost, TotalCost: standardCost.TotalCost}
@@ -492,10 +500,18 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 	// 计算账号统计定价费用（使用最终上游模型匹配自定义规则）
 	if apiKey.GroupID != nil {
+		accountStatsServiceTier := optionalStringValue(result.ServiceTier)
+		if freeFast {
+			// Account statistics must follow the same Standard basis as the
+			// effective customer cost. The request tier remains Fast/Ultrafast
+			// on usageLog.ServiceTier for audit and upstream visibility.
+			accountStatsServiceTier = ""
+		}
 		applyAccountStatsCost(ctx, usageLog, s.channelService, s.billingService,
 			account.ID, *apiKey.GroupID, result.UpstreamModel, result.Model,
 			tokens, cost.TotalCost, pricingAt,
 			accountStatsLongContextPricingEnabled(longContextBillingGate) && !modelLongContextExempt,
+			accountStatsServiceTier,
 		)
 	}
 
