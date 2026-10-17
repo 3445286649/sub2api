@@ -1,5 +1,5 @@
 <template>
-  <label class="flex flex-col items-center gap-0.5 cursor-pointer">
+  <label :class="layout === 'inline' ? 'flex cursor-pointer items-center gap-1.5 whitespace-nowrap sm:flex-col sm:gap-0.5' : 'flex cursor-pointer flex-col items-center gap-0.5'">
     <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ label }}</span>
     <button
       type="button"
@@ -20,6 +20,6 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ label: string; checked: boolean }>()
+withDefaults(defineProps<{ label: string; checked: boolean; layout?: 'stacked' | 'inline' }>(), { layout: 'stacked' })
 const emit = defineEmits<{ toggle: [] }>()
 </script>

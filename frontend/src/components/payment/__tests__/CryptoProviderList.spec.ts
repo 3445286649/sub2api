@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import PaymentProviderList from '../PaymentProviderList.vue'
 import ProviderCard from '../ProviderCard.vue'
 import PaymentMethodSelector from '../PaymentMethodSelector.vue'
+import ToggleSwitch from '../ToggleSwitch.vue'
 import type { ProviderInstance } from '@/types/payment'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
@@ -11,6 +12,18 @@ vi.mock('vue-draggable-plus', () => ({ VueDraggable: { template: '<div><slot /><
 const provider: ProviderInstance = { id: 42, provider_key: 'bepusdt', name: 'USDT Gateway', config: {}, supported_types: ['usdt_gateway'], enabled: false, payment_mode: '', refund_enabled: false, allow_user_refund: false, limits: '', sort_order: 0 }
 
 describe('independent crypto provider controls', () => {
+  it('keeps ToggleSwitch stacked by default and opts ProviderCard into mobile inline layout', () => {
+    const toggle = mount(ToggleSwitch, { props: { label: 'Enabled', checked: true } })
+    expect(toggle.find('label').classes()).toContain('flex-col')
+
+    const wrapper = mount(ProviderCard, {
+      props: { provider: { ...provider, provider_key: 'stripe', refund_enabled: true }, enabled: true, availableTypes: [] },
+      global: { stubs: { Icon: true } },
+    })
+    expect(wrapper.findAllComponents(ToggleSwitch).map(item => item.props('layout'))).toEqual(['inline', 'inline', 'inline'])
+    wrapper.unmount()
+  })
+
   it('permits gateway controls when the gateway payment type is enabled', () => {
     const wrapper = mount(PaymentProviderList, { props: { providers: [provider], loading: false, canCreate: true, enabledPaymentTypes: ['usdt_gateway'], allPaymentTypes: [], redirectLabel: '' }, global: { stubs: { Icon: true } } })
     expect(wrapper.findComponent(ProviderCard).props('enabled')).toBe(true)
