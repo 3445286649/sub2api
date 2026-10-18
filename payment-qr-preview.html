@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>codeplan · 充值</title>
+<style>
+/* ─────────────────────────────────────────────
+   TOKENS  (exact values from style.css / tailwind.config.js)
+   ───────────────────────────────────────────── */
+:root {
+  --brand:          #0d9488;
+  --brand-2:        #7c3aed;
+  --brand-soft:     #5eead4;
+  --accent-ok:      #059669;
+  --accent-warn:    #d97706;
+  --accent-danger:  #dc2626;
+  --surface:        #ffffff;
+  --surface-2:      #f5f7f8;
+  --surface-3:      #eef1f3;
+  --border:         rgba(15,23,42,.09);
+  --border-strong:  rgba(15,23,42,.16);
+  --text:           #0f172a;
+  --muted:          #5b6875;
+  --glow-brand:     rgba(13,148,136,.14);
+  --shadow-card:    0 18px 40px -28px rgba(15,23,42,.35);
+  --shadow-float:   0 40px 88px -32px rgba(15,23,42,.28);
+  /* tailwind extended */
+  --primary-50:  #f0fdfa; --primary-100: #ccfbf1; --primary-200: #99f6e4;
+  --primary-300: #5eead4; --primary-400: #2dd4bf; --primary-500: #14b8a6;
+  --primary-600: #0d9488; --primary-700: #0f766e; --primary-800: #115e59;
+  --primary-900: #134e4a; --primary-950: #042f2e;
+  --dark-700: #334155; --dark-800: #1e293b; --dark-900: #0f172a; --dark-950: #020617;
+  /* badge */
+  --badge: #f97316; --badge-bg: rgba(249,115,22,.12);
+}
+.dark {
+  --brand:          #2dd4bf;
+  --brand-2:        #a78bfa;
+  --brand-soft:     #99f6e4;
+  --accent-ok:      #34d399;
+  --accent-warn:    #fbbf24;
+  --accent-danger:  #f87171;
+  --surface:        #131c25;
+  --surface-2:      #0f1720;
+  --surface-3:      #1b2531;
+  --border:         rgba(255,255,255,.09);
+  --border-strong:  rgba(255,255,255,.16);
+  --text:           #eef2f6;
+  --muted:          #94a3b8;
+  --glow-brand:     rgba(45,212,191,.18);
+  --shadow-card:    0 18px 40px -28px rgba(0,0,0,.7);
+  --shadow-float:   0 40px 88px -32px rgba(0,0,0,.75);
+}
+
+/* ─────────────────────────────────────────────
+   BASE
+   ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; scroll-behavior: smooth; }
+body {
+  min-height: 100%;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size: 14px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background .3s, color .3s;
+}
+button { cursor: pointer; font: inherit; border: none; background: none; color: inherit; }
+input  { font: inherit; outline: none; color: inherit; }
+
+/* ─────────────────────────────────────────────
+   TOPBAR  (cp-topbar pattern)
+   ───────────────────────────────────────────── */
+.topbar {
+  position: sticky; top: 0; z-index: 30;
+  height: 58px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+  display: flex; align-items: center;
+  padding: 0 28px; gap: 24px;
+  transition: background .3s;
+}
+.topbar-brand {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 16px; font-weight: 800; color: var(--text);
+  text-decoration: none; flex-shrink: 0;
+}
+.brand-grad {
+  background: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.topbar-nav { display: flex; gap: 2px; }
+.tnav {
+  padding: 7px 13px; border-radius: 10px;
+  font-size: 13px; font-weight: 500; color: var(--muted);
+  transition: color .15s, background .15s;
+}
+.tnav:hover { color: var(--text); background: var(--surface-3); }
+.tnav.active {
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+}
+.topbar-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.theme-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 8px;
+  background: var(--surface-3); border: 1px solid var(--border-strong);
+  color: var(--muted); font-size: 12px; font-weight: 500;
+  transition: all .15s;
+}
+.theme-btn:hover { color: var(--text); }
+.user-chip {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 12px 5px 6px; border-radius: 20px;
+  background: var(--surface-3); border: 1px solid var(--border);
+  font-size: 13px; font-weight: 500; color: var(--text);
+}
+.user-av {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-600), var(--brand-2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff;
+}
+
+/* ─────────────────────────────────────────────
+   PAGE
+   ───────────────────────────────────────────── */
+.page { max-width: 1060px; margin: 0 auto; padding: 28px 24px 80px; }
+
+/* page-tabs  (sliding indicator from PaymentView.vue) */
+.page-tabs {
+  position: relative;
+  display: flex;
+  background: var(--surface-3);
+  border-radius: 14px; padding: 4px; gap: 2px;
+  margin-bottom: 22px;
+}
+.page-tabs .tab-indicator {
+  position: absolute;
+  top: 4px; left: 4px; height: calc(100% - 8px);
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08), 0 0 0 1px var(--border);
+  transition: transform .3s cubic-bezier(.4,0,.2,1), width .3s cubic-bezier(.4,0,.2,1);
+  pointer-events: none; z-index: 0;
+}
+.ptab {
+  position: relative; z-index: 1;
+  flex: 1; padding: 10px 16px;
+  text-align: center; font-size: 14px; font-weight: 500;
+  color: var(--muted); border-radius: 10px;
+  transition: color .2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.ptab.active { color: var(--text); font-weight: 600; }
+.ptab .pill {
+  background: var(--badge-bg); color: var(--badge);
+  font-size: 10px; font-weight: 700;
+  padding: 1px 7px; border-radius: 20px;
+  border: 1px solid rgba(249,115,22,.18);
+}
+
+/* account card */
+.account-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 22px;
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-card);
+}
+.acc-av {
+  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+  background: color-mix(in srgb, var(--primary-500) 15%, var(--surface-3));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 800;
+  color: var(--primary-600);
+}
+.dark .acc-av { color: var(--primary-400); }
+.acc-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.acc-role { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.acc-balance { margin-left: auto; text-align: right; }
+.acc-bal-label { font-size: 11px; color: var(--muted); }
+.acc-bal-val { font-size: 22px; font-weight: 800; color: #10b981; font-variant-numeric: tabular-nums; }
+
+/* cp-cols grid (from PaymentView.vue) */
+.cp-cols { display: grid; gap: 20px; align-items: start; }
+@media (min-width: 1024px) { .cp-cols { grid-template-columns: minmax(0,1fr) 21rem; } }
+.cp-cols-side { position: sticky; top: 80px; }
+
+/* card  (from style.css .card) */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.card-body { padding: 22px; }
+.card-section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--muted); margin-bottom: 14px;
+}
+
+/* amount grid */
+.amount-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 22px; }
+.amount-btn {
+  position: relative;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 10px 12px;
+  text-align: center; cursor: pointer;
+  transition: border-color .18s, background .18s, transform .18s, box-shadow .18s;
+}
+.amount-btn:hover {
+  border-color: var(--border-strong); background: var(--surface-3);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -8px rgba(0,0,0,.12);
+}
+.amount-btn:active { transform: scale(.97); }
+.amount-btn.selected {
+  border-color: var(--primary-600);
+  background: color-mix(in srgb, var(--brand) 8%, var(--surface));
+  box-shadow: 0 0 0 3px var(--glow-brand);
+}
+.dark .amount-btn.selected {
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 10%, var(--surface));
+}
+.amount-btn .price { font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.amount-btn.selected .price { color: var(--brand); }
+.amount-btn .credit { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.amount-btn .badge {
+  position: absolute; top: 0; left: 0;
+  background: var(--badge); color: #fff;
+  font-size: 9px; font-weight: 800; letter-spacing: .03em;
+  padding: 2px 8px; border-radius: 12px 0 12px 0; line-height: 1.3;
+}
+
+/* custom input (from .input) */
+.input-wrap { position: relative; }
+.input-prefix {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 14px; color: var(--muted); pointer-events: none;
+}
+.custom-input {
+  width: 100%; padding: 12px 14px 12px 30px;
+  background: var(--surface-2); border: 1.5px solid var(--border);
+  border-radius: 12px; font-size: 14px; color: var(--text);
+  transition: border-color .15s, box-shadow .15s;
+}
+.custom-input::placeholder { color: var(--muted); }
+.custom-input:focus {
+  border-color: var(--primary-600);
+  box-shadow: 0 0 0 3px var(--glow-brand);
+}
+
+/* methods */
+.method-list { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.method-btn {
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 16px; border-radius: 12px;
+  background: var(--surface-2); border: 1.5px solid var(--border);
+  font-size: 13px; font-weight: 500; color: var(--text);
+  transition: all .18s; cursor: pointer;
+}
+.method-btn:hover { border-color: var(--border-strong); background: var(--surface-3); }
+.method-btn.selected {
+  border-color: var(--primary-600);
+  background: color-mix(in srgb, var(--brand) 8%, var(--surface));
+  box-shadow: 0 0 0 3px var(--glow-brand);
+  color: var(--brand);
+}
+.dark .method-btn.selected { border-color: var(--brand); }
+.method-ico { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.method-footnote { font-size: 12px; color: var(--muted); margin-top: 12px; }
+.method-footnote a { color: var(--brand); text-decoration: none; }
+
+/* summary / order card */
+.summary-empty { display: flex; flex-direction: column; align-items: center; padding: 32px 20px; gap: 10px; }
+.summary-empty svg { color: var(--muted); opacity: .35; }
+.summary-empty p { font-size: 13px; color: var(--muted); text-align: center; }
+.summary-rows { padding: 0 22px 16px; display: none; }
+.sr { display: flex; justify-content: space-between; padding: 10px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+.sr:last-child { border-bottom: none; }
+.sr .lbl { color: var(--muted); }
+.sr .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr .val.g { color: var(--brand); }
+.sr .val.bonus { color: var(--accent-ok); }
+
+/* pay button (.btn .btn-primary) */
+.pay-btn-wrap { padding: 0 22px 22px; }
+.btn-pay {
+  width: 100%; padding: 14px;
+  border-radius: 12px;
+  background: var(--primary-600); color: #fff;
+  font-size: 15px; font-weight: 700; letter-spacing: .02em;
+  box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--brand) 60%, transparent);
+  transition: all .2s; position: relative; overflow: hidden;
+}
+.btn-pay:not(:disabled):hover {
+  background: var(--primary-500);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px -8px color-mix(in srgb, var(--brand) 70%, transparent);
+}
+.btn-pay:not(:disabled):active { transform: scale(.98) translateY(0); }
+.btn-pay:disabled {
+  opacity: .4; cursor: not-allowed;
+  background: var(--surface-3); color: var(--muted); box-shadow: none;
+}
+.ripple {
+  position: absolute; border-radius: 50%;
+  background: rgba(255,255,255,.32);
+  transform: scale(0); pointer-events: none;
+  animation: rippleOut .55s ease-out forwards;
+}
+@keyframes rippleOut { to { transform: scale(4); opacity: 0; } }
+
+/* ─────────────────────────────────────────────
+   MODAL OVERLAY  (from style.css .modal-overlay)
+   modal entry: scale(.95)→scale(1) + opacity, 250ms ease-out
+   ───────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,.52);
+  backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s ease;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+
+.modal-content {
+  width: 100%; max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+  transform: scale(.94) translateY(20px);
+  opacity: 0;
+  filter: blur(4px);
+  transition: none;
+}
+/* clip only the inner content, not the mascot */
+.modal-inner-clip {
+  border-radius: 20px;
+  overflow: hidden;
+}
+.modal-overlay.open .modal-content {
+  animation: modalIn .32s cubic-bezier(.22,.68,0,1.2) forwards;
+}
+.modal-overlay.closing .modal-content {
+  animation: modalOut .2s ease-in forwards;
+}
+@keyframes modalIn {
+  from { transform: scale(.94) translateY(20px); opacity: 0; filter: blur(4px); }
+  to   { transform: scale(1)   translateY(0);    opacity: 1; filter: blur(0); }
+}
+@keyframes modalOut {
+  from { transform: scale(1)   translateY(0);    opacity: 1; filter: blur(0); }
+  to   { transform: scale(.94) translateY(10px); opacity: 0; filter: blur(3px); }
+}
+
+/* modal-header (.modal-header from style.css) */
+.modal-header {
+  padding: 14px 18px 12px;
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.mh-icon { width: 34px; height: 34px; border-radius: 10px; overflow: hidden; flex-shrink: 0; }
+.mh-text { flex: 1; min-width: 0; }
+.mh-title { font-size: 13px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 7px; }
+.mh-lock { display: flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: var(--accent-ok); }
+.mh-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.mh-close {
+  width: 30px; height: 30px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; color: var(--muted); transition: all .15s;
+}
+.mh-close:hover { background: var(--surface-2); color: var(--text); }
+
+/* modal-body */
+.modal-body {
+  padding: 24px 20px 18px;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+
+/* ─── QR zone ─── */
+.qr-zone {
+  position: relative; padding: 14px;
+  background: #fff; border-radius: 12px;
+  box-shadow: 0 0 0 1.5px var(--primary-600), 0 0 28px var(--glow-brand);
+  transition: box-shadow .3s;
+}
+.qr-zone:hover { box-shadow: 0 0 0 1.5px var(--brand), 0 0 38px var(--glow-brand); }
+.qr-canvas-wrap { display: block; width: 196px; height: 196px; }
+
+/* 25×25 CSS QR grid */
+.qr-css { display: grid; grid-template-columns: repeat(25,1fr); gap: .7px; width: 196px; height: 196px; background: #fff; }
+.qc { background: #fff; border-radius: .5px; }
+.qc.b { background: #111; }
+
+.qr-center-logo {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 44px; height: 44px; background: #fff; border-radius: 10px;
+  padding: 5px; box-shadow: 0 2px 8px rgba(0,0,0,.16);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.scan-hint { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5; }
+.modal-divider { width: 100%; height: 1px; background: var(--border); }
+
+/* ─── countdown ─── */
+.cd-block { text-align: center; width: 100%; }
+.cd-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+.cd-value {
+  font-size: 30px; font-weight: 800; color: var(--brand);
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+  margin: 4px 0 3px; letter-spacing: .02em;
+}
+.cd-status { font-size: 11px; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 5px; }
+.pulse-dot {
+  display: inline-block; width: 6px; height: 6px;
+  background: var(--brand); border-radius: 50%;
+  animation: pulseDot 2s ease infinite;
+}
+@keyframes pulseDot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.35; transform:scale(.6); } }
+
+/* ─── popup waiting ─── */
+.popup-body { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 6px 0; }
+.spinner {
+  width: 50px; height: 50px;
+  border: 3px solid var(--border-strong); border-top-color: var(--brand);
+  border-radius: 50%; animation: spinAnim .75s linear infinite;
+}
+@keyframes spinAnim { to { transform: rotate(360deg); } }
+.popup-hint { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.65; }
+.btn-reopen {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 10px;
+  background: var(--surface-2); border: 1px solid var(--border-strong);
+  font-size: 13px; font-weight: 500; color: var(--text); transition: all .15s;
+}
+.btn-reopen:hover { border-color: var(--brand); color: var(--brand); background: color-mix(in srgb, var(--brand) 6%, var(--surface)); }
+
+/* ─── success ─── */
+.success-body { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+.success-ring {
+  width: 66px; height: 66px; border-radius: 50%;
+  background: color-mix(in srgb, var(--accent-ok) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-ok) 28%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  animation: successPop .45s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes successPop { from { transform: scale(.35); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.success-title { font-size: 18px; font-weight: 800; color: var(--text); }
+.order-card {
+  width: 100%; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+}
+.order-row { display: flex; justify-content: space-between; padding: 10px 16px; font-size: 13px; }
+.order-row + .order-row { border-top: 1px solid var(--border); }
+.order-row .lbl { color: var(--muted); }
+.order-row .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.order-row .val.g { color: var(--brand); }
+
+/* ─── expired ─── */
+.expired-body { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.expired-ring {
+  width: 66px; height: 66px; border-radius: 50%;
+  background: color-mix(in srgb, var(--accent-danger) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-danger) 25%, transparent);
+  display: flex; align-items: center; justify-content: center;
+}
+.expired-title { font-size: 16px; font-weight: 700; color: var(--accent-danger); }
+.expired-sub { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.65; }
+
+/* modal-footer (.modal-footer) */
+.modal-footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 60%, var(--surface));
+}
+.btn { padding: 8px 20px; border-radius: 10px; font-size: 13px; font-weight: 500; transition: all .15s; }
+.btn-secondary {
+  background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--muted);
+}
+.btn-secondary:hover { background: var(--surface-3); color: var(--text); }
+.btn-danger-ghost {
+  background: transparent; border: 1px solid color-mix(in srgb, var(--accent-danger) 35%, transparent);
+  color: var(--accent-danger);
+}
+.btn-danger-ghost:hover { background: color-mix(in srgb, var(--accent-danger) 8%, transparent); }
+.btn-primary { background: var(--primary-600); color: #fff; box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--brand) 55%, transparent); }
+.btn-primary:hover { background: var(--primary-500); transform: translateY(-1px); }
+
+/* ─────────────────────────────────────────────
+   DEMO BAR
+   ───────────────────────────────────────────── */
+.demo-bar {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  z-index: 60; display: flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: 40px; padding: 7px 12px;
+  box-shadow: var(--shadow-float);
+}
+.demo-label { font-size: 11px; color: var(--muted); padding: 0 4px; }
+.demo-btn {
+  padding: 5px 13px; border-radius: 20px;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  background: var(--surface-2); border: 1px solid var(--border);
+  transition: all .15s;
+}
+.demo-btn:hover { color: var(--text); background: var(--surface-3); }
+.demo-btn.act { background: color-mix(in srgb, var(--brand) 10%, var(--surface)); color: var(--brand); border-color: var(--primary-600); }
+
+/* cp-reveal stagger */
+.cp-reveal { animation: cpReveal .32s ease-out both; }
+.cp-reveal:nth-child(2) { animation-delay: 60ms; }
+.cp-reveal:nth-child(3) { animation-delay: 120ms; }
+@keyframes cpReveal { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, .dialog, .modal-content, .ripple, .spinner, .pulse-dot, .success-ring, .cp-reveal { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <a href="#" class="topbar-brand">
+    <svg width="28" height="28" viewBox="0 0 80 80" fill="none">
+      <rect width="80" height="80" rx="14" fill="#F5B800"/>
+      <rect x="22" y="16" width="8" height="28" rx="2" fill="#FFE566"/>
+      <rect x="22" y="12" width="8" height="8" rx="1" fill="#FFD700"/>
+      <rect x="32" y="12" width="8" height="32" rx="2" fill="#FFE566"/>
+      <rect x="32" y="8" width="8" height="8" rx="1" fill="#FFD700"/>
+      <rect x="42" y="14" width="8" height="30" rx="2" fill="#FFE566"/>
+      <rect x="42" y="10" width="8" height="8" rx="1" fill="#FFD700"/>
+      <rect x="52" y="16" width="8" height="28" rx="2" fill="#FFE566"/>
+      <rect x="52" y="12" width="8" height="8" rx="1" fill="#FFD700"/>
+      <rect x="18" y="42" width="44" height="26" rx="4" fill="#CC2200"/>
+      <path d="M18 44 Q40 38 62 44 L62 48 Q40 42 18 48 Z" fill="#E03010"/>
+      <rect x="31" y="52" width="5" height="10" rx="1" fill="#F5B800"/>
+      <rect x="44" y="52" width="5" height="10" rx="1" fill="#F5B800"/>
+      <rect x="36" y="56" width="8" height="6" rx="1" fill="#F5B800"/>
+    </svg>
+    <span class="brand-grad">codeplan</span>
+  </a>
+  <nav class="topbar-nav">
+    <button class="tnav">概览</button>
+    <button class="tnav active">充值</button>
+    <button class="tnav">API 密钥</button>
+    <button class="tnav">使用记录</button>
+  </nav>
+  <div class="topbar-right">
+    <button class="theme-btn" onclick="toggleTheme()">
+      <svg id="themeIco" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <span id="themeLbl">浅色</span>
+    </button>
+    <div class="user-chip">
+      <div class="user-av">L</div>
+      loucer
+    </div>
+  </div>
+</header>
+
+<!-- PAGE -->
+<main class="page">
+
+  <!-- page tabs with sliding indicator -->
+  <div class="page-tabs" id="pageTabs">
+    <div class="tab-indicator" id="tabIndicator"></div>
+    <button class="ptab active" onclick="switchTab(0,this)">充值</button>
+    <button class="ptab" onclick="switchTab(1,this)">积分商城</button>
+    <button class="ptab" onclick="switchTab(2,this)">卡密充值 <span class="pill">备用</span></button>
+  </div>
+
+  <!-- account card -->
+  <div class="account-card cp-reveal">
+    <div class="acc-av">L</div>
+    <div>
+      <div class="acc-name">loucer</div>
+      <div class="acc-role">充值账户</div>
+    </div>
+    <div class="acc-balance">
+      <div class="acc-bal-label">当前余额</div>
+      <div class="acc-bal-val">$9,983,788.95</div>
+    </div>
+  </div>
+
+  <!-- main grid -->
+  <div class="cp-cols">
+
+    <!-- LEFT: amounts + methods -->
+    <div class="cp-reveal" style="animation-delay:60ms">
+      <div class="card">
+        <div class="card-body">
+          <div class="card-section-label">快捷金额</div>
+          <div class="amount-grid" id="amountGrid">
+            <button class="amount-btn" onclick="pickAmt(this,10,10)"><div class="price">¥10.00</div></button>
+            <button class="amount-btn" onclick="pickAmt(this,20,20)"><div class="price">¥20.00</div></button>
+            <button class="amount-btn" onclick="pickAmt(this,50,50)"><div class="price">¥50.00</div></button>
+            <button class="amount-btn" onclick="pickAmt(this,100,105)">
+              <div class="badge">+5%</div><div class="price">¥100.00</div><div class="credit">到账 105.00</div>
+            </button>
+            <button class="amount-btn" onclick="pickAmt(this,200,210)">
+              <div class="badge">+5%</div><div class="price">¥200.00</div><div class="credit">到账 210.00</div>
+            </button>
+            <button class="amount-btn" onclick="pickAmt(this,500,525)">
+              <div class="badge">+5%</div><div class="price">¥500.00</div><div class="credit">到账 525.00</div>
+            </button>
+            <button class="amount-btn" onclick="pickAmt(this,1000,1050)">
+              <div class="badge">+5%</div><div class="price">¥1,000.00</div><div class="credit">到账 1050.00</div>
+            </button>
+            <button class="amount-btn" onclick="pickAmt(this,2000,2100)">
+              <div class="badge">+5%</div><div class="price">¥2,000.00</div><div class="credit">到账 2100.00</div>
+            </button>
+            <button class="amount-btn" onclick="pickAmt(this,5000,5250)">
+              <div class="badge">+5%</div><div class="price">¥5,000.00</div><div class="credit">到账 5250.00</div>
+            </button>
+          </div>
+
+          <div class="card-section-label">自定义金额</div>
+          <div class="input-wrap">
+            <span class="input-prefix">¥</span>
+            <input class="custom-input" type="number" placeholder="输入金额" id="customAmt" oninput="onCustom(this)">
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);padding:22px 22px 0">
+          <div class="card-section-label">支付方式</div>
+          <div class="method-list">
+            <button class="method-btn selected" onclick="pickMethod(this,'alipay')">
+              <div class="method-ico" style="background:#1677ff">
+                <svg width="18" height="18" viewBox="0 0 40 40" fill="none"><path d="M20 8c-6.63 0-12 5.37-12 12 0 4.28 2.24 8.04 5.6 10.22-1.04-.44-2.52-1.12-4.08-1.78C10.88 31.08 14.16 32 20 32c6.63 0 12-5.37 12-12S26.63 8 20 8zm-1.2 14.4h-3.6v-1.6h3.6v-2.4H16v-1.6h2.8v-1.6h1.6v1.6h1.2c1.77 0 3.2 1.43 3.2 3.2s-1.43 3.2-3.2 3.2h-2.8v1.6h-1.6v-2zm1.6-1.6h1.2a1.6 1.6 0 000-3.2h-1.2v3.2z" fill="white"/></svg>
+              </div>
+              支付宝
+            </button>
+            <button class="method-btn" onclick="pickMethod(this,'usdt')">
+              <div class="method-ico" style="background:#26a17b">
+                <svg width="16" height="16" viewBox="0 0 32 32" fill="white"><path d="M16 0C7.16 0 0 7.16 0 16s7.16 16 16 16 16-7.16 16-16S24.84 0 16 0zm1 23.6v2.4h-2v-2.4C10.8 23.3 8 21.7 8 19.7c0-.7.6-1.3 1.3-1.3.5 0 .9.3 1.1.7.5 1.5 2.5 2.5 5.6 2.5 3.3 0 5.5-1.2 5.5-2.9 0-1.4-1.2-2.3-5.2-2.9l-1-.1C11 15 9 13.5 9 11.1c0-2.2 2.5-3.8 6-4V5h2v2.2c3.2.4 5.4 2 5.4 3.8 0 .7-.6 1.3-1.3 1.3-.5 0-.9-.2-1.1-.7C24.5 10 22.9 9.2 21 9.2c-2.8 0-4.6 1-4.6 2.4 0 1.3 1.4 2.1 4.8 2.7l.9.2c4.5.7 6.9 2.3 6.9 5-.1 2.4-2.8 4-7 4.1z"/></svg>
+              </div>
+              USDT <span style="font-size:11px;color:var(--muted);font-weight:400">多链网关</span>
+            </button>
+          </div>
+          <div class="method-footnote">支付方式不方便？<a href="#">使用卡密充值 →</a></div>
+        </div>
+        <div style="height:22px"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: summary + pay button -->
+    <div class="cp-cols-side cp-reveal" style="animation-delay:120ms">
+      <div class="card">
+        <div style="padding:18px 22px 4px">
+          <div class="card-section-label">订单摘要</div>
+        </div>
+        <div class="summary-empty" id="summaryEmpty">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+          <p>请先选择或输入充值金额</p>
+        </div>
+        <div class="summary-rows" id="summaryRows">
+          <div class="sr"><span class="lbl">充值金额</span><span class="val" id="srAmt">—</span></div>
+          <div class="sr" id="srBonusRow" style="display:none"><span class="lbl">赠送额度</span><span class="val bonus" id="srBonus">—</span></div>
+          <div class="sr"><span class="lbl">到账额度</span><span class="val g" id="srCredit">—</span></div>
+          <div class="sr"><span class="lbl">支付方式</span><span class="val" id="srMethod">支付宝</span></div>
+        </div>
+        <div class="pay-btn-wrap">
+          <button class="btn-pay" id="payBtn" onclick="openModal(event)" disabled>
+            请先选择或输入充值金额
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ══ MODAL ══ -->
+<div class="modal-overlay" id="modalOverlay" onclick="backdropClose(event)">
+  <div class="modal-content" id="modalContent">
+
+    <div class="modal-header">
+      <div class="mh-icon">
+        <svg viewBox="0 0 80 80" fill="none"><rect width="80" height="80" rx="14" fill="#F5B800"/><rect x="22" y="16" width="8" height="28" rx="2" fill="#FFE566"/><rect x="22" y="12" width="8" height="8" rx="1" fill="#FFD700"/><rect x="32" y="12" width="8" height="32" rx="2" fill="#FFE566"/><rect x="32" y="8" width="8" height="8" rx="1" fill="#FFD700"/><rect x="42" y="14" width="8" height="30" rx="2" fill="#FFE566"/><rect x="42" y="10" width="8" height="8" rx="1" fill="#FFD700"/><rect x="52" y="16" width="8" height="28" rx="2" fill="#FFE566"/><rect x="52" y="12" width="8" height="8" rx="1" fill="#FFD700"/><rect x="18" y="42" width="44" height="26" rx="4" fill="#CC2200"/><path d="M18 44 Q40 38 62 44 L62 48 Q40 42 18 48 Z" fill="#E03010"/><rect x="31" y="52" width="5" height="10" rx="1" fill="#F5B800"/><rect x="44" y="52" width="5" height="10" rx="1" fill="#F5B800"/><rect x="36" y="56" width="8" height="6" rx="1" fill="#F5B800"/></svg>
+      </div>
+      <div class="mh-text">
+        <div class="mh-title">
+          <span style="background:linear-gradient(90deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:800">codeplan</span>
+          <span class="mh-lock">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>安全支付
+          </span>
+        </div>
+        <div class="mh-sub" id="mhSub">支付宝扫码</div>
+      </div>
+      <button class="mh-close" onclick="closeModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- QR state -->
+    <div class="modal-body" id="stateQR">
+      <div class="qr-zone">
+        <div class="qr-css" id="qrGrid"></div>
+        <div class="qr-center-logo" id="qrLogo"></div>
+      </div>
+      <p class="scan-hint" id="scanHint">请使用手机打开支付宝，扫描上方二维码完成支付</p>
+      <div class="modal-divider"></div>
+      <div class="cd-block">
+        <div class="cd-label">剩余支付时间</div>
+        <div class="cd-value" id="cdVal">28:42</div>
+        <div class="cd-status"><span class="pulse-dot"></span>等待支付中…</div>
+      </div>
+    </div>
+
+    <!-- Popup waiting state -->
+    <div class="modal-body" id="statePopup" style="display:none">
+      <div class="popup-body">
+        <div class="spinner"></div>
+        <p class="popup-hint">已在新窗口打开收銀台<br>完成支付后本页面将自动更新</p>
+        <button class="btn-reopen">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          重新打开支付窗口
+        </button>
+      </div>
+      <div class="modal-divider"></div>
+      <div class="cd-block">
+        <div class="cd-label">剩余支付时间</div>
+        <div class="cd-value">28:42</div>
+        <div class="cd-status"><span class="pulse-dot"></span>等待支付中…</div>
+      </div>
+    </div>
+
+    <!-- Success state -->
+    <div class="modal-body" id="stateSuccess" style="display:none">
+      <div class="success-body">
+        <div class="success-ring">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-ok)"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="success-title">支付成功</div>
+        <div class="order-card">
+          <div class="order-row"><span class="lbl">订单编号</span><span class="val">#20241017003</span></div>
+          <div class="order-row"><span class="lbl">充値金额</span><span class="val" id="okPay">—</span></div>
+          <div class="order-row"><span class="lbl">到账额度</span><span class="val g" id="okCredit">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expired state -->
+    <div class="modal-body" id="stateExpired" style="display:none">
+      <div class="expired-body">
+        <div class="expired-ring">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-danger)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="expired-title">订单已过期</div>
+        <p class="expired-sub">支付超时，订单已自动取消<br>如需继续充値请重新发起</p>
+      </div>
+    </div>
+
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- DEMO CONTROLS -->
+<div class="demo-bar">
+  <span class="demo-label">预览：</span>
+  <button class="demo-btn act" onclick="setDemo('qr',this)">二维码</button>
+  <button class="demo-btn" onclick="setDemo('popup',this)">弹窗</button>
+  <button class="demo-btn" onclick="setDemo('success',this)">成功</button>
+  <button class="demo-btn" onclick="setDemo('expired',this)">过期</button>
+</div>
+
+<script>
+/* ── QR pattern (25×25) ── */
+const QR_PATTERN = [
+  '1111111010110101011111100','1000001011001011100000100',
+  '1011101001010110001110100','1011101010001101101110100',
+  '1011101001100011001110100','1000001001011010100000100',
+  '1111111010101010111111100','0000000001110001000000000',
+  '1011011101101001001010011','0100000010001110010011010',
+  '1101110100110010111010100','0010001011001100001010011',
+  '1110100010100111010111001','0000000011011010001001010',
+  '1111111010001001110101001','1000001001010100011010010',
+  '1011101010100010100011101','1011101010001101001010010',
+  '1011101010101001110011001','1000001001100110010001010',
+  '1111111011010010001010101','0000000010101101010001011',
+  '1111111010010010111111101','1000001001001101000000100',
+  '1111111010011010111111100',
+];
+
+(function buildQR(){
+  const g = document.getElementById('qrGrid');
+  QR_PATTERN.forEach(row => {
+    for(const ch of row){
+      const d = document.createElement('div');
+      d.className = ch==='1' ? 'qc b' : 'qc';
+      g.appendChild(d);
+    }
+  });
+  setQRLogo('alipay');
+})();
+
+function setQRLogo(method){
+  const el = document.getElementById('qrLogo');
+  el.innerHTML = method === 'alipay' ? `
+    <svg viewBox="0 0 40 40" fill="none" width="32" height="32">
+      <rect width="40" height="40" rx="8" fill="#1677FF"/>
+      <path d="M20 8c-6.63 0-12 5.37-12 12 0 4.28 2.24 8.04 5.6 10.22-1.04-.44-2.52-1.12-4.08-1.78C10.88 31.08 14.16 32 20 32c6.63 0 12-5.37 12-12S26.63 8 20 8zm-1.2 14.4h-3.6v-1.6h3.6v-2.4H16v-1.6h2.8v-1.6h1.6v1.6h1.2c1.77 0 3.2 1.43 3.2 3.2s-1.43 3.2-3.2 3.2h-2.8v1.6h-1.6v-2zm1.6-1.6h1.2a1.6 1.6 0 000-3.2h-1.2v3.2z" fill="white"/>
+    </svg>` : `
+    <svg viewBox="0 0 40 40" fill="none" width="32" height="32">
+      <rect width="40" height="40" rx="8" fill="#26a17b"/>
+      <path d="M20 6C12.27 6 6 12.27 6 20s6.27 14 14 14 14-6.27 14-14S27.73 6 20 6zm1 17.6v2.4h-2v-2.4C14.8 23.3 12 21.7 12 19.7c0-.7.6-1.3 1.3-1.3.5 0 .9.3 1.1.7.5 1.5 2.5 2.5 5.6 2.5 3.3 0 5.5-1.2 5.5-2.9 0-1.4-1.2-2.3-5.2-2.9l-1-.1C15 15 13 13.5 13 11.1c0-2.2 2.5-3.8 6-4V5h2v2.2c3.2.4 5.4 2 5.4 3.8 0 .7-.6 1.3-1.3 1.3-.5 0-.9-.2-1.1-.7C24.5 10 22.9 9.2 21 9.2c-2.8 0-4.6 1-4.6 2.4 0 1.3 1.4 2.1 4.8 2.7l.9.2c4.5.7 6.9 2.3 6.9 5-.1 2.4-2.8 4-7 4.1z" fill="white"/>
+    </svg>`;
+}
+
+/* ── STATE ── */
+let selPay = 0, selCredit = 0, selMethod = 'alipay', demoState = 'qr';
+let cdSecs = 1722, cdTimer = null;
+
+function pickAmt(btn, pay, credit){
+  document.querySelectorAll('.amount-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('customAmt').value = '';
+  setAmt(pay, credit);
+}
+function onCustom(inp){
+  document.querySelectorAll('.amount-btn').forEach(b=>b.classList.remove('selected'));
+  const v = parseFloat(inp.value);
+  if(!isNaN(v) && v > 0) setAmt(v, v); else clearAmt();
+}
+function setAmt(pay, credit){
+  selPay = pay; selCredit = credit;
+  const bonus = credit - pay;
+  document.getElementById('summaryEmpty').style.display = 'none';
+  document.getElementById('summaryRows').style.display = 'block';
+  document.getElementById('srAmt').textContent = `¥${pay.toFixed(2)}`;
+  document.getElementById('srCredit').textContent = `$${credit.toFixed(2)}`;
+  const br = document.getElementById('srBonusRow');
+  if(bonus > 0){ br.style.display='flex'; document.getElementById('srBonus').textContent=`+$${bonus.toFixed(2)}`; }
+  else br.style.display='none';
+  const btn = document.getElementById('payBtn');
+  btn.disabled = false;
+  btn.textContent = `立即支付 ¥${pay.toFixed(2)}`;
+}
+function clearAmt(){
+  selPay=0; selCredit=0;
+  document.getElementById('summaryEmpty').style.display='flex';
+  document.getElementById('summaryRows').style.display='none';
+  const btn=document.getElementById('payBtn'); btn.disabled=true;
+  btn.textContent='请先选择或输入充值金额';
+}
+function pickMethod(btn, method){
+  document.querySelectorAll('.method-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected'); selMethod=method;
+  document.getElementById('srMethod').textContent = btn.textContent.trim().split('\n')[0].trim();
+  setQRLogo(method);
+  document.getElementById('scanHint').textContent = method==='alipay'
+    ? '请使用手机打开支付宝，扫描上方二维码完成支付'
+    : '请使用 USDT 钱包扫描上方二维码完成支付';
+  document.getElementById('mhSub').textContent = method==='alipay' ? '支付宝扫码' : 'USDT 多链网关';
+}
+
+/* ── MODAL ── */
+function openModal(e){
+  // ripple on button (guard against synthetic events with no coordinates)
+  try {
+    const btn=e.currentTarget, rect=btn.getBoundingClientRect();
+    const r=document.createElement('span'); r.className='ripple';
+    const sz=Math.max(rect.width,rect.height)*1.5;
+    const cx = e.clientX != null ? e.clientX : rect.left + rect.width/2;
+    const cy = e.clientY != null ? e.clientY : rect.top  + rect.height/2;
+    r.style.cssText=`width:${sz}px;height:${sz}px;left:${cx-rect.left-sz/2}px;top:${cy-rect.top-sz/2}px`;
+    btn.appendChild(r); r.addEventListener('animationend',()=>r.remove());
+  } catch(_){}
+
+  document.getElementById('okPay').textContent=`¥${selPay.toFixed(2)}`;
+  document.getElementById('okCredit').textContent=`$${selCredit.toFixed(2)}`;
+
+  setTimeout(()=>{
+    showState(demoState);
+    const ov=document.getElementById('modalOverlay');
+    ov.classList.add('open');
+    document.body.style.overflow='hidden';
+    startCD();
+  }, 100);
+}
+function closeModal(){
+  const ov=document.getElementById('modalOverlay');
+  ov.classList.add('closing'); ov.classList.remove('open');
+  setTimeout(()=>{ ov.classList.remove('closing'); document.body.style.overflow=''; stopCD(); },220);
+}
+function backdropClose(e){ if(e.target===document.getElementById('modalOverlay')) closeModal(); }
+
+function showState(s){
+  ['QR','Popup','Success','Expired'].forEach(x=>document.getElementById('state'+x).style.display='none');
+  const f=document.getElementById('modalFooter'); f.innerHTML='';
+  if(s==='qr'||s==='popup'){
+    document.getElementById('state'+(s==='qr'?'QR':'Popup')).style.display='flex';
+    f.innerHTML='<button class="btn btn-danger-ghost" onclick="closeModal()">取消订单</button>';
+  } else if(s==='success'){
+    document.getElementById('stateSuccess').style.display='flex';
+    f.innerHTML='<button class="btn btn-primary" onclick="closeModal()">确认</button>';
+  } else {
+    document.getElementById('stateExpired').style.display='flex';
+    f.innerHTML='<button class="btn btn-primary" onclick="closeModal()">返回充值</button>';
+  }
+}
+
+/* ── countdown ── */
+function startCD(){ cdSecs=1722; stopCD(); tickCD();
+  cdTimer=setInterval(tickCD,1000); }
+function stopCD(){ if(cdTimer){clearInterval(cdTimer);cdTimer=null;} }
+function tickCD(){
+  cdSecs=Math.max(0,cdSecs-1);
+  const m=String(Math.floor(cdSecs/60)).padStart(2,'0');
+  const s=String(cdSecs%60).padStart(2,'0');
+  document.getElementById('cdVal').textContent=m+':'+s;
+}
+
+/* ── demo bar ── */
+function setDemo(s,btn){
+  demoState=s;
+  document.querySelectorAll('.demo-btn').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  const ov=document.getElementById('modalOverlay');
+  if(ov.classList.contains('open')) showState(s);
+}
+
+/* ── sliding tab indicator ── */
+function switchTab(idx, btn){
+  document.querySelectorAll('.ptab').forEach((b,i)=>b.classList.toggle('active',i===idx));
+  positionIndicator(idx);
+}
+function positionIndicator(idx){
+  const tabs=document.querySelectorAll('.ptab');
+  const ind=document.getElementById('tabIndicator');
+  const tab=tabs[idx];
+  ind.style.width=tab.offsetWidth+'px';
+  ind.style.transform=`translateX(${tab.offsetLeft-4}px)`;
+}
+window.addEventListener('load',()=>positionIndicator(0));
+window.addEventListener('resize',()=>{
+  const active=document.querySelector('.ptab.active');
+  if(active) positionIndicator([...document.querySelectorAll('.ptab')].indexOf(active));
+});
+
+/* ── theme ── */
+let dark=true;
+function toggleTheme(){
+  dark=!dark;
+  document.documentElement.classList.toggle('dark',dark);
+  document.getElementById('themeLbl').textContent=dark?'浅色':'深色';
+  // re-run icon
+  const ico=document.getElementById('themeIco');
+  ico.innerHTML=dark
+    ?'<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>'
+    :'<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+}
+
+/* init: pre-select ¥100 */
+(function(){ pickAmt(document.querySelectorAll('.amount-btn')[3],100,105); })();
+
+/* ── fetch site logo from backend public settings ── */
+(async function loadSiteLogo(){
+  try {
+    const res = await fetch('/api/v1/settings/public');
+    if (!res.ok) return;
+    const data = await res.json();
+    const logo = data?.data?.site_logo || data?.site_logo;
+    if (!logo) return;
+    // replace both header icon and topbar icon with the site logo
+    const mhIcon = document.querySelector('.mh-icon');
+    const topbarIcon = document.querySelector('.topbar-brand svg');
+    const img = `<img src="${logo}" alt="site logo" style="width:100%;height:100%;object-fit:contain;border-radius:8px">`;
+    if (mhIcon) mhIcon.innerHTML = img;
+    if (topbarIcon) {
+      const wrap = topbarIcon.parentNode;
+      topbarIcon.replaceWith(Object.assign(document.createElement('img'), {
+        src: logo, alt: 'logo',
+        style: 'width:28px;height:28px;object-fit:contain;border-radius:6px'
+      }));
+    }
+  } catch(_) { /* fallback: keep pixel fries SVG */ }
+})();
+</script>
+</body>
+</html>
