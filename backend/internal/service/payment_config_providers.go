@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"entgo.io/ent/dialect"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
@@ -191,7 +192,7 @@ var validProviderKeys = map[string]bool{
 }
 
 func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req CreateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
-	if !isCryptoProviderKey(req.ProviderKey) {
+	if !isCryptoProviderKey(req.ProviderKey) && req.ProviderKey != payment.ProviderJianPay {
 		return s.createProviderInstance(ctx, req)
 	}
 	tx, err := s.entClient.Tx(ctx)
@@ -201,6 +202,11 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 	defer tx.Rollback()
 	copyService := *s
 	copyService.entClient = tx.Client()
+	if req.ProviderKey == payment.ProviderJianPay {
+		if err = lockJianPayMerchantMethods(ctx, tx.Client()); err != nil {
+			return nil, err
+		}
+	}
 	inst, err := copyService.createProviderInstance(ctx, req)
 	if err != nil {
 		return nil, err
@@ -209,6 +215,14 @@ func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req C
 		return nil, err
 	}
 	return inst, nil
+}
+
+func lockJianPayMerchantMethods(ctx context.Context, client *dbent.Client) error {
+	if client.Driver().Dialect() == dialect.Postgres {
+		_, err := client.ExecContext(ctx, "SELECT pg_advisory_xact_lock($1)", int64(738294017))
+		return err
+	}
+	return nil
 }
 
 func (s *PaymentConfigService) createProviderInstance(ctx context.Context, req CreateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
@@ -228,6 +242,9 @@ func (s *PaymentConfigService) createProviderInstance(ctx context.Context, req C
 		}
 	}
 	if err := s.validateVisibleMethodEnablementConflicts(ctx, 0, req.ProviderKey, typesStr, req.Enabled); err != nil {
+		return nil, err
+	}
+	if err := s.validateJianPayMerchantMethods(ctx, 0, req.ProviderKey, req.Config, typesStr, req.Enabled); err != nil {
 		return nil, err
 	}
 	if req.Enabled {
@@ -254,6 +271,38 @@ func (s *PaymentConfigService) createProviderInstance(ctx context.Context, req C
 func validateJianPayPaymentMode(providerKey, mode string) error {
 	if providerKey == payment.ProviderJianPay && mode != "" && mode != "qrcode" && mode != "popup" {
 		return infraerrors.BadRequest("VALIDATION_ERROR", "JianPay payment mode must be qrcode or popup")
+	}
+	return nil
+}
+
+func (s *PaymentConfigService) validateJianPayMerchantMethods(ctx context.Context, excludeID int64, providerKey string, config map[string]string, supportedTypes string, enabled bool) error {
+	if providerKey != payment.ProviderJianPay || !enabled {
+		return nil
+	}
+	clientNo := strings.TrimSpace(config["clientNo"])
+	instances, err := s.entClient.PaymentProviderInstance.Query().Where(
+		paymentproviderinstance.ProviderKeyEQ(payment.ProviderJianPay),
+		paymentproviderinstance.EnabledEQ(true),
+	).All(ctx)
+	if err != nil {
+		return fmt.Errorf("check JianPay merchant methods: %w", err)
+	}
+	for _, inst := range instances {
+		if int64(inst.ID) == excludeID {
+			continue
+		}
+		otherConfig, err := s.decryptConfig(inst.Config)
+		if err != nil {
+			return fmt.Errorf("read JianPay merchant config: %w", err)
+		}
+		if clientNo != "" && clientNo == strings.TrimSpace(otherConfig["clientNo"]) {
+			continue
+		}
+		for _, method := range []string{payment.TypeAlipay, payment.TypeWxpay} {
+			if payment.InstanceSupportsType(supportedTypes, payment.PaymentType(method)) && payment.InstanceSupportsType(inst.SupportedTypes, payment.PaymentType(method)) {
+				return infraerrors.Conflict("JIANPAY_METHOD_MERCHANT_CONFLICT", fmt.Sprintf("JianPay payment method %s is already enabled for another merchant", method))
+			}
+		}
 	}
 	return nil
 }
@@ -361,6 +410,11 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 		return nil, err
 	}
 	defer tx.Rollback()
+	if inst.ProviderKey == payment.ProviderJianPay {
+		if err = lockJianPayMerchantMethods(ctx, tx.Client()); err != nil {
+			return nil, err
+		}
+	}
 	if err = lockCryptoProviderInstance(ctx, tx.Client(), id); err != nil {
 		return nil, err
 	}
@@ -481,6 +535,9 @@ func (s *PaymentConfigService) updateProviderInstance(ctx context.Context, id in
 		if err := validateEasyPayCustomMethods(configToValidate, nextSupportedTypes); err != nil {
 			return nil, err
 		}
+	}
+	if err := s.validateJianPayMerchantMethods(ctx, id, current.ProviderKey, configToValidate, nextSupportedTypes, nextEnabled); err != nil {
+		return nil, err
 	}
 	// Validate merged config when the instance will end up enabled.
 	// This surfaces provider-level errors (e.g. wxpay missing certSerial) at save time,

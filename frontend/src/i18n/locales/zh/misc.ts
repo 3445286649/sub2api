@@ -599,6 +599,7 @@ export default {
       WXPAY_CONFIG_INVALID_KEY: '微信支付 {key} 格式错误，请确认复制了完整的 PEM 内容',
       PENDING_ORDERS: '该服务商有未完成的订单，请等待订单完成后再操作',
       PAYMENT_PROVIDER_CONFLICT: '该支付方式已有其他启用中的服务商实例，请先停用后再继续。',
+      JIANPAY_METHOD_MERCHANT_CONFLICT: '不同简付商户号不能同时承接同一种支付方式。请先将原实例改为支付宝或微信专用。',
       CANCEL_RATE_LIMITED: '取消订单过于频繁，请稍后再试',
       NOT_FOUND: '订单不存在',
       FORBIDDEN: '无权限操作此订单',

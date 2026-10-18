@@ -65,6 +65,55 @@ func jianPayFixtureNotification(order *dbent.PaymentOrder) *payment.PaymentNotif
 	return &payment.PaymentNotification{OrderID: order.OutTradeNo, TradeNo: "jian-trade", Amount: 80, Status: payment.NotificationStatusSuccess, Metadata: map[string]string{"clientNo": "JP-test", "merchantOrderNo": order.OutTradeNo, "payMethod": "alipay", "amount_cents": "8000"}}
 }
 
+func TestJianPayMerchantMethodsDoNotOverlapAcrossMerchants(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	svc := NewPaymentConfigService(client, nil, []byte("0123456789abcdef0123456789abcdef"))
+	config := func(clientNo string) map[string]string {
+		return map[string]string{
+			"clientNo": clientNo, "merchantKey": "fixture-key",
+			"notifyUrl": "https://site.test/api/v1/payment/webhook/jianpay",
+			"returnUrl": "https://site.test/payment/result",
+		}
+	}
+	create := func(name, clientNo string, methods ...string) (*dbent.PaymentProviderInstance, error) {
+		return svc.CreateProviderInstance(ctx, CreateProviderInstanceRequest{
+			ProviderKey: payment.ProviderJianPay, Name: name, Config: config(clientNo),
+			SupportedTypes: methods, Enabled: true,
+		})
+	}
+	alipay, err := create("Alipay", "JP-alipay", payment.TypeAlipay)
+	require.NoError(t, err)
+	wechat, err := create("WeChat", "JP-wechat", payment.TypeWxpay)
+	require.NoError(t, err)
+	svc.settingRepo = &paymentConfigSettingRepoStub{values: map[string]string{
+		SettingPaymentVisibleMethodAlipaySource: VisibleMethodSourceJianPayAlipay,
+		SettingPaymentVisibleMethodWxpaySource:  VisibleMethodSourceJianPayWechat,
+	}}
+	lb := newVisibleMethodLoadBalancer(payment.NewDefaultLoadBalancer(client, svc.encryptionKey), svc)
+	for _, tc := range []struct {
+		method     string
+		instanceID int64
+		clientNo   string
+	}{
+		{payment.TypeAlipay, alipay.ID, "JP-alipay"},
+		{payment.TypeWxpay, wechat.ID, "JP-wechat"},
+	} {
+		selected, err := lb.SelectInstance(ctx, "", tc.method, payment.StrategyRoundRobin, 1)
+		require.NoError(t, err)
+		require.Equal(t, strconv.FormatInt(tc.instanceID, 10), selected.InstanceID)
+		require.Equal(t, tc.clientNo, selected.Config["clientNo"])
+	}
+	_, err = create("Wrong merchant", "JP-other", payment.TypeWxpay)
+	require.ErrorContains(t, err, "JianPay payment method")
+	_, err = create("Same merchant", "JP-wechat", payment.TypeWxpay)
+	require.NoError(t, err)
+	_, err = svc.UpdateProviderInstance(ctx, wechat.ID, UpdateProviderInstanceRequest{SupportedTypes: []string{payment.TypeAlipay, payment.TypeWxpay}})
+	require.ErrorContains(t, err, "JianPay payment method")
+	_, err = svc.UpdateProviderInstance(ctx, alipay.ID, UpdateProviderInstanceRequest{SupportedTypes: []string{payment.TypeAlipay, payment.TypeWxpay}})
+	require.ErrorContains(t, err, "JianPay payment method")
+}
+
 func TestJianPayPaymentModePersistence(t *testing.T) {
 	ctx := context.Background()
 	svc := NewPaymentConfigService(newPaymentConfigServiceTestClient(t), nil, []byte(strings.Repeat("k", 32)))

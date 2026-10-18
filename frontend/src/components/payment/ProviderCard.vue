@@ -40,18 +40,27 @@
         </div>
         <span v-if="enabled && availableTypes.length" class="hidden text-xs text-gray-300 dark:text-gray-600 sm:inline">|</span>
         <div v-if="enabled" class="flex min-w-0 flex-wrap items-center gap-1">
-          <button
-            v-for="pt in availableTypes"
-            :key="pt.value"
-            type="button"
-            @click="emit('toggleType', pt.value)"
-            :class="[
-              'whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium transition-all',
-              isSelected(pt.value)
-                ? 'bg-primary-500 text-white'
-                : 'bg-gray-100 text-gray-400 dark:bg-dark-700 dark:text-gray-500',
-            ]"
-          >{{ pt.label }}</button>
+          <template v-if="provider.provider_key === 'jianpay'">
+            <span
+              v-for="pt in availableTypes.filter(type => isSelected(type.value))"
+              :key="pt.value"
+              class="whitespace-nowrap rounded bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+            >{{ pt.label }}</span>
+          </template>
+          <template v-else>
+            <button
+              v-for="pt in availableTypes"
+              :key="pt.value"
+              type="button"
+              @click="emit('toggleType', pt.value)"
+              :class="[
+                'whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium transition-all',
+                isSelected(pt.value)
+                  ? 'bg-primary-500 text-white'
+                  : 'bg-gray-100 text-gray-400 dark:bg-dark-700 dark:text-gray-500',
+              ]"
+            >{{ pt.label }}</button>
+          </template>
         </div>
       </div>
 

@@ -538,6 +538,7 @@ export default {
       WXPAY_CONFIG_INVALID_KEY: 'WeChat Pay {key} is malformed. Make sure you copied the full PEM content.',
       PENDING_ORDERS: 'This provider has pending orders. Please wait for them to complete before making changes.',
       PAYMENT_PROVIDER_CONFLICT: 'Another enabled provider instance is already serving this payment method. Disable it before continuing.',
+      JIANPAY_METHOD_MERCHANT_CONFLICT: 'Different JianPay merchants cannot serve the same payment method. Assign each instance to Alipay or WeChat first.',
       CANCEL_RATE_LIMITED: 'Too many cancellations. Please try again later.',
       NOT_FOUND: 'Order not found.',
       FORBIDDEN: 'No permission for this order.',

@@ -98,6 +98,24 @@ function mountDialog(options: { editing?: ProviderInstance | null } = {}) {
 }
 
 describe('PaymentProviderDialog callback URLs', () => {
+  it('creates a WeChat-only JianPay merchant with its own credentials', async () => {
+    const wrapper = mountDialog()
+    ;(wrapper.vm as unknown as { reset: (key: string) => void }).reset('jianpay')
+    await nextTick()
+    await wrapper.get('input[required]').setValue('简付微信商户')
+    await wrapper.findAll('button').find(button => button.text() === 'WeChat Pay')!.trigger('click')
+    expect(wrapper.text()).toContain('admin.settings.payment.jianpay_wxpay_clientNo')
+    expect(wrapper.text()).toContain('admin.settings.payment.jianpay_wxpay_merchantKey')
+    await wrapper.get('[data-test="provider-config-clientNo"]').setValue('JP-wechat')
+    await wrapper.get('[data-test="provider-config-merchantKey"]').setValue('wechat-key')
+    await wrapper.get('form').trigger('submit')
+    const payload = wrapper.emitted('save')?.[0]?.[0] as ProviderInstance
+    expect(payload.supported_types).toEqual(['wxpay'])
+    expect(payload.config.clientNo).toBe('JP-wechat')
+    expect(payload.config.merchantKey).toBe('wechat-key')
+    wrapper.unmount()
+  })
+
   it('defaults JianPay to Alipay only and preserves stored secrets when editing', async () => {
     const wrapper = mountDialog()
     ;(wrapper.vm as unknown as { reset: (key: string) => void }).reset('jianpay')

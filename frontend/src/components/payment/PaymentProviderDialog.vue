@@ -51,7 +51,25 @@
             >{{ mode.label }}</button>
           </div>
         </div>
-        <div v-if="availableTypes.length > 1" class="flex items-center gap-2">
+        <div v-if="form.provider_key === 'jianpay'" class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.jianpayMerchantType') }}</span>
+          <div class="flex gap-1.5" role="group" :aria-label="t('admin.settings.payment.jianpayMerchantType')">
+            <button
+              v-for="pt in availableTypes"
+              :key="pt.value"
+              type="button"
+              :aria-pressed="form.supported_types.length === 1 && isTypeSelected(pt.value)"
+              @click="form.supported_types = [pt.value]"
+              :class="[
+                'rounded-lg border px-2.5 py-1 text-xs font-medium transition-all',
+                form.supported_types.length === 1 && isTypeSelected(pt.value)
+                  ? 'border-primary-500 bg-primary-500 text-white shadow-sm'
+                  : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:border-dark-500',
+              ]"
+            >{{ pt.label }}</button>
+          </div>
+        </div>
+        <div v-else-if="availableTypes.length > 1" class="flex items-center gap-2">
           <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.supportedTypes') }}</span>
           <div class="flex flex-wrap gap-1.5">
             <button
@@ -69,6 +87,10 @@
           </div>
         </div>
       </div>
+
+      <p v-if="form.provider_key === 'jianpay'" class="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+        {{ t(form.supported_types.length > 1 ? 'admin.settings.payment.jianpayLegacyMerchantHint' : 'admin.settings.payment.jianpayMerchantHint') }}
+      </p>
 
       <div v-if="['easypay', 'zhifufm'].includes(form.provider_key)" class="space-y-3 rounded-lg border border-gray-100 p-3 dark:border-dark-700">
         <div class="flex items-center justify-between gap-3">
@@ -173,6 +195,7 @@
             />
             <div v-else-if="field.sensitive" class="relative">
               <input
+                :data-test="`provider-config-${field.key}`"
                 :type="visibleFields[field.key] ? 'text' : 'password'"
                 v-model="config[field.key]"
                 class="input pr-10"
@@ -209,6 +232,7 @@
             />
             <input
               v-else
+              :data-test="`provider-config-${field.key}`"
               type="text"
               v-model="config[field.key]"
               class="input"
@@ -501,7 +525,9 @@ const resolvedFields = computed(() => {
   const fields = PROVIDER_CONFIG_FIELDS[form.provider_key] || []
   return fields.map(f => ({
     ...f,
-    label: f.label || t(`admin.settings.payment.field_${f.key}`),
+    label: form.provider_key === 'jianpay' && form.supported_types.length === 1 && (f.key === 'clientNo' || f.key === 'merchantKey')
+      ? t(`admin.settings.payment.jianpay_${form.supported_types[0]}_${f.key}`)
+      : f.label || t(`admin.settings.payment.field_${f.key}`),
   }))
 })
 
