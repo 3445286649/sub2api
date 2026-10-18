@@ -7,6 +7,7 @@
     ]"
     :title="!enabled ? t('admin.settings.payment.typeDisabled') + ' — ' + t('admin.settings.payment.enableTypesFirst') : undefined"
   >
+    <!-- Layout: stacked on mobile, horizontal from sm upwards -->
     <div :class="[
       'flex min-w-0 flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5',
       !enabled && 'pointer-events-none',
