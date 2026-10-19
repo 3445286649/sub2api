@@ -2471,6 +2471,8 @@ export interface UserErrorListParams {
 }
 
 export interface UsageQueryParams {
+  start_time?: string
+  end_time?: string
   page?: number
   page_size?: number
   api_key_id?: number

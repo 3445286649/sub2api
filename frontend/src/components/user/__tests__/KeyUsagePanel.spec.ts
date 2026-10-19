@@ -1,0 +1,52 @@
+import { flushPromises, mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import KeyUsagePanel from '../KeyUsagePanel.vue'
+import Select from '@/components/common/Select.vue'
+import Pagination from '@/components/common/Pagination.vue'
+
+const { getAPIKeySummary } = vi.hoisted(() => ({ getAPIKeySummary: vi.fn() }))
+vi.mock('@/api/usage', () => ({ usageAPI: { getAPIKeySummary } }))
+vi.mock('vue-i18n', async () => ({ ...(await vi.importActual<typeof import('vue-i18n')>('vue-i18n')), useI18n: () => ({ t: (key: string) => key }) }))
+const totals = { requests: 20, input_tokens: 1000, output_tokens: 200, cache_creation_tokens: 300, cache_read_tokens: 400, total_tokens: 1900, actual_cost: 2.5, subscription_cost: 0.5 }
+const fixture = { items: [{ ...totals, api_key_id: 7, name: 'deleted-work-key', deleted: true, group_name: 'new-group' }], summary: totals, total: 31, page: 1, page_size: 20 }
+const render = () => mount(KeyUsagePanel, { props: { groups: [], initialKeyId: 7 }, global: { stubs: { Select: true, Pagination: true, LoadingSpinner: true } } })
+
+describe('KeyUsagePanel', () => {
+  beforeEach(() => { getAPIKeySummary.mockReset(); getAPIKeySummary.mockResolvedValue(fixture) })
+  it('shows server totals for all pages, deleted history and subscription explanation', async () => {
+    const wrapper = render(); await flushPromises()
+    expect(wrapper.text()).toContain('deleted-work-key')
+    expect(wrapper.text()).toContain('usage.errors.keyDeleted')
+    expect(wrapper.text()).toContain('usage.keySummary.subscriptionHint')
+    expect(wrapper.text()).toContain('31')
+    expect(getAPIKeySummary).toHaveBeenCalledWith(expect.objectContaining({ api_key_id: 7, page: 1 }), expect.any(AbortSignal))
+    wrapper.findComponent(Pagination).vm.$emit('update:page', 2); await flushPromises()
+    expect(getAPIKeySummary).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }), expect.any(AbortSignal))
+    const request = getAPIKeySummary.mock.calls[1][0]
+    expect(request.start_time).toBe(getAPIKeySummary.mock.calls[0][0].start_time)
+    await wrapper.findAll('button').find(b => b.text() === 'usage.keySummary.details')!.trigger('click')
+    expect(wrapper.emitted('details')![0][0]).toMatchObject({ api_key_id: 7, key_name: 'deleted-work-key', start_time: request.start_time, end_time: request.end_time })
+    wrapper.unmount()
+  })
+  it('requests exact 24 hours and ignores late responses after filter changes', async () => {
+    let resolve!: (value: typeof fixture) => void
+    getAPIKeySummary.mockImplementationOnce(() => new Promise(r => { resolve = r }))
+    const wrapper = render()
+    const time = wrapper.findAllComponents(Select)[0]
+    time.vm.$emit('update:modelValue', '24h'); await flushPromises()
+    const params = getAPIKeySummary.mock.lastCall![0]
+    expect(new Date(params.end_time).getTime() - new Date(params.start_time).getTime()).toBe(86400000)
+    resolve({ ...fixture, items: [{ ...fixture.items[0], name: 'stale-key' }] }); await flushPromises()
+    expect(wrapper.text()).not.toContain('stale-key')
+    wrapper.unmount()
+  })
+  it('shows errors with retry, without presenting stale totals as current data', async () => {
+    getAPIKeySummary.mockRejectedValueOnce(new Error('offline'))
+    const wrapper = render(); await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('usage.failedToLoad')
+    await wrapper.get('[role="alert"] button').trigger('click'); await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('deleted-work-key')
+    wrapper.unmount()
+  })
+})

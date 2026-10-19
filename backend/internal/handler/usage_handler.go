@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -86,6 +87,18 @@ func (h *UsageHandler) parseUserUsageFilters(c *gin.Context, requireRange bool) 
 			return nil, false
 		}
 		apiKey, err := h.apiKeyService.GetByID(c.Request.Context(), id)
+		// Deleted keys remain queryable by their owner for historical usage.
+		if errors.Is(err, service.ErrAPIKeyNotFound) && id > 0 && h.usageService != nil {
+			owned, lookupErr := h.usageService.OwnsHistoricalAPIKey(c.Request.Context(), subject.UserID, id)
+			if lookupErr != nil {
+				response.ErrorFrom(c, lookupErr)
+				return nil, false
+			}
+			if owned {
+				apiKey = &service.APIKey{ID: id, UserID: subject.UserID}
+				err = nil
+			}
+		}
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return nil, false
@@ -201,6 +214,16 @@ func (h *UsageHandler) parseUserUsageFilters(c *gin.Context, requireRange bool) 
 			}
 			endPtr = &endTime
 		}
+	}
+
+	// Exact timestamps override calendar dates for drill-down from the Key summary.
+	if c.Query("start_time") != "" || c.Query("end_time") != "" {
+		start, end, ok := parseExactUsageRange(c)
+		if !ok {
+			return nil, false
+		}
+		startTime, endTime = start, end
+		startPtr, endPtr = &startTime, &endTime
 	}
 
 	return &userUsageFilters{

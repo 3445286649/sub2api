@@ -3,6 +3,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
 import UsageView from '../UsageView.vue'
+import KeyUsagePanel from '@/components/user/KeyUsagePanel.vue'
+import { routeLocationKey } from 'vue-router'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import UsageTable from '@/components/admin/usage/UsageTable.vue'
@@ -190,11 +192,13 @@ const usageLog = {
   native_compaction_v2: false,
 }
 
-function mountUsageView() {
+function mountUsageView(routeQuery: Record<string, string> = {}) {
   return mount(UsageView, {
     global: {
+      provide: { [routeLocationKey as symbol]: { query: routeQuery } },
       stubs: {
         AppLayout: simpleStub,
+        KeyUsagePanel: { template: '<div />', props: ['groups', 'initialKeyId'] },
         Pagination: true,
         Select: true,
         DateRangePicker: true,
@@ -256,6 +260,23 @@ describe('user UsageView', () => {
     listMyErrorRequests.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20, pages: 0 })
     list.mockResolvedValue({ items: [{ id: 1, name: 'demo-key' }], total: 1, page: 1, page_size: 100, pages: 1 })
     getAvailable.mockResolvedValue([{ id: 1, name: 'default' }])
+  })
+
+  it('opens Key usage from the management link and preserves exact time on drill-down', async () => {
+    const wrapper = mountUsageView({ tab: 'keys', api_key_id: '7' })
+    await flushPromises()
+    const panel = wrapper.getComponent(KeyUsagePanel)
+    expect(panel.props('initialKeyId')).toBe(7)
+    query.mockClear()
+    panel.vm.$emit('details', { api_key_id: 7, key_name: 'deleted-key', start_time: '2026-10-18T15:42:00Z', end_time: '2026-10-19T15:42:00Z', group_id: 3 })
+    await flushPromises()
+    expect(query).toHaveBeenLastCalledWith(expect.objectContaining({ api_key_id: 7, group_id: 3, start_time: '2026-10-18T15:42:00Z', end_time: '2026-10-19T15:42:00Z' }), expect.anything())
+    const keySelect = wrapper.findAllComponents(Select).find(s => s.props('options').some((o: SelectOption) => o.label === 'deleted-key'))
+    expect(keySelect).toBeDefined()
+    wrapper.findComponent(DateRangePicker).vm.$emit('change', { startDate: '2026-10-01', endDate: '2026-10-19', preset: 'thisMonth' })
+    await flushPromises()
+    expect(query.mock.lastCall![0].start_time).toBeUndefined()
+    wrapper.unmount()
   })
 
   it('loads logs, stats, model stats, and snapshot on first render', async () => {

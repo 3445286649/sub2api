@@ -392,6 +392,13 @@
 
           <template #cell-actions="{ row }">
             <div class="flex items-center gap-1">
+              <RouterLink
+                :to="{ path: '/usage', query: { tab: 'keys', api_key_id: row.id } }"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+              >
+                <Icon name="chart" size="sm" />
+                <span class="text-xs">{{ t('usage.keySummary.viewUsage') }}</span>
+              </RouterLink>
               <!-- Use Key Button -->
               <button
                 @click="openUseKeyModal(row)"

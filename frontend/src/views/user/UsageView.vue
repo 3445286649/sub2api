@@ -1,6 +1,16 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
+      <div class="flex gap-2 border-b border-gray-200 dark:border-dark-700">
+        <button class="tab" :class="{ 'tab-active': activeTab === 'usage' }" @click="activeTab = 'usage'">{{ t('usage.tabs.usage') }}</button>
+        <button data-testid="key-usage-tab" class="tab" :class="{ 'tab-active': activeTab === 'keys' }" @click="openKeySummary">{{ t('usage.keySummary.title') }}</button>
+        <button v-if="errorViewEnabled" class="tab" :class="{ 'tab-active': activeTab === 'errors' }" @click="switchToErrors">{{ t('usage.tabs.errors') }}</button>
+      </div>
+      <KeyUsagePanel v-if="keysMounted" v-show="activeTab === 'keys'" :groups="groups" :initial-key-id="summaryKeyId" @details="showKeyDetails" />
+      <div v-show="activeTab !== 'keys'" class="space-y-6">
+      <p v-if="filters.start_time && filters.end_time" class="text-xs text-gray-500 dark:text-gray-400">
+        {{ t('usage.keySummary.exactRange') }}: {{ new Date(filters.start_time).toLocaleString() }} — {{ new Date(filters.end_time).toLocaleString() }}
+      </p>
       <UsageStatsCards :stats="usageStats" :show-account-cost="false" :strike-standard-cost="true" />
 
       <div class="space-y-4">
@@ -167,15 +177,6 @@
         </div>
       </div>
 
-      <div v-if="errorViewEnabled" class="flex gap-2 border-b border-gray-200 dark:border-dark-700">
-        <button class="tab" :class="{ 'tab-active': activeTab === 'usage' }" @click="activeTab = 'usage'">
-          {{ t('usage.tabs.usage') }}
-        </button>
-        <button class="tab" :class="{ 'tab-active': activeTab === 'errors' }" @click="switchToErrors">
-          {{ t('usage.tabs.errors') }}
-        </button>
-      </div>
-
       <template v-if="activeTab === 'usage'">
         <UsageTable
           :data="usageLogs"
@@ -213,6 +214,7 @@
         @update:pageSize="onErrorPageSize"
         @ipGeoBatchFailed="handleIpGeoBatchFailed"
       />
+      </div>
     </div>
   </AppLayout>
 
@@ -423,7 +425,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, inject, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { routeLocationKey } from 'vue-router'
+import KeyUsagePanel from '@/components/user/KeyUsagePanel.vue'
+import { keyUsageDisplayDates } from '@/utils/keyUsageRange'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { FeatureFlags, resolveFeatureFlag } from '@/utils/featureFlags'
@@ -580,7 +585,22 @@ const modelDistributionMetric = ref<DistributionMetric>('tokens')
 const groupDistributionMetric = ref<DistributionMetric>('tokens')
 const endpointDistributionMetric = ref<DistributionMetric>('tokens')
 const endpointDistributionSource = ref<EndpointSource>('inbound')
-const activeTab = ref<'usage' | 'errors'>('usage')
+const route = inject(routeLocationKey, undefined)
+const activeTab = ref<'usage' | 'errors' | 'keys'>('usage')
+const keysMounted = ref(false)
+const summaryKeyId = ref<number>()
+const historicalKey = ref<{ id: number; name: string }>()
+const openKeySummary = () => { keysMounted.value = true; activeTab.value = 'keys' }
+const showKeyDetails = (params: { api_key_id: number; key_name: string; start_time: string; end_time: string; group_id?: number }) => {
+  const dates = keyUsageDisplayDates(params)
+  startDate.value = dates.startDate
+  endDate.value = dates.endDate
+  historicalKey.value = { id: params.api_key_id, name: params.key_name }
+  filters.value = { api_key_id: params.api_key_id, group_id: params.group_id, start_time: params.start_time, end_time: params.end_time }
+  granularity.value = getGranularityForRange(dates.startDate, dates.endDate)
+  activeTab.value = 'usage'
+  applyFilters()
+}
 const errorViewEnabled = computed(() => appStore.cachedPublicSettings?.allow_user_view_error_requests ?? false)
 
 const filters = ref<UsageQueryParams>({
@@ -639,6 +659,7 @@ const modelOptionValues = ref<string[]>([])
 const apiKeyOptions = computed<SelectOption[]>(() => [
   { value: null, label: t('usage.allApiKeys') },
   ...apiKeys.value.map((key) => ({ value: key.id, label: key.name })),
+  ...(historicalKey.value && !apiKeys.value.some(key => key.id === historicalKey.value!.id) ? [{ value: historicalKey.value.id, label: historicalKey.value.name }] : []),
 ])
 const groupOptions = computed<SelectOption[]>(() => [
   { value: null, label: t('admin.usage.allGroups') },
@@ -805,6 +826,8 @@ const resetFilters = () => {
 const onDateRangeChange = (range: { startDate: string; endDate: string; preset: string | null }) => {
   startDate.value = range.startDate
   endDate.value = range.endDate
+  filters.value.start_time = undefined
+  filters.value.end_time = undefined
   filters.value.start_date = range.startDate
   filters.value.end_date = range.endDate
   granularity.value = getGranularityForRange(range.startDate, range.endDate)
@@ -1135,6 +1158,11 @@ onMounted(() => {
   loadSavedErrColumns()
   document.addEventListener('click', handleColumnClickOutside)
   void loadFilterOptions()
+  if (route?.query.tab === 'keys') {
+    const id = Number(route.query.api_key_id)
+    summaryKeyId.value = Number.isSafeInteger(id) && id > 0 ? id : undefined
+    openKeySummary()
+  }
   refreshData()
 })
 

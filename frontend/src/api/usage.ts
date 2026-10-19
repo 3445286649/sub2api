@@ -370,7 +370,52 @@ export async function getMyErrorDetail(id: number): Promise<UserErrorRequestDeta
   return data
 }
 
+export interface APIKeyUsageTotals {
+  requests: number
+  input_tokens: number
+  output_tokens: number
+  cache_creation_tokens: number
+  cache_read_tokens: number
+  total_tokens: number
+  actual_cost: number
+  subscription_cost: number
+}
+
+export interface APIKeyUsageSummaryItem extends APIKeyUsageTotals {
+  api_key_id: number
+  name: string
+  deleted: boolean
+  group_name: string
+}
+
+export interface APIKeyUsageSummary {
+  items: APIKeyUsageSummaryItem[]
+  summary: APIKeyUsageTotals
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface APIKeySummaryParams {
+  start_time: string
+  end_time: string
+  api_key_id?: number
+  group_id?: number
+  search?: string
+  only_used?: boolean
+  sort_by?: 'actual_cost' | 'requests' | 'total_tokens'
+  sort_order?: 'asc' | 'desc'
+  page?: number
+  page_size?: number
+}
+
+export async function getAPIKeySummary(params: APIKeySummaryParams, signal?: AbortSignal): Promise<APIKeyUsageSummary> {
+  const { data } = await apiClient.get<APIKeyUsageSummary>('/usage/api-keys-summary', { params, signal })
+  return data
+}
+
 export const usageAPI = {
+  getAPIKeySummary,
   list,
   query,
   getStats,
