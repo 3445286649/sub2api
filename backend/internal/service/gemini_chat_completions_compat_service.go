@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,6 +30,7 @@ func (s *GeminiMessagesCompatService) ForwardAsChatCompletions(
 	body []byte,
 ) (*ForwardResult, error) {
 	startTime := time.Now()
+	beginGeminiImageOutputObservation(c)
 
 	var ccReq apicompat.ChatCompletionsRequest
 	if err := json.Unmarshal(body, &ccReq); err != nil {
@@ -263,6 +265,7 @@ func (s *GeminiMessagesCompatService) forwardClaudeBodyAsChatCompletions(
 			return nil, s.writeChatCompletionsError(c, http.StatusBadGateway, "upstream_error", "Failed to read upstream stream")
 		}
 		collectedBytes, _ := json.Marshal(collected)
+		observeGeminiImageOutputs(c, collectedBytes)
 		chatResp, usageObj2, err := geminiResponseToChatCompletions(collected, originalModel, collectedBytes, usageObj)
 		if err != nil {
 			return nil, s.writeChatCompletionsError(c, http.StatusBadGateway, "upstream_error", "Failed to parse upstream response")
@@ -281,12 +284,9 @@ func (s *GeminiMessagesCompatService) forwardClaudeBodyAsChatCompletions(
 		usage = &ClaudeUsage{}
 	}
 
-	imageCount := 0
+	imageCount := resolveGeminiImageCount(c, originalModel, mappedModel)
 	imageInputSize := s.extractImageInputSize(claudeBody)
 	imageSize := normalizeOpenAIImageSizeTier(imageInputSize)
-	if isImageGenerationModel(originalModel) {
-		imageCount = 1
-	}
 
 	return &ForwardResult{
 		RequestID:        requestID,
@@ -457,6 +457,7 @@ func (s *GeminiMessagesCompatService) handleChatCompletionsNonStreamingResponseF
 			respBody = unwrappedBody
 		}
 	}
+	observeGeminiImageOutputs(c, respBody)
 
 	var geminiResp map[string]any
 	if err := json.Unmarshal(respBody, &geminiResp); err != nil {
@@ -581,6 +582,7 @@ func (s *GeminiMessagesCompatService) handleChatCompletionsStreamingResponseFrom
 	openBlockType := ""
 	seenText := ""
 	seenThought := ""
+	emittedImages := make(map[[32]byte]int)
 	openToolIndex := -1
 	openToolName := ""
 	seenToolJSON := ""
@@ -619,6 +621,7 @@ func (s *GeminiMessagesCompatService) handleChatCompletionsStreamingResponseFrom
 							rawBytes = innerBytes
 						}
 					}
+					observeGeminiImageOutputs(c, rawBytes)
 
 					var geminiResp map[string]any
 					if err := json.Unmarshal(rawBytes, &geminiResp); err == nil {
@@ -634,6 +637,7 @@ func (s *GeminiMessagesCompatService) handleChatCompletionsStreamingResponseFrom
 							usage = *u
 						}
 
+						chunkImages := make(map[[32]byte]int)
 						for _, part := range extractGeminiParts(geminiResp) {
 							if text, ok := part["text"].(string); ok && isGeminiThoughtPart(part) {
 								delta, newSeen := computeGeminiTextDelta(seenThought, text)
@@ -670,14 +674,35 @@ func (s *GeminiMessagesCompatService) handleChatCompletionsStreamingResponseFrom
 								}
 								continue
 							}
-							if text, ok := part["text"].(string); ok && text != "" {
+							text, _ := part["text"].(string)
+							isInlineImage := false
+							if inlineData, ok := part["inlineData"].(map[string]any); ok {
+								mimeType, _ := inlineData["mimeType"].(string)
+								data, _ := inlineData["data"].(string)
+								if isGeminiInlineImageMIMEType(mimeType) && isValidBase64(data) {
+									text = fmt.Sprintf("![image](data:%s;base64,%s)", mimeType, data)
+									imageHash := sha256.Sum256([]byte(text))
+									chunkImages[imageHash]++
+									// Suppress cumulative repeats, while preserving distinct delta images.
+									if chunkImages[imageHash] <= emittedImages[imageHash] {
+										continue
+									}
+									emittedImages[imageHash] = chunkImages[imageHash]
+									isInlineImage = true
+								}
+							}
+							if text != "" {
 								if openToolIndex >= 0 {
 									if closeOpenTool() {
 										return &geminiStreamResult{usage: &usage, firstTokenMs: firstTokenMs}, nil
 									}
 								}
-								delta, newSeen := computeGeminiTextDelta(seenText, text)
-								seenText = newSeen
+								delta := text
+								if !isInlineImage {
+									var newSeen string
+									delta, newSeen = computeGeminiTextDelta(seenText, text)
+									seenText = newSeen
+								}
 								if delta == "" {
 									continue
 								}
