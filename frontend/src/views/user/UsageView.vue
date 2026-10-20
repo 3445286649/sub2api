@@ -7,6 +7,7 @@
         <button v-if="errorViewEnabled" class="tab" :class="{ 'tab-active': activeTab === 'errors' }" @click="switchToErrors">{{ t('usage.tabs.errors') }}</button>
       </div>
       <KeyUsagePanel v-if="keysMounted" v-show="activeTab === 'keys'" :groups="groups" :initial-key-id="summaryKeyId" @details="showKeyDetails" />
+      <KeyUsageDetailDialog v-if="keyDetails" :selection="keyDetails" @close="keyDetails = null" />
       <div v-show="activeTab !== 'keys'" class="space-y-6">
       <p v-if="filters.start_time && filters.end_time" class="text-xs text-gray-500 dark:text-gray-400">
         {{ t('usage.keySummary.exactRange') }}: {{ new Date(filters.start_time).toLocaleString() }} — {{ new Date(filters.end_time).toLocaleString() }}
@@ -428,7 +429,8 @@
 import { computed, inject, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { routeLocationKey } from 'vue-router'
 import KeyUsagePanel from '@/components/user/KeyUsagePanel.vue'
-import { keyUsageDisplayDates } from '@/utils/keyUsageRange'
+import KeyUsageDetailDialog from '@/components/user/KeyUsageDetailDialog.vue'
+import type { APIKeyUsageDetailSelection } from '@/api/usage'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { FeatureFlags, resolveFeatureFlag } from '@/utils/featureFlags'
@@ -589,17 +591,10 @@ const route = inject(routeLocationKey, undefined)
 const activeTab = ref<'usage' | 'errors' | 'keys'>('usage')
 const keysMounted = ref(false)
 const summaryKeyId = ref<number>()
-const historicalKey = ref<{ id: number; name: string }>()
+const keyDetails = ref<APIKeyUsageDetailSelection | null>(null)
 const openKeySummary = () => { keysMounted.value = true; activeTab.value = 'keys' }
-const showKeyDetails = (params: { api_key_id: number; key_name: string; start_time: string; end_time: string; group_id?: number }) => {
-  const dates = keyUsageDisplayDates(params)
-  startDate.value = dates.startDate
-  endDate.value = dates.endDate
-  historicalKey.value = { id: params.api_key_id, name: params.key_name }
-  filters.value = { api_key_id: params.api_key_id, group_id: params.group_id, start_time: params.start_time, end_time: params.end_time }
-  granularity.value = getGranularityForRange(dates.startDate, dates.endDate)
-  activeTab.value = 'usage'
-  applyFilters()
+const showKeyDetails = (params: APIKeyUsageDetailSelection) => {
+  keyDetails.value = { ...params }
 }
 const errorViewEnabled = computed(() => appStore.cachedPublicSettings?.allow_user_view_error_requests ?? false)
 
@@ -659,7 +654,6 @@ const modelOptionValues = ref<string[]>([])
 const apiKeyOptions = computed<SelectOption[]>(() => [
   { value: null, label: t('usage.allApiKeys') },
   ...apiKeys.value.map((key) => ({ value: key.id, label: key.name })),
-  ...(historicalKey.value && !apiKeys.value.some(key => key.id === historicalKey.value!.id) ? [{ value: historicalKey.value.id, label: historicalKey.value.name }] : []),
 ])
 const groupOptions = computed<SelectOption[]>(() => [
   { value: null, label: t('admin.usage.allGroups') },

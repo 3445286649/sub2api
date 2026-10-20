@@ -752,7 +752,7 @@ export interface AdminGroup extends Group {
   i18n?: GroupI18n
   force_openai_fast: boolean
   force_openai_ultrafast: boolean
-  openai_model_tiers: Record<string, 'priority' | 'ultrafast'>
+  openai_model_tiers: Record<string, 'default' | 'priority' | 'ultrafast'>
   free_openai_fast: boolean
   model_pricing: import('@/api/admin/channels').ChannelModelPricing[]
   // 分组利润控制（openai/anthropic/gemini/grok/antigravity 分组可启用；margin/buffer 为小数存储）。
@@ -968,7 +968,7 @@ export interface CreateGroupRequest {
   allow_messages_dispatch?: boolean
   allow_live?: boolean
   force_openai_ultrafast?: boolean
-  openai_model_tiers?: Record<string, 'priority' | 'ultrafast'>
+  openai_model_tiers?: Record<string, 'default' | 'priority' | 'ultrafast'>
   default_mapped_model?: string
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   model_routing?: Record<string, number[]> | null
@@ -1037,7 +1037,7 @@ export interface UpdateGroupRequest {
   allow_messages_dispatch?: boolean
   allow_live?: boolean
   force_openai_ultrafast?: boolean
-  openai_model_tiers?: Record<string, 'priority' | 'ultrafast'>
+  openai_model_tiers?: Record<string, 'default' | 'priority' | 'ultrafast'>
   default_mapped_model?: string
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   model_routing?: Record<string, number[]> | null

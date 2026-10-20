@@ -1277,12 +1277,13 @@ export default {
         free: 'Free Fast',
         freeHint: 'Charge Standard rates for Fast and Ultrafast requests in this group. Estimated account costs still use the configured service tier.',
         loadModels: 'Load model candidates',
-        modelsHint: 'Candidates come from site defaults and account mappings in this group, not a live upstream list. Changes affect only this group.',
+        modelsHint: 'Candidates come from site defaults and account mappings in this group, not a live upstream list. Changes affect only this group. Models assigned Standard always use Standard requests and billing, regardless of group acceleration switches or client acceleration parameters, and show no acceleration badge.',
         loadError: 'Could not load model candidates. Retry.',
         customModel: 'Enter a public model name',
         addModel: 'Add model',
         invalidModel: 'Use a model name of up to 100 characters without wildcards; at most 256 models.',
-        followDefault: 'Follow group default'
+        followDefault: 'Follow group default',
+        standard: 'Standard'
       },
       invalidRequestFallback: {
         title: 'Invalid Request Fallback Group',

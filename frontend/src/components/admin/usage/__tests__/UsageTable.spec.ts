@@ -993,13 +993,14 @@ describe('usage tier billing receipt', () => {
         { ...base, request_id: 'ultra', service_tier: 'fast', billing_service_tier: 'ultrafast' },
         { ...base, request_id: 'free-fast', service_tier: 'standard', effective_service_tier: 'priority', billing_service_tier: 'standard', service_tier_source: 'free_fast' },
         { ...base, request_id: 'free-ultra', service_tier: 'fast', effective_service_tier: 'ultrafast', billing_service_tier: 'standard', service_tier_source: 'free_fast' },
+        { ...base, request_id: 'standard', service_tier: 'default', effective_service_tier: 'default', billing_service_tier: 'standard', service_tier_source: 'group_model' },
         { ...base, request_id: 'legacy', service_tier: 'ultrafast' },
       ], columns: [], showAccountBilling: admin },
       global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
     })
     expect(wrapper.findAll('[data-testid="usage-tier-badge"]').map(b => b.attributes('data-tier'))).toEqual(['priority', 'ultrafast', 'priority', 'ultrafast'])
-    // Every row reserves the same slot, including free and historical rows.
-    expect(wrapper.findAll('[data-testid="usage-tier-slot"]')).toHaveLength(5)
+    // Standard, free acceleration and historical rows keep the same alignment.
+    expect(wrapper.findAll('[data-testid="usage-tier-slot"]')).toHaveLength(6)
     for (const slot of wrapper.findAll('[data-testid="usage-tier-slot"]')) {
       expect(slot.classes()).toContain('order-first')
       expect(slot.classes()).not.toContain('md:order-none')

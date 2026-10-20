@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from './client'
+import type { KeyUsagePeriod } from '@/utils/keyUsageRange'
 import type {
   UsageLog,
   UsageQueryParams,
@@ -396,6 +397,41 @@ export interface APIKeyUsageSummary {
   page_size: number
 }
 
+export interface APIKeyUsageBreakdownModel extends APIKeyUsageTotals {
+  model: string
+}
+
+export interface APIKeyUsageBreakdownGroup extends APIKeyUsageTotals {
+  group_id: number | null
+  group_name: string
+  group_deleted: boolean
+  models: APIKeyUsageBreakdownModel[]
+}
+
+export interface APIKeyUsageBreakdown {
+  api_key_id: number
+  name: string
+  deleted: boolean
+  start_time: string
+  end_time: string
+  summary: APIKeyUsageTotals
+  groups: APIKeyUsageBreakdownGroup[]
+}
+
+export interface APIKeyUsageBreakdownParams {
+  start_time: string
+  end_time: string
+  group_id?: number
+}
+
+export interface APIKeyUsageDetailSelection extends APIKeyUsageBreakdownParams {
+  api_key_id: number
+  key_name: string
+  key_deleted?: boolean
+  period: KeyUsagePeriod
+  group_name?: string
+}
+
 export interface APIKeySummaryParams {
   start_time: string
   end_time: string
@@ -414,7 +450,13 @@ export async function getAPIKeySummary(params: APIKeySummaryParams, signal?: Abo
   return data
 }
 
+export async function getAPIKeyBreakdown(apiKeyId: number, params: APIKeyUsageBreakdownParams, signal?: AbortSignal): Promise<APIKeyUsageBreakdown> {
+  const { data } = await apiClient.get<APIKeyUsageBreakdown>(`/usage/api-keys/${apiKeyId}/breakdown`, { params, signal })
+  return data
+}
+
 export const usageAPI = {
+  getAPIKeyBreakdown,
   getAPIKeySummary,
   list,
   query,

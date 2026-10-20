@@ -517,6 +517,17 @@ export default {
       invalidRange: "请选择有效时间范围，单次最多查询366天",
       viewUsage: "查看用量",
     },
+    keyDetail: {
+      title: 'Key 用量明细',
+      range: '统计时间',
+      filteredGroup: '当前分组',
+      allUsedGroups: '查看全部已用分组',
+      empty: '该时间范围内暂无调用记录',
+      deletedGroup: '已删除',
+      groupFallback: '历史分组 #{id}',
+      unrecordedGroup: '未记录分组',
+      unrecordedModel: '未记录模型',
+    },
     tabs: { usage: '用量明细', errors: '错误请求', ranking: '用户排行' },
     errors: {
       time: '时间', model: '模型', endpoint: '端点', status: '状态码',

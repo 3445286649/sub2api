@@ -1369,6 +1369,34 @@ func TestAdminService_CreateGroup_NormalizesForceOpenAIFastByPlatform(t *testing
 	}
 }
 
+func TestAdminService_GroupStandardTierPersistsWithoutAcceleration(t *testing.T) {
+	for _, platform := range []string{PlatformOpenAI, PlatformComposite} {
+		t.Run(platform, func(t *testing.T) {
+			repo := &groupRepoStubForAdmin{}
+			invalidator := &authCacheInvalidatorStub{}
+			svc := &adminServiceImpl{groupRepo: repo, authCacheInvalidator: invalidator}
+			tiers := map[string]string{"standard-model": "default"}
+			created, err := svc.CreateGroup(context.Background(), &CreateGroupInput{
+				Name: "mixed-models", Platform: platform, RateMultiplier: 1, OpenAIModelTiers: tiers,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tiers, created.OpenAIModelTiers)
+			require.Equal(t, tiers, repo.created.OpenAIModelTiers)
+			require.False(t, created.ForceOpenAIFast)
+			require.False(t, created.ForceOpenAIUltrafast)
+
+			repo.getByID = &Group{ID: 7, Name: "existing", Platform: platform, Status: StatusActive}
+			updated, err := svc.UpdateGroup(context.Background(), 7, &UpdateGroupInput{OpenAIModelTiers: &tiers})
+			require.NoError(t, err)
+			require.Equal(t, tiers, updated.OpenAIModelTiers)
+			require.Equal(t, tiers, repo.updated.OpenAIModelTiers)
+			require.False(t, updated.ForceOpenAIFast)
+			require.False(t, updated.ForceOpenAIUltrafast)
+			require.Contains(t, invalidator.groupIDs, int64(7))
+		})
+	}
+}
+
 func TestAdminService_UpdateGroup_ClearsForceOpenAIFastWhenPlatformChanges(t *testing.T) {
 	existingGroup := &Group{
 		ID: 1, Name: "existing-fast", Platform: PlatformOpenAI, Status: StatusActive,

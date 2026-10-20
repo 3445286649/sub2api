@@ -84,7 +84,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { usageAPI, type APIKeySummaryParams, type APIKeyUsageSummary, type APIKeyUsageSummaryItem } from '@/api/usage'
+import { usageAPI, type APIKeySummaryParams, type APIKeyUsageSummary, type APIKeyUsageSummaryItem, type APIKeyUsageDetailSelection } from '@/api/usage'
 import type { Group } from '@/types'
 import Select from '@/components/common/Select.vue'
 import Pagination from '@/components/common/Pagination.vue'
@@ -93,7 +93,7 @@ import { formatCompactNumber, formatDateLocalInput } from '@/utils/format'
 import { keyUsageRange, type KeyUsagePeriod } from '@/utils/keyUsageRange'
 
 const props = defineProps<{ groups: Group[]; initialKeyId?: number }>()
-const emit = defineEmits<{ details: [params: { api_key_id: number; key_name: string; start_time: string; end_time: string; group_id?: number }] }>()
+const emit = defineEmits<{ details: [params: APIKeyUsageDetailSelection] }>()
 const { t } = useI18n()
 const period = ref<KeyUsagePeriod>('7d')
 const customStart = ref(formatDateLocalInput(new Date(Date.now() - 6 * 86400000)))
@@ -106,6 +106,7 @@ const sortBy = ref<NonNullable<APIKeySummaryParams['sort_by']>>('actual_cost')
 const page = ref(1)
 const pageSize = ref(20)
 const range = ref(keyUsageRange('7d'))
+const appliedPeriod = ref<KeyUsagePeriod>('7d')
 const result = ref<APIKeyUsageSummary | null>(null)
 const error = ref('')
 const loading = ref(false)
@@ -151,13 +152,18 @@ async function load() {
 function apply() {
   try { range.value = keyUsageRange(period.value, new Date(), customStart.value, customEnd.value) }
   catch { controller?.abort(); loading.value = false; error.value = t('usage.keySummary.invalidRange'); return }
+  appliedPeriod.value = period.value
   page.value = 1
   void load()
 }
 function changePage(value: number) { page.value = value; void load() }
 function changePageSize(value: number) { pageSize.value = value; page.value = 1; void load() }
 function showDetails(item: APIKeyUsageSummaryItem) {
-  emit('details', { api_key_id: item.api_key_id, key_name: item.name, ...range.value, group_id: groupId.value ?? undefined })
+  emit('details', {
+    api_key_id: item.api_key_id, key_name: item.name, key_deleted: item.deleted,
+    ...range.value, period: appliedPeriod.value, group_id: groupId.value ?? undefined,
+    group_name: props.groups.find(group => group.id === groupId.value)?.name,
+  })
 }
 watch([period, groupId, keyId, onlyUsed, sortBy], apply)
 watch(() => props.initialKeyId, value => { keyId.value = value })

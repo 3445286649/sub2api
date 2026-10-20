@@ -25,7 +25,7 @@ describe('KeyUsagePanel', () => {
     const request = getAPIKeySummary.mock.calls[1][0]
     expect(request.start_time).toBe(getAPIKeySummary.mock.calls[0][0].start_time)
     await wrapper.findAll('button').find(b => b.text() === 'usage.keySummary.details')!.trigger('click')
-    expect(wrapper.emitted('details')![0][0]).toMatchObject({ api_key_id: 7, key_name: 'deleted-work-key', start_time: request.start_time, end_time: request.end_time })
+    expect(wrapper.emitted('details')![0][0]).toMatchObject({ api_key_id: 7, key_name: 'deleted-work-key', key_deleted: true, period: '7d', start_time: request.start_time, end_time: request.end_time })
     wrapper.unmount()
   })
   it('requests exact 24 hours and ignores late responses after filter changes', async () => {
@@ -47,6 +47,18 @@ describe('KeyUsagePanel', () => {
     await wrapper.get('[role="alert"] button').trigger('click'); await flushPromises()
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('deleted-work-key')
+    wrapper.unmount()
+  })
+
+  it('opens details with applied dates instead of pending custom inputs', async () => {
+    const wrapper = render(); await flushPromises()
+    wrapper.findAllComponents(Select)[0].vm.$emit('update:modelValue', 'custom')
+    await flushPromises()
+    const applied = getAPIKeySummary.mock.lastCall![0]
+    await wrapper.get('#key-usage-start').setValue('2026-01-01')
+    await wrapper.get('#key-usage-end').setValue('2026-01-02')
+    await wrapper.findAll('button').find(b => b.text() === 'usage.keySummary.details')!.trigger('click')
+    expect(wrapper.emitted('details')![0][0]).toMatchObject({ period: 'custom', start_time: applied.start_time, end_time: applied.end_time })
     wrapper.unmount()
   })
 })

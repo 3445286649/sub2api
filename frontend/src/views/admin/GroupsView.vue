@@ -1620,6 +1620,7 @@
                 <span class="min-w-0 break-all text-sm text-gray-700 dark:text-gray-300">{{ model }}</span>
                 <select class="input w-36 shrink-0" :aria-label="model" :value="createForm.openai_model_tiers[model] ?? ''" @change="updateOpenAIModelTier(createForm.openai_model_tiers, model, $event)">
                   <option value="">{{ t("admin.groups.openaiFast.followDefault") }}</option>
+                  <option value="default">{{ t("admin.groups.openaiFast.standard") }}</option>
                   <option value="priority" :disabled="!createForm.force_openai_fast">Fast</option>
                   <option value="ultrafast" :disabled="!createForm.force_openai_ultrafast">Ultrafast</option>
                 </select>
@@ -3305,6 +3306,7 @@
                 <span class="min-w-0 break-all text-sm text-gray-700 dark:text-gray-300">{{ model }}</span>
                 <select class="input w-36 shrink-0" :aria-label="model" :value="editForm.openai_model_tiers[model] ?? ''" @change="updateOpenAIModelTier(editForm.openai_model_tiers, model, $event)">
                   <option value="">{{ t("admin.groups.openaiFast.followDefault") }}</option>
+                  <option value="default">{{ t("admin.groups.openaiFast.standard") }}</option>
                   <option value="priority" :disabled="!editForm.force_openai_fast">Fast</option>
                   <option value="ultrafast" :disabled="!editForm.force_openai_ultrafast">Ultrafast</option>
                 </select>
@@ -4954,7 +4956,7 @@ const createModelAllowlistState = reactive(createInitialModelAllowlistState());
 const editModelAllowlistState = reactive(createInitialModelAllowlistState());
 const createModelAllowlistLoading = ref(false);
 const editModelAllowlistLoading = ref(false);
-type OpenAIModelTier = "priority" | "ultrafast";
+type OpenAIModelTier = "default" | "priority" | "ultrafast";
 const createTierModels = ref<string[]>([]);
 const editTierModels = ref<string[]>([]);
 const createTierModelsLoading = ref(false);
@@ -4994,7 +4996,7 @@ const updateOpenAIModelTier = (
 ) => {
   if (["__proto__", "prototype", "constructor"].includes(model)) return;
   const tier = (event.target as HTMLSelectElement).value;
-  if (tier === "priority" || tier === "ultrafast") tiers[model] = tier;
+  if (tier === "default" || tier === "priority" || tier === "ultrafast") tiers[model] = tier;
   else delete tiers[model];
 };
 const loadOpenAITierModels = async (mode: "create" | "edit") => {

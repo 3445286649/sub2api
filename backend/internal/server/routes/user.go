@@ -137,6 +137,7 @@ func RegisterUserRoutes(
 			usage.GET("/:id", h.Usage.GetByID)
 			usage.GET("/stats", h.Usage.Stats)
 			usage.GET("/api-keys-summary", h.Usage.APIKeySummary)
+			usage.GET("/api-keys/:id/breakdown", h.Usage.APIKeyBreakdown)
 			// User dashboard endpoints
 			usage.GET("/dashboard/stats", h.Usage.DashboardStats)
 			usage.GET("/dashboard/trend", h.Usage.DashboardTrend)

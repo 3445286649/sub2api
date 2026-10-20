@@ -325,6 +325,71 @@ describe('GroupsView duplicate action', () => {
     wrapper.unmount()
   })
 
+  it('creates a group with an explicit Standard model while acceleration is disabled', async () => {
+    vi.mocked(adminAPI.groups.create).mockResolvedValueOnce(sourceGroup)
+    const wrapper = mountView()
+    try {
+      await flushPromises()
+      await wrapper.findAll('button').find(button => button.text() === 'admin.groups.createGroup')!.trigger('click')
+      await wrapper.get('input[placeholder="admin.groups.enterGroupName"]').setValue('Mixed models')
+      wrapper.getComponent('[data-tour="group-form-platform"]').vm.$emit('update:modelValue', 'openai')
+      await flushPromises()
+      await wrapper.get('input[placeholder="admin.groups.openaiFast.customModel"]').setValue('standard-model')
+      await wrapper.findAll('button').find(button => button.text() === 'admin.groups.openaiFast.addModel')!.trigger('click')
+      await wrapper.get('select[aria-label="standard-model"]').setValue('default')
+      await wrapper.get('#create-group-form').trigger('submit')
+      await flushPromises()
+      expect(adminAPI.groups.create).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'Mixed models', platform: 'openai', force_openai_fast: false, force_openai_ultrafast: false,
+        openai_model_tiers: { 'standard-model': 'default' },
+      }))
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('saves explicit Standard independently of acceleration switches and distinguishes following the default', async () => {
+    const group = {
+      ...sourceGroup,
+      force_openai_fast: false,
+      force_openai_ultrafast: false,
+      free_openai_fast: true,
+      openai_model_tiers: { 'standard-model': 'priority' },
+    }
+    listGroups.mockResolvedValue({ items: [group], total: 1, page: 1, page_size: 20, pages: 1 })
+    updateGroup.mockImplementation(async (_id, payload) => {
+      Object.assign(group, payload)
+      return group
+    })
+    const wrapper = mountView()
+    try {
+      await flushPromises()
+      const edit = () => wrapper.findAll('button').find(button => button.text() === 'common.edit')!
+      await edit().trigger('click')
+      await flushPromises()
+      const select = wrapper.get<HTMLSelectElement>('select[aria-label="standard-model"]')
+      expect(select.get('option[value="default"]').attributes('disabled')).toBeUndefined()
+      expect(select.get('option[value="priority"]').attributes('disabled')).toBeDefined()
+      expect(select.get('option[value="ultrafast"]').attributes('disabled')).toBeDefined()
+      await select.setValue('default')
+      await wrapper.get('#edit-group-form').trigger('submit')
+      await flushPromises()
+      expect(updateGroup).toHaveBeenLastCalledWith(42, expect.objectContaining({
+        openai_model_tiers: { 'standard-model': 'default' }, free_openai_fast: true,
+      }))
+
+      await edit().trigger('click')
+      await flushPromises()
+      expect(wrapper.get<HTMLSelectElement>('select[aria-label="standard-model"]').element.value).toBe('default')
+      await wrapper.get('select[aria-label="standard-model"]').setValue('')
+      await wrapper.get('#edit-group-form').trigger('submit')
+      await flushPromises()
+      expect(updateGroup).toHaveBeenLastCalledWith(42, expect.objectContaining({ openai_model_tiers: {} }))
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('loads, edits, and saves custom reasoning multipliers for group pricing', async () => {
     const group = {
       ...sourceGroup,

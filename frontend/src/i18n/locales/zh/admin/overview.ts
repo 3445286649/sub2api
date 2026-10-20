@@ -1275,12 +1275,13 @@ export default {
         free: '免费 Fast',
         freeHint: '本分组使用 Fast 或 Ultrafast 的请求，用户均按 Standard 档位收费；账号估算成本仍按本次配置的服务档位计算。',
         loadModels: '获取模型候选',
-        modelsHint: '候选来自站内默认模型与本分组账号映射，并非上游实时清单。选择仅影响本分组。',
+        modelsHint: '候选来自站内默认模型与本分组账号映射，并非上游实时清单。选择仅影响本分组。指定为标准档的模型始终使用标准档请求和计费，不受分组加速开关及客户端加速参数影响，不显示加速标识。',
         loadError: '模型候选获取失败，请重试。',
         customModel: '输入自定义公开模型名',
         addModel: '添加模型',
         invalidModel: '请输入不超过 100 个字符的模型名，不支持通配符；最多 256 个模型。',
-        followDefault: '跟随分组默认'
+        followDefault: '跟随分组默认',
+        standard: '标准档（Standard）'
       },
       invalidRequestFallback: {
         title: '无效请求兜底分组',

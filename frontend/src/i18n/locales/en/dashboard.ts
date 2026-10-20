@@ -512,6 +512,17 @@ export default {
       invalidRange: "Choose a valid range of up to 366 days",
       viewUsage: "View usage",
     },
+    keyDetail: {
+      title: 'Key usage details',
+      range: 'Time range',
+      filteredGroup: 'Current group',
+      allUsedGroups: 'View all used groups',
+      empty: 'No calls in this time range',
+      deletedGroup: 'Deleted',
+      groupFallback: 'Historical group #{id}',
+      unrecordedGroup: 'Unrecorded group',
+      unrecordedModel: 'Unrecorded model',
+    },
     tabs: { usage: 'Usage', errors: 'Error Requests', ranking: 'User Ranking' },
     errors: {
       time: 'Time', model: 'Model', endpoint: 'Endpoint', status: 'Status',

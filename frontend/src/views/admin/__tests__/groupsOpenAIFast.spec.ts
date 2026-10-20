@@ -28,6 +28,8 @@ describe("groupsOpenAIFast", () => {
       hint: expect.stringContaining("上游返回不改变指定计费档位"),
       free: expect.any(String),
       freeHint: expect.stringContaining("Standard"),
+      standard: "标准档（Standard）",
+      modelsHint: expect.stringContaining("不显示加速标识"),
     });
     expect(en.groups.openaiFast).toMatchObject({
       title: expect.any(String),
@@ -35,6 +37,8 @@ describe("groupsOpenAIFast", () => {
       hint: expect.stringContaining("Upstream tier reports do not change the configured billing tier"),
       free: expect.any(String),
       freeHint: expect.stringContaining("Standard"),
+      standard: "Standard",
+      modelsHint: expect.stringContaining("no acceleration badge"),
     });
   });
 });

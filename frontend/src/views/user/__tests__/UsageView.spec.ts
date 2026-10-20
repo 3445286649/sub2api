@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 
 import UsageView from '../UsageView.vue'
 import KeyUsagePanel from '@/components/user/KeyUsagePanel.vue'
+import KeyUsageDetailDialog from '@/components/user/KeyUsageDetailDialog.vue'
 import { routeLocationKey } from 'vue-router'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
@@ -199,6 +200,7 @@ function mountUsageView(routeQuery: Record<string, string> = {}) {
       stubs: {
         AppLayout: simpleStub,
         KeyUsagePanel: { template: '<div />', props: ['groups', 'initialKeyId'] },
+        KeyUsageDetailDialog: { template: '<div data-testid="key-detail-dialog" />', props: ['selection'], emits: ['close'] },
         Pagination: true,
         Select: true,
         DateRangePicker: true,
@@ -262,20 +264,25 @@ describe('user UsageView', () => {
     getAvailable.mockResolvedValue([{ id: 1, name: 'default' }])
   })
 
-  it('opens Key usage from the management link and preserves exact time on drill-down', async () => {
+  it('opens Key details in a dialog without changing the tab or usage filters', async () => {
     const wrapper = mountUsageView({ tab: 'keys', api_key_id: '7' })
     await flushPromises()
     const panel = wrapper.getComponent(KeyUsagePanel)
     expect(panel.props('initialKeyId')).toBe(7)
     query.mockClear()
-    panel.vm.$emit('details', { api_key_id: 7, key_name: 'deleted-key', start_time: '2026-10-18T15:42:00Z', end_time: '2026-10-19T15:42:00Z', group_id: 3 })
+    const selection = { api_key_id: 7, key_name: 'deleted-key', key_deleted: true, period: '24h', start_time: '2026-10-18T15:42:00Z', end_time: '2026-10-19T15:42:00Z', group_id: 3 }
+    const originalStart = wrapper.findComponent(DateRangePicker).props('startDate')
+    panel.vm.$emit('details', selection)
     await flushPromises()
-    expect(query).toHaveBeenLastCalledWith(expect.objectContaining({ api_key_id: 7, group_id: 3, start_time: '2026-10-18T15:42:00Z', end_time: '2026-10-19T15:42:00Z' }), expect.anything())
-    const keySelect = wrapper.findAllComponents(Select).find(s => s.props('options').some((o: SelectOption) => o.label === 'deleted-key'))
-    expect(keySelect).toBeDefined()
-    wrapper.findComponent(DateRangePicker).vm.$emit('change', { startDate: '2026-10-01', endDate: '2026-10-19', preset: 'thisMonth' })
+    expect(wrapper.getComponent(KeyUsageDetailDialog).props('selection')).toEqual(selection)
+    expect(query).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="key-usage-tab"]').classes()).toContain('tab-active')
+    expect(wrapper.findComponent(DateRangePicker).props('startDate')).toBe(originalStart)
+    wrapper.getComponent(KeyUsageDetailDialog).vm.$emit('close')
     await flushPromises()
-    expect(query.mock.lastCall![0].start_time).toBeUndefined()
+    expect(wrapper.findComponent(KeyUsageDetailDialog).exists()).toBe(false)
+    expect(wrapper.getComponent(KeyUsagePanel).props('initialKeyId')).toBe(7)
+    expect(wrapper.get('[data-testid="key-usage-tab"]').classes()).toContain('tab-active')
     wrapper.unmount()
   })
 

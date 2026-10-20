@@ -2069,6 +2069,10 @@ func openAIGroupForcedTier(ctx context.Context, account *Account, upstreamModel 
 		model = upstreamModel
 	}
 	switch group.OpenAIModelTiers[model] {
+	case "default":
+		// An explicit Standard assignment overrides both acceleration switches
+		// and client tiers; an absent assignment still follows the group default.
+		return "default"
 	case OpenAIFastTierUltrafast:
 		if group.ForceOpenAIUltrafast {
 			return OpenAIFastTierUltrafast

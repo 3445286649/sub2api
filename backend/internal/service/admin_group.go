@@ -379,8 +379,8 @@ func normalizeOpenAIModelTiers(tiers map[string]string) (map[string]string, erro
 		if model == "" || len(model) > 100 || strings.ContainsAny(model, "*?\x00") || model == "__proto__" || model == "prototype" || model == "constructor" {
 			return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIERS", "invalid model name in tier assignments")
 		}
-		if tier != OpenAIFastTierPriority && tier != OpenAIFastTierUltrafast {
-			return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIERS", "model tier must be priority or ultrafast")
+		if tier != "default" && tier != OpenAIFastTierPriority && tier != OpenAIFastTierUltrafast {
+			return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIERS", "model tier must be default, priority or ultrafast")
 		}
 		if _, exists := result[model]; exists {
 			return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIERS", "duplicate model in tier assignments")
