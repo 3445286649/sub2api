@@ -9,6 +9,7 @@ type APIKeySummaryQuery struct {
 	Search, SortBy, SortOrder string
 	OnlyUsed                  bool
 	Page, PageSize            int
+	APIKeyUsageTrendOptions
 }
 
 type APIKeyUsageTotals struct {
@@ -24,16 +25,19 @@ type APIKeyUsageTotals struct {
 
 type APIKeyUsageSummaryItem struct {
 	APIKeyUsageTotals
-	APIKeyID  int64  `json:"api_key_id"`
-	Name      string `json:"name"`
-	Deleted   bool   `json:"deleted"`
-	GroupName string `json:"group_name"`
+	APIKeyID      int64  `json:"api_key_id"`
+	Name          string `json:"name"`
+	Deleted       bool   `json:"deleted"`
+	GroupName     string `json:"group_name"`
+	GroupPlatform string `json:"group_platform"`
 }
 
 type APIKeyUsageSummary struct {
 	Items    []APIKeyUsageSummaryItem `json:"items"`
 	Summary  APIKeyUsageTotals        `json:"summary"`
 	Total    int64                    `json:"total"`
+	Previous *APIKeyUsageCompare      `json:"previous"`
+	Trend    []APIKeyUsageBucket      `json:"trend"`
 	Page     int                      `json:"page"`
 	PageSize int                      `json:"page_size"`
 }

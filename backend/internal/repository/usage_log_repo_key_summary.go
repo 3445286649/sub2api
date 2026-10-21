@@ -38,7 +38,7 @@ func (r *usageLogRepository) GetUserAPIKeySummary(ctx context.Context, q usagest
 		GROUP BY api_key_id
 	), key_rows AS (
 		SELECT k.id AS api_key_id, k.name, k.deleted_at IS NOT NULL AS deleted,
-		COALESCE(g.name,'') AS group_name,
+		COALESCE(g.name,'') AS group_name, COALESCE(g.platform,'') AS group_platform,
 		COALESCE(u.requests,0) AS requests, COALESCE(u.input_tokens,0) AS input_tokens,
 		COALESCE(u.output_tokens,0) AS output_tokens, COALESCE(u.cache_creation_tokens,0) AS cache_creation_tokens,
 		COALESCE(u.cache_read_tokens,0) AS cache_read_tokens, COALESCE(u.total_tokens,0) AS total_tokens,
@@ -58,16 +58,25 @@ func (r *usageLogRepository) GetUserAPIKeySummary(ctx context.Context, q usagest
 		FROM key_rows
 	), page AS (SELECT * FROM key_rows ORDER BY ` + sortColumn + ` ` + direction + `, api_key_id ASC LIMIT $8 OFFSET $9)
 	SELECT json_build_object('items', COALESCE((SELECT json_agg(p ORDER BY p.` + sortColumn + ` ` + direction + `, p.api_key_id ASC) FROM page p),'[]'::json),
-	'summary', (SELECT row_to_json(t) FROM totals t), 'total', (SELECT total FROM totals))`
+	'summary', (SELECT row_to_json(t) FROM totals t), 'total', (SELECT total FROM totals),
+	'key_ids', COALESCE((SELECT json_agg(api_key_id) FROM key_rows),'[]'::json))`
 	var raw []byte
 	err := scanSingleRow(ctx, r.sql, query, []any{q.UserID, q.StartTime, q.EndTime, q.GroupID, q.APIKeyID, q.Search, q.OnlyUsed, q.PageSize, (q.Page - 1) * q.PageSize}, &raw)
 	if err != nil {
 		return nil, err
 	}
-	var result usagestats.APIKeyUsageSummary
+	var result struct {
+		usagestats.APIKeyUsageSummary
+		KeyIDs []int64 `json:"key_ids"`
+	}
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
+	// Previous period and trend reuse the matched key set so they line up with summary.
+	result.Previous, result.Trend, err = r.keyUsageCompareAndTrend(ctx, q.UserID, result.KeyIDs, q.GroupID, q.StartTime, q.EndTime, q.APIKeyUsageTrendOptions)
+	if err != nil {
+		return nil, err
+	}
 	result.Page, result.PageSize = q.Page, q.PageSize
-	return &result, nil
+	return &result.APIKeyUsageSummary, nil
 }

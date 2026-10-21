@@ -26,8 +26,12 @@ func (h *UsageHandler) APIKeyBreakdown(c *gin.Context) {
 	if !ok {
 		return
 	}
+	trend, ok := parseKeyUsageTrendOptions(c, start, end)
+	if !ok {
+		return
+	}
 	q := usagestats.APIKeyBreakdownQuery{
-		UserID: subject.UserID, APIKeyID: keyID, StartTime: start, EndTime: end,
+		UserID: subject.UserID, APIKeyID: keyID, StartTime: start, EndTime: end, APIKeyUsageTrendOptions: trend,
 	}
 	if raw := strings.TrimSpace(c.Query("group_id")); raw != "" {
 		groupID, err := strconv.ParseInt(raw, 10, 64)

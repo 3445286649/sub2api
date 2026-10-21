@@ -23,8 +23,12 @@ func (h *UsageHandler) APIKeySummary(c *gin.Context) {
 	if !ok {
 		return
 	}
+	trend, ok := parseKeyUsageTrendOptions(c, start, end)
+	if !ok {
+		return
+	}
 	q := usagestats.APIKeySummaryQuery{
-		UserID: subject.UserID, StartTime: start, EndTime: end,
+		UserID: subject.UserID, StartTime: start, EndTime: end, APIKeyUsageTrendOptions: trend,
 		Search:    strings.TrimSpace(c.Query("search")),
 		SortBy:    c.DefaultQuery("sort_by", "actual_cost"),
 		SortOrder: c.DefaultQuery("sort_order", "desc"),

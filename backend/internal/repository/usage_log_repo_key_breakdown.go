@@ -41,7 +41,7 @@ func (r *usageLogRepository) GetUserAPIKeyBreakdown(ctx context.Context, q usage
 		FROM counts
 	), group_rows AS (
 		SELECT s.group_id, s.actual_cost, s.totals || jsonb_build_object(
-		'group_id', s.group_id, 'group_name', COALESCE(g.name,''),
+		'group_id', s.group_id, 'group_name', COALESCE(g.name,''), 'group_platform', COALESCE(g.platform,''),
 		'group_deleted', s.group_id IS NOT NULL AND (g.id IS NULL OR g.deleted_at IS NOT NULL),
 		'models', COALESCE((SELECT jsonb_agg(m.totals || jsonb_build_object('model', m.model)
 			ORDER BY m.actual_cost DESC, m.model ASC)
@@ -64,6 +64,10 @@ func (r *usageLogRepository) GetUserAPIKeyBreakdown(ctx context.Context, q usage
 	}
 	var result usagestats.APIKeyUsageBreakdown
 	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	result.PreviousSummary, result.Series, err = r.keyUsageCompareAndTrend(ctx, q.UserID, []int64{q.APIKeyID}, q.GroupID, q.StartTime, q.EndTime, q.APIKeyUsageTrendOptions)
+	if err != nil {
 		return nil, err
 	}
 	result.StartTime, result.EndTime = q.StartTime, q.EndTime
