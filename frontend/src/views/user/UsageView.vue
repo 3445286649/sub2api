@@ -1,10 +1,10 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
-      <div class="flex gap-2 border-b border-gray-200 dark:border-dark-700">
-        <button class="tab" :class="{ 'tab-active': activeTab === 'usage' }" @click="activeTab = 'usage'">{{ t('usage.tabs.usage') }}</button>
-        <button data-testid="key-usage-tab" class="tab" :class="{ 'tab-active': activeTab === 'keys' }" @click="openKeySummary">{{ t('usage.keySummary.title') }}</button>
-        <button v-if="errorViewEnabled" class="tab" :class="{ 'tab-active': activeTab === 'errors' }" @click="switchToErrors">{{ t('usage.tabs.errors') }}</button>
+      <div class="scrollbar-hide flex overflow-x-auto border-b border-gray-200 dark:border-dark-700 md:gap-2" data-testid="usage-tabs">
+        <button class="tab h-11 min-w-max flex-1 whitespace-nowrap text-sm md:h-auto md:flex-none" :class="{ 'tab-active': activeTab === 'usage' }" @click="activeTab = 'usage'">{{ t('usage.tabs.usage') }}</button>
+        <button data-testid="key-usage-tab" class="tab h-11 min-w-max flex-1 whitespace-nowrap text-sm md:h-auto md:flex-none" :class="{ 'tab-active': activeTab === 'keys' }" @click="openKeySummary">{{ t('usage.keySummary.title') }}</button>
+        <button v-if="errorViewEnabled" class="tab h-11 min-w-max flex-1 whitespace-nowrap text-sm md:h-auto md:flex-none" :class="{ 'tab-active': activeTab === 'errors' }" @click="switchToErrors">{{ t('usage.tabs.errors') }}</button>
       </div>
       <KeyUsagePanel v-if="keysMounted" v-show="activeTab === 'keys'" :groups="groups" :initial-key-id="summaryKeyId" @details="showKeyDetails" />
       <KeyUsageDetailDialog v-if="keyDetails" :selection="keyDetails" @close="keyDetails = null" />

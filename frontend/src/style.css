@@ -51,6 +51,26 @@
     --glow-brand-2: rgba(124, 58, 237, 0.12);
     --shadow-card: 0 18px 40px -28px rgba(15, 23, 42, 0.35);
     --shadow-float: 0 40px 88px -32px rgba(15, 23, 42, 0.28);
+
+    /* Key 用量 tab 与明细弹窗专用（ku-），不影响全站 */
+    --ku-primary: #14b8a6;
+    --ku-up: #14b8a6;
+    --ku-down: #f43f5e;
+    --ku-link: #0d9488;
+    --ku-bg: #f7f8fa;
+    --ku-card: #ffffff;
+    --ku-sheet: #ffffff;
+    --ku-hover: #f3f4f6;
+    --ku-border: #eef0f3;
+    --ku-input-border: #e5e7eb;
+    --ku-text: #111827;
+    --ku-text-2: #6b7280;
+    --ku-text-3: #9ca3af;
+    --ku-group-openai: #3b82f6;
+    --ku-group-claude: #8b5cf6;
+    --ku-group-gemini: #f59e0b;
+    --ku-group-other: #64748b;
+    --ku-pill-alpha: 15%;
   }
 
   .dark {
@@ -73,6 +93,19 @@
     --glow-brand-2: rgba(167, 139, 250, 0.14);
     --shadow-card: 0 18px 40px -28px rgba(0, 0, 0, 0.7);
     --shadow-float: 0 40px 88px -32px rgba(0, 0, 0, 0.75);
+
+    /* ku- 暗色沿用全站现有暗色层级 */
+    --ku-bg: #020617;
+    --ku-card: rgb(30 41 59 / 0.5);
+    --ku-sheet: #1e293b;
+    --ku-hover: rgb(30 41 59 / 0.3);
+    --ku-border: rgb(51 65 85 / 0.5);
+    --ku-input-border: #475569;
+    --ku-text: #f3f4f6;
+    --ku-text-2: #9ca3af;
+    --ku-text-3: #6b7280;
+    --ku-link: #2dd4bf;
+    --ku-pill-alpha: 20%;
   }
 
   /* 自定义滚动条 - 仅针对 Firefox，避免 Chrome 取消 webkit 的全局定制 */
@@ -455,6 +488,17 @@
     @apply rounded-2xl shadow-2xl;
     @apply border border-gray-200 dark:border-dark-700;
     @apply flex flex-col;
+  }
+
+  /* 底部抽屉（BaseDialog mobileSheet，仅 <md 时由组件加类） */
+  .modal-overlay--sheet {
+    @apply items-end p-0;
+  }
+
+  .modal-content--sheet {
+    @apply h-[92dvh] max-h-[92dvh] rounded-b-none rounded-t-2xl border-0;
+    @apply transition-transform duration-200 ease-out motion-reduce:transition-none;
+    touch-action: pan-y;
   }
 
   .modal-header {

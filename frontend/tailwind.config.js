@@ -12,6 +12,13 @@ export default {
         surface: 'var(--surface)',
         'surface-2': 'var(--surface-2)',
         'surface-3': 'var(--surface-3)',
+        // Key 用量 tab 专用 token（src/style.css 的 --ku-*）
+        ku: {
+          primary: 'var(--ku-primary)', up: 'var(--ku-up)', down: 'var(--ku-down)', link: 'var(--ku-link)',
+          bg: 'var(--ku-bg)', card: 'var(--ku-card)', sheet: 'var(--ku-sheet)', hover: 'var(--ku-hover)',
+          border: 'var(--ku-border)', 'input-border': 'var(--ku-input-border)',
+          text: 'var(--ku-text)', 'text-2': 'var(--ku-text-2)', 'text-3': 'var(--ku-text-3)'
+        },
         // 主色调 - Teal/Cyan 青色系
         primary: {
           50: '#f0fdfa',

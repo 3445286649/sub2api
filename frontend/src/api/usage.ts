@@ -387,12 +387,32 @@ export interface APIKeyUsageSummaryItem extends APIKeyUsageTotals {
   name: string
   deleted: boolean
   group_name: string
+  group_platform?: string
+}
+
+export interface APIKeyUsageCompare {
+  requests: number
+  total_tokens: number
+  actual_cost: number
+}
+
+export interface APIKeyUsageBucket extends APIKeyUsageCompare {
+  bucket: string
+}
+
+export interface APIKeyUsageTrendParams {
+  prev_start_time?: string
+  prev_end_time?: string
+  granularity?: 'hour' | 'day'
+  timezone?: string
 }
 
 export interface APIKeyUsageSummary {
   items: APIKeyUsageSummaryItem[]
   summary: APIKeyUsageTotals
   total: number
+  previous?: APIKeyUsageCompare | null
+  trend?: APIKeyUsageBucket[] | null
   page: number
   page_size: number
 }
@@ -405,6 +425,7 @@ export interface APIKeyUsageBreakdownGroup extends APIKeyUsageTotals {
   group_id: number | null
   group_name: string
   group_deleted: boolean
+  group_platform?: string
   models: APIKeyUsageBreakdownModel[]
 }
 
@@ -416,6 +437,8 @@ export interface APIKeyUsageBreakdown {
   end_time: string
   summary: APIKeyUsageTotals
   groups: APIKeyUsageBreakdownGroup[]
+  previous_summary?: APIKeyUsageCompare | null
+  series?: APIKeyUsageBucket[] | null
 }
 
 export interface APIKeyUsageBreakdownParams {
@@ -423,6 +446,8 @@ export interface APIKeyUsageBreakdownParams {
   end_time: string
   group_id?: number
 }
+
+export type APIKeyUsageBreakdownQuery = APIKeyUsageBreakdownParams & APIKeyUsageTrendParams
 
 export interface APIKeyUsageDetailSelection extends APIKeyUsageBreakdownParams {
   api_key_id: number
@@ -432,7 +457,7 @@ export interface APIKeyUsageDetailSelection extends APIKeyUsageBreakdownParams {
   group_name?: string
 }
 
-export interface APIKeySummaryParams {
+export interface APIKeySummaryParams extends APIKeyUsageTrendParams {
   start_time: string
   end_time: string
   api_key_id?: number
@@ -450,7 +475,7 @@ export async function getAPIKeySummary(params: APIKeySummaryParams, signal?: Abo
   return data
 }
 
-export async function getAPIKeyBreakdown(apiKeyId: number, params: APIKeyUsageBreakdownParams, signal?: AbortSignal): Promise<APIKeyUsageBreakdown> {
+export async function getAPIKeyBreakdown(apiKeyId: number, params: APIKeyUsageBreakdownQuery, signal?: AbortSignal): Promise<APIKeyUsageBreakdown> {
   const { data } = await apiClient.get<APIKeyUsageBreakdown>(`/usage/api-keys/${apiKeyId}/breakdown`, { params, signal })
   return data
 }

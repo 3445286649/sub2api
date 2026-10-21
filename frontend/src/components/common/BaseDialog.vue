@@ -3,7 +3,7 @@
     <Transition name="modal">
       <div
         v-if="show"
-        class="modal-overlay"
+        :class="['modal-overlay', sheetActive && 'modal-overlay--sheet']"
         :style="zIndexStyle"
         :aria-labelledby="dialogId"
         role="dialog"
@@ -11,7 +11,20 @@
         @click.self="handleClose"
       >
         <!-- Modal panel -->
-        <div ref="dialogRef" :class="['modal-content', widthClasses]" @click.stop>
+        <div
+          ref="dialogRef"
+          :class="['modal-content', widthClasses, sheetActive && 'modal-content--sheet']"
+          :style="sheetStyle"
+          data-testid="base-dialog-panel"
+          @click.stop
+          @pointerdown="onSheetPointerDown"
+          @pointermove="onSheetPointerMove"
+          @pointerup="onSheetPointerUp"
+          @pointercancel="onSheetPointerUp"
+        >
+          <div v-if="sheetActive" class="flex h-6 shrink-0 items-start justify-center pt-2" data-sheet-handle aria-hidden="true">
+            <div class="h-1 w-9 rounded-full bg-ku-border"></div>
+          </div>
           <!-- Header — override entirely with #header slot if provided -->
           <slot name="header" :title-id="dialogId">
             <div class="modal-header">
@@ -30,7 +43,7 @@
           </slot>
 
           <!-- Body -->
-          <div ref="modalBodyRef" class="modal-body">
+          <div ref="modalBodyRef" :class="['modal-body', sheetActive && 'overscroll-contain pb-[calc(1rem+env(safe-area-inset-bottom))]']">
             <slot></slot>
           </div>
 
@@ -61,7 +74,7 @@ const dialogRef = ref<HTMLElement | null>(null)
 const modalBodyRef = ref<HTMLElement | null>(null)
 let previousActiveElement: HTMLElement | null = null
 
-type DialogWidth = 'narrow' | 'normal' | 'wide' | 'extra-wide' | 'full'
+type DialogWidth = 'narrow' | 'normal' | 'wide' | 'extra-wide' | 'full' | 'detail'
 
 interface Props {
   show: boolean
@@ -71,6 +84,8 @@ interface Props {
   closeOnClickOutside?: boolean
   showCloseButton?: boolean
   zIndex?: number
+  /** Below md, render as a bottom sheet (92dvh) with a drag handle and swipe-to-close. */
+  mobileSheet?: boolean
 }
 
 interface Emits {
@@ -82,7 +97,8 @@ const props = withDefaults(defineProps<Props>(), {
   closeOnEscape: true,
   closeOnClickOutside: false,
   showCloseButton: true,
-  zIndex: 50
+  zIndex: 50,
+  mobileSheet: false
 })
 
 const emit = defineEmits<Emits>()
@@ -101,10 +117,69 @@ const widthClasses = computed(() => {
     normal: 'max-w-lg',
     wide: 'w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl',
     'extra-wide': 'w-full sm:max-w-3xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl',
-    full: 'w-full sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl'
+    full: 'w-full sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl',
+    detail: 'w-full md:max-w-[880px]'
   }
   return widths[props.width]
 })
+
+// Bottom sheet (mobile only)
+const mobileQuery = '(max-width: 767.98px)'
+const isMobile = ref(typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(mobileQuery).matches)
+let mobileMql: MediaQueryList | undefined
+const onMobileChange = (e: MediaQueryListEvent) => { isMobile.value = e.matches }
+const sheetActive = computed(() => props.mobileSheet && isMobile.value)
+const dragOffset = ref(0)
+const dragging = ref(false)
+let dragStartY = 0
+let dragStartTime = 0
+let dragPointerId: number | null = null
+let dragCandidate = false
+const reducedMotion = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const sheetStyle = computed(() => {
+  if (!sheetActive.value || dragOffset.value === 0) return undefined
+  return { transform: `translateY(${dragOffset.value}px)`, transition: dragging.value || reducedMotion() ? 'none' : undefined }
+})
+
+// The handle/header can always drag; the body only when it is scrolled to the top.
+function canStartDrag(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false
+  if (target.closest('input, textarea, select, [contenteditable="true"]')) return false
+  if (target.closest('[data-sheet-handle], .modal-header')) return true
+  const body = modalBodyRef.value
+  return !!body && body.contains(target) && body.scrollTop <= 0
+}
+function onSheetPointerDown(e: PointerEvent) {
+  if (!sheetActive.value || !canStartDrag(e.target)) return
+  dragCandidate = true
+  dragPointerId = e.pointerId
+  dragStartY = e.clientY
+  dragStartTime = performance.now()
+}
+function onSheetPointerMove(e: PointerEvent) {
+  if (!dragCandidate || e.pointerId !== dragPointerId) return
+  const dy = e.clientY - dragStartY
+  if (!dragging.value) {
+    // Upward movement means the user wants to scroll the content instead.
+    if (dy < 0) { dragCandidate = false; return }
+    if (dy < 6) return
+    dragging.value = true
+  }
+  dragOffset.value = Math.max(0, dy)
+}
+function onSheetPointerUp(e: PointerEvent) {
+  if (!dragCandidate || e.pointerId !== dragPointerId) return
+  dragCandidate = false
+  dragPointerId = null
+  if (!dragging.value) return
+  dragging.value = false
+  const distance = Math.max(0, e.clientY - dragStartY)
+  const elapsed = Math.max(1, performance.now() - dragStartTime)
+  const height = dialogRef.value?.getBoundingClientRect().height || 0
+  const threshold = Math.min(120, height * 0.25 || 120)
+  if (distance > threshold || distance / elapsed > 0.5) emit('close')
+  dragOffset.value = 0
+}
 
 const handleClose = () => {
   if (props.closeOnClickOutside) {
@@ -159,10 +234,16 @@ watch(
 
 onMounted(() => {
   document.addEventListener('keydown', handleEscape)
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    mobileMql = window.matchMedia(mobileQuery)
+    isMobile.value = mobileMql.matches
+    mobileMql.addEventListener?.('change', onMobileChange)
+  }
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleEscape)
+  mobileMql?.removeEventListener?.('change', onMobileChange)
   // 确保组件卸载时移除滚动锁定
   updateScrollLock(false)
 })

@@ -18,7 +18,7 @@ const fixture = {
 const render = (initial = selection) => mount(KeyUsageDetailDialog, {
   props: { selection: initial },
   global: { stubs: {
-    BaseDialog: { props: ['show', 'title', 'width'], emits: ['close'], template: '<section role="dialog"><h2>{{ title }}</h2><button data-testid="dialog-close" @click="$emit(\'close\')">Close</button><slot /></section>' },
+    BaseDialog: { props: ['show', 'title', 'width', 'mobileSheet', 'closeOnClickOutside'], emits: ['close'], template: '<section role="dialog"><slot name="header" title-id="t" /><h2>{{ title }}</h2><button data-testid="dialog-close" @click="$emit(\'close\')">Close</button><slot /></section>' },
     LoadingSpinner: true,
   } },
 })
@@ -29,15 +29,15 @@ describe('KeyUsageDetailDialog', () => {
 
   it('inherits the exact applied range and group without recomputing, then clears only its own group filter', async () => {
     const wrapper = render(); await flushPromises()
-    expect(getAPIKeyBreakdown).toHaveBeenCalledWith(7, { start_time: selection.start_time, end_time: selection.end_time, group_id: 3 }, expect.any(AbortSignal))
+    expect(getAPIKeyBreakdown).toHaveBeenCalledWith(7, expect.objectContaining({ start_time: selection.start_time, end_time: selection.end_time, group_id: 3, granularity: 'hour', prev_end_time: '2026-10-18T15:42:00.000Z' }), expect.any(AbortSignal))
     expect(wrapper.text()).toContain('used-group')
     expect(wrapper.text()).toContain('used-model')
     expect(wrapper.findAll('[data-testid="key-detail-group"]')).toHaveLength(1)
     expect(wrapper.findAll('[data-testid="key-detail-model"]')).toHaveLength(1)
     expect(wrapper.text()).toContain('usage.keySummary.subscriptionHint')
-    expect(wrapper.text()).toContain('usage.keySummary.cacheRead')
+    expect(document.body.textContent).toContain('usage.keySummary.cacheRead')
     await wrapper.get('[data-testid="key-detail-all-groups"]').trigger('click'); await flushPromises()
-    expect(getAPIKeyBreakdown).toHaveBeenLastCalledWith(7, { start_time: selection.start_time, end_time: selection.end_time, group_id: undefined }, expect.any(AbortSignal))
+    expect(getAPIKeyBreakdown).toHaveBeenLastCalledWith(7, expect.objectContaining({ start_time: selection.start_time, end_time: selection.end_time, group_id: undefined }), expect.any(AbortSignal))
     expect(selection.group_id).toBe(3)
     wrapper.unmount()
   })
@@ -97,6 +97,10 @@ describe('KeyUsageDetailDialog', () => {
       { ...totals, group_id: null, group_name: '', group_deleted: false, models: [{ ...totals, model: 'historical-model' }] },
     ] })
     const wrapper = render(); await flushPromises()
+    // Deleted groups start collapsed; the remaining group is open.
+    expect(wrapper.text()).not.toContain('free-model')
+    expect(wrapper.text()).toContain('historical-model')
+    await wrapper.findAll('[data-testid="key-detail-group-toggle"]')[0].trigger('click')
     expect(wrapper.text()).toContain('free-model')
     expect(wrapper.text()).toContain('usage.keyDetail.groupFallback 9')
     expect(wrapper.text()).toContain('usage.keyDetail.deletedGroup')
@@ -145,5 +149,29 @@ describe('KeyUsageDetailDialog', () => {
       wrapper.unmount()
       trigger.remove()
     }
+  })
+
+  it('shows comparison, spend chart, collapsible groups and model share', async () => {
+    getAPIKeyBreakdown.mockResolvedValueOnce({ ...fixture,
+      previous_summary: { requests: 1, total_tokens: 190, actual_cost: 5 },
+      series: [{ bucket: '2026-10-18T15:42:00Z', requests: 2, total_tokens: 190, actual_cost: 2.5 }],
+      groups: [
+        { ...totals, actual_cost: 2, group_id: 3, group_name: 'big', group_deleted: false, group_platform: 'anthropic', models: [{ ...totals, model: 'm-a', actual_cost: 1.5 }, { ...totals, model: 'm-b', actual_cost: 0.005 }] },
+        { ...totals, actual_cost: 0.5, group_id: 4, group_name: 'small', group_deleted: false, models: [{ ...totals, model: 'm-c' }] },
+      ] })
+    const wrapper = render(); await flushPromises()
+    expect(wrapper.text()).toContain('▲ +100%')
+    expect(wrapper.text()).toContain('▼ -50%')
+    expect(wrapper.text()).toContain('usage.keyDetail.hourlySpend')
+    expect(wrapper.find('[data-testid="ku-spend-area"]').exists()).toBe(true)
+    const toggles = wrapper.findAll('[data-testid="key-detail-group-toggle"]')
+    expect(toggles[0].attributes('aria-expanded')).toBe('true')
+    expect(toggles[1].attributes('aria-expanded')).toBe('false')
+    expect(wrapper.text()).not.toContain('m-c')
+    expect(wrapper.findAll('[data-testid="key-detail-share"]').map(s => s.text())).toEqual(['75%', '<1%'])
+    await toggles[1].trigger('click')
+    expect(wrapper.text()).toContain('m-c')
+    expect(wrapper.find('details').exists()).toBe(false)
+    wrapper.unmount()
   })
 })
