@@ -160,3 +160,170 @@
 .vp-doc details.details {
   border-radius: 12px;
 }
+
+/* ---------- 步骤概览（StepFlow） ---------- */
+.vp-doc .step-flow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 20px 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+.vp-doc .step-flow__item {
+  margin: 0;
+}
+
+.vp-doc .step-flow__link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  background-color: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.vp-doc a.step-flow__link:hover {
+  border-color: var(--vp-c-brand-1);
+  background-color: var(--vp-c-brand-soft);
+}
+
+.vp-doc .step-flow__index {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--vp-c-brand-1);
+  color: var(--vp-button-brand-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.vp-doc .step-flow__title {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* ---------- 系统切换（OsTabs） ---------- */
+.os-tabs {
+  margin: 16px 0;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.os-tabs__bar {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--vp-c-divider);
+  background-color: var(--vp-c-bg-soft);
+}
+
+.os-tabs__tab {
+  padding: 6px 14px;
+  border-radius: 8px;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.os-tabs__tab:hover {
+  color: var(--vp-c-text-1);
+}
+
+.os-tabs__tab.is-active {
+  background-color: var(--vp-c-bg);
+  color: var(--vp-c-brand-1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.os-tabs__tab:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 1px;
+}
+
+.os-tabs__panel {
+  padding: 4px 16px;
+}
+
+/* 面板里的代码块、表格贴边会显得挤，留出一点上下距 */
+.os-tabs__panel > :first-child {
+  margin-top: 12px;
+}
+
+.os-tabs__panel > :last-child {
+  margin-bottom: 12px;
+}
+
+/* ---------- 下载卡片（DownloadCard） ---------- */
+.download-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  background-color: var(--vp-c-bg-soft);
+}
+
+.download-card__badge {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background-color: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-weight: 700;
+}
+
+.download-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.download-card__name {
+  color: var(--vp-c-text-1);
+  line-height: 1.4;
+}
+
+.download-card__hint {
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.vp-doc .download-card__button {
+  flex-shrink: 0;
+  padding: 6px 16px;
+  border-radius: 8px;
+  background-color: var(--vp-button-brand-bg);
+  color: var(--vp-button-brand-text);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.vp-doc .download-card__button:hover {
+  background-color: var(--vp-button-brand-hover-bg);
+  color: var(--vp-button-brand-hover-text);
+}

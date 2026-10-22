@@ -11,17 +11,18 @@
 | API 密钥 | [API 密钥](https://codeplan.codes/keys) | 创建 Key、选择分组、导入 CCSwitch |
 | 使用记录 | [使用记录](https://codeplan.codes/usage) | 确认请求是否经过 CodePlan，并核对模型与费用 |
 | 渠道状态 | [渠道状态](https://codeplan.codes/monitor) | 查看渠道探测状态，不代表某个 Key 一定有模型权限 |
-| 充值与订单 | [充值/订阅](https://codeplan.codes/purchase) / [订单](https://codeplan.codes/orders) | 充值、支付及订单状态查询 |
+| 充值与订单 | [充值](https://codeplan.codes/purchase) / [我的订单](https://codeplan.codes/orders) | 充值、卡密充值及订单状态查询 |
 | 兑换码 | [兑换](https://codeplan.codes/redeem) | 兑换余额、订阅或其它权益 |
 | 拉新活动 | [拉新活动](https://codeplan.codes/acquisition) | 活动、排行榜和抽奖，以当期页面为准 |
 | 邀请返利 | [邀请返利](https://codeplan.codes/affiliate) | 查看邀请码、邀请记录和返利 |
-| 模型雷达 | 登录后右上角 **模型雷达** | 参考模型推荐与状态，仍需确认 Key 分组支持 |
-| 充值商城 | 登录后右上角 **充值商城** | 主商城不可用时可选择备用商城 |
+| 用量查询 | [API Key 用量查询](https://codeplan.codes/key-usage) | 不登录，粘贴 Key 查看消费金额和使用状态 |
+| 模型广场 | 顶栏 **模型广场** | 查看站内可用模型，仍需确认 Key 分组支持 |
+| 充值商城 | 登录后右上角 **充值商城** | 打开卡密充值，在发卡网买卡密后回站内兑换 |
 | 售后群 | [售后与联系](/support) | 扫码加入一群或二群 |
 
 ## 功能之间的区别
 
-- **模型雷达**用于推荐和观察，不负责给 Key 授权。
+- **模型广场**用于查看模型，不负责给 Key 授权。
 - **渠道状态**反映探测结果，不代表某个分组必然支持对应模型。
 - **Key 分组**决定客户端可用协议、模型和计费规则。
 - **使用记录**是判断请求是否真正经过本站的最终证据。

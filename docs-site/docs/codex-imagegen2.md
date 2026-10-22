@@ -43,8 +43,8 @@ source ~/.zshrc
 创建 SKILL.md、agents/openai.yaml 和 scripts/imagegen2.py，放在全局 skills 目录下。
 
 接口信息：
-- 生图接口：https://subapi.loucer.cn/v1/images/generations
-- 编辑接口：https://subapi.loucer.cn/v1/images/edits
+- 生图接口：https://codeplan.codes/v1/images/generations
+- 编辑接口：https://codeplan.codes/v1/images/edits
 - API Key：只从环境变量 IMAGEGEN2_API_KEY 读取，不要写进任何文件；读不到就停下并提示我去设置
 - 默认模型：gpt-image-2
 - 默认输出目录：当前工作目录下的 output/imagegen2/

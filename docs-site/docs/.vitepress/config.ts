@@ -3,9 +3,9 @@ import { defineConfig } from 'vitepress'
 /**
  * 站点地址统一在这里维护，正文通过 {{ $site... }} 之外的方式引用时也以这里为准。
  *
- * - SITE_URL：用户访问入口（主推）。
- * - API_URL：客户端里要填的地址。必须与主站后台「API 地址」一致，
+ * - SITE_URL：用户访问入口，也是客户端里要填的地址。必须与主站后台「API 端点地址」一致，
  *   因为站内「使用密钥」弹窗和「导入到 CCS」生成的配置用的就是它。
+ * - ALT_SITE_URL：备用地址，只在文档里作为「主地址打不开时可替换」提一句。
  * 两个域名指向同一个后端，账户、余额、Key 完全通用。
  */
 const SITE_URL = 'https://codeplan.codes'
@@ -70,6 +70,7 @@ export default defineConfig({
         text: '帮助',
         items: [
           { text: '常见报错排查', link: '/troubleshooting' },
+          { text: '找到配置文件', link: '/config-files' },
           { text: '站内功能与入口', link: '/site-features' },
           { text: '售后与联系', link: '/support' },
           { text: '更新记录', link: '/changelog' },
@@ -107,7 +108,7 @@ export default defineConfig({
     darkModeSwitchTitle: '切换到深色模式',
 
     footer: {
-      message: `访问地址：<a href="${SITE_URL}">${SITE_URL.replace('https://', '')}</a> · <a href="${ALT_SITE_URL}">${ALT_SITE_URL.replace('https://', '')}</a>（两个地址为同一站点，账户通用）`,
+      message: `访问地址：<a href="${SITE_URL}">${SITE_URL.replace('https://', '')}</a> · 备用 <a href="${ALT_SITE_URL}">${ALT_SITE_URL.replace('https://', '')}</a>（同一站点，账户通用）`,
       copyright: '© CodePlan',
     },
   },

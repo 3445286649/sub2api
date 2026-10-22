@@ -33,6 +33,8 @@ Claude Code 不读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`。按 OpenAI 的方�
 
 打开 [API 密钥](https://codeplan.codes/keys)，在目标 Key 上点击 **使用密钥** → **Claude Code** 标签，复制弹窗生成的配置。两种写法任选一种：
 
+![使用密钥弹窗：Claude Code 标签](/images/subapi/use-key-claude-code.png)
+
 ### 写法 A：写进 settings.json（推荐，永久生效）
 
 编辑用户级配置文件，终端版和 VS Code 插件都会读取它：
@@ -42,11 +44,13 @@ Claude Code 不读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`。按 OpenAI 的方�
 | macOS / Linux | `~/.claude/settings.json` |
 | Windows | `%USERPROFILE%\.claude\settings.json` |
 
+不知道怎么打开这个目录，见 [找到配置文件](/config-files)。
+
 ```json
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
-    "ANTHROPIC_BASE_URL": "https://subapi.loucer.cn",
+    "ANTHROPIC_BASE_URL": "https://codeplan.codes",
     "ANTHROPIC_AUTH_TOKEN": "sk-你的密钥",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
   }
@@ -62,19 +66,19 @@ Claude Code 不读取 `OPENAI_API_KEY`、`OPENAI_BASE_URL`。按 OpenAI 的方�
 ::: code-group
 
 ```bash [macOS / Linux]
-export ANTHROPIC_BASE_URL="https://subapi.loucer.cn"
+export ANTHROPIC_BASE_URL="https://codeplan.codes"
 export ANTHROPIC_AUTH_TOKEN="sk-你的密钥"
 export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 ```
 
 ```powershell [PowerShell]
-$env:ANTHROPIC_BASE_URL="https://subapi.loucer.cn"
+$env:ANTHROPIC_BASE_URL="https://codeplan.codes"
 $env:ANTHROPIC_AUTH_TOKEN="sk-你的密钥"
 $env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 ```
 
 ```bat [CMD]
-set ANTHROPIC_BASE_URL=https://subapi.loucer.cn
+set ANTHROPIC_BASE_URL=https://codeplan.codes
 set ANTHROPIC_AUTH_TOKEN=sk-你的密钥
 set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 ```
@@ -84,14 +88,13 @@ set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 设置后在**同一个终端**里启动 `claude`。关掉终端就失效了，想长期使用请用写法 A。
 
 ::: tip 地址不带 /v1
-`ANTHROPIC_BASE_URL` 填 `https://subapi.loucer.cn`，**不要加 `/v1`**。Claude Code 会自己拼接 `/v1/messages`，加了反而报 404。
+`ANTHROPIC_BASE_URL` 填 `https://codeplan.codes`，**不要加 `/v1`**。Claude Code 会自己拼接 `/v1/messages`，加了反而报 404。
 :::
 
 ## VS Code 里的 Claude Code 插件
 
 插件读取的也是 `~/.claude/settings.json`。按上面的 **写法 A** 配好后，在 VS Code 里执行 **重新加载窗口**（<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> → `Reload Window`）即可。
 
-![VS Code Claude Code 插件配置示意](/images/subapi/vscode-claude-code-settings.png)
 
 ## 确认真的走了 CodePlan
 

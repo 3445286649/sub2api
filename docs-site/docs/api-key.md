@@ -12,9 +12,10 @@ API Key 是客户端访问 CodePlan 的凭证。CCSwitch、Codex、Claude Code�
 | 字段 | 建议 |
 | --- | --- |
 | 名称 | 写清用途，例如 `codex-laptop`、`claude-vscode`、`备用` |
+| 厂商 | 先选厂商，下面的分组列表会按厂商筛选。用 Codex 选 **OpenAI**，用 Claude Code 选 **Anthropic** |
 | 分组 | **必须选**。分组决定能用哪些客户端和模型，见 [模型与分组怎么选](/models-and-groups) |
 | 额度限制 | 不限制填 `0`；想控制风险就填一个上限 |
-| 有效期 | 长期使用选永久；临时测试可以设置过期 |
+| 密钥有效期 | 默认关闭即永久有效；临时测试可以打开并设置过期时间 |
 
 ::: warning 没有分组的 Key 用不了
 没有分组的 Key 无法调度，点击 **使用密钥** 时也会提示「请先分配分组」。
@@ -24,24 +25,23 @@ API Key 是客户端访问 CodePlan 的凭证。CCSwitch、Codex、Claude Code�
 
 在 API 密钥列表里点击 **使用密钥**，站内会按这个 Key 的分组生成对应客户端的配置，可以直接复制。
 
-![使用密钥弹窗](/images/subapi/08-use-api-key-modal.png)
+![使用密钥弹窗：Codex CLI 标签](/images/subapi/08-use-api-key-modal.png)
 
 **配置以这个弹窗为准。** 它会根据分组自动选好地址、协议和模型，比手写可靠。本文档里的配置示例都和弹窗生成的内容一致。
 
 ## 接入地址怎么填
 
-CodePlan 有两个访问地址，指向同一个站点，账户、余额和 Key 完全通用：
-
-- `https://codeplan.codes`
-- `https://subapi.loucer.cn`
-
-**在客户端里填的地址统一用 `subapi.loucer.cn`**，和站内生成的配置保持一致。不同客户端对结尾要不要加 `/v1` 要求不同：
+**在客户端里填的地址统一用 `codeplan.codes`**，和站内 **使用密钥** 弹窗、**导入到 CCS** 生成的配置一致。不同客户端对结尾要不要加 `/v1` 要求不同：
 
 | 客户端 | 地址填写 | 说明 |
 | --- | --- | --- |
-| Claude Code（及 Anthropic 协议插件） | `https://subapi.loucer.cn` | **不加 `/v1`**，客户端会自己拼接 `/v1/messages` |
-| Codex / OpenAI 兼容客户端 | `https://subapi.loucer.cn/v1` | 需要带 `/v1` |
-| CCSwitch | `https://subapi.loucer.cn` | 用 **导入到 CCS** 自动填写，无需手动输入 |
+| Claude Code（及 Anthropic 协议插件） | `https://codeplan.codes` | **不加 `/v1`**，客户端会自己拼接 `/v1/messages` |
+| Codex / OpenAI 兼容客户端 | `https://codeplan.codes/v1` | 需要带 `/v1` |
+| CCSwitch | `https://codeplan.codes` | 用 **导入到 CCS** 自动填写，无需手动输入 |
+
+::: info 备用地址
+`subapi.loucer.cn` 是备用地址，和 `codeplan.codes` 是同一个站点，账户、余额和 Key 完全通用。主地址访问不畅时，把上表里的 `codeplan.codes` 换成 `subapi.loucer.cn` 即可，`/v1` 规则不变。之前按备用地址配好的客户端可以继续用，不用改。
+:::
 | Gemini CLI、OpenCode | 以站内生成为准 | 不同分组路径不同，例如 Antigravity 分组带 `/antigravity` |
 
 ::: tip 地址填错的典型表现

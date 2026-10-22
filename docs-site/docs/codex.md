@@ -6,6 +6,37 @@
 Codex 使用 OpenAI Responses 协议，Key 要绑定支持它的分组。点击 **使用密钥** 能看到 **Codex CLI** 标签就说明分组没问题，见 [模型与分组怎么选](/models-and-groups)。
 :::
 
+<StepFlow :steps="['安装 Codex|#安装-codex', '创建 Key|/api-key#创建-api-key', '一键导入|#方式一-ccswitch-一键导入-推荐', '重启并测试|#确认真的走了-codeplan']" />
+
+## 安装 Codex
+
+<OsTabs>
+<template #windows>
+
+<DownloadCard name="Codex" href="https://developers.openai.com/codex" hint="OpenAI 官方页面，桌面端和 VS Code 插件都在这里下载" />
+<DownloadCard name="CCSwitch" badge="CC" href="https://ccswitch.io/zh/download" hint="选择 .msi 安装包，用来一键导入配置" />
+
+只用命令行版的话，装好 [Node.js](https://nodejs.org/) 后在 PowerShell 运行：
+
+```powershell
+npm install -g @openai/codex
+```
+
+</template>
+<template #macos>
+
+<DownloadCard name="Codex" href="https://developers.openai.com/codex" hint="OpenAI 官方页面，桌面端和 VS Code 插件都在这里下载" />
+<DownloadCard name="CCSwitch" badge="CC" href="https://ccswitch.io/zh/download" hint="选择 .dmg 安装包，用来一键导入配置" />
+
+只用命令行版的话，装好 [Node.js](https://nodejs.org/) 后在终端运行：
+
+```bash
+npm install -g @openai/codex
+```
+
+</template>
+</OsTabs>
+
 ## 方式一：CCSwitch 一键导入（推荐）
 
 按 [CCSwitch 接入](/ccswitch) 完成「导入 → 启用到 **使用中** → 刷新用量」，然后：
@@ -40,7 +71,7 @@ network_access = "enabled"
 
 [model_providers.OpenAI]
 name = "OpenAI"
-base_url = "https://subapi.loucer.cn/v1"
+base_url = "https://codeplan.codes/v1"
 wire_api = "responses"
 requires_openai_auth = true
 ```
@@ -59,15 +90,55 @@ requires_openai_auth = true
 
 ### 2. 保存到 Codex 配置目录
 
-| 系统 | 配置目录 |
-| --- | --- |
-| macOS / Linux | `~/.codex/` |
-| Windows | `%userprofile%\.codex\` |
+<OsTabs>
+<template #windows>
 
-- macOS / Linux：目录不存在时先运行 `mkdir -p ~/.codex`。
-- Windows：按 <kbd>Win</kbd> + <kbd>R</kbd>，输入 `%userprofile%\.codex` 打开目录；不存在就手动新建一个。
+按 <kbd>Win</kbd> + <kbd>R</kbd>，输入下面的路径回车；目录不存在就手动新建一个 `.codex` 文件夹：
 
-把两个文件分别保存为 `config.toml` 和 `auth.json`。如果 `config.toml` 已经存在，**把弹窗内容放在文件开头**。
+```text
+%USERPROFILE%\.codex
+```
+
+</template>
+<template #macos>
+
+在 Finder 按 <kbd>⌘</kbd> + <kbd>⇧</kbd> + <kbd>G</kbd> 输入 `~/.codex`，或在终端运行：
+
+```bash
+mkdir -p ~/.codex && open ~/.codex
+```
+
+</template>
+<template #linux>
+
+```bash
+mkdir -p ~/.codex && xdg-open ~/.codex
+```
+
+</template>
+</OsTabs>
+
+把两个文件分别保存为 `config.toml` 和 `auth.json`。如果 `config.toml` 已经存在，**把弹窗内容放在文件开头**。打不开目录、看不到隐藏文件或保存成了 `.txt`，见 [找到配置文件](/config-files)。
+
+### 模型目录
+
+弹窗的 **Codex CLI** 标签下有一个 **Codex 模型目录** 区域，决定 Codex 从哪里读取可选模型列表。**目录来源**有两种：
+
+| 目录来源 | 适用 | 你要做什么 |
+| --- | --- | --- |
+| **远程目录**（默认） | Codex 0.156.0 及以上 | 什么都不用做。`config.toml` 里会多一行 `model_catalog_url`，Codex 自己联网刷新 |
+| **本地文件** | 旧版 Codex，或模型目录太大（超过 1 MiB 时会自动切到这个模式） | 下载 `codex-models.json`，放进配置目录 |
+
+选 **本地文件** 时：
+
+1. 点击 **获取目录**，提示「已获取 N 个模型」后按钮变成 **下载目录**。
+2. 点击 **下载目录**，浏览器会下载 `codex-models.json`。
+3. 把它放进上一步的 `.codex` 目录，和 `config.toml` 放在一起。
+4. 复制弹窗里的 `config.toml`。它会多一行 `model_catalog_json = "~/.codex/codex-models.json"`，Windows 上也是这样写，不用改。
+
+::: tip 不确定自己的版本
+在终端运行 `codex --version`。低于 0.156.0、或者模型列表一直是空的，就改用 **本地文件**。模型更新后重新下载一次目录覆盖旧文件即可。
+:::
 
 ### 3. 重启 Codex 并验证
 

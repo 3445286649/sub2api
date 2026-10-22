@@ -31,14 +31,14 @@ Cline、Continue、Roo Code 这类插件在自己的设置页里填写配置，�
 | 字段 | 填写 |
 | --- | --- |
 | Provider / API 类型 | OpenAI Compatible（也可能叫 Custom OpenAI、OpenAI 兼容） |
-| Base URL | `https://subapi.loucer.cn/v1` |
+| Base URL | `https://codeplan.codes/v1` |
 | API Key | 站内创建的 `sk-...` |
 | Model | Key 所在分组支持的模型名 |
 
 ![VS Code 通用 OpenAI 兼容配置示意](/images/subapi/vscode-openai-compatible-settings.png)
 
 ::: tip Base URL 报路径错误时
-少数插件会自己在地址后面拼 `/v1`。填 `https://subapi.loucer.cn/v1` 报 `404` 或路径错误时，改成 `https://subapi.loucer.cn` 再试。地址规则见 [API Key 与接入地址](/api-key#接入地址怎么填)。
+少数插件会自己在地址后面拼 `/v1`。填 `https://codeplan.codes/v1` 报 `404` 或路径错误时，改成 `https://codeplan.codes` 再试。地址规则见 [API Key 与接入地址](/api-key#接入地址怎么填)。
 :::
 
 ::: info 需要 OpenAI 分组
@@ -62,7 +62,7 @@ OpenAI 兼容插件走的是 OpenAI 协议，Key 要绑定 OpenAI 分组。模�
 | 现象 | 处理方式 |
 | --- | --- |
 | 找不到 OpenAI Compatible 选项 | 这个插件不支持自定义接入，只能用它自带的官方渠道 |
-| 填了 `/v1` 后报路径错误 | 改成 `https://subapi.loucer.cn`，该插件会自己拼接 `/v1` |
+| 填了 `/v1` 后报路径错误 | 改成 `https://codeplan.codes`，该插件会自己拼接 `/v1` |
 | 能回复但使用记录里没有 | 退出官方账号模式，确认 Provider 选的是 OpenAI 兼容，再重新加载窗口 |
 | 改了配置不生效 | 执行 **重新加载窗口**，或完全关闭 VS Code 再打开 |
 

@@ -1,5 +1,19 @@
 # 更新记录
 
+## 2026-10-22
+
+- 新增 [找到配置文件](/config-files)：Codex、Claude Code 配置目录在 Windows / macOS / Linux 上的打开方法。
+- CCSwitch、Codex 的下载与配置步骤按系统分栏，下载入口改为按钮。
+- Codex 教程补充「模型目录」：远程目录与本地文件 `codex-models.json` 的区别和下载方法。
+- 常见报错排查按状态码（400 / 401 / 403 / 404 / 429 / 5xx）分组，补充超时和联系售后要带的信息。
+- 快速开始、CCSwitch、Codex 页首增加步骤概览。
+- 客户端地址统一改为 `codeplan.codes`，与站内「使用密钥」弹窗一致；`subapi.loucer.cn` 作为备用地址继续可用。
+- 更正 CCSwitch 导入说明：一次导入只配置 Key 分组对应的那一类客户端。
+- 移除 Claude Code 页画成 OpenAI 兼容方式的错误示意图，换成弹窗实际截图。
+- 站内截图全部重拍为 CodePlan 当前界面；创建密钥补充「厂商」一步；充值商城改为卡密充值流程。
+- 新增「不登录查 Key 用量」说明；站内功能补充用量查询、模型广场。
+- 更正报错码：未带 Key 为 `API_KEY_REQUIRED`，余额不足为 `INSUFFICIENT_BALANCE`。
+
 ## 2026-09-28
 
 - 文档站更名为 **CodePlan 使用教程**，配色与主站统一。

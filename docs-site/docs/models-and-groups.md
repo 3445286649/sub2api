@@ -27,7 +27,7 @@
 
 1. 打开 [API 密钥](https://codeplan.codes/keys)，点击 **创建密钥**。
 2. 名称写清用途，例如 `codex-laptop`、`claude-vscode`。
-3. 按上表选择目标分组；需要控制风险时设置额度和有效期。
+3. 先选 **厂商**（OpenAI / Anthropic / 国产模型 / 其他），再按上表选择目标分组；需要控制风险时设置额度和有效期。
 4. 保存后妥善保管完整 Key。
 
 ![创建 Key 并选择分组](/images/subapi/07-create-api-key-modal.png)
@@ -40,7 +40,7 @@
 
 ## 用图片模型
 
-图片生成（如 [Codex 生图 Skill](/codex-imagegen2)）需要 Key 所在分组里有可用的图片模型，例如 `gpt-image-2`。不确定时，先用一个小尺寸（1K）请求试一下。
+图片生成（如 [Codex 生图 Skill](/codex-imagegen2)）需要 Key 所在分组里有可用的图片模型，例如 `gpt-image-2`（以分组实际开放的模型为准）。不确定时，先用一个小尺寸（1K）请求试一下。
 
 ## 常见误区
 

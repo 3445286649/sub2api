@@ -8,7 +8,16 @@
 import DefaultTheme from 'vitepress/theme'
 import type { Theme } from 'vitepress'
 import './custom.css'
+import OsTabs from './components/OsTabs.vue'
+import StepFlow from './components/StepFlow.vue'
+import DownloadCard from './components/DownloadCard.vue'
 
 export default {
   extends: DefaultTheme,
+  enhanceApp({ app }) {
+    // 正文 Markdown 里直接用：<OsTabs>、<StepFlow>、<DownloadCard>
+    app.component('OsTabs', OsTabs)
+    app.component('StepFlow', StepFlow)
+    app.component('DownloadCard', DownloadCard)
+  },
 } satisfies Theme

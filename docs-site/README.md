@@ -2,7 +2,7 @@
 
 CodePlan 面向用户的静态帮助中心，基于 VitePress 构建。
 
-线上地址：<https://docs.loucer.cn>
+线上地址：<https://docs.codeplan.codes>（旧地址 `docs.loucer.cn` 仍可访问）
 
 ## 本地预览
 
@@ -26,12 +26,13 @@ npm run build
 | `docs/*.md` | 文档正文 |
 | `docs/.vitepress/config.ts` | 站点配置：导航、侧边栏、访问地址 |
 | `docs/.vitepress/theme/` | 主题：配色与主站 `frontend/src/style.css` 的语义 token 保持一致 |
+| `docs/.vitepress/theme/components/` | 正文可用组件：`<StepFlow>` 步骤概览、`<OsTabs>` 按系统分栏、`<DownloadCard>` 下载按钮 |
 | `docs/public/` | 图片、Logo、下载文件 |
 
 ### 写作约定
 
 - **对外品牌统一叫 CodePlan。** 两个访问地址 `codeplan.codes` 和 `subapi.loucer.cn` 指向同一个后端。
-- **客户端里要填的地址写 `subapi.loucer.cn`**，与主站后台「API 地址」一致，因为站内「使用密钥」弹窗和「导入到 CCS」生成的配置用的就是它。后台改了这个地址，文档要同步改。
+- **客户端里要填的地址写 `codeplan.codes`**（`subapi.loucer.cn` 作为备用地址提一句即可），与主站后台「API 端点地址」一致，因为站内「使用密钥」弹窗和「导入到 CCS」生成的配置用的就是它。后台改了这个地址，文档要同步改。
 - **配置示例必须和站内「使用密钥」弹窗生成的内容一致**（`frontend/src/components/keys/UseKeyModal.vue`）。弹窗改了生成逻辑，对应教程也要改。
 - CCSwitch 的完整步骤只在 `ccswitch.md` 写一次，其他页面链接过去；`/v1` 的填写规则只在 `api-key.md` 维护。
 - 软件与群组的真实名称保持原样（如 `Sub2API Balance Float`、`loucer中转站一群`），否则用户搜不到。
@@ -47,7 +48,7 @@ VitePress 1.6.4 依赖 Vite dev server，`npm audit` 会提示开发服务器相
 ```nginx
 server {
     listen 80;
-    server_name docs.loucer.cn;
+    server_name docs.codeplan.codes docs.loucer.cn;
 
     root /opt/codeplan-docs/dist;
     index index.html;

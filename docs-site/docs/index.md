@@ -27,7 +27,7 @@ features:
     linkText: 开始
   - icon: 🔄
     title: CCSwitch 一键导入
-    details: 最省事的接入方式。一次导入，Codex、Claude Code、VS Code 都能用。
+    details: 最省事的接入方式。在密钥页点一下导入，地址和 Key 自动配好，不用改配置文件。
     link: /ccswitch
     linkText: 查看教程
   - icon: 💻
