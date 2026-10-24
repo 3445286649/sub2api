@@ -19,6 +19,6 @@ func TestEnableGeminiImageGenerationGroupsMigration(t *testing.T) {
 	}
 	sql := strings.Join(strings.Fields(strings.Join(statements, " ")), " ")
 	require.Equal(t,
-		"UPDATE groups SET allow_image_generation = true WHERE platform IN ('gemini', 'antigravity') AND allow_image_generation = false;",
+		"UPDATE groups SET allow_image_generation = true WHERE platform IN ('gemini', 'antigravity') AND allow_image_generation = false AND NOT ( platform = 'gemini' AND name IN ( 'Gemini', 'Gemini-4-preview 专用分组', 'Gemini-尊享分组', 'Gemini-活动分组' ) );",
 		sql)
 }
