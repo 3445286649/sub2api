@@ -4436,6 +4436,7 @@ import {
   type ReasoningEffortMappingRow,
 } from "./groupsReasoningEffort";
 import {
+  defaultAllowImageGenerationForPlatform,
   getDefaultImagePreviewPrice,
   getDefaultVideoPreviewPrice,
   getImagePricePlaceholder,
@@ -6883,6 +6884,7 @@ watch(
       createForm.require_oauth_only = false;
       createForm.require_privacy_set = false;
     }
+    createForm.allow_image_generation = defaultAllowImageGenerationForPlatform(newVal);
     resetDisabledBatchImagePricing(createForm);
     tierModelsRequestID++;
     createTierModels.value = Object.keys(createForm.openai_model_tiers).sort();

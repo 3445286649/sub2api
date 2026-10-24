@@ -138,9 +138,13 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: {} }),
-}))
+vi.mock('vue-router', async () => {
+  const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
+  return {
+    ...actual,
+    useRoute: () => ({ query: {} }),
+  }
+})
 
 const layoutStub = { template: '<div><slot /></div>' }
 const chartStub = { template: '<div />' }
