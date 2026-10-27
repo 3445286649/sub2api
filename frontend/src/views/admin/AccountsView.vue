@@ -502,8 +502,8 @@
     </ConfirmDialog>
     <ErrorPassthroughRulesModal :show="showErrorPassthrough" @close="showErrorPassthrough = false" />
     <TLSFingerprintProfilesModal :show="showTLSFingerprintProfiles" @close="showTLSFingerprintProfiles = false" />
-    <BaseDialog :show="!!healthDetailAccount" :title="t('admin.accounts.probeDetail')" width="wide" @close="healthDetailAccount = null">
-      <div v-if="healthDetailAccount" class="space-y-4">
+    <BaseDialog :show="!!healthDetailAccount" :title="t('admin.accounts.probeDetail')" width="wide" :mobile-sheet="true" @close="healthDetailAccount = null">
+      <div v-if="healthDetailAccount" class="min-w-0 space-y-4">
         <div v-if="healthDetailLoading && !probeDetail" class="py-10 text-center text-sm text-gray-500">{{ t('common.loading') }}</div>
         <template v-else-if="probeDetail">
           <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -521,7 +521,7 @@
             </div>
             <div class="rounded-md border border-gray-200 p-3 dark:border-gray-700">
               <div class="text-xs text-gray-500">{{ t('admin.accounts.probeLastResult') }}</div>
-              <div :class="['mt-1 text-sm font-semibold', probeDetail.last_result === 'failure' ? 'text-red-600 dark:text-red-400' : probeDetail.last_result === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500']">
+              <div :class="['mt-1 text-sm font-semibold', probeDetail.last_result === 'failure' ? 'text-red-600 dark:text-red-400' : probeDetail.last_result === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400']">
                 {{ probeResultLabel(probeDetail.last_result) }} · {{ formatLatencyMs(probeDetail.last_latency_ms) }}
               </div>
               <div class="mt-1 text-xs text-gray-500">{{ probeDetail.last_probed_at ? formatDateTime(probeDetail.last_probed_at) : '-' }}</div>
@@ -627,7 +627,21 @@
             {{ healthEventsError }}
           </div>
           <div v-else-if="healthEvents.length === 0" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('admin.accounts.healthEventsEmpty') }}</div>
-          <div v-else class="overflow-x-auto">
+          <div v-else>
+            <div class="space-y-2 sm:hidden">
+              <article v-for="event in healthEvents" :key="`mobile-${event.id}`" class="rounded-md border border-gray-200 p-3 dark:border-gray-700">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <time class="text-xs text-gray-500 dark:text-gray-400">{{ formatDateTime(event.created_at) }}</time>
+                  <span :class="['inline-flex rounded-md px-2 py-0.5 text-xs font-medium', healthEventClass(event.event_type)]">{{ healthEventTypeLabel(event.event_type) }}</span>
+                </div>
+                <div class="mt-2 flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+                  <span class="truncate">{{ healthEventSourceLabel(event.source) }}</span>
+                  <span class="shrink-0">{{ formatLatencyMs(event.latency_ms) }}</span>
+                </div>
+                <p v-if="event.error_category || event.error_message" class="mt-2 break-words text-xs text-gray-600 dark:text-gray-300">{{ event.error_category || event.error_message }}</p>
+              </article>
+            </div>
+            <div class="hidden overflow-x-auto sm:block">
             <table class="min-w-full text-sm">
               <thead class="bg-gray-50 text-xs font-semibold uppercase text-gray-500 dark:bg-gray-900/40 dark:text-gray-400">
                 <tr>
@@ -648,6 +662,7 @@
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
           <div v-if="healthEventsTotalPages > 1" class="mt-3 flex items-center justify-end gap-2 text-sm">
             <button class="btn btn-secondary px-3 py-1.5 text-xs" :disabled="healthEventsPage <= 1" @click="loadHealthEvents(healthEventsPage - 1)">{{ t('common.previous') }}</button>

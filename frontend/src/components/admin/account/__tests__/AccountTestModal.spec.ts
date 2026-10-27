@@ -79,7 +79,10 @@ function mountModal(account: Record<string, unknown> = {
     } as any,
     global: {
       stubs: {
-        BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+        BaseDialog: {
+          props: ['width', 'mobileSheet'],
+          template: '<div :data-dialog-width="width" :data-mobile-sheet="mobileSheet ? \'true\' : \'false\'"><slot /><slot name="footer" /></div>'
+        },
         Select: {
           props: ['modelValue', 'options', 'valueKey', 'labelKey'],
           emits: ['update:modelValue'],
@@ -124,12 +127,15 @@ describe('AccountTestModal', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
   })
 
   it('gemini 图片模型测试会携带提示词并渲染图片预览', async () => {
     const wrapper = mountModal()
     await wrapper.setProps({ show: true })
     await flushPromises()
+    expect(wrapper.find('[data-mobile-sheet="true"]').exists()).toBe(true)
 
     const promptInput = wrapper.find('textarea.textarea-stub')
     expect(promptInput.exists()).toBe(true)
@@ -161,13 +167,15 @@ describe('AccountTestModal', () => {
     global.fetch = vi.fn().mockResolvedValue(createStreamResponse([
       'data: {"type":"test_start","model":"gemini-2.5-flash"}\n',
       'data: {"type":"technical_details","data":{"method":"POST","path":"/v1beta/models/gemini-2.5-flash:streamGenerateContent","headers":{"x-goog-api-key":"***"}}}\n',
-      `data: ${JSON.stringify({ type: 'content', text: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="640"><script>alert(1)</script><circle r="20"/></svg>' })}\n`,
+      `data: ${JSON.stringify({ type: 'content', text: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="640"><script>alert(1)</script><circle r="20"><animate attributeName="r" from="10" to="20" dur="1s" repeatCount="indefinite"/></circle></svg>' })}\n`,
       'data: {"type":"test_complete","success":true}\n'
     ])) as any
     const wrapper = mountModal()
     await wrapper.setProps({ show: true })
     await flushPromises()
+    expect(wrapper.find('[data-mobile-sheet="true"]').exists()).toBe(true)
     await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.pelicanTest'))!.trigger('click')
+    expect(wrapper.find('[data-dialog-width="wide"]').exists()).toBe(true)
     expect(wrapper.find('textarea.textarea-stub').exists()).toBe(false)
     await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))!.trigger('click')
     await flushPromises()
@@ -177,11 +185,110 @@ describe('AccountTestModal', () => {
     expect(preview.attributes('sandbox')).toBe('')
     expect(preview.attributes('srcdoc')).toContain('<circle')
     expect(preview.attributes('srcdoc')).not.toContain('<script')
+    expect(preview.attributes('srcdoc')).toContain('<animate')
     expect(preview.attributes('srcdoc')).toContain('viewBox="0 0 800 640"')
     expect(preview.attributes('srcdoc')).toMatch(/object-fit:\s*contain/)
+    expect(preview.attributes('srcdoc')).toContain("script-src 'none'")
     expect(wrapper.text()).toContain('admin.accounts.pelicanReady')
     expect(wrapper.text()).not.toContain('<svg')
     expect(wrapper.get('details').attributes('open')).toBeUndefined()
+  })
+
+  it('previews animated HTML in a script-only sandbox with a restrictive CSP', async () => {
+    getAvailableModels.mockResolvedValue([{ id: 'gemini-2.5-flash', display_name: 'Gemini Flash' }])
+    const html = '<!doctype html><html><head><meta http-equiv="refresh" content="0;url=https://example.com"><base href="https://example.com/"><style>@keyframes ride { to { transform: translateX(10px) } }</style></head><body><svg viewBox="0 0 10 10"><circle r="4"/></svg><script>requestAnimationFrame(() => window.parent.document.body)</script></body></html>'
+    global.fetch = vi.fn().mockResolvedValue(createStreamResponse([
+      `data: ${JSON.stringify({ type: 'content', text: html })}\n`,
+      `data: ${JSON.stringify({ type: 'test_complete', success: true })}\n`
+    ])) as any
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.pelicanTest'))!.trigger('click')
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))!.trigger('click')
+    await flushPromises()
+
+    const preview = wrapper.get('iframe[title="admin.accounts.pelicanPreview"]')
+    const srcdoc = preview.attributes('srcdoc')
+    expect(preview.attributes('sandbox')).toBe('allow-scripts')
+    expect(preview.attributes('sandbox')).not.toContain('allow-same-origin')
+    expect(srcdoc).toContain('<script>requestAnimationFrame')
+    expect(srcdoc).toContain("connect-src 'none'")
+    expect(srcdoc).toContain('data-preview-layout="fit"')
+    expect(srcdoc).toContain('overflow:hidden!important')
+    expect(srcdoc).toContain('max-height:100vh!important')
+    expect(srcdoc).not.toContain('http-equiv="refresh"')
+    expect(srcdoc).not.toContain('<base')
+    expect(wrapper.text()).toContain('admin.accounts.pelicanReady')
+    expect(wrapper.text()).toContain('admin.accounts.downloadPelicanHtml')
+
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:pelican-test')
+    const revokeObjectURL = vi.fn()
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL })
+    let downloadName = ''
+    let downloadHref = ''
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function () {
+      downloadName = this.download
+      downloadHref = this.href
+    })
+    vi.useFakeTimers()
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.downloadPelicanHtml'))!.trigger('click')
+    expect(createObjectURL).toHaveBeenCalledTimes(1)
+    const downloadBlob = createObjectURL.mock.calls[0][0] as Blob
+    expect(downloadBlob.type).toContain('text/html')
+    expect(downloadBlob.size).toBe(new Blob([srcdoc]).size)
+    expect(downloadName).toMatch(/^pelican-gemini-2\.5-flash-.*\.html$/)
+    expect(downloadHref).toBe('blob:pelican-test')
+    vi.runOnlyPendingTimers()
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:pelican-test')
+  })
+
+  it('submits candy mode and renders the backend grading result independently of request success', async () => {
+    getAvailableModels.mockResolvedValue([{ id: 'gemini-2.5-flash', display_name: 'Gemini Flash' }])
+    global.fetch = vi.fn().mockResolvedValue(createStreamResponse([
+      `data: ${JSON.stringify({
+        type: 'content',
+        text: JSON.stringify({
+          minimum_draws: 20,
+          round: 8,
+          star: 12,
+          proof: { round_watermelon_capacity: 8, star_capacity_without_apple: 10, star_capacity_without_peach: 11, one_less_round_quota: 8 }
+        })
+      })}\n`,
+      `data: ${JSON.stringify({
+        type: 'test_complete',
+        success: true,
+        data: { status: 'incorrect', minimum_draws: 21, parsed_answer: { minimum_draws: 21, round: 8, star: 13 }, explanation: 'The guaranteed shape counts are 9 and 12.' }
+      })}\n`
+    ])) as any
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.candyTest'))!.trigger('click')
+    expect(wrapper.find('[data-dialog-width="wide"]').exists()).toBe(true)
+    expect(wrapper.find('table').classes()).toContain('table-fixed')
+    expect(wrapper.text()).toContain('admin.accounts.candyQuestion')
+    expect(wrapper.text()).toContain('admin.accounts.candyWatermelon')
+    expect(wrapper.text()).toContain('798')
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))!.trigger('click')
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({ model_id: 'gemini-2.5-flash', prompt: '', mode: 'candy' })
+    expect(wrapper.text()).toContain('admin.accounts.candyIncorrect')
+    expect(wrapper.text()).toContain('The guaranteed shape counts are 9 and 12.')
+    const candyVerdict = wrapper.findAll('[role="status"]').find(node => node.text().includes('The guaranteed shape counts are 9 and 12.'))
+    expect(candyVerdict?.classes()).toContain('border-red-200')
+    expect(wrapper.text()).not.toContain('admin.accounts.testFailed')
+    expect(wrapper.text()).toContain('admin.accounts.candyMinimum')
+    expect(wrapper.text()).toContain('admin.accounts.candyAnswerMinimum: 20')
+    expect(wrapper.text()).toContain('admin.accounts.candyAnswerRound: 8')
+    expect(wrapper.text()).toContain('admin.accounts.candyAnswerProof')
+    expect(wrapper.text()).toContain('admin.accounts.candyProofRoundWatermelon: 8')
+    expect(wrapper.text()).not.toContain('{"minimum_draws":20')
+    const copyButton = wrapper.findAll('button').find(button => button.text().includes('admin.accounts.copyCandyAnswer'))!
+    await copyButton.trigger('click')
+    expect(copyToClipboard).toHaveBeenCalledWith(expect.stringContaining('admin.accounts.candyProofRoundWatermelon: 8'), 'admin.accounts.candyAnswerCopied')
   })
 
   it('shows the received character count while streaming without printing SVG source', async () => {
@@ -232,7 +339,7 @@ describe('AccountTestModal', () => {
     await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.pelicanTest'))!.trigger('click')
     await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))!.trigger('click')
     await flushPromises()
-    expect(wrapper.text()).toContain('admin.accounts.noPelicanSvg')
+    expect(wrapper.text()).toContain('admin.accounts.noPelicanPreview')
     expect(wrapper.text()).not.toContain('admin.accounts.testCompleted')
     expect(wrapper.find('iframe[title="admin.accounts.pelicanPreview"]').exists()).toBe(false)
   })

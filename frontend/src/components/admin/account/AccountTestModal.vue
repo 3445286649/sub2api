@@ -2,23 +2,24 @@
   <BaseDialog
     :show="show"
     :title="t('admin.accounts.testAccountConnection')"
-    :width="isPelicanTest ? 'wide' : 'normal'"
+    :width="isSpecialTest ? 'wide' : 'normal'"
+    :mobile-sheet="true"
     @close="handleClose"
   >
-    <div class="space-y-4">
+    <div class="min-w-0 space-y-3 sm:space-y-4">
       <!-- Account Info Card -->
       <div
         v-if="account"
-        class="flex items-center justify-between rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 p-3 dark:border-dark-500 dark:from-dark-700 dark:to-dark-600"
+        class="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 p-3 dark:border-dark-500 dark:from-dark-700 dark:to-dark-600"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex min-w-0 items-center gap-3">
           <div
             class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-600"
           >
             <Icon name="play" size="md" class="text-white" :stroke-width="2" />
           </div>
-          <div>
-            <div class="font-semibold text-gray-900 dark:text-gray-100">{{ account.name }}</div>
+          <div class="min-w-0 flex-1">
+            <div class="truncate font-semibold text-gray-900 dark:text-gray-100">{{ account.name }}</div>
             <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
               <span
                 class="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium uppercase dark:bg-dark-500"
@@ -41,13 +42,14 @@
         </span>
       </div>
 
-      <div v-if="supportsPelicanTest" class="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-700" role="group" :aria-label="t('admin.accounts.testCategory')">
-        <button type="button" class="min-w-0 flex-1 rounded-md px-3 py-1.5 text-sm" :class="testCategory === 'connection' ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-dark-500 dark:text-white' : 'text-gray-600 dark:text-gray-300'" :disabled="status === 'connecting'" @click="testCategory = 'connection'">{{ t('admin.accounts.connectionTest') }}</button>
-        <button type="button" class="min-w-0 flex-1 rounded-md px-3 py-1.5 text-sm" :class="testCategory === 'pelican' ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-dark-500 dark:text-white' : 'text-gray-600 dark:text-gray-300'" :disabled="status === 'connecting'" @click="testCategory = 'pelican'">{{ t('admin.accounts.pelicanTest') }}</button>
+      <div v-if="supportsPelicanTest" class="grid grid-cols-3 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-700" role="group" :aria-label="t('admin.accounts.testCategory')">
+        <button type="button" class="min-h-9 min-w-0 rounded-md px-1.5 py-2 text-center text-xs leading-tight sm:px-3 sm:text-sm" :class="testCategory === 'connection' ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-dark-500 dark:text-white' : 'text-gray-600 dark:text-gray-300'" :disabled="status === 'connecting'" @click="testCategory = 'connection'">{{ t('admin.accounts.connectionTest') }}</button>
+        <button type="button" class="min-h-9 min-w-0 rounded-md px-1.5 py-2 text-center text-xs leading-tight sm:px-3 sm:text-sm" :class="testCategory === 'pelican' ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-dark-500 dark:text-white' : 'text-gray-600 dark:text-gray-300'" :disabled="status === 'connecting'" @click="testCategory = 'pelican'">{{ t('admin.accounts.pelicanTest') }}</button>
+        <button type="button" class="min-h-9 min-w-0 rounded-md px-1.5 py-2 text-center text-xs leading-tight sm:px-3 sm:text-sm" :class="testCategory === 'candy' ? 'bg-white font-medium text-gray-900 shadow-sm dark:bg-dark-500 dark:text-white' : 'text-gray-600 dark:text-gray-300'" :disabled="status === 'connecting'" @click="testCategory = 'candy'">{{ t('admin.accounts.candyTest') }}</button>
       </div>
 
       <!-- Grok: mode first, then optional model / mode params -->
-      <div v-if="isGrokAccount && !isPelicanTest" class="space-y-1.5">
+      <div v-if="isGrokAccount && !isSpecialTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.grok.testMode') }}
         </label>
@@ -75,7 +77,7 @@
         />
       </div>
 
-      <div v-if="isOpenAIAccount && !isPelicanTest" class="space-y-1.5">
+      <div v-if="isOpenAIAccount && !isSpecialTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.openai.testMode') }}
         </label>
@@ -86,14 +88,14 @@
         />
       </div>
 
-      <div v-if="isGeminiAccount && !isPelicanTest" class="space-y-1.5">
+      <div v-if="isGeminiAccount && !isSpecialTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.gemini.testMode') }}
         </label>
         <Select v-model="geminiTestMode" :options="geminiTestModeOptions" :disabled="status === 'connecting'" />
       </div>
 
-      <div v-if="supportsPromptInput && !isPelicanTest" class="space-y-1.5">
+      <div v-if="supportsPromptInput && !isSpecialTest" class="space-y-1.5">
         <TextArea
           v-model="testPrompt"
           :label="promptInputLabel"
@@ -104,14 +106,14 @@
         />
       </div>
       <p
-        v-else-if="isGrokAccount && !isPelicanTest && promptInputHint"
+        v-else-if="isGrokAccount && !isSpecialTest && promptInputHint"
         class="text-xs text-gray-500 dark:text-gray-400"
       >
         {{ promptInputHint }}
       </p>
 
       <!-- Optional media uploads for real generation / transcription -->
-      <div v-if="supportsImageUpload && !isPelicanTest" class="space-y-1.5">
+      <div v-if="supportsImageUpload && !isSpecialTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ imageUploadLabel }}
         </label>
@@ -150,7 +152,7 @@
         </div>
       </div>
 
-      <div v-if="supportsAudioUpload && !isPelicanTest" class="space-y-1.5">
+      <div v-if="supportsAudioUpload && !isSpecialTest" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.grok.audioUploadLabel') }}
         </label>
@@ -182,32 +184,55 @@
         <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.grok.audioUploadHint') }}</p>
       </div>
 
+      <div v-if="isCandyTest" class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-dark-500 dark:bg-dark-700">
+        <p class="text-gray-700 dark:text-gray-200">{{ t('admin.accounts.candyQuestion') }}</p>
+        <div class="min-w-0">
+          <table class="w-full table-fixed text-left text-xs">
+            <thead class="text-gray-500 dark:text-gray-400"><tr><th class="w-[28%] px-1 py-1.5 font-medium sm:px-2">{{ t('admin.accounts.candyShape') }}</th><th class="break-words px-1 py-1.5 font-medium sm:px-2">{{ t('admin.accounts.candyApple') }}</th><th class="break-words px-1 py-1.5 font-medium sm:px-2">{{ t('admin.accounts.candyPeach') }}</th><th class="break-words px-1 py-1.5 font-medium sm:px-2">{{ t('admin.accounts.candyWatermelon') }}</th></tr></thead>
+            <tbody class="text-gray-800 dark:text-gray-100"><tr class="border-t border-gray-200 dark:border-dark-500"><th class="break-words px-1 py-2 font-medium sm:px-2">{{ t('admin.accounts.candyRound') }}</th><td class="px-1 py-2 sm:px-2">7</td><td class="px-1 py-2 sm:px-2">9</td><td class="px-1 py-2 sm:px-2">8</td></tr><tr class="border-t border-gray-200 dark:border-dark-500"><th class="break-words px-1 py-2 font-medium sm:px-2">{{ t('admin.accounts.candyStar') }}</th><td class="px-1 py-2 sm:px-2">7</td><td class="px-1 py-2 sm:px-2">6</td><td class="px-1 py-2 sm:px-2">4</td></tr></tbody>
+          </table>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.candyRule') }}</p>
+        <p v-if="status === 'connecting'" class="border-t border-gray-200 pt-2 text-xs text-blue-700 dark:border-dark-500 dark:text-blue-300" role="status" aria-live="polite">{{ t('admin.accounts.candyRequesting') }}</p>
+      </div>
+      <div v-if="isCandyTest && status === 'error'" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300" role="alert">{{ errorMessage || t('admin.accounts.candyResultMissing') }}</div>
+      <div v-if="isCandyTest && candyResult" class="rounded-lg border p-3 text-sm" :class="candyResult.status === 'correct' ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300' : candyResult.status === 'incorrect' ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300' : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300'" role="status" aria-live="polite">
+        <div class="font-semibold">{{ t('admin.accounts.candyVerdict') }}：{{ t(candyResult.status === 'correct' ? 'admin.accounts.candyCorrect' : candyResult.status === 'incorrect' ? 'admin.accounts.candyIncorrect' : 'admin.accounts.candyUnscorable') }}</div>
+        <p class="mt-1">{{ candyResult.explanation }}</p>
+        <p v-if="candyResult.minimum_draws" class="mt-2 text-xs">{{ t('admin.accounts.candyMinimum', { count: candyResult.minimum_draws }) }}<template v-if="candyResult.parsed_answer"> · {{ t('admin.accounts.candyAnswerPicked', { round: candyResult.parsed_answer.round, star: candyResult.parsed_answer.star }) }}</template></p>
+      </div>
+
       <div v-if="isPelicanTest" class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-dark-500 dark:bg-dark-700" role="status" aria-live="polite">
         <ol class="space-y-1.5 text-gray-500 dark:text-gray-400">
           <li :class="status !== 'idle' ? 'text-gray-800 dark:text-gray-100' : ''">{{ status === 'idle' ? '○' : '✓' }} {{ t('admin.accounts.sendingPelicanRequest') }}</li>
           <li :class="pelicanReceivedChars > 0 ? 'text-gray-800 dark:text-gray-100' : ''">{{ pelicanReceivedChars > 0 ? (status === 'connecting' ? '●' : '✓') : '○' }} {{ pelicanReceivedChars > 0 ? t('admin.accounts.pelicanReceiving', { count: pelicanReceivedChars }) : t('admin.accounts.pelicanWaiting') }}</li>
-          <li :class="status === 'success' ? 'text-green-700 dark:text-green-400' : status === 'error' ? 'text-red-700 dark:text-red-400' : ''">{{ status === 'success' ? '✓' : status === 'error' ? '×' : '○' }} {{ status === 'success' ? t('admin.accounts.pelicanReady') : status === 'error' ? errorMessage : t('admin.accounts.pelicanChecking') }}</li>
+          <li :class="status === 'success' ? 'text-green-700 dark:text-green-400' : status === 'error' ? 'text-red-700 dark:text-red-400' : ''">{{ status === 'success' ? '✓' : status === 'error' ? '×' : '○' }} {{ status === 'success' ? t(pelicanOutput?.animated ? 'admin.accounts.pelicanReady' : 'admin.accounts.pelicanStatic') : status === 'error' ? errorMessage : t('admin.accounts.pelicanChecking') }}</li>
         </ol>
       </div>
       <div v-if="isPelicanTest && status === 'success'" class="space-y-1.5">
         <div class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.accounts.pelicanPreview') }}</div>
-        <iframe v-if="pelicanPreview" :srcdoc="pelicanPreview" sandbox="" :title="t('admin.accounts.pelicanPreview')" class="h-[min(420px,50vh)] w-full rounded-lg border border-gray-200 bg-white dark:border-dark-500" />
-        <p v-else class="text-sm text-amber-700 dark:text-amber-400">{{ t('admin.accounts.noPelicanSvg') }}</p>
+        <iframe v-if="pelicanPreview" :key="pelicanReplayKey" :srcdoc="pelicanPreview" :sandbox="pelicanOutput?.format === 'html' ? 'allow-scripts' : ''" :title="t('admin.accounts.pelicanPreview')" class="block h-[min(48dvh,440px)] min-h-[220px] w-full rounded-lg border border-gray-200 bg-white sm:h-[min(56vh,520px)] dark:border-dark-500" />
+        <p v-else class="text-sm text-amber-700 dark:text-amber-400">{{ t('admin.accounts.noPelicanPreview') }}</p>
+        <div v-if="pelicanPreview" class="flex flex-wrap gap-2">
+          <button type="button" class="btn btn-secondary btn-sm" @click="replayPelican">{{ t('admin.accounts.pelicanReplay') }}</button>
+          <button type="button" class="btn btn-secondary btn-sm" @click="downloadPelicanHtml">{{ t('admin.accounts.downloadPelicanHtml') }}</button>
+          <button v-if="pelicanSvg" type="button" class="btn btn-secondary btn-sm" @click="downloadPelicanSvg">{{ t('admin.accounts.downloadPelicanSvg') }}</button>
+        </div>
       </div>
-      <details v-if="isPelicanTest && technicalDetails" class="text-sm text-gray-600 dark:text-gray-300">
+      <details v-if="isSpecialTest && technicalDetails" class="text-sm text-gray-600 dark:text-gray-300">
         <summary class="cursor-pointer py-1 font-medium">{{ t('admin.accounts.technicalDetails') }}</summary>
         <pre class="mt-1 max-h-48 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs dark:border-dark-500 dark:bg-dark-700">{{ JSON.stringify(technicalDetails, null, 2) }}</pre>
       </details>
-      <details v-if="isPelicanTest && streamingContent" class="text-sm text-gray-600 dark:text-gray-300" @toggle="pelicanSourceOpen = ($event.target as HTMLDetailsElement).open">
-        <summary class="cursor-pointer py-1 font-medium">{{ t('admin.accounts.pelicanSource') }}</summary>
-        <div v-if="pelicanSourceOpen" class="relative mt-1">
-          <button type="button" class="absolute right-2 top-2 rounded bg-gray-700 px-2 py-1 text-xs text-white" @click="copyPelicanSource">{{ t('admin.accounts.copyOutput') }}</button>
-          <pre class="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-gray-900 p-3 pr-20 text-xs text-green-300">{{ streamingContent }}</pre>
+      <details v-if="isSpecialTest && streamingContent" :open="isCandyTest && status !== 'idle'" class="text-sm text-gray-600 dark:text-gray-300" @toggle="pelicanSourceOpen = ($event.target as HTMLDetailsElement).open">
+        <summary class="cursor-pointer py-1 font-medium">{{ t(isCandyTest ? 'admin.accounts.candyModelAnswer' : 'admin.accounts.pelicanSource') }}</summary>
+        <div v-if="isCandyTest || pelicanSourceOpen" class="relative mt-1">
+          <button type="button" class="absolute right-2 top-2 rounded bg-gray-700 px-2 py-1 text-xs text-white" @click="copySpecialAnswer">{{ t(isCandyTest ? 'admin.accounts.copyCandyAnswer' : 'admin.accounts.copyOutput') }}</button>
+          <pre class="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-gray-900 p-3 pr-28 text-xs leading-6 text-green-300">{{ isCandyTest ? candyAnswerDisplay : streamingContent }}</pre>
         </div>
       </details>
 
       <!-- Terminal Output -->
-      <div v-if="!isPelicanTest" class="group relative">
+      <div v-if="!isSpecialTest" class="group relative">
         <div
           ref="terminalRef"
           class="max-h-[240px] min-h-[120px] overflow-y-auto rounded-xl border border-gray-700 bg-gray-900 p-4 font-mono text-sm dark:border-gray-800 dark:bg-black"
@@ -355,10 +380,10 @@
     </div>
 
     <template #footer>
-      <div class="flex justify-end gap-3">
+      <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
         <button
           @click="handleClose"
-          class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500"
+          class="w-full rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500 sm:w-auto"
         >
           {{ t('common.close') }}
         </button>
@@ -366,7 +391,7 @@
           @click="startTest"
           :disabled="!canStartTest"
           :class="[
-            'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
+            'flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all sm:w-auto',
             !canStartTest
               ? 'cursor-not-allowed bg-primary-400 text-white'
               : status === 'success'
@@ -401,8 +426,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
-import DOMPurify from 'dompurify'
+import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
@@ -413,6 +437,7 @@ import { buildApiUrl } from '@/api/client'
 import { ADMIN_UI_REQUEST_HEADER } from '@/api/adminUIRequest'
 import { adminAPI } from '@/api/admin'
 import type { Account, ClaudeModel } from '@/types'
+import { buildPelicanPreview } from './accountTestPreview'
 
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
@@ -451,11 +476,54 @@ const generatedAudios = ref<PreviewMedia[]>([])
 const generatedVideos = ref<PreviewMedia[]>([])
 const previewImageUrl = ref('')
 const testMode = ref<'default' | 'compact'>('default')
-const testCategory = ref<'connection' | 'pelican'>('connection')
+const testCategory = ref<'connection' | 'pelican' | 'candy'>('connection')
 const technicalDetails = ref<Record<string, unknown> | null>(null)
 const pelicanReceivedChars = ref(0)
 const pelicanOverflow = ref(false)
 const pelicanSourceOpen = ref(false)
+const pelicanReplayKey = ref(0)
+const pelicanDownloadTimers = new Map<string, number>()
+const candyResult = ref<{
+  status: 'correct' | 'incorrect' | 'unscorable'
+  minimum_draws: number
+  parsed_answer?: { minimum_draws: number; round: number; star: number }
+  explanation: string
+} | null>(null)
+const candyAnswerDisplay = computed(() => {
+  const source = streamingContent.value.trim()
+  if (!source) return ''
+  const unfenced = source.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
+  const start = unfenced.indexOf('{')
+  const end = unfenced.lastIndexOf('}')
+  if (start < 0 || end < start) return source
+  try {
+    const answer = JSON.parse(unfenced.slice(start, end + 1)) as Record<string, unknown>
+    const proof = answer.proof as Record<string, unknown> | undefined
+    if (
+      !Number.isSafeInteger(answer.minimum_draws) ||
+      !Number.isSafeInteger(answer.round) ||
+      !Number.isSafeInteger(answer.star) ||
+      !proof ||
+      !Number.isSafeInteger(proof.round_watermelon_capacity) ||
+      !Number.isSafeInteger(proof.star_capacity_without_apple) ||
+      !Number.isSafeInteger(proof.star_capacity_without_peach) ||
+      !Number.isSafeInteger(proof.one_less_round_quota)
+    ) return source
+    return [
+      `${t('admin.accounts.candyAnswerMinimum')}: ${answer.minimum_draws}`,
+      `${t('admin.accounts.candyAnswerRound')}: ${answer.round}`,
+      `${t('admin.accounts.candyAnswerStar')}: ${answer.star}`,
+      '',
+      `${t('admin.accounts.candyAnswerProof')}:`,
+      `${t('admin.accounts.candyProofRoundWatermelon')}: ${proof.round_watermelon_capacity}`,
+      `${t('admin.accounts.candyProofStarsWithoutApple')}: ${proof.star_capacity_without_apple}`,
+      `${t('admin.accounts.candyProofStarsWithoutPeach')}: ${proof.star_capacity_without_peach}`,
+      `${t('admin.accounts.candyProofOneLessRound')}: ${proof.one_less_round_quota}`
+    ].join('\n')
+  } catch {
+    return source
+  }
+})
 const geminiTestMode = ref<'text' | 'image'>('text')
 const grokTestMode = ref<'text' | 'image' | 'video' | 'search' | 'tts' | 'stt' | 'realtime'>('text')
 const uploadImageDataURL = ref('')
@@ -471,40 +539,11 @@ const isGrokAccount = computed(() => props.account?.platform === 'grok')
 const supportsPelicanTest = computed(() => (props.account?.platform === 'gemini' && ['apikey', 'oauth', 'service_account'].includes(props.account.type)) ||
   ((props.account?.platform === 'openai' || props.account?.platform === 'anthropic') && props.account?.type === 'apikey'))
 const isPelicanTest = computed(() => supportsPelicanTest.value && testCategory.value === 'pelican')
-const pelicanPreview = computed(() => {
-  if (!isPelicanTest.value || pelicanOverflow.value) return ''
-  const output = streamingContent.value
-  const start = output.indexOf('<svg')
-  const end = output.lastIndexOf('</svg>')
-  if (start < 0 || end < start || end + 6 - start > 256 * 1024) return ''
-  const svg = DOMPurify.sanitize(output.slice(start, end + 6), {
-    USE_PROFILES: { svg: true, svgFilters: true },
-    FORBID_TAGS: ['script', 'foreignObject', 'iframe', 'image', 'animate', 'set']
-  })
-  if (!svg.startsWith('<svg')) return ''
-  const document = new DOMParser().parseFromString(svg, 'image/svg+xml')
-  if (document.querySelector('parsererror') || document.documentElement.localName !== 'svg') return ''
-  const root = document.documentElement as unknown as SVGSVGElement
-  if (!root.getAttribute('viewBox')?.trim()) {
-    const width = root.getAttribute('width')?.match(/^(\d+(?:\.\d+)?)(?:px)?$/)?.[1]
-    const height = root.getAttribute('height')?.match(/^(\d+(?:\.\d+)?)(?:px)?$/)?.[1]
-    if (width && height && Number(width) > 0 && Number(height) > 0) {
-      root.setAttribute('viewBox', `0 0 ${width} ${height}`)
-    }
-  }
-  root.style.setProperty('display', 'block', 'important')
-  root.style.setProperty('max-width', '100%', 'important')
-  root.style.setProperty('max-height', '100%', 'important')
-  root.style.setProperty('object-fit', 'contain', 'important')
-  if (root.getAttribute('viewBox')?.trim()) {
-    root.style.setProperty('width', '100%', 'important')
-    root.style.setProperty('height', '100%', 'important')
-  } else {
-    root.style.setProperty('width', 'auto', 'important')
-    root.style.setProperty('height', 'auto', 'important')
-  }
-  return `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><body style="margin:0;display:grid;place-items:center;height:100vh;overflow:hidden"><div style="width:100%;height:100%;display:grid;place-items:center;overflow:hidden">${root.outerHTML}</div></body>`
-})
+const isCandyTest = computed(() => supportsPelicanTest.value && testCategory.value === 'candy')
+const isSpecialTest = computed(() => isPelicanTest.value || isCandyTest.value)
+const pelicanOutput = computed(() => isPelicanTest.value && !pelicanOverflow.value ? buildPelicanPreview(streamingContent.value) : null)
+const pelicanPreview = computed(() => pelicanOutput.value?.html || '')
+const pelicanSvg = computed(() => pelicanOutput.value?.svg || '')
 const openAITestModeOptions = computed(() => [
   { value: 'default', label: t('admin.accounts.openai.testModeDefault') },
   { value: 'compact', label: t('admin.accounts.openai.testModeCompact') }
@@ -575,13 +614,13 @@ const supportsImageTest = computed(
 
 // Model select only when the mode needs a model.
 const showModelSelect = computed(() => {
-  if (isPelicanTest.value) return true
+  if (isSpecialTest.value) return true
   if (!isGrokAccount.value) return true
   return grokTestMode.value === 'text' || grokTestMode.value === 'image' || grokTestMode.value === 'video'
 })
 
 const modelOptionsForMode = computed(() => {
-  if (isPelicanTest.value) {
+  if (isSpecialTest.value) {
     const marked = props.account?.extra?.image_generation_models
     const mapped = props.account?.credentials?.model_mapping as Record<string, string> | undefined
     return availableModels.value.filter(model => {
@@ -758,6 +797,7 @@ const promptInputHint = computed(() => {
 
 const testModeSummary = computed(() => {
   if (isPelicanTest.value) return t('admin.accounts.pelicanTest')
+  if (isCandyTest.value) return t('admin.accounts.candyTest')
   if (isGrokAccount.value) {
     switch (grokTestMode.value) {
       case 'video':
@@ -860,13 +900,14 @@ watch(
       applyDefaultPromptForMode()
     } else {
       abortStream()
+      resetState()
     }
   }
 )
 
 watch(testCategory, () => {
   resetState()
-  if (isPelicanTest.value && !modelOptionsForMode.value.some(model => model.id === selectedModelId.value)) {
+  if (isSpecialTest.value && !modelOptionsForMode.value.some(model => model.id === selectedModelId.value)) {
     selectedModelId.value = modelOptionsForMode.value[0]?.id || ''
   }
 })
@@ -910,6 +951,7 @@ const loadAvailableModels = async () => {
 }
 
 const resetState = () => {
+  clearPelicanDownloads()
   status.value = 'idle'
   outputLines.value = []
   streamingContent.value = ''
@@ -918,6 +960,8 @@ const resetState = () => {
   pelicanReceivedChars.value = 0
   pelicanOverflow.value = false
   pelicanSourceOpen.value = false
+  pelicanReplayKey.value += 1
+  candyResult.value = null
   generatedImages.value = []
   generatedAudios.value = []
   generatedVideos.value = []
@@ -926,6 +970,7 @@ const resetState = () => {
 
 const handleClose = () => {
   abortStream()
+  resetState()
   emit('close')
 }
 
@@ -935,6 +980,19 @@ const abortStream = () => {
     abortController = null
   }
 }
+
+const clearPelicanDownloads = () => {
+  for (const [url, timer] of pelicanDownloadTimers) {
+    window.clearTimeout(timer)
+    URL.revokeObjectURL(url)
+  }
+  pelicanDownloadTimers.clear()
+}
+
+onBeforeUnmount(() => {
+  abortStream()
+  clearPelicanDownloads()
+})
 
 const addLine = (text: string, className: string = 'text-gray-300') => {
   outputLines.value.push({ text, class: className })
@@ -975,17 +1033,19 @@ const startTest = async () => {
       audio_data_url?: string
     } = {
       model_id: showModelSelect.value ? selectedModelId.value : '',
-      prompt: !isPelicanTest.value && supportsPromptInput.value ? testPrompt.value.trim() : ''
+      prompt: !isSpecialTest.value && supportsPromptInput.value ? testPrompt.value.trim() : ''
     }
     if (isPelicanTest.value) {
       requestBody.mode = 'pelican'
+    } else if (isCandyTest.value) {
+      requestBody.mode = 'candy'
     } else if (isOpenAIAccount.value) {
       requestBody.mode = testMode.value
     }
-    if (!isPelicanTest.value && isGeminiAccount.value) {
+    if (!isSpecialTest.value && isGeminiAccount.value) {
       requestBody.mode = geminiTestMode.value
     }
-    if (!isPelicanTest.value && isGrokAccount.value) {
+    if (!isSpecialTest.value && isGrokAccount.value) {
       // Always send explicit Grok mode. search/tts/stt/realtime are standalone
       // endpoints (no free-form model select). text/image/video use optional model.
       requestBody.mode = grokTestMode.value
@@ -1054,9 +1114,9 @@ const startTest = async () => {
         }
       }
     }
-    if (isPelicanTest.value && status.value === 'connecting') {
+    if (isSpecialTest.value && status.value === 'connecting') {
       status.value = 'error'
-      errorMessage.value = t('admin.accounts.pelicanInterrupted')
+      errorMessage.value = t(isCandyTest.value ? 'admin.accounts.candyInterrupted' : 'admin.accounts.pelicanInterrupted')
     }
   } catch (error: unknown) {
     if (error instanceof DOMException && error.name === 'AbortError') {
@@ -1084,11 +1144,12 @@ const handleEvent = (event: {
 }) => {
   switch (event.type) {
     case 'test_start':
-      if (!isPelicanTest.value) addLine(t('admin.accounts.connectedToApi'), 'text-green-400')
+      if (!isSpecialTest.value) addLine(t('admin.accounts.connectedToApi'), 'text-green-400')
       if (event.model) {
         addLine(t('admin.accounts.usingModel', { model: event.model }), 'text-cyan-400')
       }
       addLine(isPelicanTest.value ? t('admin.accounts.sendingPelicanRequest') :
+        isCandyTest.value ? t('admin.accounts.sendingCandyRequest') :
         isGrokAccount.value
           ? grokTestMode.value === 'video'
             ? t('admin.accounts.sendingVideoRequest')
@@ -1118,7 +1179,7 @@ const handleEvent = (event: {
 
     case 'content':
       if (event.text) {
-        if (isPelicanTest.value) {
+        if (isSpecialTest.value) {
           pelicanReceivedChars.value += event.text.length
           if (pelicanReceivedChars.value > 256 * 1024) pelicanOverflow.value = true
           streamingContent.value += event.text.slice(0, Math.max(0, 256 * 1024 - streamingContent.value.length))
@@ -1167,17 +1228,45 @@ const handleEvent = (event: {
 
     case 'test_complete':
       // Move streaming content to output lines
-      if (!isPelicanTest.value && streamingContent.value) {
+      if (!isSpecialTest.value && streamingContent.value) {
         addLine(streamingContent.value, 'text-green-300')
         streamingContent.value = ''
       }
       if (event.success) {
-        if (isPelicanTest.value && pelicanOverflow.value) {
+        if (isCandyTest.value && pelicanOverflow.value) {
+          status.value = 'error'
+          errorMessage.value = t('admin.accounts.candyTooLarge')
+        } else if (isCandyTest.value) {
+          const data = event.data
+          const answer = data?.parsed_answer as Record<string, unknown> | undefined
+          if (
+            data &&
+            ['correct', 'incorrect', 'unscorable'].includes(String(data.status)) &&
+            typeof data.minimum_draws === 'number' &&
+            typeof data.explanation === 'string' &&
+            (!answer || (typeof answer.round === 'number' && typeof answer.star === 'number'))
+          ) {
+            candyResult.value = {
+              status: data.status as 'correct' | 'incorrect' | 'unscorable',
+              minimum_draws: data.minimum_draws,
+              explanation: data.explanation,
+              ...(answer ? { parsed_answer: {
+                minimum_draws: typeof answer.minimum_draws === 'number' ? answer.minimum_draws : data.minimum_draws,
+                round: answer.round as number,
+                star: answer.star as number
+              } } : {})
+            }
+            status.value = 'success'
+          } else {
+            status.value = 'error'
+            errorMessage.value = t('admin.accounts.candyResultMissing')
+          }
+        } else if (isPelicanTest.value && pelicanOverflow.value) {
           status.value = 'error'
           errorMessage.value = t('admin.accounts.pelicanTooLarge')
         } else if (isPelicanTest.value && !pelicanPreview.value) {
           status.value = 'error'
-          errorMessage.value = t('admin.accounts.noPelicanSvg')
+          errorMessage.value = t('admin.accounts.noPelicanPreview')
         } else {
           status.value = 'success'
         }
@@ -1190,7 +1279,7 @@ const handleEvent = (event: {
     case 'error':
       status.value = 'error'
       errorMessage.value = event.error || t('common.unknownError')
-      if (!isPelicanTest.value && streamingContent.value) {
+      if (!isSpecialTest.value && streamingContent.value) {
         addLine(streamingContent.value, 'text-green-300')
         streamingContent.value = ''
       }
@@ -1202,8 +1291,40 @@ const copyOutput = () => {
   const text = outputLines.value.map((l) => l.text).join('\n')
   copyToClipboard(text, t('admin.accounts.outputCopied'))
 }
-const copyPelicanSource = () => {
-  copyToClipboard(streamingContent.value, t('admin.accounts.outputCopied'))
+const copySpecialAnswer = () => {
+  const answer = isCandyTest.value ? candyAnswerDisplay.value : streamingContent.value
+  copyToClipboard(answer, t(isCandyTest.value ? 'admin.accounts.candyAnswerCopied' : 'admin.accounts.outputCopied'))
+}
+
+const replayPelican = () => {
+  pelicanReplayKey.value += 1
+}
+
+const downloadText = (content: string, filename: string, type: string) => {
+  const url = URL.createObjectURL(new Blob([content], { type }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  const timer = window.setTimeout(() => {
+    URL.revokeObjectURL(url)
+    pelicanDownloadTimers.delete(url)
+  }, 1000)
+  pelicanDownloadTimers.set(url, timer)
+}
+
+const getPelicanFilename = (extension: 'html' | 'svg') => {
+  const model = selectedModelId.value.replace(/[^a-z0-9._-]+/gi, '-') || 'model'
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  return `pelican-${model}-${timestamp}.${extension}`
+}
+
+const downloadPelicanHtml = () => {
+  if (pelicanPreview.value) downloadText(pelicanPreview.value, getPelicanFilename('html'), 'text/html;charset=utf-8')
+}
+
+const downloadPelicanSvg = () => {
+  if (pelicanSvg.value) downloadText(pelicanSvg.value, getPelicanFilename('svg'), 'image/svg+xml;charset=utf-8')
 }
 </script>
 

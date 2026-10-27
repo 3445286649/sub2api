@@ -1353,6 +1353,10 @@ func (h *AccountHandler) Test(c *gin.Context) {
 		_ = h.accountTestService.TestPelican(c, accountID, req.ModelID)
 		return
 	}
+	if req.Mode == service.AccountTestModeCandy {
+		_ = h.accountTestService.TestCandy(c, accountID, req.ModelID)
+		return
+	}
 
 	// Use AccountTestService to test the account with SSE streaming
 	if err := h.accountTestService.TestAccountConnection(c, accountID, req.ModelID, req.Prompt, req.Mode, opts); err != nil {

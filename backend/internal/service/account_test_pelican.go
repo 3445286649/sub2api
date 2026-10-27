@@ -14,10 +14,22 @@ import (
 
 const AccountTestModePelican = "pelican"
 
-const pelicanTestPrompt = "Generate an SVG of a pelican riding a bicycle. Reply with the SVG code only."
+const pelicanTestPrompt = "Generate a self-contained offline HTML document showing a looping 2D animation of a pelican riding a bicycle. Embed the SVG in the HTML and use inline CSS, SVG animation, or JavaScript as needed. Do not load external resources. Reply with the complete HTML only."
 
-// TestPelican observes a text model's SVG output without changing account scheduling state.
+// TestPelican observes a text model's offline HTML animation without changing account scheduling state.
 func (s *AccountTestService) TestPelican(c *gin.Context, accountID int64, modelID string) error {
+	return s.testTextChallenge(c, accountID, modelID, AccountTestModePelican, pelicanTestPrompt)
+}
+
+func (s *AccountTestService) TestCandy(c *gin.Context, accountID int64, modelID string) error {
+	return s.testTextChallenge(c, accountID, modelID, AccountTestModeCandy, candyTestPrompt)
+}
+
+func (s *AccountTestService) testTextChallenge(c *gin.Context, accountID int64, modelID, kind, prompt string) error {
+	challengeName := "pelican"
+	if kind == AccountTestModeCandy {
+		challengeName = "candy"
+	}
 	ctx := c.Request.Context()
 	account, err := s.accountRepo.GetByID(ctx, accountID)
 	if err != nil {
@@ -25,10 +37,10 @@ func (s *AccountTestService) TestPelican(c *gin.Context, accountID int64, modelI
 	}
 	modelID = strings.TrimSpace(modelID)
 	if modelID == "" {
-		return s.sendErrorAndEnd(c, "Select a text model for the pelican test")
+		return s.sendErrorAndEnd(c, "Select a text model for the "+challengeName+" test")
 	}
 	if isImageGenerationModel(modelID) || account.hasImageModelLabel(modelID) || isOpenAIImageModel(modelID) {
-		return s.sendErrorAndEnd(c, "Pelican SVG test requires a text model")
+		return s.sendErrorAndEnd(c, strings.ToUpper(challengeName[:1])+challengeName[1:]+" test requires a text model")
 	}
 	if s.httpUpstream == nil {
 		return s.sendErrorAndEnd(c, "HTTP upstream not configured")
@@ -43,9 +55,17 @@ func (s *AccountTestService) TestPelican(c *gin.Context, accountID int64, modelI
 			mappedModel = account.GetMappedModel(modelID)
 		}
 		if isImageGenerationModel(mappedModel) || account.hasImageModelLabel(mappedModel) {
-			return s.sendErrorAndEnd(c, "Pelican SVG test requires a text model")
+			return s.sendErrorAndEnd(c, strings.ToUpper(challengeName[:1])+challengeName[1:]+" test requires a text model")
 		}
-		payload := createGeminiTestPayloadForMode(pelicanTestPrompt, false)
+		payload := createGeminiTestPayloadForMode(prompt, false)
+		if kind == AccountTestModeCandy {
+			var payloadMap map[string]any
+			if err := json.Unmarshal(payload, &payloadMap); err != nil {
+				return s.sendErrorAndEnd(c, "Failed to build candy test request")
+			}
+			payloadMap["generationConfig"] = map[string]any{"maxOutputTokens": 512}
+			payload, _ = json.Marshal(payloadMap)
+		}
 		switch account.Type {
 		case AccountTypeAPIKey:
 			req, err = s.buildGeminiAPIKeyRequest(ctx, account, mappedModel, payload)
@@ -54,12 +74,12 @@ func (s *AccountTestService) TestPelican(c *gin.Context, accountID int64, modelI
 		case AccountTypeServiceAccount:
 			req, err = s.buildGeminiServiceAccountRequest(ctx, account, mappedModel, payload)
 		default:
-			return s.sendErrorAndEnd(c, "Unsupported Gemini account type for pelican test")
+			return s.sendErrorAndEnd(c, "Unsupported Gemini account type for "+challengeName+" test")
 		}
 		stream = "gemini"
 	case PlatformOpenAI:
 		if account.Type != AccountTypeAPIKey {
-			return s.sendErrorAndEnd(c, "Pelican test currently supports OpenAI API key accounts")
+			return s.sendErrorAndEnd(c, strings.ToUpper(challengeName[:1])+challengeName[1:]+" test currently supports OpenAI API key accounts")
 		}
 		key := account.GetOpenAIProtocolAPIKey()
 		if key == "" {
@@ -75,17 +95,23 @@ func (s *AccountTestService) TestPelican(c *gin.Context, accountID int64, modelI
 		}
 		mappedModel := account.GetMappedModel(modelID)
 		if isImageGenerationModel(mappedModel) || account.hasImageModelLabel(mappedModel) || isOpenAIImageModel(mappedModel) {
-			return s.sendErrorAndEnd(c, "Pelican SVG test requires a text model")
+			return s.sendErrorAndEnd(c, strings.ToUpper(challengeName[:1])+challengeName[1:]+" test requires a text model")
 		}
 		var payload map[string]any
 		var apiURL string
 		if openai_compat.ShouldUseResponsesAPI(account.Extra) {
 			payload = createOpenAITestPayload(mappedModel, false)
-			payload["input"] = pelicanTestPrompt
+			payload["input"] = prompt
+			if kind == AccountTestModeCandy {
+				payload["max_output_tokens"] = 512
+			}
 			apiURL = buildOpenAIResponsesURLForPlatform(account.Platform, baseURL)
 			stream = "responses"
 		} else {
-			payload = createOpenAIChatCompletionsTestPayload(mappedModel, pelicanTestPrompt)
+			payload = createOpenAIChatCompletionsTestPayload(mappedModel, prompt)
+			if kind == AccountTestModeCandy {
+				payload["max_tokens"] = 512
+			}
 			apiURL = buildOpenAIChatCompletionsURL(baseURL)
 			stream = "chat"
 		}
@@ -100,7 +126,7 @@ func (s *AccountTestService) TestPelican(c *gin.Context, accountID int64, modelI
 		}
 	case PlatformAnthropic:
 		if account.Type != AccountTypeAPIKey {
-			return s.sendErrorAndEnd(c, "Pelican test currently supports Claude API key accounts")
+			return s.sendErrorAndEnd(c, strings.ToUpper(challengeName[:1])+challengeName[1:]+" test currently supports Claude API key accounts")
 		}
 		key := account.GetCredential("api_key")
 		if key == "" {
@@ -116,11 +142,14 @@ func (s *AccountTestService) TestPelican(c *gin.Context, accountID int64, modelI
 		}
 		mappedModel := account.GetMappedModel(modelID)
 		if isImageGenerationModel(mappedModel) || account.hasImageModelLabel(mappedModel) {
-			return s.sendErrorAndEnd(c, "Pelican SVG test requires a text model")
+			return s.sendErrorAndEnd(c, strings.ToUpper(challengeName[:1])+challengeName[1:]+" test requires a text model")
 		}
 		payload := map[string]any{
-			"model": mappedModel, "messages": []map[string]string{{"role": "user", "content": pelicanTestPrompt}},
+			"model": mappedModel, "messages": []map[string]string{{"role": "user", "content": prompt}},
 			"max_tokens": 4096, "stream": true,
+		}
+		if kind == AccountTestModeCandy {
+			payload["max_tokens"] = 512
 		}
 		body, _ := json.Marshal(payload)
 		req, err = http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimSuffix(baseURL, "/")+"/v1/messages?beta=true", bytes.NewReader(body))
@@ -133,12 +162,12 @@ func (s *AccountTestService) TestPelican(c *gin.Context, accountID int64, modelI
 		}
 		stream = "claude"
 	default:
-		return s.sendErrorAndEnd(c, "Pelican test supports Gemini, OpenAI and Claude accounts")
+		return s.sendErrorAndEnd(c, strings.ToUpper(challengeName[:1])+challengeName[1:]+" test supports Gemini, OpenAI and Claude accounts")
 	}
 	if err != nil {
-		return s.sendErrorAndEnd(c, "Failed to build pelican test request")
+		return s.sendErrorAndEnd(c, "Failed to build "+challengeName+" test request")
 	}
-	req.Header.Set("X-A6API-Self-Test-Kind", "pelican")
+	req.Header.Set("X-A6API-Self-Test-Kind", kind)
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
@@ -152,12 +181,15 @@ func (s *AccountTestService) TestPelican(c *gin.Context, accountID int64, modelI
 	}
 	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
-		return s.sendErrorAndEnd(c, "Pelican upstream request failed")
+		return s.sendErrorAndEnd(c, strings.ToUpper(challengeName[:1])+challengeName[1:]+" upstream request failed")
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Pelican upstream returned HTTP %d", resp.StatusCode))
+		return s.sendErrorAndEnd(c, fmt.Sprintf("%s upstream returned HTTP %d", strings.ToUpper(challengeName[:1])+challengeName[1:], resp.StatusCode))
+	}
+	if kind == AccountTestModeCandy {
+		return s.processCandyStream(c, stream, resp.Body)
 	}
 	switch stream {
 	case "gemini":
