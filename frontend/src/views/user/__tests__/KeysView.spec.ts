@@ -8,6 +8,7 @@ import KeysView from '../KeysView.vue'
 
 const {
   listKeys,
+  getConcurrency,
   updateKey,
   getPublicSettings,
   getDashboardApiKeysUsage,
@@ -20,6 +21,7 @@ const {
   nextStep,
 } = vi.hoisted(() => ({
   listKeys: vi.fn(),
+  getConcurrency: vi.fn(),
   updateKey: vi.fn(),
   getPublicSettings: vi.fn(),
   getDashboardApiKeysUsage: vi.fn(),
@@ -47,6 +49,7 @@ const messages: Record<string, string> = {
   'keys.group': 'Group',
   'keys.id': 'ID',
   'keys.currentConcurrency': 'Current Concurrency',
+  'keys.concurrencyCount': 'Concurrency',
   'keys.lastUsedAt': 'Last Used',
   'keys.lastUsedIP': 'Last Used IP',
   'keys.rateLimitColumn': 'Rate Limit',
@@ -61,6 +64,7 @@ const messages: Record<string, string> = {
 vi.mock('@/api', () => ({
   keysAPI: {
     list: listKeys,
+    getConcurrency,
     create: vi.fn(),
     update: updateKey,
     delete: vi.fn(),
@@ -271,6 +275,7 @@ describe('user KeysView column settings', () => {
     localStorage.clear()
 
     listKeys.mockReset()
+    getConcurrency.mockReset()
     updateKey.mockReset()
     vi.mocked(keysAPI.create).mockReset()
     getPublicSettings.mockReset()
@@ -290,6 +295,7 @@ describe('user KeysView column settings', () => {
       page_size: 20,
       pages: 1,
     })
+    getConcurrency.mockResolvedValue({ queue_policy: { max_waiting: 5, timeout_seconds: 30 }, items: [{ id: 1, current_concurrency: 3, current_waiting: 0 }] })
     getPublicSettings.mockResolvedValue({})
     getDashboardApiKeysUsage.mockResolvedValue({ stats: {} })
     getAvailableGroups.mockResolvedValue([])
@@ -500,7 +506,7 @@ describe('user KeysView column settings', () => {
   it('renders the current concurrency value', async () => {
     const wrapper = await mountView()
 
-    expect(wrapper.get('[data-test="current-concurrency"]').text()).toBe('3')
+    expect(wrapper.get('[data-test="current-concurrency"]').text()).toContain('Concurrency 3')
   })
 
   it('marks current concurrency as sortable', async () => {
