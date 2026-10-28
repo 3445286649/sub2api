@@ -568,8 +568,6 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'admin.subscriptions.description'
     }
   },
-  { path: '/admin/group-cache-tests', name: 'AdminGroupCacheTests', component: () => import('@/views/admin/GroupCacheTestView.vue'), meta: { requiresAuth: true, requiresAdmin: true, title: 'Group cache test', titleKey: 'admin.groupCacheTest.title', descriptionKey: 'admin.groupCacheTest.description' } },
-  { path: '/admin/channel-operations', name: 'AdminChannelOperations', component: () => import('@/views/admin/ChannelOperationsView.vue'), meta: { requiresAuth: true, requiresAdmin: true, titleKey: 'channelOps.title', descriptionKey: 'channelOps.description' } },
   {
     path: '/admin/accounts',
     name: 'AdminAccounts',

@@ -1,6 +1,3 @@
-import channelOps from './channelOps'
-import connections from './connections'
-import requestTiming from './requestTiming'
 import landing from './landing'
 import headerButtons from './headerButtons'
 import common from './common'
@@ -17,9 +14,6 @@ import cryptoGateway from './cryptoGateway'
 import { mergeLocaleFallback } from '../merge'
 
 const upstream = {
-  connections,
-  channelOps,
-  requestTiming,
   ...headerButtons,
   ...landing,
   ...common,

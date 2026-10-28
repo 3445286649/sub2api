@@ -1,11 +1,8 @@
 .PHONY: build build-backend build-frontend test test-backend test-frontend test-frontend-critical
 
 FRONTEND_CRITICAL_VITEST := \
-	src/api/__tests__/groupCacheTest.spec.ts \
-	src/views/admin/__tests__/GroupCacheTestView.spec.ts \
 	src/i18n/__tests__/localeKeyCompleteness.spec.ts \
 	src/api/__tests__/client.spec.ts \
-	src/api/__tests__/keys.spec.ts \
 	src/api/__tests__/tokenRefresh.spec.ts \
 	src/api/__tests__/keys.bulkUpdate.spec.ts \
 	src/composables/__tests__/useModelWhitelist.spec.ts \
@@ -58,4 +55,4 @@ test-frontend:
 	@$(MAKE) test-frontend-critical
 
 test-frontend-critical:
-	@pnpm --dir frontend exec vitest run $(FRONTEND_CRITICAL_VITEST) src/components/admin/usage/__tests__/UsageConnections.spec.ts
+	@pnpm --dir frontend exec vitest run $(FRONTEND_CRITICAL_VITEST)

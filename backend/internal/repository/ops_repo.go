@@ -235,9 +235,9 @@ func (r *opsRepository) ListErrorLogs(ctx context.Context, filter *service.OpsEr
 SELECT
   e.id,
   e.created_at,
-  ` + opsEffectivePhaseSQL("e") + `,
-  ` + opsEffectiveTypeSQL("e") + `,
-  ` + opsEffectiveOwnerSQL("e") + `,
+  e.error_phase,
+  e.error_type,
+  COALESCE(e.error_owner, ''),
   COALESCE(e.error_source, ''),
   e.severity,
   COALESCE(e.upstream_status_code, e.status_code, 0),
@@ -406,9 +406,9 @@ func (r *opsRepository) GetErrorLogByID(ctx context.Context, id int64) (*service
 SELECT
   e.id,
   e.created_at,
-  ` + opsEffectivePhaseSQL("e") + `,
-  ` + opsEffectiveTypeSQL("e") + `,
-  ` + opsEffectiveOwnerSQL("e") + `,
+  e.error_phase,
+  e.error_type,
+  COALESCE(e.error_owner, ''),
   COALESCE(e.error_source, ''),
   e.severity,
   COALESCE(e.upstream_status_code, e.status_code, 0),
@@ -425,7 +425,7 @@ SELECT
   COALESCE(e.upstream_error_message, ''),
   COALESCE(e.upstream_error_detail, ''),
   COALESCE(e.upstream_errors::text, ''),
-  ` + opsBusinessLimitedSQL("e") + `,
+  e.is_business_limited,
   e.user_id,
   COALESCE(u.email, ''),
   e.api_key_id,
@@ -941,12 +941,12 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 	}
 	if phase := phaseFilter; phase != "" {
 		args = append(args, phase)
-		clauses = append(clauses, opsEffectivePhaseSQL("e")+" = $"+itoa(len(args)))
+		clauses = append(clauses, "e.error_phase = $"+itoa(len(args)))
 	}
 	if filter != nil {
 		if owner := strings.TrimSpace(strings.ToLower(filter.Owner)); owner != "" {
 			args = append(args, owner)
-			clauses = append(clauses, "LOWER("+opsEffectiveOwnerSQL("e")+") = $"+itoa(len(args)))
+			clauses = append(clauses, "LOWER(COALESCE(e.error_owner,'')) = $"+itoa(len(args)))
 		}
 		if source := strings.TrimSpace(strings.ToLower(filter.Source)); source != "" {
 			args = append(args, source)
@@ -967,14 +967,14 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 	}
 	switch view {
 	case "", "errors":
-		clauses = append(clauses, "NOT "+opsBusinessLimitedSQL("e"))
+		clauses = append(clauses, "COALESCE(e.is_business_limited,false) = false")
 	case "excluded":
-		clauses = append(clauses, opsBusinessLimitedSQL("e"))
+		clauses = append(clauses, "COALESCE(e.is_business_limited,false) = true")
 	case "all":
 		// no-op
 	default:
 		// treat unknown as default 'errors'
-		clauses = append(clauses, "NOT "+opsBusinessLimitedSQL("e"))
+		clauses = append(clauses, "COALESCE(e.is_business_limited,false) = false")
 	}
 	if len(filter.StatusCodes) > 0 {
 		args = append(args, pq.Array(filter.StatusCodes))
@@ -1032,11 +1032,11 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 	}
 	if len(filter.ErrorPhasesAny) > 0 {
 		args = append(args, pq.Array(filter.ErrorPhasesAny))
-		clauses = append(clauses, opsEffectivePhaseSQL("e")+" = ANY($"+itoa(len(args))+")")
+		clauses = append(clauses, "e.error_phase = ANY($"+itoa(len(args))+")")
 	}
 	if len(filter.ErrorTypesAny) > 0 {
 		args = append(args, pq.Array(filter.ErrorTypesAny))
-		clauses = append(clauses, opsEffectiveTypeSQL("e")+" = ANY($"+itoa(len(args))+")")
+		clauses = append(clauses, "e.error_type = ANY($"+itoa(len(args))+")")
 	}
 
 	return "WHERE " + strings.Join(clauses, " AND "), args

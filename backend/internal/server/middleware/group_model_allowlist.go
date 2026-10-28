@@ -32,19 +32,11 @@ import (
 func GroupModelAllowlist() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		apiKey, ok := GetAPIKeyFromContext(c)
-		if !ok || apiKey == nil {
+		if !ok || apiKey == nil || apiKey.Group == nil || !apiKey.Group.ModelAllowlistEnabled() {
 			c.Next()
 			return
 		}
-		allowlistEnabled := apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled()
-		// A queued key must keep its client-written model candidates so a
-		// revalidation can apply an allowlist that was enabled while it waited,
-		// even though no allowlist gated the initial admission.
-		captureForQueue := apiKey.ConcurrencyLimit > 0 && apiKey.Group != nil
-		if !allowlistEnabled && !captureForQueue {
-			c.Next()
-			return
-		}
+		allowlist := apiKey.Group.ModelAllowlist
 		if c.Request == nil {
 			c.Next()
 			return
@@ -77,16 +69,12 @@ func GroupModelAllowlist() gin.HandlerFunc {
 				}
 			}
 		}
-		if captureForQueue && len(models) > 0 {
-			c.Request = c.Request.WithContext(service.WithAPIKeyQueueRequestPermissions(c.Request.Context(), service.APIKeyQueueRequestPermissions{Models: models}))
-		}
+
 		blocked := ""
-		if allowlistEnabled {
-			for _, candidate := range models {
-				if !apiKey.Group.ModelAllowlist.Allows(candidate) {
-					blocked = candidate
-					break
-				}
+		for _, candidate := range models {
+			if !allowlist.Allows(candidate) {
+				blocked = candidate
+				break
 			}
 		}
 		if blocked == "" {
