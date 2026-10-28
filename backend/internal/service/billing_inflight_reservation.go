@@ -646,7 +646,8 @@ func (d inflightEstimateDeps) estimate(ctx context.Context, apiKey *APIKey, req 
 		return 0, false
 	}
 	if req.WebSearchCalls > 0 && d.billing != nil {
-		cost := d.billing.CalculateWebSearchCost(req.WebSearchCalls, webSearchPricePerCallFromAPIKey(apiKey), d.baseRate(ctx, apiKey))
+		price, rate := webSearchBillingTerms(apiKey, req.Model, d.baseRate(ctx, apiKey))
+		cost := d.billing.CalculateWebSearchCost(req.WebSearchCalls, price, rate)
 		if cost != nil {
 			return cost.ActualCost, true
 		}

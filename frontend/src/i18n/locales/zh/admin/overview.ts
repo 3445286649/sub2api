@@ -1135,7 +1135,16 @@ export default {
         hint: '仅开放给此 DeepSeek 分组的 API Key；上游渠道需支持对应工具接口，成功返回非空结果时按网页工具单次费用计费。',
         pricingTitle: 'DeepSeek Search / Fetch 单次价格',
         pricePerCall: '调用价格（USD/次）',
-        priceHint: 'Search 和 Fetch 共用此价格；留空时按默认 0.01 USD/次。'
+        priceHint: 'Search 和 Fetch 共用此价格；留空时按默认 0.01 USD/次。',
+        rateMode: '计费方式',
+        rateGroup: '跟随分组倍率',
+        rateFixed: '固定价格',
+        rateIndependent: '独立倍率',
+        toolMultiplier: '独立倍率',
+        finalPrice: '单次价格预览：{price}',
+        pricingHint: '仅成功且返回非空结果的调用计费。跟随模式可能受用户专属倍率影响；固定价和独立倍率不叠加分组或用户倍率。',
+        invalidPrice: 'Search / Fetch 单价必须是大于等于 0 的数字',
+        invalidMultiplier: 'Search / Fetch 独立倍率必须大于 0'
       },
       peakRate: {
         enable: '启用高峰倍率',

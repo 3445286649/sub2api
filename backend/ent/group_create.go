@@ -552,6 +552,12 @@ func (_c *GroupCreate) SetNillableWebSearchPricePerCall(v *float64) *GroupCreate
 	return _c
 }
 
+// SetDeepseekToolPricing sets the "deepseek_tool_pricing" field.
+func (_c *GroupCreate) SetDeepseekToolPricing(v map[string]domain.DeepSeekToolPricing) *GroupCreate {
+	_c.mutation.SetDeepseekToolPricing(v)
+	return _c
+}
+
 // SetSearchPricePer1k sets the "search_price_per_1k" field.
 func (_c *GroupCreate) SetSearchPricePer1k(v float64) *GroupCreate {
 	_c.mutation.SetSearchPricePer1k(v)
@@ -1724,6 +1730,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		_spec.SetField(group.FieldWebSearchPricePerCall, field.TypeFloat64, value)
 		_node.WebSearchPricePerCall = &value
 	}
+	if value, ok := _c.mutation.DeepseekToolPricing(); ok {
+		_spec.SetField(group.FieldDeepseekToolPricing, field.TypeJSON, value)
+		_node.DeepseekToolPricing = value
+	}
 	if value, ok := _c.mutation.SearchPricePer1k(); ok {
 		_spec.SetField(group.FieldSearchPricePer1k, field.TypeFloat64, value)
 		_node.SearchPricePer1k = &value
@@ -2637,6 +2647,24 @@ func (u *GroupUpsert) AddWebSearchPricePerCall(v float64) *GroupUpsert {
 // ClearWebSearchPricePerCall clears the value of the "web_search_price_per_call" field.
 func (u *GroupUpsert) ClearWebSearchPricePerCall() *GroupUpsert {
 	u.SetNull(group.FieldWebSearchPricePerCall)
+	return u
+}
+
+// SetDeepseekToolPricing sets the "deepseek_tool_pricing" field.
+func (u *GroupUpsert) SetDeepseekToolPricing(v map[string]domain.DeepSeekToolPricing) *GroupUpsert {
+	u.Set(group.FieldDeepseekToolPricing, v)
+	return u
+}
+
+// UpdateDeepseekToolPricing sets the "deepseek_tool_pricing" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateDeepseekToolPricing() *GroupUpsert {
+	u.SetExcluded(group.FieldDeepseekToolPricing)
+	return u
+}
+
+// ClearDeepseekToolPricing clears the value of the "deepseek_tool_pricing" field.
+func (u *GroupUpsert) ClearDeepseekToolPricing() *GroupUpsert {
+	u.SetNull(group.FieldDeepseekToolPricing)
 	return u
 }
 
@@ -3929,6 +3957,27 @@ func (u *GroupUpsertOne) UpdateWebSearchPricePerCall() *GroupUpsertOne {
 func (u *GroupUpsertOne) ClearWebSearchPricePerCall() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearWebSearchPricePerCall()
+	})
+}
+
+// SetDeepseekToolPricing sets the "deepseek_tool_pricing" field.
+func (u *GroupUpsertOne) SetDeepseekToolPricing(v map[string]domain.DeepSeekToolPricing) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetDeepseekToolPricing(v)
+	})
+}
+
+// UpdateDeepseekToolPricing sets the "deepseek_tool_pricing" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateDeepseekToolPricing() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateDeepseekToolPricing()
+	})
+}
+
+// ClearDeepseekToolPricing clears the value of the "deepseek_tool_pricing" field.
+func (u *GroupUpsertOne) ClearDeepseekToolPricing() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearDeepseekToolPricing()
 	})
 }
 
@@ -5473,6 +5522,27 @@ func (u *GroupUpsertBulk) UpdateWebSearchPricePerCall() *GroupUpsertBulk {
 func (u *GroupUpsertBulk) ClearWebSearchPricePerCall() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearWebSearchPricePerCall()
+	})
+}
+
+// SetDeepseekToolPricing sets the "deepseek_tool_pricing" field.
+func (u *GroupUpsertBulk) SetDeepseekToolPricing(v map[string]domain.DeepSeekToolPricing) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetDeepseekToolPricing(v)
+	})
+}
+
+// UpdateDeepseekToolPricing sets the "deepseek_tool_pricing" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateDeepseekToolPricing() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateDeepseekToolPricing()
+	})
+}
+
+// ClearDeepseekToolPricing clears the value of the "deepseek_tool_pricing" field.
+func (u *GroupUpsertBulk) ClearDeepseekToolPricing() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearDeepseekToolPricing()
 	})
 }
 

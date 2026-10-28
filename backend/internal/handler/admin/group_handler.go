@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -198,39 +199,40 @@ type CreateGroupRequest struct {
 	LongContextPricingEnabled bool                          `json:"long_context_pricing_enabled"`
 	ModelPricing              []service.ChannelModelPricing `json:"model_pricing"`
 	// 图片生成计费配置（antigravity 和 gemini 平台使用，负数表示清除配置）
-	AllowImageGeneration            bool                          `json:"allow_image_generation"`
-	AllowBatchImageGeneration       bool                          `json:"allow_batch_image_generation"`
-	AllowDeepSeekSearch             bool                          `json:"allow_deepseek_search"`
-	AllowDeepSeekFetch              bool                          `json:"allow_deepseek_fetch"`
-	ImageCountBilling               bool                          `json:"image_count_billing"`
-	ImageRateIndependent            bool                          `json:"image_rate_independent"`
-	ImageRateMultiplier             *float64                      `json:"image_rate_multiplier"`
-	BatchImageDiscountMultiplier    *float64                      `json:"batch_image_discount_multiplier"`
-	BatchImageHoldMultiplier        *float64                      `json:"batch_image_hold_multiplier"`
-	VideoRateIndependent            bool                          `json:"video_rate_independent"`
-	VideoRateMultiplier             *float64                      `json:"video_rate_multiplier"`
-	PeakRateEnabled                 bool                          `json:"peak_rate_enabled"`
-	PeakStart                       string                        `json:"peak_start"`
-	PeakEnd                         string                        `json:"peak_end"`
-	PeakRateMultiplier              *float64                      `json:"peak_rate_multiplier"`
-	ProfitControlEnabled            bool                          `json:"profit_control_enabled"`
-	ProfitMinMargin                 *float64                      `json:"profit_min_margin"`
-	ProfitSafetyBuffer              *float64                      `json:"profit_safety_buffer"`
-	ImagePrice1K                    *float64                      `json:"image_price_1k"`
-	ImagePrice2K                    *float64                      `json:"image_price_2k"`
-	ImagePrice4K                    *float64                      `json:"image_price_4k"`
-	VideoPrice480P                  *float64                      `json:"video_price_480p"`
-	VideoPrice720P                  *float64                      `json:"video_price_720p"`
-	VideoPrice1080P                 *float64                      `json:"video_price_1080p"`
-	VideoModelPrices                map[string]map[string]float64 `json:"video_model_prices,omitempty"`
-	WebSearchPricePerCall           *float64                      `json:"web_search_price_per_call"`
-	SearchPricePer1k                *float64                      `json:"search_price_per_1k"`
-	AudioRealtimePricePerMin        *float64                      `json:"audio_realtime_price_per_min"`
-	AudioTtsPricePerMillionChars    *float64                      `json:"audio_tts_price_per_million_chars"`
-	AudioSttPricePerHour            *float64                      `json:"audio_stt_price_per_hour"`
-	ClaudeCodeOnly                  bool                          `json:"claude_code_only"`
-	FallbackGroupID                 *int64                        `json:"fallback_group_id"`
-	FallbackGroupIDOnInvalidRequest *int64                        `json:"fallback_group_id_on_invalid_request"`
+	AllowImageGeneration            bool                                  `json:"allow_image_generation"`
+	AllowBatchImageGeneration       bool                                  `json:"allow_batch_image_generation"`
+	AllowDeepSeekSearch             bool                                  `json:"allow_deepseek_search"`
+	AllowDeepSeekFetch              bool                                  `json:"allow_deepseek_fetch"`
+	ImageCountBilling               bool                                  `json:"image_count_billing"`
+	ImageRateIndependent            bool                                  `json:"image_rate_independent"`
+	ImageRateMultiplier             *float64                              `json:"image_rate_multiplier"`
+	BatchImageDiscountMultiplier    *float64                              `json:"batch_image_discount_multiplier"`
+	BatchImageHoldMultiplier        *float64                              `json:"batch_image_hold_multiplier"`
+	VideoRateIndependent            bool                                  `json:"video_rate_independent"`
+	VideoRateMultiplier             *float64                              `json:"video_rate_multiplier"`
+	PeakRateEnabled                 bool                                  `json:"peak_rate_enabled"`
+	PeakStart                       string                                `json:"peak_start"`
+	PeakEnd                         string                                `json:"peak_end"`
+	PeakRateMultiplier              *float64                              `json:"peak_rate_multiplier"`
+	ProfitControlEnabled            bool                                  `json:"profit_control_enabled"`
+	ProfitMinMargin                 *float64                              `json:"profit_min_margin"`
+	ProfitSafetyBuffer              *float64                              `json:"profit_safety_buffer"`
+	ImagePrice1K                    *float64                              `json:"image_price_1k"`
+	ImagePrice2K                    *float64                              `json:"image_price_2k"`
+	ImagePrice4K                    *float64                              `json:"image_price_4k"`
+	VideoPrice480P                  *float64                              `json:"video_price_480p"`
+	VideoPrice720P                  *float64                              `json:"video_price_720p"`
+	VideoPrice1080P                 *float64                              `json:"video_price_1080p"`
+	VideoModelPrices                map[string]map[string]float64         `json:"video_model_prices,omitempty"`
+	WebSearchPricePerCall           *float64                              `json:"web_search_price_per_call"`
+	DeepSeekToolPricing             map[string]domain.DeepSeekToolPricing `json:"deepseek_tool_pricing"`
+	SearchPricePer1k                *float64                              `json:"search_price_per_1k"`
+	AudioRealtimePricePerMin        *float64                              `json:"audio_realtime_price_per_min"`
+	AudioTtsPricePerMillionChars    *float64                              `json:"audio_tts_price_per_million_chars"`
+	AudioSttPricePerHour            *float64                              `json:"audio_stt_price_per_hour"`
+	ClaudeCodeOnly                  bool                                  `json:"claude_code_only"`
+	FallbackGroupID                 *int64                                `json:"fallback_group_id"`
+	FallbackGroupIDOnInvalidRequest *int64                                `json:"fallback_group_id_on_invalid_request"`
 	// 模型路由配置（仅 anthropic 平台使用）
 	ModelRouting        map[string][]int64 `json:"model_routing"`
 	ModelRoutingEnabled bool               `json:"model_routing_enabled"`
@@ -249,7 +251,7 @@ type CreateGroupRequest struct {
 	DefaultMappedModel          string                                    `json:"default_mapped_model"`
 	MessagesDispatchModelConfig service.OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config"`
 	ModelAllowlist              service.GroupModelAllowlist               `json:"model_allowlist"`
-	ImageInputOverrides         map[string]bool                            `json:"image_input_overrides"`
+	ImageInputOverrides         map[string]bool                           `json:"image_input_overrides"`
 	// 固定账号 manifest 配置；创建路径禁止开启，仅编辑可配置。
 	CodexModelsManifestConfig service.GroupCodexModelsManifestConfig `json:"codex_models_manifest_config"`
 	// 分组 RPM 上限（0 = 不限制）
@@ -280,39 +282,40 @@ type UpdateGroupRequest struct {
 	LongContextPricingEnabled *bool                          `json:"long_context_pricing_enabled"`
 	ModelPricing              *[]service.ChannelModelPricing `json:"model_pricing"`
 	// 图片生成计费配置（antigravity 和 gemini 平台使用，负数表示清除配置）
-	AllowImageGeneration            *bool                         `json:"allow_image_generation"`
-	AllowBatchImageGeneration       *bool                         `json:"allow_batch_image_generation"`
-	AllowDeepSeekSearch             *bool                         `json:"allow_deepseek_search"`
-	AllowDeepSeekFetch              *bool                         `json:"allow_deepseek_fetch"`
-	ImageCountBilling               *bool                         `json:"image_count_billing"`
-	ImageRateIndependent            *bool                         `json:"image_rate_independent"`
-	ImageRateMultiplier             *float64                      `json:"image_rate_multiplier"`
-	BatchImageDiscountMultiplier    *float64                      `json:"batch_image_discount_multiplier"`
-	BatchImageHoldMultiplier        *float64                      `json:"batch_image_hold_multiplier"`
-	VideoRateIndependent            *bool                         `json:"video_rate_independent"`
-	VideoRateMultiplier             *float64                      `json:"video_rate_multiplier"`
-	PeakRateEnabled                 *bool                         `json:"peak_rate_enabled"`
-	PeakStart                       *string                       `json:"peak_start"`
-	PeakEnd                         *string                       `json:"peak_end"`
-	PeakRateMultiplier              *float64                      `json:"peak_rate_multiplier"`
-	ProfitControlEnabled            *bool                         `json:"profit_control_enabled"`
-	ProfitMinMargin                 *float64                      `json:"profit_min_margin"`
-	ProfitSafetyBuffer              *float64                      `json:"profit_safety_buffer"`
-	ImagePrice1K                    *float64                      `json:"image_price_1k"`
-	ImagePrice2K                    *float64                      `json:"image_price_2k"`
-	ImagePrice4K                    *float64                      `json:"image_price_4k"`
-	VideoPrice480P                  *float64                      `json:"video_price_480p"`
-	VideoPrice720P                  *float64                      `json:"video_price_720p"`
-	VideoPrice1080P                 *float64                      `json:"video_price_1080p"`
-	VideoModelPrices                map[string]map[string]float64 `json:"video_model_prices,omitempty"`
-	WebSearchPricePerCall           *float64                      `json:"web_search_price_per_call"`
-	SearchPricePer1k                *float64                      `json:"search_price_per_1k"`
-	AudioRealtimePricePerMin        *float64                      `json:"audio_realtime_price_per_min"`
-	AudioTtsPricePerMillionChars    *float64                      `json:"audio_tts_price_per_million_chars"`
-	AudioSttPricePerHour            *float64                      `json:"audio_stt_price_per_hour"`
-	ClaudeCodeOnly                  *bool                         `json:"claude_code_only"`
-	FallbackGroupID                 *int64                        `json:"fallback_group_id"`
-	FallbackGroupIDOnInvalidRequest *int64                        `json:"fallback_group_id_on_invalid_request"`
+	AllowImageGeneration            *bool                                 `json:"allow_image_generation"`
+	AllowBatchImageGeneration       *bool                                 `json:"allow_batch_image_generation"`
+	AllowDeepSeekSearch             *bool                                 `json:"allow_deepseek_search"`
+	AllowDeepSeekFetch              *bool                                 `json:"allow_deepseek_fetch"`
+	ImageCountBilling               *bool                                 `json:"image_count_billing"`
+	ImageRateIndependent            *bool                                 `json:"image_rate_independent"`
+	ImageRateMultiplier             *float64                              `json:"image_rate_multiplier"`
+	BatchImageDiscountMultiplier    *float64                              `json:"batch_image_discount_multiplier"`
+	BatchImageHoldMultiplier        *float64                              `json:"batch_image_hold_multiplier"`
+	VideoRateIndependent            *bool                                 `json:"video_rate_independent"`
+	VideoRateMultiplier             *float64                              `json:"video_rate_multiplier"`
+	PeakRateEnabled                 *bool                                 `json:"peak_rate_enabled"`
+	PeakStart                       *string                               `json:"peak_start"`
+	PeakEnd                         *string                               `json:"peak_end"`
+	PeakRateMultiplier              *float64                              `json:"peak_rate_multiplier"`
+	ProfitControlEnabled            *bool                                 `json:"profit_control_enabled"`
+	ProfitMinMargin                 *float64                              `json:"profit_min_margin"`
+	ProfitSafetyBuffer              *float64                              `json:"profit_safety_buffer"`
+	ImagePrice1K                    *float64                              `json:"image_price_1k"`
+	ImagePrice2K                    *float64                              `json:"image_price_2k"`
+	ImagePrice4K                    *float64                              `json:"image_price_4k"`
+	VideoPrice480P                  *float64                              `json:"video_price_480p"`
+	VideoPrice720P                  *float64                              `json:"video_price_720p"`
+	VideoPrice1080P                 *float64                              `json:"video_price_1080p"`
+	VideoModelPrices                map[string]map[string]float64         `json:"video_model_prices,omitempty"`
+	WebSearchPricePerCall           *float64                              `json:"web_search_price_per_call"`
+	DeepSeekToolPricing             map[string]domain.DeepSeekToolPricing `json:"deepseek_tool_pricing"`
+	SearchPricePer1k                *float64                              `json:"search_price_per_1k"`
+	AudioRealtimePricePerMin        *float64                              `json:"audio_realtime_price_per_min"`
+	AudioTtsPricePerMillionChars    *float64                              `json:"audio_tts_price_per_million_chars"`
+	AudioSttPricePerHour            *float64                              `json:"audio_stt_price_per_hour"`
+	ClaudeCodeOnly                  *bool                                 `json:"claude_code_only"`
+	FallbackGroupID                 *int64                                `json:"fallback_group_id"`
+	FallbackGroupIDOnInvalidRequest *int64                                `json:"fallback_group_id_on_invalid_request"`
 	// 模型路由配置（仅 anthropic 平台使用）
 	ModelRouting        map[string][]int64 `json:"model_routing"`
 	ModelRoutingEnabled *bool              `json:"model_routing_enabled"`
@@ -717,6 +720,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		VideoPrice1080P:                 req.VideoPrice1080P,
 		VideoModelPrices:                req.VideoModelPrices,
 		WebSearchPricePerCall:           req.WebSearchPricePerCall,
+		DeepSeekToolPricing:             req.DeepSeekToolPricing,
 		SearchPricePer1k:                req.SearchPricePer1k,
 		AudioRealtimePricePerMin:        req.AudioRealtimePricePerMin,
 		AudioTTSPricePerMillionChars:    req.AudioTtsPricePerMillionChars,
@@ -870,6 +874,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		VideoPrice1080P:                 req.VideoPrice1080P,
 		VideoModelPrices:                req.VideoModelPrices,
 		WebSearchPricePerCall:           req.WebSearchPricePerCall,
+		DeepSeekToolPricing:             req.DeepSeekToolPricing,
 		SearchPricePer1k:                req.SearchPricePer1k,
 		AudioRealtimePricePerMin:        req.AudioRealtimePricePerMin,
 		AudioTTSPricePerMillionChars:    req.AudioTtsPricePerMillionChars,

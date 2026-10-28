@@ -492,6 +492,13 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	videoPrice720P := normalizePrice(input.VideoPrice720P)
 	videoPrice1080P := normalizePrice(input.VideoPrice1080P)
 	webSearchPricePerCall := normalizePrice(input.WebSearchPricePerCall)
+	deepSeekToolPricing, err := NormalizeDeepSeekToolPricing(input.DeepSeekToolPricing)
+	if err != nil {
+		return nil, infraerrors.BadRequest("INVALID_DEEPSEEK_TOOL_PRICING", err.Error())
+	}
+	if len(deepSeekToolPricing) > 0 && platform != PlatformDeepseek {
+		return nil, infraerrors.BadRequest("INVALID_DEEPSEEK_TOOL_PRICING", "DeepSeek tool pricing requires a DeepSeek group")
+	}
 	searchPricePer1k := normalizePrice(input.SearchPricePer1k)
 	audioRealtimePricePerMin := normalizePrice(input.AudioRealtimePricePerMin)
 	audioTTSPricePerMillionChars := normalizePrice(input.AudioTTSPricePerMillionChars)
@@ -668,6 +675,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		VideoPrice1080P:                 videoPrice1080P,
 		VideoModelPrices:                NormalizeVideoModelPrices(input.VideoModelPrices),
 		WebSearchPricePerCall:           webSearchPricePerCall,
+		DeepSeekToolPricing:             deepSeekToolPricing,
 		SearchPricePer1k:                searchPricePer1k,
 		AudioRealtimePricePerMin:        audioRealtimePricePerMin,
 		AudioTTSPricePerMillionChars:    audioTTSPricePerMillionChars,
@@ -1012,6 +1020,19 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.WebSearchPricePerCall != nil {
 		group.WebSearchPricePerCall = normalizePrice(input.WebSearchPricePerCall)
+	}
+	if input.DeepSeekToolPricing != nil {
+		pricing, err := NormalizeDeepSeekToolPricing(input.DeepSeekToolPricing)
+		if err != nil {
+			return nil, infraerrors.BadRequest("INVALID_DEEPSEEK_TOOL_PRICING", err.Error())
+		}
+		if len(pricing) > 0 && group.Platform != PlatformDeepseek {
+			return nil, infraerrors.BadRequest("INVALID_DEEPSEEK_TOOL_PRICING", "DeepSeek tool pricing requires a DeepSeek group")
+		}
+		group.DeepSeekToolPricing = pricing
+	}
+	if group.Platform != PlatformDeepseek {
+		group.DeepSeekToolPricing = nil
 	}
 	if input.SearchPricePer1k != nil {
 		group.SearchPricePer1k = normalizePrice(input.SearchPricePer1k)

@@ -173,6 +173,10 @@ func (Group) Fields() []ent.Field {
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Comment("Codex alpha/search 网页搜索单次价格（USD/次）；nil 表示使用默认价 0.01（官方 $10/1000 次）"),
+		field.JSON("deepseek_tool_pricing", map[string]domain.DeepSeekToolPricing{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("DeepSeek Search/Fetch 分别配置按次价格和计费倍率模式"),
 
 		// 搜索/工具调用显式定价（per 1k calls），用于 Grok web_search 等。
 		field.Float("search_price_per_1k").

@@ -94,6 +94,8 @@ const (
 	FieldVideoModelPrices = "video_model_prices"
 	// FieldWebSearchPricePerCall holds the string denoting the web_search_price_per_call field in the database.
 	FieldWebSearchPricePerCall = "web_search_price_per_call"
+	// FieldDeepseekToolPricing holds the string denoting the deepseek_tool_pricing field in the database.
+	FieldDeepseekToolPricing = "deepseek_tool_pricing"
 	// FieldSearchPricePer1k holds the string denoting the search_price_per_1k field in the database.
 	FieldSearchPricePer1k = "search_price_per_1k"
 	// FieldAudioRealtimePricePerMin holds the string denoting the audio_realtime_price_per_min field in the database.
@@ -276,6 +278,7 @@ var Columns = []string{
 	FieldVideoPrice1080p,
 	FieldVideoModelPrices,
 	FieldWebSearchPricePerCall,
+	FieldDeepseekToolPricing,
 	FieldSearchPricePer1k,
 	FieldAudioRealtimePricePerMin,
 	FieldAudioTtsPricePerMillionChars,

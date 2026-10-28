@@ -1488,7 +1488,13 @@
             {{ t("admin.groups.webSearchPricing.title") }}
           </h4>
           <h4 v-else class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{{ t('admin.groups.deepSeekTools.pricingTitle') }}</h4>
-          <div>
+          <DeepSeekToolPricingField
+            v-if="createForm.platform === 'deepseek'"
+            v-model:value="createForm.deepseek_tool_pricing"
+            :group-rate="createForm.rate_multiplier"
+            id-prefix="create-deepseek"
+          />
+          <div v-else>
             <label v-if="createForm.platform === 'openai'" class="input-label">{{
               t("admin.groups.webSearchPricing.pricePerCall")
             }}</label>
@@ -3207,7 +3213,13 @@
             {{ t("admin.groups.webSearchPricing.title") }}
           </h4>
           <h4 v-else class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{{ t('admin.groups.deepSeekTools.pricingTitle') }}</h4>
-          <div>
+          <DeepSeekToolPricingField
+            v-if="editForm.platform === 'deepseek'"
+            v-model:value="editForm.deepseek_tool_pricing"
+            :group-rate="editForm.rate_multiplier"
+            id-prefix="edit-deepseek"
+          />
+          <div v-else>
             <label v-if="editForm.platform === 'openai'" class="input-label">{{
               t("admin.groups.webSearchPricing.pricePerCall")
             }}</label>
@@ -4439,6 +4451,7 @@ import type {
   CompositeRouteMatchType,
   GroupI18n,
   GroupPlatform,
+  DeepSeekToolPricing,
   SubscriptionType,
 } from "@/types";
 import {
@@ -4465,6 +4478,7 @@ import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
 import CodexManifestAccountsField from "@/components/admin/group/CodexManifestAccountsField.vue";
 import GroupImageInputOverrides from "@/components/admin/GroupImageInputOverrides.vue";
+import DeepSeekToolPricingField from "@/components/admin/group/DeepSeekToolPricingField.vue";
 import PricingEntryCard from "@/components/admin/channel/PricingEntryCard.vue";
 import type { PricingFormEntry } from "@/components/admin/channel/types";
 import {
@@ -5162,6 +5176,28 @@ const submitEditAllowlistCustomEntry = () => {
   }
 };
 
+function createDeepSeekToolPricing(price = 0.01, saved?: Partial<DeepSeekToolPricing> | null): DeepSeekToolPricing {
+  const fallback = (tool: 'search' | 'fetch') => ({
+    mode: saved?.[tool]?.mode ?? 'group',
+    price_per_call: saved?.[tool]?.price_per_call ?? price,
+    rate_multiplier: saved?.[tool]?.rate_multiplier ?? 1,
+  });
+  return { search: fallback('search'), fetch: fallback('fetch') } as DeepSeekToolPricing;
+}
+
+function validateDeepSeekToolPricing(pricing: DeepSeekToolPricing): DeepSeekToolPricing {
+  for (const tool of ['search', 'fetch'] as const) {
+    const entry = pricing[tool];
+    if (entry.price_per_call === null || !Number.isFinite(entry.price_per_call) || entry.price_per_call < 0 || entry.price_per_call > 1e6) {
+      throw new Error(t('admin.groups.deepSeekTools.invalidPrice'));
+    }
+    if (entry.mode === 'independent' && (entry.rate_multiplier === null || entry.rate_multiplier === undefined || !Number.isFinite(entry.rate_multiplier) || entry.rate_multiplier <= 0 || entry.rate_multiplier > 1e6)) {
+      throw new Error(t('admin.groups.deepSeekTools.invalidMultiplier'));
+    }
+  }
+  return pricing;
+}
+
 const createForm = reactive({
   name: "",
   description: "",
@@ -5202,6 +5238,7 @@ const createForm = reactive({
   video_model_prices: createVideoModelPricesForm(),
   // Codex 网页搜索按次计费（仅 openai 平台使用）；null = 使用默认价 0.01
   web_search_price_per_call: null as number | null,
+  deepseek_tool_pricing: createDeepSeekToolPricing(),
   search_price_per_1k: null as number | null,
   audio_realtime_price_per_min: null as number | null,
   audio_tts_price_per_million_chars: null as number | null,
@@ -5574,6 +5611,7 @@ const editForm = reactive({
   video_model_prices: createVideoModelPricesForm(),
   // Codex 网页搜索按次计费（仅 openai 平台使用）；null = 使用默认价 0.01
   web_search_price_per_call: null as number | null,
+  deepseek_tool_pricing: createDeepSeekToolPricing(),
   search_price_per_1k: null as number | null,
   audio_realtime_price_per_min: null as number | null,
   audio_tts_price_per_million_chars: null as number | null,
@@ -6055,6 +6093,7 @@ const closeCreateModal = () => {
   createForm.free_openai_fast = false;
   createForm.model_pricing = [];
   createForm.web_search_price_per_call = null;
+  createForm.deepseek_tool_pricing = createDeepSeekToolPricing();
   createForm.search_price_per_1k = null;
   createForm.audio_realtime_price_per_min = null;
   createForm.audio_tts_price_per_million_chars = null;
@@ -6276,6 +6315,11 @@ const handleCreateGroup = async () => {
     requestData.web_search_price_per_call = emptyToNull(
       requestData.web_search_price_per_call,
     );
+    if (createForm.platform === 'deepseek') {
+      requestData.deepseek_tool_pricing = validateDeepSeekToolPricing(createForm.deepseek_tool_pricing);
+    } else {
+      delete (requestData as Record<string, unknown>).deepseek_tool_pricing;
+    }
     requestData.peak_rate_enabled = createForm.peak_rate_enabled;
     requestData.peak_start = createForm.peak_start;
     requestData.peak_end = createForm.peak_end;
@@ -6361,6 +6405,7 @@ const handleEdit = async (group: AdminGroup) => {
     group.video_model_prices,
   );
   editForm.web_search_price_per_call = group.web_search_price_per_call ?? null;
+  editForm.deepseek_tool_pricing = createDeepSeekToolPricing(group.web_search_price_per_call ?? 0.01, group.deepseek_tool_pricing);
   editForm.search_price_per_1k = group.search_price_per_1k ?? null;
   editForm.audio_realtime_price_per_min = group.audio_realtime_price_per_min ?? null;
   editForm.audio_tts_price_per_million_chars = group.audio_tts_price_per_million_chars ?? null;
@@ -6482,6 +6527,7 @@ const closeEditModal = () => {
   editForm.free_openai_fast = false;
   editForm.model_pricing = [];
   editForm.web_search_price_per_call = null;
+  editForm.deepseek_tool_pricing = createDeepSeekToolPricing();
   editForm.search_price_per_1k = null;
   editForm.audio_realtime_price_per_min = null;
   editForm.audio_tts_price_per_million_chars = null;
@@ -6652,6 +6698,11 @@ const handleUpdateGroup = async () => {
     payload.web_search_price_per_call = emptyPriceToClear(
       payload.web_search_price_per_call,
     );
+    if (editForm.platform === 'deepseek') {
+      payload.deepseek_tool_pricing = validateDeepSeekToolPricing(editForm.deepseek_tool_pricing);
+    } else {
+      delete (payload as Record<string, unknown>).deepseek_tool_pricing;
+    }
     payload.peak_rate_enabled = editForm.peak_rate_enabled;
     payload.peak_start = editForm.peak_start;
     payload.peak_end = editForm.peak_end;

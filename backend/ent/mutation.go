@@ -24309,6 +24309,7 @@ type GroupMutation struct {
 	video_model_prices                      *map[string]map[string]float64
 	web_search_price_per_call               *float64
 	addweb_search_price_per_call            *float64
+	deepseek_tool_pricing                   *map[string]domain.DeepSeekToolPricing
 	search_price_per_1k                     *float64
 	addsearch_price_per_1k                  *float64
 	audio_realtime_price_per_min            *float64
@@ -26414,6 +26415,55 @@ func (m *GroupMutation) ResetWebSearchPricePerCall() {
 	delete(m.clearedFields, group.FieldWebSearchPricePerCall)
 }
 
+// SetDeepseekToolPricing sets the "deepseek_tool_pricing" field.
+func (m *GroupMutation) SetDeepseekToolPricing(mstp map[string]domain.DeepSeekToolPricing) {
+	m.deepseek_tool_pricing = &mstp
+}
+
+// DeepseekToolPricing returns the value of the "deepseek_tool_pricing" field in the mutation.
+func (m *GroupMutation) DeepseekToolPricing() (r map[string]domain.DeepSeekToolPricing, exists bool) {
+	v := m.deepseek_tool_pricing
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeepseekToolPricing returns the old "deepseek_tool_pricing" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldDeepseekToolPricing(ctx context.Context) (v map[string]domain.DeepSeekToolPricing, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeepseekToolPricing is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeepseekToolPricing requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeepseekToolPricing: %w", err)
+	}
+	return oldValue.DeepseekToolPricing, nil
+}
+
+// ClearDeepseekToolPricing clears the value of the "deepseek_tool_pricing" field.
+func (m *GroupMutation) ClearDeepseekToolPricing() {
+	m.deepseek_tool_pricing = nil
+	m.clearedFields[group.FieldDeepseekToolPricing] = struct{}{}
+}
+
+// DeepseekToolPricingCleared returns if the "deepseek_tool_pricing" field was cleared in this mutation.
+func (m *GroupMutation) DeepseekToolPricingCleared() bool {
+	_, ok := m.clearedFields[group.FieldDeepseekToolPricing]
+	return ok
+}
+
+// ResetDeepseekToolPricing resets all changes to the "deepseek_tool_pricing" field.
+func (m *GroupMutation) ResetDeepseekToolPricing() {
+	m.deepseek_tool_pricing = nil
+	delete(m.clearedFields, group.FieldDeepseekToolPricing)
+}
+
 // SetSearchPricePer1k sets the "search_price_per_1k" field.
 func (m *GroupMutation) SetSearchPricePer1k(f float64) {
 	m.search_price_per_1k = &f
@@ -28352,7 +28402,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 73)
+	fields := make([]string, 0, 74)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -28469,6 +28519,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.web_search_price_per_call != nil {
 		fields = append(fields, group.FieldWebSearchPricePerCall)
+	}
+	if m.deepseek_tool_pricing != nil {
+		fields = append(fields, group.FieldDeepseekToolPricing)
 	}
 	if m.search_price_per_1k != nil {
 		fields = append(fields, group.FieldSearchPricePer1k)
@@ -28658,6 +28711,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.VideoModelPrices()
 	case group.FieldWebSearchPricePerCall:
 		return m.WebSearchPricePerCall()
+	case group.FieldDeepseekToolPricing:
+		return m.DeepseekToolPricing()
 	case group.FieldSearchPricePer1k:
 		return m.SearchPricePer1k()
 	case group.FieldAudioRealtimePricePerMin:
@@ -28813,6 +28868,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldVideoModelPrices(ctx)
 	case group.FieldWebSearchPricePerCall:
 		return m.OldWebSearchPricePerCall(ctx)
+	case group.FieldDeepseekToolPricing:
+		return m.OldDeepseekToolPricing(ctx)
 	case group.FieldSearchPricePer1k:
 		return m.OldSearchPricePer1k(ctx)
 	case group.FieldAudioRealtimePricePerMin:
@@ -29162,6 +29219,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetWebSearchPricePerCall(v)
+		return nil
+	case group.FieldDeepseekToolPricing:
+		v, ok := value.(map[string]domain.DeepSeekToolPricing)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeepseekToolPricing(v)
 		return nil
 	case group.FieldSearchPricePer1k:
 		v, ok := value.(float64)
@@ -29800,6 +29864,9 @@ func (m *GroupMutation) ClearedFields() []string {
 	if m.FieldCleared(group.FieldWebSearchPricePerCall) {
 		fields = append(fields, group.FieldWebSearchPricePerCall)
 	}
+	if m.FieldCleared(group.FieldDeepseekToolPricing) {
+		fields = append(fields, group.FieldDeepseekToolPricing)
+	}
 	if m.FieldCleared(group.FieldSearchPricePer1k) {
 		fields = append(fields, group.FieldSearchPricePer1k)
 	}
@@ -29879,6 +29946,9 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldWebSearchPricePerCall:
 		m.ClearWebSearchPricePerCall()
+		return nil
+	case group.FieldDeepseekToolPricing:
+		m.ClearDeepseekToolPricing()
 		return nil
 	case group.FieldSearchPricePer1k:
 		m.ClearSearchPricePer1k()
@@ -30028,6 +30098,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldWebSearchPricePerCall:
 		m.ResetWebSearchPricePerCall()
+		return nil
+	case group.FieldDeepseekToolPricing:
+		m.ResetDeepseekToolPricing()
 		return nil
 	case group.FieldSearchPricePer1k:
 		m.ResetSearchPricePer1k()

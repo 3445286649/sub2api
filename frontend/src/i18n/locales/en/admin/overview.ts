@@ -1138,7 +1138,16 @@ export default {
         hint: 'Available only to API keys in this DeepSeek group. The upstream must support these tool endpoints; non-empty successful results are billed per call.',
         pricingTitle: 'DeepSeek Search / Fetch Pricing',
         pricePerCall: 'Price per call (USD)',
-        priceHint: 'Search and Fetch share this price. Leave empty to use the default $0.01 per call.'
+        priceHint: 'Search and Fetch share this price. Leave empty to use the default $0.01 per call.',
+        rateMode: 'Billing mode',
+        rateGroup: 'Use group rate',
+        rateFixed: 'Fixed price',
+        rateIndependent: 'Independent rate',
+        toolMultiplier: 'Independent multiplier',
+        finalPrice: 'Price per call preview: {price}',
+        pricingHint: 'Only successful calls with nonempty results are billed. A user-specific rate may change group mode; fixed and independent modes ignore group and user rates.',
+        invalidPrice: 'Search / Fetch price must be a number greater than or equal to 0',
+        invalidMultiplier: 'Search / Fetch independent multiplier must be greater than 0'
       },
       peakRate: {
         enable: 'Enable peak rate multiplier',

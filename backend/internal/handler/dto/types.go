@@ -133,11 +133,12 @@ type Group struct {
 	// VideoModelPrices 可选按模型族×分辨率覆盖视频每秒单价 (USD/s)。
 	VideoModelPrices map[string]map[string]float64 `json:"video_model_prices,omitempty"`
 	// Codex alpha/search 网页搜索单次价格（USD/次）；null 表示使用默认价 0.01
-	WebSearchPricePerCall        *float64 `json:"web_search_price_per_call"`
-	SearchPricePer1k             *float64 `json:"search_price_per_1k"`
-	AudioRealtimePricePerMin     *float64 `json:"audio_realtime_price_per_min"`
-	AudioTtsPricePerMillionChars *float64 `json:"audio_tts_price_per_million_chars"`
-	AudioSttPricePerHour         *float64 `json:"audio_stt_price_per_hour"`
+	WebSearchPricePerCall        *float64                              `json:"web_search_price_per_call"`
+	DeepSeekToolPricing          map[string]domain.DeepSeekToolPricing `json:"deepseek_tool_pricing"`
+	SearchPricePer1k             *float64                              `json:"search_price_per_1k"`
+	AudioRealtimePricePerMin     *float64                              `json:"audio_realtime_price_per_min"`
+	AudioTtsPricePerMillionChars *float64                              `json:"audio_tts_price_per_million_chars"`
+	AudioSttPricePerHour         *float64                              `json:"audio_stt_price_per_hour"`
 
 	// Claude Code 客户端限制
 	ClaudeCodeOnly  bool   `json:"claude_code_only"`
@@ -176,7 +177,7 @@ type AdminGroup struct {
 	ForceOpenAIUltrafast bool              `json:"force_openai_ultrafast"`
 	OpenAIModelTiers     map[string]string `json:"openai_model_tiers"`
 	// FreeOpenAIFast 是管理端计费策略，用户侧分组 DTO 无需暴露。
-	FreeOpenAIFast bool `json:"free_openai_fast"`
+	FreeOpenAIFast      bool `json:"free_openai_fast"`
 	AllowDeepSeekSearch bool `json:"allow_deepseek_search"`
 	AllowDeepSeekFetch  bool `json:"allow_deepseek_fetch"`
 
@@ -199,7 +200,7 @@ type AdminGroup struct {
 	DefaultMappedModel          string                                   `json:"default_mapped_model"`
 	MessagesDispatchModelConfig domain.OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config"`
 	ModelAllowlist              service.GroupModelAllowlist              `json:"model_allowlist"`
-	ImageInputOverrides         map[string]bool                           `json:"image_input_overrides"`
+	ImageInputOverrides         map[string]bool                          `json:"image_input_overrides"`
 	// 固定账号获取 Codex Model Manifest 配置（仅 openai 平台使用）。
 	CodexModelsManifestConfig domain.GroupCodexModelsManifestConfig `json:"codex_models_manifest_config"`
 

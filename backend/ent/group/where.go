@@ -1915,6 +1915,16 @@ func WebSearchPricePerCallNotNil() predicate.Group {
 	return predicate.Group(sql.FieldNotNull(FieldWebSearchPricePerCall))
 }
 
+// DeepseekToolPricingIsNil applies the IsNil predicate on the "deepseek_tool_pricing" field.
+func DeepseekToolPricingIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldDeepseekToolPricing))
+}
+
+// DeepseekToolPricingNotNil applies the NotNil predicate on the "deepseek_tool_pricing" field.
+func DeepseekToolPricingNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldDeepseekToolPricing))
+}
+
 // SearchPricePer1kEQ applies the EQ predicate on the "search_price_per_1k" field.
 func SearchPricePer1kEQ(v float64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldSearchPricePer1k, v))

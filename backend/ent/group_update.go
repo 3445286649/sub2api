@@ -728,6 +728,18 @@ func (_u *GroupUpdate) ClearWebSearchPricePerCall() *GroupUpdate {
 	return _u
 }
 
+// SetDeepseekToolPricing sets the "deepseek_tool_pricing" field.
+func (_u *GroupUpdate) SetDeepseekToolPricing(v map[string]domain.DeepSeekToolPricing) *GroupUpdate {
+	_u.mutation.SetDeepseekToolPricing(v)
+	return _u
+}
+
+// ClearDeepseekToolPricing clears the value of the "deepseek_tool_pricing" field.
+func (_u *GroupUpdate) ClearDeepseekToolPricing() *GroupUpdate {
+	_u.mutation.ClearDeepseekToolPricing()
+	return _u
+}
+
 // SetSearchPricePer1k sets the "search_price_per_1k" field.
 func (_u *GroupUpdate) SetSearchPricePer1k(v float64) *GroupUpdate {
 	_u.mutation.ResetSearchPricePer1k()
@@ -1840,6 +1852,12 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.WebSearchPricePerCallCleared() {
 		_spec.ClearField(group.FieldWebSearchPricePerCall, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DeepseekToolPricing(); ok {
+		_spec.SetField(group.FieldDeepseekToolPricing, field.TypeJSON, value)
+	}
+	if _u.mutation.DeepseekToolPricingCleared() {
+		_spec.ClearField(group.FieldDeepseekToolPricing, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.SearchPricePer1k(); ok {
 		_spec.SetField(group.FieldSearchPricePer1k, field.TypeFloat64, value)
@@ -3017,6 +3035,18 @@ func (_u *GroupUpdateOne) ClearWebSearchPricePerCall() *GroupUpdateOne {
 	return _u
 }
 
+// SetDeepseekToolPricing sets the "deepseek_tool_pricing" field.
+func (_u *GroupUpdateOne) SetDeepseekToolPricing(v map[string]domain.DeepSeekToolPricing) *GroupUpdateOne {
+	_u.mutation.SetDeepseekToolPricing(v)
+	return _u
+}
+
+// ClearDeepseekToolPricing clears the value of the "deepseek_tool_pricing" field.
+func (_u *GroupUpdateOne) ClearDeepseekToolPricing() *GroupUpdateOne {
+	_u.mutation.ClearDeepseekToolPricing()
+	return _u
+}
+
 // SetSearchPricePer1k sets the "search_price_per_1k" field.
 func (_u *GroupUpdateOne) SetSearchPricePer1k(v float64) *GroupUpdateOne {
 	_u.mutation.ResetSearchPricePer1k()
@@ -4159,6 +4189,12 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if _u.mutation.WebSearchPricePerCallCleared() {
 		_spec.ClearField(group.FieldWebSearchPricePerCall, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.DeepseekToolPricing(); ok {
+		_spec.SetField(group.FieldDeepseekToolPricing, field.TypeJSON, value)
+	}
+	if _u.mutation.DeepseekToolPricingCleared() {
+		_spec.ClearField(group.FieldDeepseekToolPricing, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.SearchPricePer1k(); ok {
 		_spec.SetField(group.FieldSearchPricePer1k, field.TypeFloat64, value)

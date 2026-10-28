@@ -98,6 +98,8 @@ type Group struct {
 	VideoModelPrices map[string]map[string]float64 `json:"video_model_prices,omitempty"`
 	// Codex alpha/search 网页搜索单次价格（USD/次）；nil 表示使用默认价 0.01（官方 $10/1000 次）
 	WebSearchPricePerCall *float64 `json:"web_search_price_per_call,omitempty"`
+	// DeepSeek Search/Fetch 分别配置按次价格和计费倍率模式
+	DeepseekToolPricing map[string]domain.DeepSeekToolPricing `json:"deepseek_tool_pricing,omitempty"`
 	// 搜索工具价格 per 1000 calls（web_search 等）
 	SearchPricePer1k *float64 `json:"search_price_per_1k,omitempty"`
 	// Voice realtime 每分钟价格（USD）
@@ -272,7 +274,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case group.FieldI18n, group.FieldVideoModelPrices, group.FieldModelPricing, group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldOpenaiModelTiers, group.FieldMessagesDispatchModelConfig, group.FieldModelAllowlist, group.FieldImageInputOverrides, group.FieldCodexModelsManifestConfig, group.FieldReasoningEffortMappings:
+		case group.FieldI18n, group.FieldVideoModelPrices, group.FieldDeepseekToolPricing, group.FieldModelPricing, group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldOpenaiModelTiers, group.FieldMessagesDispatchModelConfig, group.FieldModelAllowlist, group.FieldImageInputOverrides, group.FieldCodexModelsManifestConfig, group.FieldReasoningEffortMappings:
 			values[i] = new([]byte)
 		case group.FieldPeakRateEnabled, group.FieldIsExclusive, group.FieldAllowImageGeneration, group.FieldAllowBatchImageGeneration, group.FieldAllowDeepseekSearch, group.FieldAllowDeepseekFetch, group.FieldImageCountBilling, group.FieldImageRateIndependent, group.FieldVideoRateIndependent, group.FieldLongContextPricingEnabled, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldAllowLive, group.FieldForceOpenaiFast, group.FieldForceOpenaiUltrafast, group.FieldFreeOpenaiFast, group.FieldRequireOauthOnly, group.FieldRequirePrivacySet, group.FieldProfitControlEnabled:
 			values[i] = new(sql.NullBool)
@@ -555,6 +557,14 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.WebSearchPricePerCall = new(float64)
 				*_m.WebSearchPricePerCall = value.Float64
+			}
+		case group.FieldDeepseekToolPricing:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field deepseek_tool_pricing", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.DeepseekToolPricing); err != nil {
+					return fmt.Errorf("unmarshal field deepseek_tool_pricing: %w", err)
+				}
 			}
 		case group.FieldSearchPricePer1k:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -1002,6 +1012,9 @@ func (_m *Group) String() string {
 		builder.WriteString("web_search_price_per_call=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("deepseek_tool_pricing=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DeepseekToolPricing))
 	builder.WriteString(", ")
 	if v := _m.SearchPricePer1k; v != nil {
 		builder.WriteString("search_price_per_1k=")

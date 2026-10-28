@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 27 // v27: group image_count_billing and model image-input overrides
+const apiKeyAuthSnapshotVersion = 28 // v28: DeepSeek Search/Fetch pricing modes
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -406,6 +406,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			VideoPrice1080P:                 apiKey.Group.VideoPrice1080P,
 			VideoModelPrices:                NormalizeVideoModelPrices(apiKey.Group.VideoModelPrices),
 			WebSearchPricePerCall:           apiKey.Group.WebSearchPricePerCall,
+			DeepSeekToolPricing:             CloneDeepSeekToolPricing(apiKey.Group.DeepSeekToolPricing),
 			SearchPricePer1k:                apiKey.Group.SearchPricePer1k,
 			AudioRealtimePricePerMin:        apiKey.Group.AudioRealtimePricePerMin,
 			AudioTTSPricePerMillionChars:    apiKey.Group.AudioTTSPricePerMillionChars,
@@ -514,6 +515,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			VideoPrice1080P:                 snapshot.Group.VideoPrice1080P,
 			VideoModelPrices:                NormalizeVideoModelPrices(snapshot.Group.VideoModelPrices),
 			WebSearchPricePerCall:           snapshot.Group.WebSearchPricePerCall,
+			DeepSeekToolPricing:             CloneDeepSeekToolPricing(snapshot.Group.DeepSeekToolPricing),
 			SearchPricePer1k:                snapshot.Group.SearchPricePer1k,
 			AudioRealtimePricePerMin:        snapshot.Group.AudioRealtimePricePerMin,
 			AudioTTSPricePerMillionChars:    snapshot.Group.AudioTTSPricePerMillionChars,

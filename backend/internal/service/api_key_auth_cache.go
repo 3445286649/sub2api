@@ -1,6 +1,10 @@
 package service
 
-import "time"
+import (
+	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/domain"
+)
 
 // APIKeyAuthSnapshot API Key 认证缓存快照（仅包含认证所需字段）
 type APIKeyAuthSnapshot struct {
@@ -57,42 +61,43 @@ type APIKeyAuthUserSnapshot struct {
 
 // APIKeyAuthGroupSnapshot 分组快照
 type APIKeyAuthGroupSnapshot struct {
-	ID                              int64                         `json:"id"`
-	Name                            string                        `json:"name"`
-	Platform                        string                        `json:"platform"`
-	IsExclusive                     bool                          `json:"is_exclusive"`
-	Status                          string                        `json:"status"`
-	SubscriptionType                string                        `json:"subscription_type"`
-	RateMultiplier                  float64                       `json:"rate_multiplier"`
-	DailyLimitUSD                   *float64                      `json:"daily_limit_usd,omitempty"`
-	WeeklyLimitUSD                  *float64                      `json:"weekly_limit_usd,omitempty"`
-	MonthlyLimitUSD                 *float64                      `json:"monthly_limit_usd,omitempty"`
-	AllowImageGeneration            bool                          `json:"allow_image_generation"`
-	AllowBatchImageGeneration       bool                          `json:"allow_batch_image_generation"`
-	AllowDeepSeekSearch             bool                          `json:"allow_deepseek_search"`
-	AllowDeepSeekFetch              bool                          `json:"allow_deepseek_fetch"`
-	ImageCountBilling               bool                          `json:"image_count_billing"`
-	ImageRateIndependent            bool                          `json:"image_rate_independent"`
-	ImageRateMultiplier             float64                       `json:"image_rate_multiplier"`
-	ImagePrice1K                    *float64                      `json:"image_price_1k,omitempty"`
-	ImagePrice2K                    *float64                      `json:"image_price_2k,omitempty"`
-	ImagePrice4K                    *float64                      `json:"image_price_4k,omitempty"`
-	VideoRateIndependent            bool                          `json:"video_rate_independent"`
-	VideoRateMultiplier             float64                       `json:"video_rate_multiplier"`
-	VideoPrice480P                  *float64                      `json:"video_price_480p,omitempty"`
-	VideoPrice720P                  *float64                      `json:"video_price_720p,omitempty"`
-	VideoPrice1080P                 *float64                      `json:"video_price_1080p,omitempty"`
-	VideoModelPrices                map[string]map[string]float64 `json:"video_model_prices,omitempty"`
-	WebSearchPricePerCall           *float64                      `json:"web_search_price_per_call,omitempty"`
-	SearchPricePer1k                *float64                      `json:"search_price_per_1k,omitempty"`
-	AudioRealtimePricePerMin        *float64                      `json:"audio_realtime_price_per_min,omitempty"`
-	AudioTTSPricePerMillionChars    *float64                      `json:"audio_tts_price_per_million_chars,omitempty"`
-	AudioSTTPricePerHour            *float64                      `json:"audio_stt_price_per_hour,omitempty"`
-	LongContextPricingEnabled       bool                          `json:"long_context_pricing_enabled"`
-	ModelPricing                    []ChannelModelPricing         `json:"model_pricing,omitempty"`
-	ClaudeCodeOnly                  bool                          `json:"claude_code_only"`
-	FallbackGroupID                 *int64                        `json:"fallback_group_id,omitempty"`
-	FallbackGroupIDOnInvalidRequest *int64                        `json:"fallback_group_id_on_invalid_request,omitempty"`
+	ID                              int64                                 `json:"id"`
+	Name                            string                                `json:"name"`
+	Platform                        string                                `json:"platform"`
+	IsExclusive                     bool                                  `json:"is_exclusive"`
+	Status                          string                                `json:"status"`
+	SubscriptionType                string                                `json:"subscription_type"`
+	RateMultiplier                  float64                               `json:"rate_multiplier"`
+	DailyLimitUSD                   *float64                              `json:"daily_limit_usd,omitempty"`
+	WeeklyLimitUSD                  *float64                              `json:"weekly_limit_usd,omitempty"`
+	MonthlyLimitUSD                 *float64                              `json:"monthly_limit_usd,omitempty"`
+	AllowImageGeneration            bool                                  `json:"allow_image_generation"`
+	AllowBatchImageGeneration       bool                                  `json:"allow_batch_image_generation"`
+	AllowDeepSeekSearch             bool                                  `json:"allow_deepseek_search"`
+	AllowDeepSeekFetch              bool                                  `json:"allow_deepseek_fetch"`
+	ImageCountBilling               bool                                  `json:"image_count_billing"`
+	ImageRateIndependent            bool                                  `json:"image_rate_independent"`
+	ImageRateMultiplier             float64                               `json:"image_rate_multiplier"`
+	ImagePrice1K                    *float64                              `json:"image_price_1k,omitempty"`
+	ImagePrice2K                    *float64                              `json:"image_price_2k,omitempty"`
+	ImagePrice4K                    *float64                              `json:"image_price_4k,omitempty"`
+	VideoRateIndependent            bool                                  `json:"video_rate_independent"`
+	VideoRateMultiplier             float64                               `json:"video_rate_multiplier"`
+	VideoPrice480P                  *float64                              `json:"video_price_480p,omitempty"`
+	VideoPrice720P                  *float64                              `json:"video_price_720p,omitempty"`
+	VideoPrice1080P                 *float64                              `json:"video_price_1080p,omitempty"`
+	VideoModelPrices                map[string]map[string]float64         `json:"video_model_prices,omitempty"`
+	WebSearchPricePerCall           *float64                              `json:"web_search_price_per_call,omitempty"`
+	DeepSeekToolPricing             map[string]domain.DeepSeekToolPricing `json:"deepseek_tool_pricing,omitempty"`
+	SearchPricePer1k                *float64                              `json:"search_price_per_1k,omitempty"`
+	AudioRealtimePricePerMin        *float64                              `json:"audio_realtime_price_per_min,omitempty"`
+	AudioTTSPricePerMillionChars    *float64                              `json:"audio_tts_price_per_million_chars,omitempty"`
+	AudioSTTPricePerHour            *float64                              `json:"audio_stt_price_per_hour,omitempty"`
+	LongContextPricingEnabled       bool                                  `json:"long_context_pricing_enabled"`
+	ModelPricing                    []ChannelModelPricing                 `json:"model_pricing,omitempty"`
+	ClaudeCodeOnly                  bool                                  `json:"claude_code_only"`
+	FallbackGroupID                 *int64                                `json:"fallback_group_id,omitempty"`
+	FallbackGroupIDOnInvalidRequest *int64                                `json:"fallback_group_id_on_invalid_request,omitempty"`
 
 	// Model routing is used by gateway account selection, so it must be part of auth cache snapshot.
 	// Only anthropic groups use these fields; others may leave them empty.
@@ -113,7 +118,7 @@ type APIKeyAuthGroupSnapshot struct {
 	DefaultMappedModel          string                            `json:"default_mapped_model,omitempty"`
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config,omitempty"`
 	ModelAllowlist              GroupModelAllowlist               `json:"model_allowlist,omitempty"`
-	ImageInputOverrides         map[string]bool                  `json:"image_input_overrides,omitempty"`
+	ImageInputOverrides         map[string]bool                   `json:"image_input_overrides,omitempty"`
 	// CodexModelsManifestConfig 与 ModelAllowlist 一样在认证快照分组里透传，
 	// Codex /models handler 直接读认证分组对象。
 	CodexModelsManifestConfig GroupCodexModelsManifestConfig `json:"codex_models_manifest_config,omitempty"`
