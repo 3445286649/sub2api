@@ -64,6 +64,8 @@ const (
 	FieldAllowDeepseekSearch = "allow_deepseek_search"
 	// FieldAllowDeepseekFetch holds the string denoting the allow_deepseek_fetch field in the database.
 	FieldAllowDeepseekFetch = "allow_deepseek_fetch"
+	// FieldImageCountBilling holds the string denoting the image_count_billing field in the database.
+	FieldImageCountBilling = "image_count_billing"
 	// FieldImageRateIndependent holds the string denoting the image_rate_independent field in the database.
 	FieldImageRateIndependent = "image_rate_independent"
 	// FieldImageRateMultiplier holds the string denoting the image_rate_multiplier field in the database.
@@ -259,6 +261,7 @@ var Columns = []string{
 	FieldAllowBatchImageGeneration,
 	FieldAllowDeepseekSearch,
 	FieldAllowDeepseekFetch,
+	FieldImageCountBilling,
 	FieldImageRateIndependent,
 	FieldImageRateMultiplier,
 	FieldImagePrice1k,
@@ -386,6 +389,8 @@ var (
 	DefaultAllowDeepseekSearch bool
 	// DefaultAllowDeepseekFetch holds the default value on creation for the "allow_deepseek_fetch" field.
 	DefaultAllowDeepseekFetch bool
+	// DefaultImageCountBilling holds the default value on creation for the "image_count_billing" field.
+	DefaultImageCountBilling bool
 	// DefaultImageRateIndependent holds the default value on creation for the "image_rate_independent" field.
 	DefaultImageRateIndependent bool
 	// DefaultImageRateMultiplier holds the default value on creation for the "image_rate_multiplier" field.
@@ -587,6 +592,11 @@ func ByAllowDeepseekSearch(opts ...sql.OrderTermOption) OrderOption {
 // ByAllowDeepseekFetch orders the results by the allow_deepseek_fetch field.
 func ByAllowDeepseekFetch(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAllowDeepseekFetch, opts...).ToFunc()
+}
+
+// ByImageCountBilling orders the results by the image_count_billing field.
+func ByImageCountBilling(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldImageCountBilling, opts...).ToFunc()
 }
 
 // ByImageRateIndependent orders the results by the image_rate_independent field.

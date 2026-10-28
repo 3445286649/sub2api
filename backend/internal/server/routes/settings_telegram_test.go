@@ -18,7 +18,7 @@ func TestTelegramSettingsRoutesRequireAdminAuthentication(t *testing.T) {
 	router := gin.New()
 	adminRoutes := router.Group("/api/v1/admin")
 	adminRoutes.Use(gin.HandlerFunc(middleware.NewAdminAuthMiddleware(nil, nil, nil, nil)))
-	registerSettingsRoutes(adminRoutes, &handler.Handlers{Admin: &handler.AdminHandlers{Setting: &admin.SettingHandler{}}})
+	registerSettingsRoutes(adminRoutes, &handler.Handlers{Admin: &handler.AdminHandlers{Setting: &admin.SettingHandler{}}}, middleware.StepUpAuthMiddleware(func(*gin.Context) {}))
 	for _, tc := range []struct{ method, path string }{
 		{http.MethodGet, "/api/v1/admin/settings/telegram"},
 		{http.MethodPut, "/api/v1/admin/settings/telegram"},

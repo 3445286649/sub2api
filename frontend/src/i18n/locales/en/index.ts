@@ -1,3 +1,4 @@
+import adminAccessKeys from './adminAccessKeys'
 import landing from './landing'
 import headerButtons from './headerButtons'
 import common from './common'
@@ -15,6 +16,7 @@ import { mergeLocaleFallback } from '../merge'
 
 const upstream = {
   ...headerButtons,
+  adminAccessKeys,
   ...landing,
   ...common,
   ...dashboard,

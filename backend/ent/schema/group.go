@@ -115,6 +115,9 @@ func (Group) Fields() []ent.Field {
 		field.Bool("allow_deepseek_fetch").
 			Default(false).
 			Comment("是否允许该 DeepSeek 分组使用网页抓取工具"),
+		field.Bool("image_count_billing").
+			Default(false).
+			Comment("图片生成是否按实际出图张数计费"),
 		field.Bool("image_rate_independent").
 			Default(false).
 			Comment("图片生成是否使用独立倍率；false 表示共享分组有效倍率"),

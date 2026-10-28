@@ -46,6 +46,7 @@ type Group struct {
 	AllowBatchImageGeneration    bool
 	AllowDeepSeekSearch          bool
 	AllowDeepSeekFetch           bool
+	ImageCountBilling            bool
 	ImageRateIndependent         bool
 	ImageRateMultiplier          float64
 	ImagePrice1K                 *float64

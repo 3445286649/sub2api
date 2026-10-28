@@ -120,6 +120,7 @@ func cloneGroupForDuplicate(source *Group, operationID string) *Group {
 		AllowBatchImageGeneration:       source.AllowBatchImageGeneration,
 		AllowDeepSeekSearch:             source.AllowDeepSeekSearch,
 		AllowDeepSeekFetch:              source.AllowDeepSeekFetch,
+		ImageCountBilling:               source.ImageCountBilling,
 		ImageRateIndependent:            source.ImageRateIndependent,
 		ImageRateMultiplier:             source.ImageRateMultiplier,
 		ImagePrice1K:                    cloneGroupValuePointer(source.ImagePrice1K),
