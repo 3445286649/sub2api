@@ -1,3 +1,4 @@
+import groupCacheTest from './groupCacheTest'
 import overview from './overview'
 import channels from './channels'
 import accounts from './accounts'
@@ -12,6 +13,7 @@ export default {
   modelRadar: {
     description: 'Monitor upstream model availability',
   },
+  ...groupCacheTest,
   ...overview,
   ...channels,
   ...accounts,

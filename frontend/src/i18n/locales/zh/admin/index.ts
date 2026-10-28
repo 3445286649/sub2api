@@ -1,3 +1,4 @@
+import groupCacheTest from './groupCacheTest'
 import overview from './overview'
 import channels from './channels'
 import accounts from './accounts'
@@ -12,6 +13,7 @@ export default {
   modelRadar: {
     description: '监控上游模型可用性',
   },
+  ...groupCacheTest,
   ...overview,
   ...channels,
   ...accounts,
