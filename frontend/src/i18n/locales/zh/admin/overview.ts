@@ -1127,6 +1127,15 @@ export default {
           '留空使用默认价 $0.01/次（官方定价 $10/1000 次）；填 0 表示免费。实际扣费会叠加分组费率倍数。',
         finalPricePreview: '应用当前倍率后的单次价格：{price}'
       },
+      deepSeekTools: {
+        title: 'DeepSeek 网页工具',
+        search: '网页搜索 Search',
+        fetch: '网页抓取 Fetch',
+        hint: '仅开放给此 DeepSeek 分组的 API Key；上游渠道需支持对应工具接口，成功返回非空结果时按网页工具单次费用计费。',
+        pricingTitle: 'DeepSeek Search / Fetch 单次价格',
+        pricePerCall: '调用价格（USD/次）',
+        priceHint: 'Search 和 Fetch 共用此价格；留空时按默认 0.01 USD/次。'
+      },
       peakRate: {
         enable: '启用高峰倍率',
         peakStart: '高峰开始',
@@ -1162,6 +1171,17 @@ export default {
           empty: '请输入模型条目',
           duplicate: '该条目已存在'
         }
+      },
+      imageInput: {
+        title: '图片输入（按模型）',
+        hint: '仅影响 Codex 模型列表的上传图片能力。开启前请确认该分组所有可路由渠道均能接收图片；自动模式沿用上游能力判断。',
+        model: '精确模型 ID',
+        add: '添加模型',
+        auto: '自动',
+        enabled: '开启',
+        disabled: '关闭',
+        invalidModel: '请输入不含通配符的有效模型 ID（最多 100 字符）',
+        duplicateOrLimit: '模型已存在，或已达到 256 个配置上限'
       },
       codexModelsManifest: {
         title: '固定账号获取模型列表',

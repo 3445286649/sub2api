@@ -874,6 +874,42 @@ func TestBuildCodexModelsManifestForGroupUsesDeepSeekVisionCapabilities(t *testi
 	}
 }
 
+func TestGroupImageInputOverridesAffectGeneratedAndMergedCatalogs(t *testing.T) {
+	t.Parallel()
+	const groupID int64 = 791
+	account := Account{
+		ID: 1, Platform: PlatformDeepseek, Type: AccountTypeAPIKey,
+		Credentials: map[string]any{"model_mapping": map[string]any{
+			"vision-alias": "deepseek-v4-flash-vision-exp",
+			"text-alias": "deepseek-v4-pro",
+		}},
+	}
+	group := &Group{ID: groupID, Platform: PlatformDeepseek, ImageInputOverrides: map[string]bool{
+		"vision-alias": false,
+		"text-alias":   true,
+	}}
+	svc := &GatewayService{accountRepo: codexModelsVisibilityAccountRepo{byGroup: map[int64][]Account{groupID: {account}}}}
+	body, err := svc.BuildCodexModelsManifestForGroup(context.Background(), group, "", []string{"vision-alias", "text-alias"})
+	require.NoError(t, err)
+	models := decodeCodexManifestModels(t, body)
+	bySlug := make(map[string]map[string]any, len(models))
+	for _, model := range models {
+		bySlug[model["slug"].(string)] = model
+	}
+	require.Equal(t, []any{"text"}, bySlug["vision-alias"]["input_modalities"])
+	require.Equal(t, []any{"text", "image"}, bySlug["text-alias"]["input_modalities"])
+
+	openAIGroup := &Group{ID: groupID, Platform: PlatformOpenAI, ImageInputOverrides: map[string]bool{"text-alias": true}}
+	openAISvc := &OpenAIGatewayService{accountRepo: codexModelsVisibilityAccountRepo{}}
+	manifest := &OpenAIModelsResponse{Body: []byte(`{"models":[{"slug":"text-alias","input_modalities":["text"],"unknown":"kept"},{"slug":"untouched","input_modalities":["text"]}]}`)}
+	require.NoError(t, openAISvc.MergeGroupConfiguredCodexModels(context.Background(), openAIGroup, manifest, ""))
+	models = decodeCodexManifestModels(t, manifest.Body)
+	require.Equal(t, []any{"text", "image"}, models[0]["input_modalities"])
+	require.Equal(t, "kept", models[0]["unknown"])
+	require.Equal(t, []any{"text"}, models[1]["input_modalities"])
+	require.Equal(t, codexModelsManifestBodyETag(manifest.Body), manifest.ETag)
+}
+
 func TestBuildCodexModelsManifestForGroupPrefersSyncedOpenAIImageCapabilities(t *testing.T) {
 	t.Parallel()
 

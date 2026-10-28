@@ -162,6 +162,28 @@ func TestInflightEstimate_MediaKinds(t *testing.T) {
 	require.Greater(t, est, 0.0)
 }
 
+func TestInflightEstimate_DeepSeekToolUsesGroupCallPrice(t *testing.T) {
+	groupID := int64(31)
+	price := 0.04
+	group := &Group{ID: groupID, Platform: PlatformDeepseek, RateMultiplier: 2, WebSearchPricePerCall: &price}
+	svc := newInflightEstimateGateway(t, nil)
+	apiKey := &APIKey{User: &User{ID: 1}, GroupID: &groupID, Group: group}
+
+	est, priced := svc.EstimateInflightReservation(context.Background(), apiKey, InflightEstimateRequest{
+		Model: "deepseek-tool-search", Kind: InflightEstimatePerRequest, WebSearchCalls: 1,
+	})
+	require.True(t, priced)
+	require.InDelta(t, 0.08, est, 1e-12)
+
+	free := 0.0
+	group.WebSearchPricePerCall = &free
+	est, priced = svc.EstimateInflightReservation(context.Background(), apiKey, InflightEstimateRequest{
+		Model: "deepseek-tool-fetch", Kind: InflightEstimatePerRequest, WebSearchCalls: 1,
+	})
+	require.True(t, priced)
+	require.Zero(t, est)
+}
+
 // ---------------------------------------------------------------------------
 // reservation handle: hand-off to billing task, renewal
 // ---------------------------------------------------------------------------

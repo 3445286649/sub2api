@@ -226,6 +226,8 @@ func RegisterGatewayRoutes(
 			h.Gateway.Responses(c)
 		}))
 		gateway.POST("/alpha/search", textBodyLimit, h.OpenAIGateway.AlphaSearch)
+		gateway.POST("/tools/search", textBodyLimit, h.OpenAIGateway.DeepSeekSearch)
+		gateway.POST("/tools/fetch", textBodyLimit, h.OpenAIGateway.DeepSeekFetch)
 		gateway.GET("/responses", func(c *gin.Context) {
 			h.OpenAIGateway.ResponsesWebSocket(c)
 		})
@@ -378,6 +380,8 @@ func RegisterGatewayRoutes(
 	rootRoute(http.MethodPost, "/responses", bodyLimit, responsesHandler)
 	rootRoute(http.MethodPost, "/responses/*subpath", bodyLimit, guardResponsesSubpath(responsesHandler))
 	rootRoute(http.MethodPost, "/alpha/search", textBodyLimit, h.OpenAIGateway.AlphaSearch)
+	rootRoute(http.MethodPost, "/tools/search", textBodyLimit, h.OpenAIGateway.DeepSeekSearch)
+	rootRoute(http.MethodPost, "/tools/fetch", textBodyLimit, h.OpenAIGateway.DeepSeekFetch)
 	rootRoute(http.MethodGet, "/responses", bodyLimit, func(c *gin.Context) {
 		h.OpenAIGateway.ResponsesWebSocket(c)
 	})

@@ -159,6 +159,10 @@ func (s *OpenAIGatewayService) BuildGroupConfiguredCodexModelsManifest(
 	if err != nil {
 		return nil, false, fmt.Errorf("build group configured Codex models: %w", err)
 	}
+	body, _, err = applyGroupImageInputOverrides(body, group.ImageInputOverrides)
+	if err != nil {
+		return nil, false, fmt.Errorf("apply group image input overrides: %w", err)
+	}
 	manifest := &OpenAIModelsResponse{
 		Body: body,
 		ETag: codexModelsManifestBodyETag(body),
@@ -216,7 +220,11 @@ func (s *OpenAIGatewayService) MergeGroupConfiguredCodexModels(
 		return fmt.Errorf("filter retired Codex models: %w", err)
 	}
 	body = filtered
-	if changed || retired {
+	body, imageChanged, err := applyGroupImageInputOverrides(body, group.ImageInputOverrides)
+	if err != nil {
+		return fmt.Errorf("apply group image input overrides: %w", err)
+	}
+	if changed || retired || imageChanged {
 		manifest.Body = body
 		manifest.ETag = codexModelsManifestBodyETag(body)
 	}
@@ -884,7 +892,7 @@ func (s *GatewayService) BuildCodexModelsManifestForGroup(
 			compositeRoutesAvailable = false
 		}
 	}
-	return buildCodexModelsManifestForAccounts(
+	body, err := buildCodexModelsManifestForAccounts(
 		effectivePlatform,
 		modelIDs,
 		catalog,
@@ -892,6 +900,67 @@ func (s *GatewayService) BuildCodexModelsManifestForGroup(
 		compositeRoutes,
 		compositeRoutesAvailable,
 	)
+	if err != nil {
+		return nil, err
+	}
+	body, _, err = applyGroupImageInputOverrides(body, group.ImageInputOverrides)
+	return body, err
+}
+
+func applyGroupImageInputOverrides(body []byte, overrides map[string]bool) ([]byte, bool, error) {
+	if len(overrides) == 0 {
+		return body, false, nil
+	}
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, false, err
+	}
+	var models []json.RawMessage
+	if err := json.Unmarshal(envelope["models"], &models); err != nil {
+		return nil, false, err
+	}
+	changed := false
+	for i, raw := range models {
+		var model map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &model); err != nil {
+			return nil, false, err
+		}
+		var slug string
+		if err := json.Unmarshal(model["slug"], &slug); err != nil {
+			continue
+		}
+		enabled, ok := overrides[slug]
+		if !ok {
+			continue
+		}
+		modalities := []string{"text"}
+		if enabled {
+			modalities = append(modalities, "image")
+		}
+		encoded, err := json.Marshal(modalities)
+		if err != nil {
+			return nil, false, err
+		}
+		if bytes.Equal(model["input_modalities"], encoded) {
+			continue
+		}
+		model["input_modalities"] = encoded
+		models[i], err = json.Marshal(model)
+		if err != nil {
+			return nil, false, err
+		}
+		changed = true
+	}
+	if !changed {
+		return body, false, nil
+	}
+	encoded, err := json.Marshal(models)
+	if err != nil {
+		return nil, false, err
+	}
+	envelope["models"] = encoded
+	body, err = json.Marshal(envelope)
+	return body, true, err
 }
 
 func buildCodexModelsManifestForAccounts(

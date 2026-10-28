@@ -373,6 +373,34 @@ func (_u *GroupUpdate) SetNillableAllowBatchImageGeneration(v *bool) *GroupUpdat
 	return _u
 }
 
+// SetAllowDeepseekSearch sets the "allow_deepseek_search" field.
+func (_u *GroupUpdate) SetAllowDeepseekSearch(v bool) *GroupUpdate {
+	_u.mutation.SetAllowDeepseekSearch(v)
+	return _u
+}
+
+// SetNillableAllowDeepseekSearch sets the "allow_deepseek_search" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableAllowDeepseekSearch(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetAllowDeepseekSearch(*v)
+	}
+	return _u
+}
+
+// SetAllowDeepseekFetch sets the "allow_deepseek_fetch" field.
+func (_u *GroupUpdate) SetAllowDeepseekFetch(v bool) *GroupUpdate {
+	_u.mutation.SetAllowDeepseekFetch(v)
+	return _u
+}
+
+// SetNillableAllowDeepseekFetch sets the "allow_deepseek_fetch" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableAllowDeepseekFetch(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetAllowDeepseekFetch(*v)
+	}
+	return _u
+}
+
 // SetImageRateIndependent sets the "image_rate_independent" field.
 func (_u *GroupUpdate) SetImageRateIndependent(v bool) *GroupUpdate {
 	_u.mutation.SetImageRateIndependent(v)
@@ -1113,6 +1141,12 @@ func (_u *GroupUpdate) SetNillableModelAllowlist(v *domain.GroupModelAllowlist) 
 	return _u
 }
 
+// SetImageInputOverrides sets the "image_input_overrides" field.
+func (_u *GroupUpdate) SetImageInputOverrides(v map[string]bool) *GroupUpdate {
+	_u.mutation.SetImageInputOverrides(v)
+	return _u
+}
+
 // SetCodexModelsManifestConfig sets the "codex_models_manifest_config" field.
 func (_u *GroupUpdate) SetCodexModelsManifestConfig(v domain.GroupCodexModelsManifestConfig) *GroupUpdate {
 	_u.mutation.SetCodexModelsManifestConfig(v)
@@ -1685,6 +1719,12 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AllowBatchImageGeneration(); ok {
 		_spec.SetField(group.FieldAllowBatchImageGeneration, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.AllowDeepseekSearch(); ok {
+		_spec.SetField(group.FieldAllowDeepseekSearch, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AllowDeepseekFetch(); ok {
+		_spec.SetField(group.FieldAllowDeepseekFetch, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.ImageRateIndependent(); ok {
 		_spec.SetField(group.FieldImageRateIndependent, field.TypeBool, value)
 	}
@@ -1913,6 +1953,9 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.ModelAllowlist(); ok {
 		_spec.SetField(group.FieldModelAllowlist, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.ImageInputOverrides(); ok {
+		_spec.SetField(group.FieldImageInputOverrides, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.CodexModelsManifestConfig(); ok {
 		_spec.SetField(group.FieldCodexModelsManifestConfig, field.TypeJSON, value)
@@ -2598,6 +2641,34 @@ func (_u *GroupUpdateOne) SetAllowBatchImageGeneration(v bool) *GroupUpdateOne {
 func (_u *GroupUpdateOne) SetNillableAllowBatchImageGeneration(v *bool) *GroupUpdateOne {
 	if v != nil {
 		_u.SetAllowBatchImageGeneration(*v)
+	}
+	return _u
+}
+
+// SetAllowDeepseekSearch sets the "allow_deepseek_search" field.
+func (_u *GroupUpdateOne) SetAllowDeepseekSearch(v bool) *GroupUpdateOne {
+	_u.mutation.SetAllowDeepseekSearch(v)
+	return _u
+}
+
+// SetNillableAllowDeepseekSearch sets the "allow_deepseek_search" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableAllowDeepseekSearch(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetAllowDeepseekSearch(*v)
+	}
+	return _u
+}
+
+// SetAllowDeepseekFetch sets the "allow_deepseek_fetch" field.
+func (_u *GroupUpdateOne) SetAllowDeepseekFetch(v bool) *GroupUpdateOne {
+	_u.mutation.SetAllowDeepseekFetch(v)
+	return _u
+}
+
+// SetNillableAllowDeepseekFetch sets the "allow_deepseek_fetch" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableAllowDeepseekFetch(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetAllowDeepseekFetch(*v)
 	}
 	return _u
 }
@@ -3342,6 +3413,12 @@ func (_u *GroupUpdateOne) SetNillableModelAllowlist(v *domain.GroupModelAllowlis
 	return _u
 }
 
+// SetImageInputOverrides sets the "image_input_overrides" field.
+func (_u *GroupUpdateOne) SetImageInputOverrides(v map[string]bool) *GroupUpdateOne {
+	_u.mutation.SetImageInputOverrides(v)
+	return _u
+}
+
 // SetCodexModelsManifestConfig sets the "codex_models_manifest_config" field.
 func (_u *GroupUpdateOne) SetCodexModelsManifestConfig(v domain.GroupCodexModelsManifestConfig) *GroupUpdateOne {
 	_u.mutation.SetCodexModelsManifestConfig(v)
@@ -3944,6 +4021,12 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	if value, ok := _u.mutation.AllowBatchImageGeneration(); ok {
 		_spec.SetField(group.FieldAllowBatchImageGeneration, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.AllowDeepseekSearch(); ok {
+		_spec.SetField(group.FieldAllowDeepseekSearch, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AllowDeepseekFetch(); ok {
+		_spec.SetField(group.FieldAllowDeepseekFetch, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.ImageRateIndependent(); ok {
 		_spec.SetField(group.FieldImageRateIndependent, field.TypeBool, value)
 	}
@@ -4172,6 +4255,9 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.ModelAllowlist(); ok {
 		_spec.SetField(group.FieldModelAllowlist, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.ImageInputOverrides(); ok {
+		_spec.SetField(group.FieldImageInputOverrides, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.CodexModelsManifestConfig(); ok {
 		_spec.SetField(group.FieldCodexModelsManifestConfig, field.TypeJSON, value)

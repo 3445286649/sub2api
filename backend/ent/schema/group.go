@@ -109,6 +109,12 @@ func (Group) Fields() []ent.Field {
 		field.Bool("allow_batch_image_generation").
 			Default(false).
 			Comment("是否允许该分组使用批量图片生成能力"),
+		field.Bool("allow_deepseek_search").
+			Default(false).
+			Comment("是否允许该 DeepSeek 分组使用网页搜索工具"),
+		field.Bool("allow_deepseek_fetch").
+			Default(false).
+			Comment("是否允许该 DeepSeek 分组使用网页抓取工具"),
 		field.Bool("image_rate_independent").
 			Default(false).
 			Comment("图片生成是否使用独立倍率；false 表示共享分组有效倍率"),
@@ -278,6 +284,10 @@ func (Group) Fields() []ent.Field {
 			Default(domain.GroupModelAllowlist{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
 			Comment("分组模型白名单：同时约束模型列表接口与请求准入"),
+		field.JSON("image_input_overrides", map[string]bool{}).
+			Default(map[string]bool{}).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("按公开模型名覆盖 Codex 图片输入能力；缺省时跟随上游"),
 		field.JSON("codex_models_manifest_config", domain.GroupCodexModelsManifestConfig{}).
 			Default(domain.GroupCodexModelsManifestConfig{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).

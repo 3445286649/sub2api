@@ -160,6 +160,16 @@ func AllowBatchImageGeneration(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldAllowBatchImageGeneration, v))
 }
 
+// AllowDeepseekSearch applies equality check predicate on the "allow_deepseek_search" field. It's identical to AllowDeepseekSearchEQ.
+func AllowDeepseekSearch(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldAllowDeepseekSearch, v))
+}
+
+// AllowDeepseekFetch applies equality check predicate on the "allow_deepseek_fetch" field. It's identical to AllowDeepseekFetchEQ.
+func AllowDeepseekFetch(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldAllowDeepseekFetch, v))
+}
+
 // ImageRateIndependent applies equality check predicate on the "image_rate_independent" field. It's identical to ImageRateIndependentEQ.
 func ImageRateIndependent(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldImageRateIndependent, v))
@@ -1328,6 +1338,26 @@ func AllowBatchImageGenerationEQ(v bool) predicate.Group {
 // AllowBatchImageGenerationNEQ applies the NEQ predicate on the "allow_batch_image_generation" field.
 func AllowBatchImageGenerationNEQ(v bool) predicate.Group {
 	return predicate.Group(sql.FieldNEQ(FieldAllowBatchImageGeneration, v))
+}
+
+// AllowDeepseekSearchEQ applies the EQ predicate on the "allow_deepseek_search" field.
+func AllowDeepseekSearchEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldAllowDeepseekSearch, v))
+}
+
+// AllowDeepseekSearchNEQ applies the NEQ predicate on the "allow_deepseek_search" field.
+func AllowDeepseekSearchNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldAllowDeepseekSearch, v))
+}
+
+// AllowDeepseekFetchEQ applies the EQ predicate on the "allow_deepseek_fetch" field.
+func AllowDeepseekFetchEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldAllowDeepseekFetch, v))
+}
+
+// AllowDeepseekFetchNEQ applies the NEQ predicate on the "allow_deepseek_fetch" field.
+func AllowDeepseekFetchNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldAllowDeepseekFetch, v))
 }
 
 // ImageRateIndependentEQ applies the EQ predicate on the "image_rate_independent" field.

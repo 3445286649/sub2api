@@ -397,6 +397,28 @@ func normalizeOpenAIModelTiers(tiers map[string]string) (map[string]string, erro
 	return result, nil
 }
 
+func normalizeImageInputOverrides(overrides map[string]bool) (map[string]bool, error) {
+	if len(overrides) > 256 {
+		return nil, infraerrors.BadRequest("INVALID_IMAGE_INPUT_OVERRIDES", "too many image input overrides")
+	}
+	result := make(map[string]bool, len(overrides))
+	seen := make(map[string]struct{}, len(overrides))
+	for model, enabled := range overrides {
+		trimmed := strings.TrimSpace(model)
+		if trimmed == "" || len(trimmed) > 100 || strings.ContainsAny(trimmed, "*?\x00") ||
+			trimmed == "__proto__" || trimmed == "prototype" || trimmed == "constructor" {
+			return nil, infraerrors.BadRequest("INVALID_IMAGE_INPUT_OVERRIDES", "invalid model name in image input overrides")
+		}
+		key := strings.ToLower(trimmed)
+		if _, exists := seen[key]; exists {
+			return nil, infraerrors.BadRequest("INVALID_IMAGE_INPUT_OVERRIDES", "duplicate model in image input overrides")
+		}
+		seen[key] = struct{}{}
+		result[trimmed] = enabled
+	}
+	return result, nil
+}
+
 func normalizeCreateGroupInputForSimpleMode(input *CreateGroupInput) {
 	if input == nil {
 		return
@@ -599,6 +621,10 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if err != nil {
 		return nil, err
 	}
+	imageInputOverrides, err := normalizeImageInputOverrides(input.ImageInputOverrides)
+	if err != nil {
+		return nil, err
+	}
 
 	group := &Group{
 		Name:                            input.Name,
@@ -616,6 +642,8 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		ModelPricing:                    modelPricing,
 		AllowImageGeneration:            allowImageGeneration,
 		AllowBatchImageGeneration:       allowBatchImageGeneration,
+		AllowDeepSeekSearch:             input.AllowDeepSeekSearch && platform == PlatformDeepseek,
+		AllowDeepSeekFetch:              input.AllowDeepSeekFetch && platform == PlatformDeepseek,
 		ImageRateIndependent:            input.ImageRateIndependent,
 		ImageRateMultiplier:             imageRateMultiplier,
 		BatchImageDiscountMultiplier:    batchImageDiscountMultiplier,
@@ -658,6 +686,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		DefaultMappedModel:              input.DefaultMappedModel,
 		MessagesDispatchModelConfig:     normalizeOpenAIMessagesDispatchModelConfig(input.MessagesDispatchModelConfig),
 		ModelAllowlist:                  modelAllowlist,
+		ImageInputOverrides:             imageInputOverrides,
 		// 固定账号 manifest 配置：账号绑定发生在分组创建之后，创建路径禁止开启，
 		// 成员关系无从校验（前端创建对话框也不展示）。
 		CodexModelsManifestConfig:   normalizeCodexModelsManifestConfig(platform, input.CodexModelsManifestConfig),
@@ -871,6 +900,12 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.AllowBatchImageGeneration != nil {
 		group.AllowBatchImageGeneration = *input.AllowBatchImageGeneration
 	}
+	if input.AllowDeepSeekSearch != nil {
+		group.AllowDeepSeekSearch = *input.AllowDeepSeekSearch
+	}
+	if input.AllowDeepSeekFetch != nil {
+		group.AllowDeepSeekFetch = *input.AllowDeepSeekFetch
+	}
 	if !group.AllowImageGeneration || group.Platform != PlatformGemini {
 		group.AllowBatchImageGeneration = false
 	}
@@ -1071,6 +1106,13 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		}
 		group.ModelAllowlist = modelAllowlist
 	}
+	if input.ImageInputOverrides != nil {
+		overrides, err := normalizeImageInputOverrides(*input.ImageInputOverrides)
+		if err != nil {
+			return nil, err
+		}
+		group.ImageInputOverrides = overrides
+	}
 	if input.CodexModelsManifestConfig != nil {
 		group.CodexModelsManifestConfig = *input.CodexModelsManifestConfig
 	}
@@ -1102,6 +1144,10 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	sanitizeGroupOpenAIFast(group)
 	if group.Platform != PlatformOpenAI && group.Platform != PlatformComposite {
 		group.AllowLive = false
+	}
+	if group.Platform != PlatformDeepseek {
+		group.AllowDeepSeekSearch = false
+		group.AllowDeepSeekFetch = false
 	}
 	sanitizeGroupReasoningEffortPolicy(group)
 	// 固定账号 manifest 配置：按最终平台归一化（切出 openai 平台时静默归零，

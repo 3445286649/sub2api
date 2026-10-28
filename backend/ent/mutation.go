@@ -24281,6 +24281,8 @@ type GroupMutation struct {
 	adddefault_validity_days                *int
 	allow_image_generation                  *bool
 	allow_batch_image_generation            *bool
+	allow_deepseek_search                   *bool
+	allow_deepseek_fetch                    *bool
 	image_rate_independent                  *bool
 	image_rate_multiplier                   *float64
 	addimage_rate_multiplier                *float64
@@ -24340,6 +24342,7 @@ type GroupMutation struct {
 	default_mapped_model                    *string
 	messages_dispatch_model_config          *domain.OpenAIMessagesDispatchModelConfig
 	model_allowlist                         *domain.GroupModelAllowlist
+	image_input_overrides                   *map[string]bool
 	codex_models_manifest_config            *domain.GroupCodexModelsManifestConfig
 	rpm_limit                               *int
 	addrpm_limit                            *int
@@ -25465,6 +25468,78 @@ func (m *GroupMutation) OldAllowBatchImageGeneration(ctx context.Context) (v boo
 // ResetAllowBatchImageGeneration resets all changes to the "allow_batch_image_generation" field.
 func (m *GroupMutation) ResetAllowBatchImageGeneration() {
 	m.allow_batch_image_generation = nil
+}
+
+// SetAllowDeepseekSearch sets the "allow_deepseek_search" field.
+func (m *GroupMutation) SetAllowDeepseekSearch(b bool) {
+	m.allow_deepseek_search = &b
+}
+
+// AllowDeepseekSearch returns the value of the "allow_deepseek_search" field in the mutation.
+func (m *GroupMutation) AllowDeepseekSearch() (r bool, exists bool) {
+	v := m.allow_deepseek_search
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAllowDeepseekSearch returns the old "allow_deepseek_search" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldAllowDeepseekSearch(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAllowDeepseekSearch is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAllowDeepseekSearch requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAllowDeepseekSearch: %w", err)
+	}
+	return oldValue.AllowDeepseekSearch, nil
+}
+
+// ResetAllowDeepseekSearch resets all changes to the "allow_deepseek_search" field.
+func (m *GroupMutation) ResetAllowDeepseekSearch() {
+	m.allow_deepseek_search = nil
+}
+
+// SetAllowDeepseekFetch sets the "allow_deepseek_fetch" field.
+func (m *GroupMutation) SetAllowDeepseekFetch(b bool) {
+	m.allow_deepseek_fetch = &b
+}
+
+// AllowDeepseekFetch returns the value of the "allow_deepseek_fetch" field in the mutation.
+func (m *GroupMutation) AllowDeepseekFetch() (r bool, exists bool) {
+	v := m.allow_deepseek_fetch
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAllowDeepseekFetch returns the old "allow_deepseek_fetch" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldAllowDeepseekFetch(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAllowDeepseekFetch is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAllowDeepseekFetch requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAllowDeepseekFetch: %w", err)
+	}
+	return oldValue.AllowDeepseekFetch, nil
+}
+
+// ResetAllowDeepseekFetch resets all changes to the "allow_deepseek_fetch" field.
+func (m *GroupMutation) ResetAllowDeepseekFetch() {
+	m.allow_deepseek_fetch = nil
 }
 
 // SetImageRateIndependent sets the "image_rate_independent" field.
@@ -27483,6 +27558,42 @@ func (m *GroupMutation) ResetModelAllowlist() {
 	m.model_allowlist = nil
 }
 
+// SetImageInputOverrides sets the "image_input_overrides" field.
+func (m *GroupMutation) SetImageInputOverrides(value map[string]bool) {
+	m.image_input_overrides = &value
+}
+
+// ImageInputOverrides returns the value of the "image_input_overrides" field in the mutation.
+func (m *GroupMutation) ImageInputOverrides() (r map[string]bool, exists bool) {
+	v := m.image_input_overrides
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImageInputOverrides returns the old "image_input_overrides" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldImageInputOverrides(ctx context.Context) (v map[string]bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImageInputOverrides is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImageInputOverrides requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImageInputOverrides: %w", err)
+	}
+	return oldValue.ImageInputOverrides, nil
+}
+
+// ResetImageInputOverrides resets all changes to the "image_input_overrides" field.
+func (m *GroupMutation) ResetImageInputOverrides() {
+	m.image_input_overrides = nil
+}
+
 // SetCodexModelsManifestConfig sets the "codex_models_manifest_config" field.
 func (m *GroupMutation) SetCodexModelsManifestConfig(dcmmc domain.GroupCodexModelsManifestConfig) {
 	m.codex_models_manifest_config = &dcmmc
@@ -28204,7 +28315,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 69)
+	fields := make([]string, 0, 72)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -28270,6 +28381,12 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.allow_batch_image_generation != nil {
 		fields = append(fields, group.FieldAllowBatchImageGeneration)
+	}
+	if m.allow_deepseek_search != nil {
+		fields = append(fields, group.FieldAllowDeepseekSearch)
+	}
+	if m.allow_deepseek_fetch != nil {
+		fields = append(fields, group.FieldAllowDeepseekFetch)
 	}
 	if m.image_rate_independent != nil {
 		fields = append(fields, group.FieldImageRateIndependent)
@@ -28388,6 +28505,9 @@ func (m *GroupMutation) Fields() []string {
 	if m.model_allowlist != nil {
 		fields = append(fields, group.FieldModelAllowlist)
 	}
+	if m.image_input_overrides != nil {
+		fields = append(fields, group.FieldImageInputOverrides)
+	}
 	if m.codex_models_manifest_config != nil {
 		fields = append(fields, group.FieldCodexModelsManifestConfig)
 	}
@@ -28464,6 +28584,10 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.AllowImageGeneration()
 	case group.FieldAllowBatchImageGeneration:
 		return m.AllowBatchImageGeneration()
+	case group.FieldAllowDeepseekSearch:
+		return m.AllowDeepseekSearch()
+	case group.FieldAllowDeepseekFetch:
+		return m.AllowDeepseekFetch()
 	case group.FieldImageRateIndependent:
 		return m.ImageRateIndependent()
 	case group.FieldImageRateMultiplier:
@@ -28542,6 +28666,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.MessagesDispatchModelConfig()
 	case group.FieldModelAllowlist:
 		return m.ModelAllowlist()
+	case group.FieldImageInputOverrides:
+		return m.ImageInputOverrides()
 	case group.FieldCodexModelsManifestConfig:
 		return m.CodexModelsManifestConfig()
 	case group.FieldRpmLimit:
@@ -28611,6 +28737,10 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldAllowImageGeneration(ctx)
 	case group.FieldAllowBatchImageGeneration:
 		return m.OldAllowBatchImageGeneration(ctx)
+	case group.FieldAllowDeepseekSearch:
+		return m.OldAllowDeepseekSearch(ctx)
+	case group.FieldAllowDeepseekFetch:
+		return m.OldAllowDeepseekFetch(ctx)
 	case group.FieldImageRateIndependent:
 		return m.OldImageRateIndependent(ctx)
 	case group.FieldImageRateMultiplier:
@@ -28689,6 +28819,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldMessagesDispatchModelConfig(ctx)
 	case group.FieldModelAllowlist:
 		return m.OldModelAllowlist(ctx)
+	case group.FieldImageInputOverrides:
+		return m.OldImageInputOverrides(ctx)
 	case group.FieldCodexModelsManifestConfig:
 		return m.OldCodexModelsManifestConfig(ctx)
 	case group.FieldRpmLimit:
@@ -28867,6 +28999,20 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAllowBatchImageGeneration(v)
+		return nil
+	case group.FieldAllowDeepseekSearch:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAllowDeepseekSearch(v)
+		return nil
+	case group.FieldAllowDeepseekFetch:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAllowDeepseekFetch(v)
 		return nil
 	case group.FieldImageRateIndependent:
 		v, ok := value.(bool)
@@ -29140,6 +29286,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetModelAllowlist(v)
+		return nil
+	case group.FieldImageInputOverrides:
+		v, ok := value.(map[string]bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImageInputOverrides(v)
 		return nil
 	case group.FieldCodexModelsManifestConfig:
 		v, ok := value.(domain.GroupCodexModelsManifestConfig)
@@ -29774,6 +29927,12 @@ func (m *GroupMutation) ResetField(name string) error {
 	case group.FieldAllowBatchImageGeneration:
 		m.ResetAllowBatchImageGeneration()
 		return nil
+	case group.FieldAllowDeepseekSearch:
+		m.ResetAllowDeepseekSearch()
+		return nil
+	case group.FieldAllowDeepseekFetch:
+		m.ResetAllowDeepseekFetch()
+		return nil
 	case group.FieldImageRateIndependent:
 		m.ResetImageRateIndependent()
 		return nil
@@ -29890,6 +30049,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldModelAllowlist:
 		m.ResetModelAllowlist()
+		return nil
+	case group.FieldImageInputOverrides:
+		m.ResetImageInputOverrides()
 		return nil
 	case group.FieldCodexModelsManifestConfig:
 		m.ResetCodexModelsManifestConfig()

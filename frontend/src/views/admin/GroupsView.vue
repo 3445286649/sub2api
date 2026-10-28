@@ -521,6 +521,25 @@
           />
           <p class="input-hint">{{ t("admin.groups.platformHint") }}</p>
         </div>
+        <div
+          v-if="!authStore.isSimpleMode && createForm.platform === 'deepseek'"
+          class="border-t border-gray-200 pt-4 dark:border-dark-400"
+        >
+          <h4 class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.groups.deepSeekTools.title') }}</h4>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input v-model="createForm.allow_deepseek_search" type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              {{ t('admin.groups.deepSeekTools.search') }}
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input v-model="createForm.allow_deepseek_fetch" type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              {{ t('admin.groups.deepSeekTools.fetch') }}
+            </label>
+          </div>
+          <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.groups.deepSeekTools.hint') }}
+          </p>
+        </div>
         <!-- 从分组复制账号 -->
         <div v-if="!authStore.isSimpleMode && copyAccountsGroupOptions.length > 0">
           <div class="mb-1.5 flex items-center gap-1">
@@ -888,6 +907,12 @@
             </div>
           </div>
         </div>
+
+        <GroupImageInputOverrides
+          v-model="createForm.image_input_overrides"
+          candidate-list-id="create-image-input-models"
+          :candidates="createModelAllowlistState.items.map((item) => item.id).filter((id) => !id.includes('*'))"
+        />
 
         <!-- 图片生成计费配置 -->
         <div
@@ -1442,16 +1467,18 @@
 
         <!-- Codex 网页搜索按次计费（仅 openai 平台） -->
         <div
-          v-if="createForm.platform === 'openai'"
+          v-if="createForm.platform === 'openai' || createForm.platform === 'deepseek'"
           class="border-t border-gray-200 dark:border-dark-400 pt-4 mt-4"
         >
-          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+          <h4 v-if="createForm.platform === 'openai'" class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
             {{ t("admin.groups.webSearchPricing.title") }}
           </h4>
+          <h4 v-else class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{{ t('admin.groups.deepSeekTools.pricingTitle') }}</h4>
           <div>
-            <label class="input-label">{{
+            <label v-if="createForm.platform === 'openai'" class="input-label">{{
               t("admin.groups.webSearchPricing.pricePerCall")
             }}</label>
+            <label v-else class="input-label">{{ t('admin.groups.deepSeekTools.pricePerCall') }}</label>
             <input
               v-model.number="createForm.web_search_price_per_call"
               type="number"
@@ -1460,10 +1487,12 @@
               placeholder="0.01"
               class="input"
             />
-            <p class="input-hint">
+            <p v-if="createForm.platform === 'openai'" class="input-hint">
               {{ t("admin.groups.webSearchPricing.pricePerCallHint") }}
             </p>
+            <p v-else class="input-hint">{{ t('admin.groups.deepSeekTools.priceHint') }}</p>
             <div
+              v-if="createForm.platform === 'openai'"
               class="mt-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300"
             >
               {{
@@ -2194,6 +2223,25 @@
           />
           <p class="input-hint">{{ t("admin.groups.platformNotEditable") }}</p>
         </div>
+        <div
+          v-if="!authStore.isSimpleMode && editForm.platform === 'deepseek'"
+          class="border-t border-gray-200 pt-4 dark:border-dark-400"
+        >
+          <h4 class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.groups.deepSeekTools.title') }}</h4>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input v-model="editForm.allow_deepseek_search" type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              {{ t('admin.groups.deepSeekTools.search') }}
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input v-model="editForm.allow_deepseek_fetch" type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              {{ t('admin.groups.deepSeekTools.fetch') }}
+            </label>
+          </div>
+          <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.groups.deepSeekTools.hint') }}
+          </p>
+        </div>
         <template v-if="!authStore.isSimpleMode">
         <!-- 从分组复制账号（编辑时） -->
         <div v-if="copyAccountsGroupOptionsForEdit.length > 0">
@@ -2564,6 +2612,12 @@
             </div>
           </div>
         </div>
+
+        <GroupImageInputOverrides
+          v-model="editForm.image_input_overrides"
+          candidate-list-id="edit-image-input-models"
+          :candidates="editModelAllowlistState.items.map((item) => item.id).filter((id) => !id.includes('*'))"
+        />
 
         <!-- 图片生成计费配置 -->
         <div
@@ -3118,16 +3172,18 @@
 
         <!-- Codex 网页搜索按次计费（仅 openai 平台） -->
         <div
-          v-if="editForm.platform === 'openai'"
+          v-if="editForm.platform === 'openai' || editForm.platform === 'deepseek'"
           class="border-t border-gray-200 dark:border-dark-400 pt-4 mt-4"
         >
-          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+          <h4 v-if="editForm.platform === 'openai'" class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
             {{ t("admin.groups.webSearchPricing.title") }}
           </h4>
+          <h4 v-else class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{{ t('admin.groups.deepSeekTools.pricingTitle') }}</h4>
           <div>
-            <label class="input-label">{{
+            <label v-if="editForm.platform === 'openai'" class="input-label">{{
               t("admin.groups.webSearchPricing.pricePerCall")
             }}</label>
+            <label v-else class="input-label">{{ t('admin.groups.deepSeekTools.pricePerCall') }}</label>
             <input
               v-model.number="editForm.web_search_price_per_call"
               type="number"
@@ -3136,10 +3192,12 @@
               placeholder="0.01"
               class="input"
             />
-            <p class="input-hint">
+            <p v-if="editForm.platform === 'openai'" class="input-hint">
               {{ t("admin.groups.webSearchPricing.pricePerCallHint") }}
             </p>
+            <p v-else class="input-hint">{{ t('admin.groups.deepSeekTools.priceHint') }}</p>
             <div
+              v-if="editForm.platform === 'openai'"
               class="mt-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300"
             >
               {{
@@ -4378,6 +4436,7 @@ import GroupRPMOverridesModal from "@/components/admin/group/GroupRPMOverridesMo
 import GroupCapacityBadge from "@/components/common/GroupCapacityBadge.vue";
 import ReasoningEffortPolicyFields from "@/components/admin/group/ReasoningEffortPolicyFields.vue";
 import CodexManifestAccountsField from "@/components/admin/group/CodexManifestAccountsField.vue";
+import GroupImageInputOverrides from "@/components/admin/GroupImageInputOverrides.vue";
 import PricingEntryCard from "@/components/admin/channel/PricingEntryCard.vue";
 import type { PricingFormEntry } from "@/components/admin/channel/types";
 import {
@@ -5090,11 +5149,14 @@ const createForm = reactive({
   force_openai_fast: false,
   force_openai_ultrafast: false,
   openai_model_tiers: {} as Record<string, OpenAIModelTier>,
+  image_input_overrides: {} as Record<string, boolean>,
   free_openai_fast: false,
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
   allow_image_generation: false,
   allow_batch_image_generation: false,
+  allow_deepseek_search: false,
+  allow_deepseek_fetch: false,
   image_rate_independent: false,
   image_rate_multiplier: 1,
   batch_image_discount_multiplier: 0.5,
@@ -5458,11 +5520,14 @@ const editForm = reactive({
   force_openai_fast: false,
   force_openai_ultrafast: false,
   openai_model_tiers: {} as Record<string, OpenAIModelTier>,
+  image_input_overrides: {} as Record<string, boolean>,
   free_openai_fast: false,
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
   allow_image_generation: false,
   allow_batch_image_generation: false,
+  allow_deepseek_search: false,
+  allow_deepseek_fetch: false,
   image_rate_independent: false,
   image_rate_multiplier: 1,
   batch_image_discount_multiplier: 0.5,
@@ -5921,6 +5986,8 @@ const closeCreateModal = () => {
   createForm.monthly_limit_usd = null;
   createForm.allow_image_generation = false;
   createForm.allow_batch_image_generation = false;
+  createForm.allow_deepseek_search = false;
+  createForm.allow_deepseek_fetch = false;
   createForm.image_rate_independent = false;
   createForm.image_rate_multiplier = 1;
   createForm.batch_image_discount_multiplier = 0.5;
@@ -5938,6 +6005,7 @@ const closeCreateModal = () => {
   createForm.force_openai_fast = false;
   createForm.force_openai_ultrafast = false;
   createForm.openai_model_tiers = {};
+  createForm.image_input_overrides = {};
   createTierModels.value = [];
   createTierModelInput.value = "";
   createTierModelInputError.value = false;
@@ -6093,6 +6161,7 @@ const handleCreateGroup = async () => {
         createModelRoutingRules.value,
       ),
       model_allowlist: buildModelAllowlistConfig(createModelAllowlistState),
+      image_input_overrides: createForm.image_input_overrides,
       // 创建时固定账号 manifest 固定发送关闭状态（后端创建路径禁止开启）
       codex_models_manifest_config: createCodexManifestDefaults(),
       supported_model_scopes: normalizeSupportedModelScopesForPlatform(
@@ -6220,6 +6289,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.force_openai_fast = group.force_openai_fast ?? false;
   editForm.force_openai_ultrafast = group.force_openai_ultrafast ?? false;
   editForm.openai_model_tiers = { ...(group.openai_model_tiers ?? {}) };
+  editForm.image_input_overrides = { ...(group.image_input_overrides ?? {}) };
   editTierModels.value = Object.keys(editForm.openai_model_tiers).sort();
   editTierModelInput.value = "";
   editTierModelInputError.value = false;
@@ -6228,6 +6298,8 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.allow_image_generation = group.allow_image_generation ?? false;
   editForm.allow_batch_image_generation =
     group.allow_batch_image_generation ?? false;
+  editForm.allow_deepseek_search = group.allow_deepseek_search ?? false;
+  editForm.allow_deepseek_fetch = group.allow_deepseek_fetch ?? false;
   editForm.image_rate_independent = group.image_rate_independent ?? false;
   editForm.image_rate_multiplier = group.image_rate_multiplier ?? 1;
   editForm.batch_image_discount_multiplier =
@@ -6359,6 +6431,7 @@ const closeEditModal = () => {
   editForm.force_openai_fast = false;
   editForm.force_openai_ultrafast = false;
   editForm.openai_model_tiers = {};
+  editForm.image_input_overrides = {};
   editTierModels.value = [];
   editTierModelInput.value = "";
   editTierModelInputError.value = false;
@@ -6454,6 +6527,7 @@ const handleUpdateGroup = async () => {
         editModelRoutingRules.value,
       ),
       model_allowlist: buildModelAllowlistConfig(editModelAllowlistState),
+      image_input_overrides: editForm.image_input_overrides,
       // 非 openai 平台提交关闭状态，与后端归一化一致
       codex_models_manifest_config:
         editForm.platform === "openai"

@@ -60,6 +60,10 @@ const (
 	FieldAllowImageGeneration = "allow_image_generation"
 	// FieldAllowBatchImageGeneration holds the string denoting the allow_batch_image_generation field in the database.
 	FieldAllowBatchImageGeneration = "allow_batch_image_generation"
+	// FieldAllowDeepseekSearch holds the string denoting the allow_deepseek_search field in the database.
+	FieldAllowDeepseekSearch = "allow_deepseek_search"
+	// FieldAllowDeepseekFetch holds the string denoting the allow_deepseek_fetch field in the database.
+	FieldAllowDeepseekFetch = "allow_deepseek_fetch"
 	// FieldImageRateIndependent holds the string denoting the image_rate_independent field in the database.
 	FieldImageRateIndependent = "image_rate_independent"
 	// FieldImageRateMultiplier holds the string denoting the image_rate_multiplier field in the database.
@@ -138,6 +142,8 @@ const (
 	FieldMessagesDispatchModelConfig = "messages_dispatch_model_config"
 	// FieldModelAllowlist holds the string denoting the model_allowlist field in the database.
 	FieldModelAllowlist = "model_allowlist"
+	// FieldImageInputOverrides holds the string denoting the image_input_overrides field in the database.
+	FieldImageInputOverrides = "image_input_overrides"
 	// FieldCodexModelsManifestConfig holds the string denoting the codex_models_manifest_config field in the database.
 	FieldCodexModelsManifestConfig = "codex_models_manifest_config"
 	// FieldRpmLimit holds the string denoting the rpm_limit field in the database.
@@ -251,6 +257,8 @@ var Columns = []string{
 	FieldDefaultValidityDays,
 	FieldAllowImageGeneration,
 	FieldAllowBatchImageGeneration,
+	FieldAllowDeepseekSearch,
+	FieldAllowDeepseekFetch,
 	FieldImageRateIndependent,
 	FieldImageRateMultiplier,
 	FieldImagePrice1k,
@@ -290,6 +298,7 @@ var Columns = []string{
 	FieldDefaultMappedModel,
 	FieldMessagesDispatchModelConfig,
 	FieldModelAllowlist,
+	FieldImageInputOverrides,
 	FieldCodexModelsManifestConfig,
 	FieldRpmLimit,
 	FieldMaxReasoningEffort,
@@ -373,6 +382,10 @@ var (
 	DefaultAllowImageGeneration bool
 	// DefaultAllowBatchImageGeneration holds the default value on creation for the "allow_batch_image_generation" field.
 	DefaultAllowBatchImageGeneration bool
+	// DefaultAllowDeepseekSearch holds the default value on creation for the "allow_deepseek_search" field.
+	DefaultAllowDeepseekSearch bool
+	// DefaultAllowDeepseekFetch holds the default value on creation for the "allow_deepseek_fetch" field.
+	DefaultAllowDeepseekFetch bool
 	// DefaultImageRateIndependent holds the default value on creation for the "image_rate_independent" field.
 	DefaultImageRateIndependent bool
 	// DefaultImageRateMultiplier holds the default value on creation for the "image_rate_multiplier" field.
@@ -429,6 +442,8 @@ var (
 	DefaultMessagesDispatchModelConfig domain.OpenAIMessagesDispatchModelConfig
 	// DefaultModelAllowlist holds the default value on creation for the "model_allowlist" field.
 	DefaultModelAllowlist domain.GroupModelAllowlist
+	// DefaultImageInputOverrides holds the default value on creation for the "image_input_overrides" field.
+	DefaultImageInputOverrides map[string]bool
 	// DefaultCodexModelsManifestConfig holds the default value on creation for the "codex_models_manifest_config" field.
 	DefaultCodexModelsManifestConfig domain.GroupCodexModelsManifestConfig
 	// DefaultRpmLimit holds the default value on creation for the "rpm_limit" field.
@@ -562,6 +577,16 @@ func ByAllowImageGeneration(opts ...sql.OrderTermOption) OrderOption {
 // ByAllowBatchImageGeneration orders the results by the allow_batch_image_generation field.
 func ByAllowBatchImageGeneration(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAllowBatchImageGeneration, opts...).ToFunc()
+}
+
+// ByAllowDeepseekSearch orders the results by the allow_deepseek_search field.
+func ByAllowDeepseekSearch(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAllowDeepseekSearch, opts...).ToFunc()
+}
+
+// ByAllowDeepseekFetch orders the results by the allow_deepseek_fetch field.
+func ByAllowDeepseekFetch(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAllowDeepseekFetch, opts...).ToFunc()
 }
 
 // ByImageRateIndependent orders the results by the image_rate_independent field.

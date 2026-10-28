@@ -1130,6 +1130,15 @@ export default {
           'Leave empty to use the default $0.01 per call (official pricing: $10 per 1,000 calls); 0 means free. The group rate multiplier is applied on top.',
         finalPricePreview: 'Per-call price after current multiplier: {price}'
       },
+      deepSeekTools: {
+        title: 'DeepSeek Web Tools',
+        search: 'Web Search',
+        fetch: 'Web Fetch',
+        hint: 'Available only to API keys in this DeepSeek group. The upstream must support these tool endpoints; non-empty successful results are billed per call.',
+        pricingTitle: 'DeepSeek Search / Fetch Pricing',
+        pricePerCall: 'Price per call (USD)',
+        priceHint: 'Search and Fetch share this price. Leave empty to use the default $0.01 per call.'
+      },
       peakRate: {
         enable: 'Enable peak rate multiplier',
         peakStart: 'Peak start',
@@ -1165,6 +1174,17 @@ export default {
           empty: 'Please enter a model entry',
           duplicate: 'This entry already exists'
         }
+      },
+      imageInput: {
+        title: 'Image input by model',
+        hint: 'Controls image upload in the Codex model list. Before enabling, confirm every routable channel in this group accepts images. Auto follows upstream capability detection.',
+        model: 'Exact model ID',
+        add: 'Add model',
+        auto: 'Auto',
+        enabled: 'Enabled',
+        disabled: 'Disabled',
+        invalidModel: 'Enter a valid exact model ID without wildcards (up to 100 characters)',
+        duplicateOrLimit: 'Model already exists or the 256-model limit was reached'
       },
       codexModelsManifest: {
         title: 'Pinned Accounts for Model Lists',

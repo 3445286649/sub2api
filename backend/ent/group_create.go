@@ -322,6 +322,34 @@ func (_c *GroupCreate) SetNillableAllowBatchImageGeneration(v *bool) *GroupCreat
 	return _c
 }
 
+// SetAllowDeepseekSearch sets the "allow_deepseek_search" field.
+func (_c *GroupCreate) SetAllowDeepseekSearch(v bool) *GroupCreate {
+	_c.mutation.SetAllowDeepseekSearch(v)
+	return _c
+}
+
+// SetNillableAllowDeepseekSearch sets the "allow_deepseek_search" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableAllowDeepseekSearch(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetAllowDeepseekSearch(*v)
+	}
+	return _c
+}
+
+// SetAllowDeepseekFetch sets the "allow_deepseek_fetch" field.
+func (_c *GroupCreate) SetAllowDeepseekFetch(v bool) *GroupCreate {
+	_c.mutation.SetAllowDeepseekFetch(v)
+	return _c
+}
+
+// SetNillableAllowDeepseekFetch sets the "allow_deepseek_fetch" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableAllowDeepseekFetch(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetAllowDeepseekFetch(*v)
+	}
+	return _c
+}
+
 // SetImageRateIndependent sets the "image_rate_independent" field.
 func (_c *GroupCreate) SetImageRateIndependent(v bool) *GroupCreate {
 	_c.mutation.SetImageRateIndependent(v)
@@ -828,6 +856,12 @@ func (_c *GroupCreate) SetNillableModelAllowlist(v *domain.GroupModelAllowlist) 
 	return _c
 }
 
+// SetImageInputOverrides sets the "image_input_overrides" field.
+func (_c *GroupCreate) SetImageInputOverrides(v map[string]bool) *GroupCreate {
+	_c.mutation.SetImageInputOverrides(v)
+	return _c
+}
+
 // SetCodexModelsManifestConfig sets the "codex_models_manifest_config" field.
 func (_c *GroupCreate) SetCodexModelsManifestConfig(v domain.GroupCodexModelsManifestConfig) *GroupCreate {
 	_c.mutation.SetCodexModelsManifestConfig(v)
@@ -1125,6 +1159,14 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultAllowBatchImageGeneration
 		_c.mutation.SetAllowBatchImageGeneration(v)
 	}
+	if _, ok := _c.mutation.AllowDeepseekSearch(); !ok {
+		v := group.DefaultAllowDeepseekSearch
+		_c.mutation.SetAllowDeepseekSearch(v)
+	}
+	if _, ok := _c.mutation.AllowDeepseekFetch(); !ok {
+		v := group.DefaultAllowDeepseekFetch
+		_c.mutation.SetAllowDeepseekFetch(v)
+	}
 	if _, ok := _c.mutation.ImageRateIndependent(); !ok {
 		v := group.DefaultImageRateIndependent
 		_c.mutation.SetImageRateIndependent(v)
@@ -1216,6 +1258,10 @@ func (_c *GroupCreate) defaults() error {
 	if _, ok := _c.mutation.ModelAllowlist(); !ok {
 		v := group.DefaultModelAllowlist
 		_c.mutation.SetModelAllowlist(v)
+	}
+	if _, ok := _c.mutation.ImageInputOverrides(); !ok {
+		v := group.DefaultImageInputOverrides
+		_c.mutation.SetImageInputOverrides(v)
 	}
 	if _, ok := _c.mutation.CodexModelsManifestConfig(); !ok {
 		v := group.DefaultCodexModelsManifestConfig
@@ -1337,6 +1383,12 @@ func (_c *GroupCreate) check() error {
 	if _, ok := _c.mutation.AllowBatchImageGeneration(); !ok {
 		return &ValidationError{Name: "allow_batch_image_generation", err: errors.New(`ent: missing required field "Group.allow_batch_image_generation"`)}
 	}
+	if _, ok := _c.mutation.AllowDeepseekSearch(); !ok {
+		return &ValidationError{Name: "allow_deepseek_search", err: errors.New(`ent: missing required field "Group.allow_deepseek_search"`)}
+	}
+	if _, ok := _c.mutation.AllowDeepseekFetch(); !ok {
+		return &ValidationError{Name: "allow_deepseek_fetch", err: errors.New(`ent: missing required field "Group.allow_deepseek_fetch"`)}
+	}
 	if _, ok := _c.mutation.ImageRateIndependent(); !ok {
 		return &ValidationError{Name: "image_rate_independent", err: errors.New(`ent: missing required field "Group.image_rate_independent"`)}
 	}
@@ -1430,6 +1482,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.ModelAllowlist(); !ok {
 		return &ValidationError{Name: "model_allowlist", err: errors.New(`ent: missing required field "Group.model_allowlist"`)}
+	}
+	if _, ok := _c.mutation.ImageInputOverrides(); !ok {
+		return &ValidationError{Name: "image_input_overrides", err: errors.New(`ent: missing required field "Group.image_input_overrides"`)}
 	}
 	if _, ok := _c.mutation.CodexModelsManifestConfig(); !ok {
 		return &ValidationError{Name: "codex_models_manifest_config", err: errors.New(`ent: missing required field "Group.codex_models_manifest_config"`)}
@@ -1579,6 +1634,14 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AllowBatchImageGeneration(); ok {
 		_spec.SetField(group.FieldAllowBatchImageGeneration, field.TypeBool, value)
 		_node.AllowBatchImageGeneration = value
+	}
+	if value, ok := _c.mutation.AllowDeepseekSearch(); ok {
+		_spec.SetField(group.FieldAllowDeepseekSearch, field.TypeBool, value)
+		_node.AllowDeepseekSearch = value
+	}
+	if value, ok := _c.mutation.AllowDeepseekFetch(); ok {
+		_spec.SetField(group.FieldAllowDeepseekFetch, field.TypeBool, value)
+		_node.AllowDeepseekFetch = value
 	}
 	if value, ok := _c.mutation.ImageRateIndependent(); ok {
 		_spec.SetField(group.FieldImageRateIndependent, field.TypeBool, value)
@@ -1735,6 +1798,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ModelAllowlist(); ok {
 		_spec.SetField(group.FieldModelAllowlist, field.TypeJSON, value)
 		_node.ModelAllowlist = value
+	}
+	if value, ok := _c.mutation.ImageInputOverrides(); ok {
+		_spec.SetField(group.FieldImageInputOverrides, field.TypeJSON, value)
+		_node.ImageInputOverrides = value
 	}
 	if value, ok := _c.mutation.CodexModelsManifestConfig(); ok {
 		_spec.SetField(group.FieldCodexModelsManifestConfig, field.TypeJSON, value)
@@ -2227,6 +2294,30 @@ func (u *GroupUpsert) SetAllowBatchImageGeneration(v bool) *GroupUpsert {
 // UpdateAllowBatchImageGeneration sets the "allow_batch_image_generation" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateAllowBatchImageGeneration() *GroupUpsert {
 	u.SetExcluded(group.FieldAllowBatchImageGeneration)
+	return u
+}
+
+// SetAllowDeepseekSearch sets the "allow_deepseek_search" field.
+func (u *GroupUpsert) SetAllowDeepseekSearch(v bool) *GroupUpsert {
+	u.Set(group.FieldAllowDeepseekSearch, v)
+	return u
+}
+
+// UpdateAllowDeepseekSearch sets the "allow_deepseek_search" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateAllowDeepseekSearch() *GroupUpsert {
+	u.SetExcluded(group.FieldAllowDeepseekSearch)
+	return u
+}
+
+// SetAllowDeepseekFetch sets the "allow_deepseek_fetch" field.
+func (u *GroupUpsert) SetAllowDeepseekFetch(v bool) *GroupUpsert {
+	u.Set(group.FieldAllowDeepseekFetch, v)
+	return u
+}
+
+// UpdateAllowDeepseekFetch sets the "allow_deepseek_fetch" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateAllowDeepseekFetch() *GroupUpsert {
+	u.SetExcluded(group.FieldAllowDeepseekFetch)
 	return u
 }
 
@@ -2902,6 +2993,18 @@ func (u *GroupUpsert) UpdateModelAllowlist() *GroupUpsert {
 	return u
 }
 
+// SetImageInputOverrides sets the "image_input_overrides" field.
+func (u *GroupUpsert) SetImageInputOverrides(v map[string]bool) *GroupUpsert {
+	u.Set(group.FieldImageInputOverrides, v)
+	return u
+}
+
+// UpdateImageInputOverrides sets the "image_input_overrides" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateImageInputOverrides() *GroupUpsert {
+	u.SetExcluded(group.FieldImageInputOverrides)
+	return u
+}
+
 // SetCodexModelsManifestConfig sets the "codex_models_manifest_config" field.
 func (u *GroupUpsert) SetCodexModelsManifestConfig(v domain.GroupCodexModelsManifestConfig) *GroupUpsert {
 	u.Set(group.FieldCodexModelsManifestConfig, v)
@@ -3418,6 +3521,34 @@ func (u *GroupUpsertOne) SetAllowBatchImageGeneration(v bool) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateAllowBatchImageGeneration() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateAllowBatchImageGeneration()
+	})
+}
+
+// SetAllowDeepseekSearch sets the "allow_deepseek_search" field.
+func (u *GroupUpsertOne) SetAllowDeepseekSearch(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetAllowDeepseekSearch(v)
+	})
+}
+
+// UpdateAllowDeepseekSearch sets the "allow_deepseek_search" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateAllowDeepseekSearch() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateAllowDeepseekSearch()
+	})
+}
+
+// SetAllowDeepseekFetch sets the "allow_deepseek_fetch" field.
+func (u *GroupUpsertOne) SetAllowDeepseekFetch(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetAllowDeepseekFetch(v)
+	})
+}
+
+// UpdateAllowDeepseekFetch sets the "allow_deepseek_fetch" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateAllowDeepseekFetch() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateAllowDeepseekFetch()
 	})
 }
 
@@ -4205,6 +4336,20 @@ func (u *GroupUpsertOne) UpdateModelAllowlist() *GroupUpsertOne {
 	})
 }
 
+// SetImageInputOverrides sets the "image_input_overrides" field.
+func (u *GroupUpsertOne) SetImageInputOverrides(v map[string]bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetImageInputOverrides(v)
+	})
+}
+
+// UpdateImageInputOverrides sets the "image_input_overrides" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateImageInputOverrides() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateImageInputOverrides()
+	})
+}
+
 // SetCodexModelsManifestConfig sets the "codex_models_manifest_config" field.
 func (u *GroupUpsertOne) SetCodexModelsManifestConfig(v domain.GroupCodexModelsManifestConfig) *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
@@ -4906,6 +5051,34 @@ func (u *GroupUpsertBulk) SetAllowBatchImageGeneration(v bool) *GroupUpsertBulk 
 func (u *GroupUpsertBulk) UpdateAllowBatchImageGeneration() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateAllowBatchImageGeneration()
+	})
+}
+
+// SetAllowDeepseekSearch sets the "allow_deepseek_search" field.
+func (u *GroupUpsertBulk) SetAllowDeepseekSearch(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetAllowDeepseekSearch(v)
+	})
+}
+
+// UpdateAllowDeepseekSearch sets the "allow_deepseek_search" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateAllowDeepseekSearch() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateAllowDeepseekSearch()
+	})
+}
+
+// SetAllowDeepseekFetch sets the "allow_deepseek_fetch" field.
+func (u *GroupUpsertBulk) SetAllowDeepseekFetch(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetAllowDeepseekFetch(v)
+	})
+}
+
+// UpdateAllowDeepseekFetch sets the "allow_deepseek_fetch" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateAllowDeepseekFetch() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateAllowDeepseekFetch()
 	})
 }
 
@@ -5690,6 +5863,20 @@ func (u *GroupUpsertBulk) SetModelAllowlist(v domain.GroupModelAllowlist) *Group
 func (u *GroupUpsertBulk) UpdateModelAllowlist() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateModelAllowlist()
+	})
+}
+
+// SetImageInputOverrides sets the "image_input_overrides" field.
+func (u *GroupUpsertBulk) SetImageInputOverrides(v map[string]bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetImageInputOverrides(v)
+	})
+}
+
+// UpdateImageInputOverrides sets the "image_input_overrides" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateImageInputOverrides() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateImageInputOverrides()
 	})
 }
 
