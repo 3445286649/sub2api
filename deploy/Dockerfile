@@ -17,7 +17,9 @@ ARG GOSUMDB=sum.golang.google.cn
 # -----------------------------------------------------------------------------
 FROM ${NODE_IMAGE} AS frontend-builder
 ARG VITE_API_BASE_URL=/api/v1
+ARG VITE_INFINITE_CANVAS_PATH=/canvas/
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_INFINITE_CANVAS_PATH=${VITE_INFINITE_CANVAS_PATH}
 
 WORKDIR /app/frontend
 ENV NODE_OPTIONS=--max-old-space-size=3072
