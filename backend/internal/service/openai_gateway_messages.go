@@ -920,6 +920,15 @@ func (s *OpenAIGatewayService) readOpenAICompatBufferedTerminal(
 			if !ok {
 				if frame, ok := parser.Finish(); ok {
 					payload := openAICompatPayloadWithEventType(frame.Data, frame.EventType)
+					if normalized, _, guardErr := normalizeOpenAISSEDataPayload([]byte(payload)); guardErr != nil {
+						logger.LegacyPrintf("openai_sse_guard", "invalid upstream buffered Responses SSE JSON: request_id=%s bytes=%d err=%v", requestID, len(payload), guardErr)
+						return nil, usage, acc, prior, guardErr
+					} else {
+						payload = string(normalized)
+					}
+					if normalized, changed := normalizeOpenAIResponseCreatedAt([]byte(payload)); changed {
+						payload = string(normalized)
+					}
 					payload = string(restoreCodexToolNamesFromContext(c, []byte(payload)))
 					var event apicompat.ResponsesStreamEvent
 					if err := json.Unmarshal([]byte(payload), &event); err == nil {
@@ -961,6 +970,15 @@ func (s *OpenAIGatewayService) readOpenAICompatBufferedTerminal(
 				continue
 			}
 			payload := openAICompatPayloadWithEventType(frame.Data, frame.EventType)
+			if normalized, _, guardErr := normalizeOpenAISSEDataPayload([]byte(payload)); guardErr != nil {
+				logger.LegacyPrintf("openai_sse_guard", "invalid upstream buffered Responses SSE JSON: request_id=%s bytes=%d err=%v", requestID, len(payload), guardErr)
+				return nil, usage, acc, prior, guardErr
+			} else {
+				payload = string(normalized)
+			}
+			if normalized, changed := normalizeOpenAIResponseCreatedAt([]byte(payload)); changed {
+				payload = string(normalized)
+			}
 			payload = string(restoreCodexToolNamesFromContext(c, []byte(payload)))
 
 			var event apicompat.ResponsesStreamEvent
@@ -1266,6 +1284,16 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 	}
 	processFrame := func(frame openAICompatSSEFrame) bool {
 		payload := openAICompatPayloadWithEventType(frame.Data, frame.EventType)
+		if normalized, _, guardErr := normalizeOpenAISSEDataPayload([]byte(payload)); guardErr != nil {
+			logger.LegacyPrintf("openai_sse_guard", "invalid upstream Messages Responses SSE JSON: request_id=%s bytes=%d err=%v", requestID, len(payload), guardErr)
+			streamNonFailoverErr = guardErr
+			return true
+		} else {
+			payload = string(normalized)
+		}
+		if normalized, changed := normalizeOpenAIResponseCreatedAt([]byte(payload)); changed {
+			payload = string(normalized)
+		}
 		return processDataLine(payload)
 	}
 

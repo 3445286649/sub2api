@@ -58,7 +58,14 @@ func forEachOpenAISSEFrame(body string, fn func(string, []byte)) {
 				return
 			}
 			data := []byte(value)
+			if normalized, _, err := normalizeOpenAISSEDataPayload(data); err == nil {
+				data = normalized
+			}
 			fn(effectiveOpenAISSEEventType(data, frame.EventType), data)
+		}
+		if normalized, changed, err := normalizeOpenAISSEDataPayload([]byte(frame.Data)); err == nil && changed {
+			emitData(string(normalized))
+			return
 		}
 		if gjson.Valid(frame.Data) {
 			emitData(frame.Data)

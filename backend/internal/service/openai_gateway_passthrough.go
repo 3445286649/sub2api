@@ -2026,6 +2026,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 			imageOutputSizes: imageCounter.Sizes(),
 		}
 	}
+	var sseGuardErr error
 
 	for documentScanner.Scan() {
 		line := documentScanner.Text()
@@ -2039,6 +2040,24 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 		if data, ok := extractOpenAISSEDataLine(line); ok {
 			dataBytes := []byte(data)
 			trimmedData := strings.TrimSpace(data)
+			if normalized, changed, guardErr := normalizeOpenAISSEDataPayload(dataBytes); guardErr != nil {
+				logger.LegacyPrintf("openai_sse_guard", "invalid upstream passthrough SSE JSON: account=%d model=%s request_id=%s bytes=%d err=%v", account.ID, originalModel, upstreamRequestID, len(dataBytes), guardErr)
+				if !openAIStreamClientOutputStarted(c, clientOutputStarted) && len(pendingLines) == 0 {
+					sseGuardErr = s.newOpenAIStreamFailoverErrorWithModel(c, account, true, upstreamRequestID, nil, "invalid upstream SSE JSON", mappedModel, resp.Header)
+				} else {
+					sseGuardErr = fmt.Errorf("invalid upstream passthrough SSE JSON after output")
+				}
+				break
+			} else if changed {
+				dataBytes = normalized
+				trimmedData = strings.TrimSpace(string(normalized))
+				line = "data: " + string(normalized)
+			}
+			if normalized, changed := normalizeOpenAIResponseCreatedAt(dataBytes); changed {
+				dataBytes = normalized
+				trimmedData = strings.TrimSpace(string(normalized))
+				line = "data: " + string(normalized)
+			}
 			rawEventType := effectiveOpenAISSEEventType(dataBytes, pendingSSEEventType)
 			observer.ObserveOpenAI(dataBytes, rawEventType)
 			if needModelReplace {
@@ -2255,6 +2274,9 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 			break
 		}
 	}
+	if sseGuardErr != nil {
+		return resultWithUsage(), sseGuardErr
+	}
 	ensureResponseFailedTerminal()
 	if err := documentScanner.Err(); err != nil {
 		if (sawDone || sawTerminalEvent) && !sawFailedEvent {
@@ -2326,6 +2348,9 @@ func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(
 	body, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, openAITooLargeError)
 	if err != nil {
 		return nil, err
+	}
+	if normalized, changed := normalizeOpenAIResponseCreatedAt(body); changed {
+		body = normalized
 	}
 	observer := upstreamResponseModelObserverFromContext(c)
 	if observer == nil {
@@ -2438,6 +2463,9 @@ func (s *OpenAIGatewayService) handlePassthroughSSEToJSON(resp *http.Response, c
 		}
 		restoredBody = restoreCodexToolNamesFromContext(c, restoredBody)
 		body = restoredBody
+		if normalized, changed := normalizeOpenAIResponseCreatedAt(body); changed {
+			body = normalized
+		}
 	} else {
 		if originalModel != "" && mappedModel != "" && originalModel != mappedModel {
 			bodyText = s.replaceModelInSSEBody(bodyText, mappedModel, originalModel)

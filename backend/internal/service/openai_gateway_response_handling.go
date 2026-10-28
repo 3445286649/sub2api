@@ -486,6 +486,24 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 		// Extract data from SSE line (supports both "data: " and "data:" formats)
 		if data, ok := extractOpenAISSEDataLine(line); ok {
 			dataBytes := []byte(data)
+			if normalized, changed, guardErr := normalizeOpenAISSEDataPayload(dataBytes); guardErr != nil {
+				logger.LegacyPrintf("openai_sse_guard", "invalid upstream SSE JSON: account=%d model=%s request_id=%s bytes=%d err=%v", account.ID, originalModel, upstreamRequestID, len(dataBytes), guardErr)
+				if !openAIStreamClientOutputStarted(c, clientOutputStarted) && !eventShouldFlush {
+					streamEarlyErr = s.newOpenAIStreamFailoverErrorWithModel(c, account, false, upstreamRequestID, nil, "invalid upstream SSE JSON", mappedModel, resp.Header)
+				} else {
+					streamEarlyErr = fmt.Errorf("invalid upstream SSE JSON after output")
+				}
+				return
+			} else if changed {
+				dataBytes = normalized
+				data = string(normalized)
+				line = "data: " + data
+			}
+			if normalized, changed := normalizeOpenAIResponseCreatedAt(dataBytes); changed {
+				dataBytes = normalized
+				data = string(normalized)
+				line = "data: " + data
+			}
 			eventType := effectiveOpenAISSEEventType(dataBytes, pendingSSEEventType)
 			if codexFailureTerminal && sawBareError && !sawResponseFailed &&
 				(eventType == "response.completed" || eventType == "response.done") {
@@ -1608,6 +1626,9 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(ctx context.Context, r
 	if err != nil {
 		return nil, err
 	}
+	if normalized, changed := normalizeOpenAIResponseCreatedAt(body); changed {
+		body = normalized
+	}
 	observer := upstreamResponseModelObserverFromContext(c)
 	if observer == nil {
 		observer = beginUpstreamResponseModelObservation(c)
@@ -1776,6 +1797,9 @@ func (s *OpenAIGatewayService) handleSSEToJSON(resp *http.Response, c *gin.Conte
 		}
 		restoredBody = restoreCodexToolNamesFromContext(c, restoredBody)
 		body = ensureOpenAIResponseObjectCreatedAt(restoredBody)
+		if normalized, changed := normalizeOpenAIResponseCreatedAt(body); changed {
+			body = normalized
+		}
 	} else {
 		if originalModel != mappedModel {
 			bodyText = s.replaceModelInSSEBody(bodyText, mappedModel, originalModel)

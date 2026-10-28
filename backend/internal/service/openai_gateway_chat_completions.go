@@ -1192,6 +1192,16 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 	}
 	processFrame := func(frame openAICompatSSEFrame) bool {
 		payload := openAICompatPayloadWithEventType(frame.Data, frame.EventType)
+		if normalized, _, guardErr := normalizeOpenAISSEDataPayload([]byte(payload)); guardErr != nil {
+			logger.LegacyPrintf("openai_sse_guard", "invalid upstream Chat Responses SSE JSON: request_id=%s bytes=%d err=%v", requestID, len(payload), guardErr)
+			streamNonFailoverErr = guardErr
+			return true
+		} else {
+			payload = string(normalized)
+		}
+		if normalized, changed := normalizeOpenAIResponseCreatedAt([]byte(payload)); changed {
+			payload = string(normalized)
+		}
 		if strings.TrimSpace(payload) == "[DONE]" {
 			return false
 		}

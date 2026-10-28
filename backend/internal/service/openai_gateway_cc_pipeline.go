@@ -308,6 +308,16 @@ func (s *OpenAIGatewayService) scanCCStream(
 			st.SawDone = true
 			break
 		}
+		payloadBytes, _, guardErr := normalizeOpenAISSEDataPayload([]byte(payload))
+		if guardErr != nil {
+			logger.LegacyPrintf("openai_sse_guard", "invalid upstream Chat Completions SSE JSON: request_id=%s bytes=%d err=%v", requestID, len(payload), guardErr)
+			st.Err = guardErr
+			break
+		}
+		if normalized, changed := normalizeOpenAIResponseCreatedAt(payloadBytes); changed {
+			payloadBytes = normalized
+		}
+		payload = string(payloadBytes)
 		// 观察上游 CC chunk 回显的 model / service_tier（计费以回显为准）。
 		// CC chunk 无 type 字段，按 untyped payload 观察（上游约束：只有终止
 		// 事件与无类型 body 报告实际处理档位）。
@@ -320,7 +330,7 @@ func (s *OpenAIGatewayService) scanCCStream(
 		}
 
 		var chunk apicompat.ChatCompletionsChunk
-		if err := json.Unmarshal([]byte(payload), &chunk); err != nil {
+		if err := json.Unmarshal(payloadBytes, &chunk); err != nil {
 			logger.L().Warn(logPrefix+": failed to parse chat stream chunk",
 				zap.Error(err),
 				zap.String("request_id", requestID),
@@ -366,6 +376,16 @@ func (s *OpenAIGatewayService) readCCUpstreamJSONResponse(
 			writeError(c, http.StatusBadGateway, "api_error", "Failed to read upstream response")
 		}
 		return nil, OpenAIUsage{}, fmt.Errorf("read upstream body: %w", err)
+	}
+	if normalized, changed, guardErr := normalizeOpenAISSEDataPayload(respBody); guardErr != nil {
+		logger.LegacyPrintf("openai_sse_guard", "invalid upstream Chat Completions JSON: bytes=%d err=%v", len(respBody), guardErr)
+		writeError(c, http.StatusBadGateway, "api_error", "Invalid JSON response from upstream")
+		return nil, OpenAIUsage{}, guardErr
+	} else if changed {
+		respBody = normalized
+	}
+	if normalized, changed := normalizeOpenAIResponseCreatedAt(respBody); changed {
+		respBody = normalized
 	}
 
 	var ccResp apicompat.ChatCompletionsResponse
