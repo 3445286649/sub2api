@@ -482,7 +482,7 @@
       width="normal"
       @close="closeModals"
     >
-      <form id="key-form" @submit.prevent="handleSubmit" class="space-y-5">
+      <form id="key-form" @submit.prevent="handleSubmit" class="min-w-0 space-y-5">
         <div>
           <label class="input-label">{{ t('keys.nameLabel') }}</label>
           <input
@@ -590,24 +590,29 @@
           </Select>
         </div>
 
-        <fieldset v-if="formData.group_id !== null" class="space-y-2">
+        <fieldset class="min-w-0 space-y-2">
           <legend class="input-label">{{ t('keys.additionalGroups') }}</legend>
-          <p class="text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('keys.additionalGroupsHint') }}</p>
-          <div class="max-h-48 space-y-1 overflow-y-auto rounded-md border border-gray-200 p-2 dark:border-dark-600">
+          <p class="break-words text-xs leading-5 text-gray-500 dark:text-gray-400">
+            {{ formData.group_id === null ? t('keys.selectPrimaryGroupFirst') : t('keys.additionalGroupsHint') }}
+          </p>
+          <div class="max-h-48 min-w-0 space-y-1 overflow-y-auto rounded-md border border-gray-200 p-2 dark:border-dark-600">
             <label
               v-for="option in additionalGroupOptions"
               :key="option.value"
-              class="flex min-h-8 cursor-pointer items-center gap-2 rounded px-1.5 py-1 hover:bg-gray-50 dark:hover:bg-dark-700"
+              class="flex min-h-8 min-w-0 items-center gap-2 rounded px-1.5 py-1 hover:bg-gray-50 dark:hover:bg-dark-700"
+              :class="formData.group_id === null ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'"
             >
               <input
                 v-model="formData.additional_group_ids"
                 type="checkbox"
                 :value="option.value"
-                :disabled="formData.additional_group_ids.length >= 19 && !formData.additional_group_ids.includes(option.value)"
+                :disabled="formData.group_id === null || (formData.additional_group_ids.length >= 19 && !formData.additional_group_ids.includes(option.value))"
                 class="h-4 w-4 shrink-0 accent-teal-600"
               />
               <GroupBadge
+                class="min-w-0 max-w-full"
                 :name="option.label"
+                :truncate="false"
                 :platform="option.platform"
                 :subscription-type="option.subscriptionType"
                 :rate-multiplier="option.rate"
@@ -623,7 +628,7 @@
             </p>
           </div>
           <p class="text-right text-xs tabular-nums text-gray-500 dark:text-gray-400">
-            {{ t('keys.selectedGroupsCount', { count: formData.additional_group_ids.length + 1 }) }}
+            {{ t('keys.selectedGroupsCount', { count: formData.additional_group_ids.length + (formData.group_id === null ? 0 : 1) }) }}
           </p>
         </fieldset>
 
@@ -1596,6 +1601,7 @@ const selectCreateProvider = (provider: KeyGroupProvider) => {
   if (createProvider.value === provider) return
   createProvider.value = provider
   formData.value.group_id = null
+  formData.value.additional_group_ids = []
 }
 
 // Also handles groups arriving after the create dialog has already opened.

@@ -149,6 +149,7 @@ export default {
     failedToChangeGroup: '更换分组失败',
     groupRequired: '请选择分组',
     additionalGroups: '同时使用其他分组',
+    selectPrimaryGroupFirst: '请先选择主分组，再添加其他分组。',
     additionalGroupsHint: '每次请求优先使用主分组；主分组不支持该模型或暂无可用账号时，依次尝试其他分组。最多选择 20 个分组。',
     selectedGroupsCount: '已选 {count}/20 个分组',
     groupLimitExceeded: '最多选择 20 个不重复的分组',

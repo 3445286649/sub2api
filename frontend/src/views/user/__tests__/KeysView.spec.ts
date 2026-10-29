@@ -596,6 +596,29 @@ describe('user KeysView column settings', () => {
       expect(wrapper.findAllComponents({ name: 'Select' })[0].props('options')).toHaveLength(14)
     })
 
+    it('shows additional groups on create and clears them when the provider changes', async () => {
+      const wrapper = await openCreate()
+      const additionalGroups = wrapper.findAll('fieldset')
+        .find((fieldset) => fieldset.text().includes('keys.additionalGroups'))!
+      const extraGroup = additionalGroups.findAll<HTMLInputElement>('input[type="checkbox"]')
+        .find((input) => input.element.value === '2')!
+
+      expect(additionalGroups.text()).toContain('keys.selectPrimaryGroupFirst')
+      expect(extraGroup.element.disabled).toBe(true)
+
+      await groupSelect(wrapper).vm.$emit('update:modelValue', 1)
+      await nextTick()
+      expect(extraGroup.element.disabled).toBe(false)
+      await extraGroup.setValue(true)
+      expect(extraGroup.element.checked).toBe(true)
+
+      await chooseProvider(wrapper, 'domestic')
+      expect(groupSelect(wrapper).props('modelValue')).toBeNull()
+      expect(extraGroup.element.checked).toBe(false)
+      expect(extraGroup.element.disabled).toBe(true)
+      wrapper.unmount()
+    })
+
     it('clears the previous group on provider change and submits only the newly selected group', async () => {
       const wrapper = await openCreate()
       await wrapper.get('[data-tour="key-form-name"]').setValue('My key')
