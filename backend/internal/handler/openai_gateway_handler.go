@@ -2240,8 +2240,20 @@ func refreshOpenAIWSTurnBillingAPIKey(ctx context.Context, lookup openAIWSTurnAP
 		return conn
 	}
 	latest, err := lookup.GetByKey(ctx, conn.Key)
-	if err != nil || latest == nil || latest.ID != conn.ID || latest.GroupID == nil || *latest.GroupID != *conn.GroupID {
+	if err != nil || latest == nil || latest.ID != conn.ID {
 		return conn
+	}
+	if latest.GroupID == nil || *latest.GroupID != *conn.GroupID {
+		pinner, ok := lookup.(interface {
+			PinAPIKeyGroup(context.Context, *service.APIKey, int64) (*service.APIKey, error)
+		})
+		if !ok {
+			return conn
+		}
+		latest, err = pinner.PinAPIKeyGroup(ctx, latest, *conn.GroupID)
+		if err != nil || latest == nil {
+			return conn
+		}
 	}
 	group := latest.Group
 	if group == nil || group.ID != conn.Group.ID ||

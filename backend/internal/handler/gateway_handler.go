@@ -1178,6 +1178,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 // Falls back to default models if no whitelist is configured
 func (h *GatewayHandler) Models(c *gin.Context) {
 	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
+	if apiKey != nil && len(apiKey.ConfiguredGroupIDs()) > 1 && c.Param("model") == "" {
+		h.multiGroupModels(c, apiKey)
+		return
+	}
 
 	var groupID *int64
 	var platform string

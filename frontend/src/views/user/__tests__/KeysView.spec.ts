@@ -614,6 +614,24 @@ describe('user KeysView column settings', () => {
       expect(vi.mocked(keysAPI.create).mock.calls[0].slice(0, 2)).toEqual(['My key', 5])
     })
 
+    it('submits checked additional groups in the displayed order', async () => {
+      const wrapper = await openCreate()
+      await wrapper.get('[data-tour="key-form-name"]').setValue('Multi key')
+      await groupSelect(wrapper).vm.$emit('update:modelValue', 1)
+      await nextTick()
+      const extras = wrapper.findAll<HTMLInputElement>('fieldset input[type="checkbox"]')
+      expect(extras.length).toBeGreaterThan(2)
+      const second = extras.find((input) => input.element.value === '2')!
+      const third = extras.find((input) => input.element.value === '3')!
+      await third.setValue(true)
+      await second.setValue(true)
+      vi.mocked(keysAPI.create).mockResolvedValue({ ...createApiKey(), group_id: 1, group_ids: [1, 2, 3] })
+      await wrapper.get('#key-form').trigger('submit')
+      await flushPromises()
+      expect(vi.mocked(keysAPI.create).mock.calls[0][8]).toEqual([1, 2, 3])
+      wrapper.unmount()
+    })
+
     it('defaults to a provider with available groups and disables empty categories', async () => {
       getAvailableGroups.mockResolvedValue([availableGroups[5]])
       const wrapper = await openCreate()

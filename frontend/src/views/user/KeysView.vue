@@ -177,6 +177,9 @@
                 <span v-else class="text-sm text-gray-400 dark:text-dark-500">{{
                   t('keys.noGroup')
                 }}</span>
+                <span v-if="(row.group_ids?.length ?? 0) > 1" class="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                  +{{ row.group_ids.length - 1 }}
+                </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('keys.selectGroup') }}</span>
                 <svg
                   class="h-3.5 w-3.5 text-gray-400 opacity-60 transition-opacity group-hover/dropdown:opacity-100"
@@ -586,6 +589,43 @@
             </template>
           </Select>
         </div>
+
+        <fieldset v-if="formData.group_id !== null" class="space-y-2">
+          <legend class="input-label">{{ t('keys.additionalGroups') }}</legend>
+          <p class="text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('keys.additionalGroupsHint') }}</p>
+          <div class="max-h-48 space-y-1 overflow-y-auto rounded-md border border-gray-200 p-2 dark:border-dark-600">
+            <label
+              v-for="option in additionalGroupOptions"
+              :key="option.value"
+              class="flex min-h-8 cursor-pointer items-center gap-2 rounded px-1.5 py-1 hover:bg-gray-50 dark:hover:bg-dark-700"
+            >
+              <input
+                v-model="formData.additional_group_ids"
+                type="checkbox"
+                :value="option.value"
+                :disabled="formData.additional_group_ids.length >= 19 && !formData.additional_group_ids.includes(option.value)"
+                class="h-4 w-4 shrink-0 accent-teal-600"
+              />
+              <GroupBadge
+                :name="option.label"
+                :platform="option.platform"
+                :subscription-type="option.subscriptionType"
+                :rate-multiplier="option.rate"
+                :user-rate-multiplier="option.userRate"
+                :peak-rate-enabled="option.peakRateEnabled"
+                :peak-start="option.peakStart"
+                :peak-end="option.peakEnd"
+                :peak-rate-multiplier="option.peakRateMultiplier"
+              />
+            </label>
+            <p v-if="additionalGroupOptions.length === 0" class="px-1.5 py-2 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('common.noGroupsAvailable') }}
+            </p>
+          </div>
+          <p class="text-right text-xs tabular-nums text-gray-500 dark:text-gray-400">
+            {{ t('keys.selectedGroupsCount', { count: formData.additional_group_ids.length + 1 }) }}
+          </p>
+        </fieldset>
 
         <!-- Custom Key Section (only for create) -->
         <div v-if="!showEditModal" class="space-y-3">
@@ -1439,6 +1479,7 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
 const formData = ref({
   name: '',
   group_id: null as number | null,
+  additional_group_ids: [] as number[],
   status: 'active' as 'active' | 'inactive',
   use_custom_key: false,
   custom_key: '',
@@ -1545,6 +1586,11 @@ const formGroupOptions = computed(() => showEditModal.value
   ? groupOptions.value
   : groupOptions.value.filter((group) => getKeyGroupProvider(group.platform) === createProvider.value)
 )
+const additionalGroupOptions = computed(() => groupOptions.value.filter((group) => group.value !== formData.value.group_id))
+
+watch(() => formData.value.group_id, (primary) => {
+  formData.value.additional_group_ids = formData.value.additional_group_ids.filter((id) => id !== primary)
+})
 
 const selectCreateProvider = (provider: KeyGroupProvider) => {
   if (createProvider.value === provider) return
@@ -1707,6 +1753,7 @@ const editKey = (key: ApiKey) => {
   formData.value = {
     name: key.name,
     group_id: key.group_id,
+    additional_group_ids: (key.group_ids || []).filter((id) => id !== key.group_id),
     status: key.status === 'quota_exhausted' || key.status === 'expired' ? 'inactive' : key.status,
     use_custom_key: false,
     custom_key: '',
@@ -1779,7 +1826,8 @@ const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
   if (key.group_id === newGroupId) return
 
   try {
-    await keysAPI.update(key.id, { group_id: newGroupId })
+    const groupIds = newGroupId === null ? [] : [newGroupId, ...(key.group_ids || []).filter((id) => id !== newGroupId && id !== key.group_id)]
+    await keysAPI.update(key.id, { group_id: newGroupId, group_ids: groupIds })
     appStore.showSuccess(t('keys.groupChangedSuccess'))
     loadApiKeys()
   } catch (error) {
@@ -1808,6 +1856,16 @@ const handleSubmit = async () => {
   // Validate group_id is required
   if (formData.value.group_id === null) {
     appStore.showError(t('keys.groupRequired'))
+    return
+  }
+  const groupIds = [
+    formData.value.group_id,
+    ...additionalGroupOptions.value
+      .filter((group) => formData.value.additional_group_ids.includes(group.value))
+      .map((group) => group.value)
+  ]
+  if (groupIds.length > 20 || new Set(groupIds).size !== groupIds.length) {
+    appStore.showError(t('keys.groupLimitExceeded'))
     return
   }
 
@@ -1864,6 +1922,7 @@ const handleSubmit = async () => {
       const updates: UpdateApiKeyRequest = {
         name: formData.value.name,
         group_id: formData.value.group_id,
+        group_ids: groupIds,
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
         quota: quota,
@@ -1887,7 +1946,8 @@ const handleSubmit = async () => {
         ipBlacklist,
         quota,
         expiresInDays,
-        rateLimitData
+        rateLimitData,
+        groupIds
       )
       appStore.showSuccess(t('keys.keyCreatedSuccess'))
       // Only advance tour if active, on submit step, and creation succeeded
@@ -1933,6 +1993,7 @@ const closeModals = () => {
   formData.value = {
     name: '',
     group_id: null,
+    additional_group_ids: [],
     status: 'active',
     use_custom_key: false,
     custom_key: '',

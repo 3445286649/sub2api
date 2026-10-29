@@ -632,8 +632,8 @@ func (s *adminServiceImpl) GetUserRPMStatus(ctx context.Context, userID int64) (
 
 	groupIDSet := make(map[int64]struct{})
 	for _, key := range keys {
-		if key.GroupID != nil && *key.GroupID > 0 {
-			groupIDSet[*key.GroupID] = struct{}{}
+		for _, groupID := range key.ConfiguredGroupIDs() {
+			groupIDSet[groupID] = struct{}{}
 		}
 	}
 

@@ -113,6 +113,11 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			abortWithGoogleError(c, 401, "User account is not active")
 			return
 		}
+		selectedKey, selectedOK := selectAPIKeyRequestGroup(c, apiKeyService, subscriptionService, cfg, apiKey, true)
+		if !selectedOK {
+			return
+		}
+		apiKey = selectedKey
 		if code, message, ok := validateAPIKeyGroupAvailable(apiKey); !ok {
 			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonAPIKeyGroupUnavailable)
 			if code == "GROUP_DELETED" {
