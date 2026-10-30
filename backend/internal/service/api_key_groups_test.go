@@ -72,6 +72,19 @@ func TestSelectRequestGroupFailsClosedWithoutAvailableAccount(t *testing.T) {
 	require.Nil(t, selected)
 }
 
+func TestSelectRequestGroupVideoUsesEligibleGroup(t *testing.T) {
+	primary := int64(1)
+	groups := map[int64]*Group{
+		1: {ID: 1, Status: StatusActive},
+		2: {ID: 2, Status: StatusActive},
+	}
+	key := &APIKey{UserID: 7, GroupID: &primary, GroupIDs: []int64{1, 2}, Group: groups[1], User: &User{ID: 7, Balance: 5}}
+	svc := &APIKeyService{groupRepo: apiKeyGroupRepoStub{groups: groups}, groupRouter: apiKeyGroupRouterStub{2: true}}
+	selected, err := svc.SelectRequestGroup(context.Background(), key, []string{"public-video"}, "video", false, true, nil)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), *selected.GroupID)
+}
+
 func TestValidateAPIKeyGroupsRejectsUnauthorizedAdditionalGroup(t *testing.T) {
 	svc := &APIKeyService{groupRepo: apiKeyGroupRepoStub{groups: map[int64]*Group{
 		1: {ID: 1, Status: StatusActive},

@@ -20,6 +20,9 @@ func (s *GatewayService) ProbeAPIKeyGroup(ctx context.Context, group *Group, mod
 	if kind == "token" {
 		ctx = s.withGatewayProfitControlGate(ctx, &group.ID)
 	}
+	if kind == "video" && platform == PlatformGrok && !GroupAllowsImageGeneration(group) {
+		return false, nil
+	}
 	if s.checkChannelPricingRestriction(ctx, &group.ID, model) {
 		return false, nil
 	}
@@ -31,6 +34,15 @@ func (s *GatewayService) ProbeAPIKeyGroup(ctx context.Context, group *Group, mod
 	ctx = s.withRPMPrefetch(ctx, accounts)
 	for i := range accounts {
 		account := &accounts[i]
+		if kind == "video" {
+			capability := OpenAIEndpointCapabilityVideoTasks
+			if platform == PlatformGrok {
+				capability = OpenAIEndpointCapabilityGrokMediaGeneration
+			}
+			if (platform != PlatformOpenAI && platform != PlatformGrok) || !account.SupportsOpenAIEndpointCapability(capability) {
+				continue
+			}
+		}
 		if !s.isAccountSchedulableForSelection(account) || !s.isGatewayAccountProfitEligible(ctx, account) ||
 			(group.RequirePrivacySet && !account.IsPrivacySet()) ||
 			(model != "" && !s.isModelSupportedByAccountWithContext(ctx, account, model)) ||

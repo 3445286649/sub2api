@@ -49,6 +49,13 @@
     <BaseDialog :show="settingsOpen && enabled" :title="t('infiniteCanvas.connectionSettings')" width="normal" @close="closeSettings">
       <div class="space-y-4">
         <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('infiniteCanvas.description') }}</p>
+        <div>
+          <label for="canvas-shared-key" class="mb-1 block text-sm font-medium">{{ t('infiniteCanvas.sharedKey') }}</label>
+          <select id="canvas-shared-key" class="input w-full" value="" :disabled="loading || connecting" @change="useSharedKey">
+            <option value="">{{ t('infiniteCanvas.selectKey') }}</option>
+            <option v-for="key in keys" :key="key.id" :value="String(key.id)">{{ keyLabel(key.id) }}</option>
+          </select>
+        </div>
         <fieldset v-for="role in CANVAS_CAPABILITIES" :key="role" class="min-w-0 space-y-2 rounded-xl border border-gray-200 p-3 dark:border-dark-700">
           <legend class="px-1 text-sm font-semibold">{{ t(`infiniteCanvas.${role}`) }}</legend>
           <div v-for="(id, index) in draft[role]" :key="id" class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 text-sm">
@@ -139,7 +146,7 @@ let initSent = false
 function hasSelection(value: CanvasSelection) { return CANVAS_CAPABILITIES.some(role => value[role].length > 0) }
 function keyLabel(id: number) {
   const key = keys.value.find(item => item.id === id)
-  return key ? `${key.name} · ${key.group?.name || ''} · #${id}` : `#${id}`
+  return key ? [key.name, key.group?.name, `#${id}`].filter(Boolean).join(' · ') : `#${id}`
 }
 function availableKeys(role: CanvasCapability) {
   return keys.value.filter(key => isCanvasKeyAvailable(key, auth.user?.id || 0, role) && !draft.value[role].includes(key.id))
@@ -148,6 +155,14 @@ function addKey(role: CanvasCapability, event: Event) {
   const select = event.target as HTMLSelectElement
   const id = Number(select.value)
   if (availableKeys(role).some(key => key.id === id)) draft.value[role].push(id)
+  select.value = ''
+}
+function useSharedKey(event: Event) {
+  const select = event.target as HTMLSelectElement
+  const id = Number(select.value)
+  if (CANVAS_CAPABILITIES.every(role => keys.value.some(key => key.id === id && isCanvasKeyAvailable(key, auth.user?.id || 0, role)))) {
+    for (const role of CANVAS_CAPABILITIES) draft.value[role] = [id, ...draft.value[role].filter(value => value !== id)]
+  }
   select.value = ''
 }
 function makeDefault(role: CanvasCapability, id: number) { draft.value[role] = [id, ...draft.value[role].filter(value => value !== id)] }
@@ -190,7 +205,7 @@ async function validatedConfig(selection: CanvasSelection) {
     const key = found.find(item => item.id === id)!
     if (!isCanvasKeyAvailable(key, userId, capability)) throw new Error('Key unavailable')
     return { id: `${capability}-${id}`, apiKeyId: id, apiKey: key.key, capability,
-      platform: key.group!.platform, name: `${key.name} · ${key.group!.name} · #${id}` }
+      platform: key.group?.platform || 'openai', name: keyLabel(id) }
   }))
   return { userScope: String(userId), baseUrl: window.location.origin, connections, legacyImageKeyId,
     locale: locale.value, theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light' }

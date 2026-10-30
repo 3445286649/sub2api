@@ -6,38 +6,22 @@ const key = { user_id: 1, status: 'active', key: 'fixture', quota: 10, quota_use
   expires_at: null, group: { platform: 'openai', allow_image_generation: true } } as ApiKey
 
 describe('canvas access boundaries', () => {
-  it('requires an owned, active key in an image-enabled OpenAI group', () => {
+  it('requires an owned, active key with available quota', () => {
     expect(isCanvasKeyAvailable(key, 1)).toBe(true)
     for (const candidate of [
       { ...key, user_id: 2 }, { ...key, status: 'inactive' }, { ...key, quota_used: 10 },
       { ...key, expires_at: '2020-01-01' }, { ...key, expires_at: 'invalid' }, { ...key, key: '' },
-      { ...key, group: { ...key.group, allow_image_generation: false } },
-      { ...key, group: { ...key.group, platform: 'anthropic' } }, { ...key, group: undefined },
     ]) expect(isCanvasKeyAvailable(candidate as ApiKey, 1)).toBe(false)
   })
 
-  it('offers Gemini image keys only with image permission and valid ownership and status', () => {
+  it('allows users to assign any of their valid keys to image, text and video', () => {
     const gemini = { ...key, group: { ...key.group, platform: 'gemini' } } as ApiKey
     expect(isCanvasKeyAvailable(gemini, 1, 'image')).toBe(true)
-    expect(isCanvasKeyAvailable(gemini, 1, 'text')).toBe(false)
-    expect(isCanvasKeyAvailable(gemini, 1, 'video')).toBe(false)
-    for (const candidate of [
-      { ...gemini, user_id: 2 }, { ...gemini, status: 'inactive' }, { ...gemini, quota_used: 10 },
-      { ...gemini, expires_at: '2020-01-01' }, { ...gemini, key: '' },
-      { ...gemini, group: { ...gemini.group, status: 'inactive' } },
-      { ...gemini, group: { ...gemini.group, allow_image_generation: false } },
-      { ...gemini, group: { ...gemini.group, allow_image_generation: undefined } },
-    ]) expect(isCanvasKeyAvailable(candidate as ApiKey, 1, 'image')).toBe(false)
-  })
-
-  it('supports text independently of image permission and restricts video to enabled Grok groups', () => {
-    const text = { ...key, group: { platform: 'openai', allow_image_generation: false } } as ApiKey
-    expect(isCanvasKeyAvailable(text, 1, 'text')).toBe(true)
-    expect(isCanvasKeyAvailable(text, 1, 'image')).toBe(false)
-    expect(isCanvasKeyAvailable(key, 1, 'video')).toBe(false)
-    const grok = { ...key, group: { platform: 'grok', allow_image_generation: true } } as ApiKey
-    expect(isCanvasKeyAvailable(grok, 1, 'video')).toBe(true)
-    expect(isCanvasKeyAvailable({ ...grok, group: { ...grok.group, status: 'disabled' } } as ApiKey, 1, 'video')).toBe(false)
+    for (const platform of ['composite', 'openai', 'grok', 'anthropic']) {
+      const candidate = { ...key, group: { platform, allow_image_generation: false } } as ApiKey
+      for (const role of ['image', 'text', 'video'] as const) expect(isCanvasKeyAvailable(candidate, 1, role)).toBe(true)
+    }
+    expect(isCanvasKeyAvailable({ ...key, group: undefined } as ApiKey, 1, 'video')).toBe(true)
   })
 
   it('only embeds a same-origin canvas path without credentials or URL parameters', () => {

@@ -21,9 +21,10 @@ import (
 )
 
 type AsyncImageHandler struct {
-	tasks   *service.ImageTaskService
-	openAI  *OpenAIGatewayHandler
-	execute func(platform string, c *gin.Context)
+	tasks            *service.ImageTaskService
+	openAI           *OpenAIGatewayHandler
+	referenceStorage *service.ImageStorageSettingService
+	execute          func(platform string, c *gin.Context)
 }
 
 func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGatewayHandler) *AsyncImageHandler {

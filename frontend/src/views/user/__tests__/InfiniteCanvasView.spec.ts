@@ -67,7 +67,7 @@ describe('Infinite Canvas multi-connection host', () => {
     expect(JSON.parse(localStorage.getItem('sub2api.canvas.connections.1')!).selection).toEqual({ image: [1], text: [], video: [] })
     expect(JSON.stringify(localStorage)).not.toContain(gemini.key)
   })
-  it('disconnects a Gemini image connection when its group revokes image permission', async () => {
+  it('keeps the selected key connected when image permission changes; gateway checks generation', async () => {
     vi.useFakeTimers()
     const gemini = { ...ownKey, group: { ...ownKey.group, platform: 'gemini' } } as ApiKey
     mocks.list.mockResolvedValue({ items: [gemini], total: 1, page_size: 100 })
@@ -76,15 +76,28 @@ describe('Infinite Canvas multi-connection host', () => {
     mocks.getById.mockResolvedValue({ ...gemini, group: { ...gemini.group, allow_image_generation: false } })
     await vi.advanceTimersByTimeAsync(CANVAS_SETTINGS_REFRESH_MS)
     await flushPromises()
-    expect(w.find('iframe').exists()).toBe(false)
-    expect(localStorage.getItem('sub2api.canvas.connections.1')).toBeNull()
+    expect(w.find('iframe').exists()).toBe(true)
+    expect(JSON.parse(localStorage.getItem('sub2api.canvas.connections.1')!).selection.image).toEqual([1])
   })
   it('starts empty with three optional purposes and never renders secrets', async () => {
     const w = view(); await flushPromises()
     expect(w.findAll('fieldset')).toHaveLength(3)
     expect(w.find('iframe').exists()).toBe(false)
     expect(w.html()).not.toContain(ownKey.key)
-    expect(w.get('#canvas-video-key').findAll('option')).toHaveLength(1)
+    expect(w.get('#canvas-video-key').findAll('option')).toHaveLength(2)
+  })
+  it('uses one owned key for all three purposes while persisting only its ID', async () => {
+    const w = view(); await flushPromises()
+    await w.get('#canvas-shared-key').setValue('1')
+    await w.findAll('button').find(button => button.text() === 'infiniteCanvas.enter')!.trigger('click')
+    await flushPromises()
+    const post = vi.spyOn((w.get('iframe').element as HTMLIFrameElement).contentWindow!, 'postMessage').mockImplementation(() => {})
+    message(w, 'READY'); await flushPromises()
+    const init = post.mock.calls.find(([data]) => data.type === 'INIT')![0]
+    expect(init.config.connections.map((connection: any) => connection.id)).toEqual(['image-1', 'text-1', 'video-1'])
+    message(w, 'ACK', { sessionId: init.sessionId, revision: init.revision }); await flushPromises()
+    expect(JSON.parse(localStorage.getItem('sub2api.canvas.connections.1')!).selection).toEqual({ image: [1], text: [1], video: [1] })
+    expect(JSON.stringify(localStorage)).not.toContain(ownKey.key)
   })
   it('keeps the remove action separate from a long group label', async () => {
     const longName = 'Very long image generation group '.repeat(12)

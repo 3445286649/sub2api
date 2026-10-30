@@ -167,7 +167,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			return
 		}
 		billingInfoRequest := c.Request.URL.Path == "/v1/sub2api/billing"
-		if !(billingInfoRequest && len(apiKey.ConfiguredGroupIDs()) > 1) {
+		if !(billingInfoRequest && len(apiKey.ConfiguredGroupIDs()) > 1) && !isOpenAIVideoTaskRead(c.Request.Method, c.Request.URL.Path) {
 			if abortIfAPIKeyGroupUnavailable(c, apiKey) {
 				return
 			}
@@ -180,7 +180,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// Async image task polling only reads data that already belongs to the
 		// authenticated key and must remain available after the completed
 		// generation consumes the key's remaining balance.
-		skipBilling := c.Request.URL.Path == "/v1/usage" || billingInfoRequest || isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path)
+		skipBilling := c.Request.URL.Path == "/v1/usage" || billingInfoRequest || isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path) || isOpenAIVideoTaskRead(c.Request.Method, c.Request.URL.Path)
 
 		// ── 4. SimpleMode → early return ─────────────────────────────
 
@@ -353,6 +353,10 @@ func isAsyncImageTaskRead(method, path string) bool {
 		return false
 	}
 	return strings.HasPrefix(path, "/v1/images/tasks/") || strings.HasPrefix(path, "/images/tasks/")
+}
+
+func isOpenAIVideoTaskRead(method, path string) bool {
+	return method == http.MethodGet && (strings.HasPrefix(path, "/v1/videos/openai-video:") || strings.HasPrefix(path, "/videos/openai-video:"))
 }
 
 // GetAPIKeyFromContext 从上下文中获取API key

@@ -2,9 +2,13 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -85,6 +89,33 @@ func (s *ImageStorageSettingService) Resolver() ImageStorageResolver {
 	return func() (*ImageResultUploader, bool) {
 		return s.resolve()
 	}
+}
+
+// SaveVideoReference stores a validated user image under an unguessable, user-scoped key.
+func (s *ImageStorageSettingService) SaveVideoReference(ctx context.Context, userID int64, contentType string, data []byte) (string, error) {
+	if userID <= 0 || len(data) == 0 || len(data) > 5<<20 {
+		return "", fmt.Errorf("invalid video reference image")
+	}
+	if (contentType != "image/png" && contentType != "image/jpeg" && contentType != "image/webp") || http.DetectContentType(data) != contentType {
+		return "", fmt.Errorf("unsupported video reference image")
+	}
+	uploader, enabled := s.resolve()
+	if !enabled || uploader == nil || uploader.storage == nil {
+		return "", fmt.Errorf("image storage is unavailable")
+	}
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", err
+	}
+	key := strings.TrimRight(uploader.prefix, "/") + "/video-references/" + strconv.FormatInt(userID, 10) + "/" + hex.EncodeToString(random[:]) + extensionForContentType(contentType)
+	url, err := uploader.storage.Save(ctx, key, contentType, data)
+	if err != nil {
+		return "", err
+	}
+	if !isPublicVideoReferenceURL(url) {
+		return "", fmt.Errorf("image storage did not return a public HTTP(S) URL")
+	}
+	return url, nil
 }
 
 func (s *ImageStorageSettingService) resolve() (*ImageResultUploader, bool) {

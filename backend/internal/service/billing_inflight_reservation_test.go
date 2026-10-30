@@ -47,6 +47,17 @@ func TestEstimateInflightReservationCost(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestInflightEstimateExactVideoCost(t *testing.T) {
+	cost := 0.84
+	key := &APIKey{User: &User{ID: 7}}
+	got, priced := (inflightEstimateDeps{}).estimate(context.Background(), key, InflightEstimateRequest{Model: "video", ExactCost: &cost})
+	require.True(t, priced)
+	require.InDelta(t, cost, got, 1e-9)
+	invalid := math.Inf(1)
+	_, priced = (inflightEstimateDeps{}).estimate(context.Background(), key, InflightEstimateRequest{Model: "video", ExactCost: &invalid})
+	require.False(t, priced)
+}
+
 func TestReserveInflightBalance_NoReservationCacheFailsOpen(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Billing.InflightReservation.Enabled = true

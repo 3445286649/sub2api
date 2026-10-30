@@ -370,6 +370,7 @@ const (
 // InflightEstimateRequest 单请求估算输入。
 type InflightEstimateRequest struct {
 	Model     string
+	ExactCost *float64
 	BodyBytes int
 	MaxTokens int
 	Kind      InflightEstimateKind
@@ -644,6 +645,12 @@ func (d inflightEstimateDeps) estimateOne(ctx context.Context, apiKey *APIKey, m
 func (d inflightEstimateDeps) estimate(ctx context.Context, apiKey *APIKey, req InflightEstimateRequest) (float64, bool) {
 	if apiKey == nil || apiKey.User == nil {
 		return 0, false
+	}
+	if req.ExactCost != nil {
+		if *req.ExactCost < 0 || math.IsNaN(*req.ExactCost) || math.IsInf(*req.ExactCost, 0) {
+			return 0, false
+		}
+		return *req.ExactCost, true
 	}
 	if req.WebSearchCalls > 0 && d.billing != nil {
 		price, rate := webSearchBillingTerms(apiKey, req.Model, d.baseRate(ctx, apiKey))

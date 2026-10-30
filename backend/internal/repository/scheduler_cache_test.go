@@ -54,6 +54,31 @@ func TestSchedulerMetadataAccountKeepsOpenAISubscriptionIdentity(t *testing.T) {
 	require.Empty(t, metadata.GetCredential("access_token"))
 }
 
+func TestSchedulerMetadataAccountPreservesVideoTaskCapability(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		name := "disabled"
+		capabilities := []any{"chat_completions"}
+		if enabled {
+			name = "enabled"
+			capabilities = append(capabilities, "video_tasks")
+		}
+		t.Run(name, func(t *testing.T) {
+			account := service.Account{
+				ID: 24, Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey,
+				Credentials: map[string]any{
+					"base_url":            "https://video.example.com",
+					"openai_capabilities": capabilities,
+					"access_token":        "test-secret",
+				},
+			}
+			metadata := buildSchedulerMetadataAccount(account)
+			require.Equal(t, enabled, account.SupportsOpenAIEndpointCapability(service.OpenAIEndpointCapabilityVideoTasks))
+			require.Equal(t, enabled, metadata.SupportsOpenAIEndpointCapability(service.OpenAIEndpointCapabilityVideoTasks))
+			require.NotContains(t, metadata.Credentials, "access_token")
+		})
+	}
+}
+
 func TestSchedulerMetadataAccountProjectsUpstreamBillingProbe(t *testing.T) {
 	lastError := strings.Repeat("upstream diagnostic ", 512)
 	probe := map[string]any{

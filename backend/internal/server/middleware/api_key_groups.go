@@ -13,7 +13,8 @@ import (
 
 func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subscriptions *service.SubscriptionService, cfg *config.Config, key *service.APIKey, google bool) (*service.APIKey, bool) {
 	if key == nil || len(key.ConfiguredGroupIDs()) < 2 || c.Request.URL.Path == "/v1/usage" ||
-		c.Request.URL.Path == "/v1/sub2api/billing" || isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path) {
+		c.Request.URL.Path == "/v1/sub2api/billing" || isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path) ||
+		isOpenAIVideoTaskRead(c.Request.Method, c.Request.URL.Path) {
 		return key, true
 	}
 	var models []string

@@ -214,6 +214,12 @@ func ProvideBatchImageHandler(
 	return h
 }
 
+func ProvideAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGatewayHandler, storage *service.ImageStorageSettingService) *AsyncImageHandler {
+	h := NewAsyncImageHandler(tasks, openAI)
+	h.referenceStorage = storage
+	return h
+}
+
 // ProvideSystemHandler creates admin.SystemHandler with UpdateService
 func ProvideSystemHandler(updateService *service.UpdateService, lockService *service.SystemOperationLockService) *admin.SystemHandler {
 	return admin.NewSystemHandler(updateService, lockService)
@@ -328,7 +334,7 @@ var ProviderSet = wire.NewSet(
 	NewUsageRebateHandler,
 	NewModelRadarHandler,
 	NewModelPlazaHandler,
-	NewAsyncImageHandler,
+	ProvideAsyncImageHandler,
 	ProvideBatchImageHandler,
 
 	// Admin handlers

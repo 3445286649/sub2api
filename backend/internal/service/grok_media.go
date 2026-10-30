@@ -41,11 +41,11 @@ func (e GrokMediaEndpoint) RequiresRequestBody() bool {
 }
 
 func (e GrokMediaEndpoint) IsVideoLookupRequest() bool {
-	return e == GrokMediaEndpointVideoStatus || e == GrokMediaEndpointVideoContent || e == SeedanceEndpointStatus || e == SeedanceEndpointDelete
+	return e == GrokMediaEndpointVideoStatus || e == GrokMediaEndpointVideoContent || e == SeedanceEndpointStatus || e == SeedanceEndpointDelete || e == OpenAIVideoEndpointStatus || e == OpenAIVideoEndpointContent
 }
 
 func (e GrokMediaEndpoint) IsGenerationRequest() bool {
-	if e == SeedanceEndpointCreate {
+	if e == SeedanceEndpointCreate || e == OpenAIVideoEndpointCreate {
 		return true
 	}
 	switch e {
@@ -377,12 +377,16 @@ func (s *OpenAIGatewayService) SelectMediaVideoRequestAccount(
 // first observes a completed video URL. Status may omit model/duration; we fall
 // back to this snapshot, then defaults.
 type GrokVideoPendingBilling struct {
-	Model                string `json:"model"`
-	BillingModel         string `json:"billing_model,omitempty"`
-	UpstreamModel        string `json:"upstream_model,omitempty"`
-	VideoResolution      string `json:"video_resolution,omitempty"`
-	VideoDurationSeconds int    `json:"video_duration_seconds,omitempty"`
-	OriginalModel        string `json:"original_model,omitempty"`
+	GroupID              int64                       `json:"group_id,omitempty"`
+	AccountID            int64                       `json:"account_id,omitempty"`
+	SubscriptionID       int64                       `json:"subscription_id,omitempty"`
+	OpenAIVideoPricing   *OpenAIVideoPricingSnapshot `json:"openai_video_pricing,omitempty"`
+	Model                string                      `json:"model"`
+	BillingModel         string                      `json:"billing_model,omitempty"`
+	UpstreamModel        string                      `json:"upstream_model,omitempty"`
+	VideoResolution      string                      `json:"video_resolution,omitempty"`
+	VideoDurationSeconds int                         `json:"video_duration_seconds,omitempty"`
+	OriginalModel        string                      `json:"original_model,omitempty"`
 	// CreatedAt is when the gateway accepted the async create (RFC3339Nano UTC).
 	// duration_ms for deferred billing is measured from this instant until the
 	// first official done+video.url observation (status poll or content download),

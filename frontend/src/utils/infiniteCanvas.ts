@@ -11,15 +11,10 @@ export type CanvasCapability = typeof CANVAS_CAPABILITIES[number]
 export type CanvasSelection = Record<CanvasCapability, number[]>
 export const emptyCanvasSelection = (): CanvasSelection => ({ image: [], text: [], video: [] })
 
-export function isCanvasKeyAvailable(key: ApiKey, userId: number, capability: CanvasCapability = 'image'): boolean {
+export function isCanvasKeyAvailable(key: ApiKey, userId: number, _capability: CanvasCapability = 'image'): boolean {
   const expires = key.expires_at ? Date.parse(key.expires_at) : null
-  const platform = key.group?.platform
-  const supported = capability === 'text'
-    ? ['openai', 'grok', 'kimi', 'zhipu', 'deepseek', 'minimax', 'opencode_go'].includes(platform || '')
-    : capability === 'video' ? platform === 'grok' : ['openai', 'grok', 'gemini'].includes(platform || '')
   return key.user_id === userId && key.status === 'active'
-    && Boolean(key.key) && supported && (!key.group?.status || key.group.status === 'active')
-    && (capability === 'text' || key.group?.allow_image_generation === true)
+    && Boolean(key.key)
     && (expires === null || (Number.isFinite(expires) && expires > Date.now()))
     && !(key.quota > 0 && key.quota_used >= key.quota)
 }

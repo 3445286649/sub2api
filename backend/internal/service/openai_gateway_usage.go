@@ -446,6 +446,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 	if isVideoUsage && (cost == nil || cost.BillingMode != string(BillingModeToken)) {
 		usageLog.RateMultiplier = videoMultiplier
+		if result.OpenAIVideoPricing != nil {
+			usageLog.RateMultiplier = result.OpenAIVideoPricing.RateMultiplier
+		}
 	} else if result.ImageCount > 0 && (cost == nil || cost.BillingMode != string(BillingModeToken)) {
 		usageLog.RateMultiplier = imageMultiplier
 	} else if result.WebSearchCalls > 0 {
@@ -623,6 +626,9 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 		// 倍率与 image/video 按次口径一致：使用不含高峰因子的基础倍率
 		//（用户专属 > 分组 rate_multiplier > 系统默认），与分组表单的价格预览承诺一致。
 		return s.billingService.CalculateWebSearchCost(result.WebSearchCalls, price, rate), nil
+	}
+	if result != nil && result.OpenAIVideoPricing != nil && result.VideoCount > 0 {
+		return s.calculateOpenAIVideoCost(ctx, billingModel, apiKey, result, videoMultiplier), nil
 	}
 	if isGrokVideoUsageResult(result, billingModels) {
 		if resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey); resolved == nil || resolved.Mode != BillingModeToken {
@@ -860,6 +866,10 @@ func (s *OpenAIGatewayService) calculateOpenAIVideoCost(
 	}
 	resolution := NormalizeVideoBillingResolutionOrDefault(result.VideoResolution)
 	durationSeconds := NormalizeVideoBillingDurationSecondsOrDefault(result.VideoDurationSeconds)
+	if strings.HasPrefix(result.ResponseID, "openai-video:") && result.OpenAIVideoPricing != nil {
+		price := result.OpenAIVideoPricing.UnitPrice * float64(videoCount)
+		return &CostBreakdown{TotalCost: price, ActualCost: price * result.OpenAIVideoPricing.RateMultiplier, BillingMode: string(BillingModeVideo)}
+	}
 	resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey)
 	if resolved != nil && resolved.Source == PricingSourceGroup && resolved.Mode == BillingModeVideo {
 		gid := apiKey.Group.ID
