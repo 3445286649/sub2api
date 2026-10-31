@@ -218,6 +218,7 @@ func RegisterGatewayRoutes(
 		// /models endpoint with a client_version query and expect the ChatGPT
 		// Codex manifest format; other clients keep the OpenAI-style list.
 		gateway.GET("/models", modelsHandler)
+		gateway.GET("/video-capabilities", h.Gateway.VideoCapabilities)
 		// Single-model discovery never selects the Codex client_version manifest.
 		gateway.GET("/models/:model", h.Gateway.Models)
 		gateway.GET("/usage", h.Gateway.Usage)
@@ -399,6 +400,7 @@ func RegisterGatewayRoutes(
 		h.OpenAIGateway.ResponsesWebSocket(c)
 	})
 	rootRoute(http.MethodGet, "/models", bodyLimit, modelsHandler)
+	rootRoute(http.MethodGet, "/video-capabilities", bodyLimit, h.Gateway.VideoCapabilities)
 	rootRoute(http.MethodGet, "/models/:model", bodyLimit, h.Gateway.Models)
 	rootRoute(http.MethodPost, "/messages/count_tokens", bodyLimit, countTokensHandler)
 	codexDirect := r.Group("/backend-api/codex")

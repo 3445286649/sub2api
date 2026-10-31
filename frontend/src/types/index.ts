@@ -259,6 +259,8 @@ export interface SendVerifyCodeResponse {
 }
 
 export interface CustomMenuItem {
+  open_mode?: 'embed' | 'new_tab' | 'redirect'
+  enabled?: boolean
   id: string
   label: string
   icon_svg: string
@@ -2824,3 +2826,14 @@ export type {
   PlatformQuotaWindow,
   PlatformQuotasResponse,
 } from '@/api/admin/users'
+
+export interface VideoModelCapability {
+  model: string
+  max_reference_images: number
+  max_reference_videos: number
+  max_reference_audios: number
+  supports_frames: boolean
+  resolutions: string[]
+  min_duration: number
+  max_duration: number
+}

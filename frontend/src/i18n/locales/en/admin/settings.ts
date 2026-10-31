@@ -749,6 +749,14 @@ export default {
         integrationDocHint: 'Covers endpoint specs, idempotency semantics, and code samples'
       },
       customMenu: {
+        modeLegacy: 'Legacy integration (embedded)',
+        legacyIntegrationHint: 'Legacy entries retain their existing login-parameter integration. Selecting an open mode migrates to a plain URL without station credentials; first confirm the target does not depend on the old integration.',
+        openMode: 'Open mode',
+        modeEmbed: 'Embed in site',
+        modeNewTab: 'New tab',
+        modeRedirect: 'Current tab',
+        enabled: 'Enabled',
+
         title: 'Custom Menu Pages',
         description: 'Add custom iframe pages to the sidebar navigation. Each page can be visible to regular users or administrators.',
         itemLabel: 'Menu Item #{n}',

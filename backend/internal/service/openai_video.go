@@ -44,24 +44,25 @@ func (s *OpenAIGatewayService) OpenAIVideoTaskSubscription(ctx context.Context, 
 type OpenAIVideoPricingSnapshot struct {
 	UnitPrice      float64 `json:"unit_price"`
 	RateMultiplier float64 `json:"rate_multiplier"`
+	PerSecond      bool    `json:"per_second,omitempty"`
 }
 
 func (s *OpenAIGatewayService) OpenAIVideoPricing(ctx context.Context, key *APIKey, model, resolution string) *OpenAIVideoPricingSnapshot {
 	if s == nil || s.resolver == nil || key == nil || key.Group == nil || key.GroupID == nil || key.User == nil {
 		return nil
 	}
-	resolution, ok := LookupVideoBillingResolution(resolution)
+	resolution, ok := LookupOpenAIVideoResolution(resolution)
 	if !ok {
 		return nil
 	}
 	pricing := s.resolver.Resolve(ctx, PricingInput{Model: model, GroupID: key.GroupID, Group: key.Group})
 	if pricing == nil || (pricing.Source != PricingSourceGroup && pricing.Source != PricingSourceChannel) ||
-		pricing.Mode != BillingModePerRequest || pricing.channelPricing == nil {
+		(pricing.Mode != BillingModePerRequest && pricing.Mode != BillingModeVideo) || pricing.channelPricing == nil {
 		return nil
 	}
 	price := pricing.channelPricing.PerRequestPrice
 	for _, tier := range pricing.RequestTiers {
-		if tierResolution, valid := LookupVideoBillingResolution(tier.TierLabel); valid && tierResolution == resolution {
+		if tierResolution, valid := LookupOpenAIVideoResolution(tier.TierLabel); valid && tierResolution == resolution {
 			price = tier.PerRequestPrice
 			break
 		}
@@ -78,7 +79,7 @@ func (s *OpenAIGatewayService) OpenAIVideoPricing(ctx context.Context, key *APIK
 	if rate < 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
 		return nil
 	}
-	return &OpenAIVideoPricingSnapshot{UnitPrice: *price, RateMultiplier: rate}
+	return &OpenAIVideoPricingSnapshot{UnitPrice: *price, RateMultiplier: rate, PerSecond: pricing.Mode == BillingModeVideo}
 }
 
 func ParseOpenAIVideoRequest(body []byte) (GrokMediaRequestInfo, error) {
@@ -87,47 +88,103 @@ func ParseOpenAIVideoRequest(body []byte) (GrokMediaRequestInfo, error) {
 		return info, fmt.Errorf("request body must be a JSON object")
 	}
 	model := gjson.GetBytes(body, "model")
-	if model.Type != gjson.String || strings.TrimSpace(model.String()) == "" {
-		return info, fmt.Errorf("model is required")
+	if model.Type != gjson.String || strings.TrimSpace(model.String()) == "" || len(model.String()) > 256 {
+		return info, fmt.Errorf("model is required (max 256 bytes)")
 	}
 	info.Model = strings.TrimSpace(model.String())
 	prompt := gjson.GetBytes(body, "prompt")
-	if prompt.Type != gjson.String || strings.TrimSpace(prompt.String()) == "" {
-		return info, fmt.Errorf("prompt is required")
+	if prompt.Exists() && prompt.Type != gjson.String {
+		return info, fmt.Errorf("prompt must be a string")
 	}
 	info.Prompt = strings.TrimSpace(prompt.String())
-	images := gjson.GetBytes(body, "reference_images")
-	if images.Exists() {
-		if !images.IsArray() || len(images.Array()) > 9 {
-			return info, fmt.Errorf("reference_images must contain at most nine images")
+	for _, field := range []struct {
+		name, key string
+		limit     int
+		count     *int
+	}{
+		{"reference_images", "image_url", 30, &info.ReferenceImageCount},
+		{"reference_videos", "video_url", 10, &info.ReferenceVideoCount},
+		{"reference_audios", "audio_url", 10, &info.ReferenceAudioCount},
+	} {
+		refs := gjson.GetBytes(body, field.name)
+		if !refs.Exists() {
+			continue
 		}
-		for _, image := range images.Array() {
-			if !image.IsObject() {
-				return info, fmt.Errorf("reference_images entries must be objects")
+		if !refs.IsArray() || len(refs.Array()) > field.limit {
+			return info, fmt.Errorf("%s must be an array with at most %d entries", field.name, field.limit)
+		}
+		*field.count = len(refs.Array())
+		for _, ref := range refs.Array() {
+			raw := ref
+			if ref.IsObject() {
+				raw = ref.Get(field.key)
 			}
-			raw := image.Get("image_url")
 			if raw.Type != gjson.String || !isPublicVideoReferenceURL(raw.String()) {
-				return info, fmt.Errorf("reference_images require public HTTP(S) image URLs")
+				return info, fmt.Errorf("%s require public HTTP(S) file URLs", field.name)
 			}
-			info.InputImageURLs = append(info.InputImageURLs, raw.String())
+			if field.name == "reference_images" {
+				info.InputImageURLs = append(info.InputImageURLs, raw.String())
+			}
 		}
+	}
+	for _, field := range []string{"first_frame", "last_frame"} {
+		ref := gjson.GetBytes(body, field)
+		if !ref.Exists() {
+			continue
+		}
+		raw := ref
+		if ref.IsObject() {
+			raw = ref.Get("image_url")
+		}
+		if raw.Type != gjson.String || !isPublicVideoReferenceURL(raw.String()) {
+			return info, fmt.Errorf("%s requires a public HTTP(S) image URL", field)
+		}
+		info.HasVideoFrames = true
+		info.InputImageURLs = append(info.InputImageURLs, raw.String())
+	}
+	if gjson.GetBytes(body, "last_frame").Exists() && !gjson.GetBytes(body, "first_frame").Exists() {
+		return info, fmt.Errorf("last_frame requires first_frame")
+	}
+	if info.HasVideoFrames && info.ReferenceImageCount+info.ReferenceVideoCount+info.ReferenceAudioCount > 0 {
+		return info, fmt.Errorf("first/last frames cannot be combined with reference materials")
+	}
+	if info.Prompt == "" && len(info.InputImageURLs)+info.ReferenceVideoCount+info.ReferenceAudioCount == 0 {
+		return info, fmt.Errorf("prompt or reference material is required")
 	}
 	info.Resolution = VideoBillingResolution480P
 	if requestedResolution := gjson.GetBytes(body, "resolution"); requestedResolution.Exists() {
 		if requestedResolution.Type != gjson.String {
-			return info, fmt.Errorf("resolution must be 480p, 720p or 1080p")
+			return info, fmt.Errorf("resolution must be 480p, 720p, 1080p or 4k")
 		}
 		var valid bool
-		info.Resolution, valid = LookupVideoBillingResolution(requestedResolution.String())
+		info.Resolution, valid = LookupOpenAIVideoResolution(requestedResolution.String())
 		if !valid {
-			return info, fmt.Errorf("resolution must be 480p, 720p or 1080p")
+			return info, fmt.Errorf("resolution must be 480p, 720p, 1080p or 4k")
 		}
 	}
-	info.DurationSeconds = int(gjson.GetBytes(body, "duration").Int())
+	if duration := gjson.GetBytes(body, "duration"); duration.Exists() {
+		if duration.Type != gjson.Number || duration.Float() != float64(duration.Int()) || duration.Int() < 0 || duration.Int() > 600 {
+			return info, fmt.Errorf("duration must be an integer from 0 to 600 seconds")
+		}
+		info.DurationSeconds = int(duration.Int())
+	}
+	if ratio := gjson.GetBytes(body, "ratio"); ratio.Exists() {
+		if ratio.Type != gjson.String {
+			return info, fmt.Errorf("ratio must be a string")
+		}
+		switch ratio.String() {
+		case "auto", "adaptive", "16:9", "9:16", "1:1", "4:3", "3:4", "21:9":
+		default:
+			return info, fmt.Errorf("unsupported video ratio")
+		}
+	}
 	return info, nil
 }
 
 func isPublicVideoReferenceURL(raw string) bool {
+	if len(raw) > 8192 {
+		return false
+	}
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Fragment != "" {
 		return false
@@ -139,7 +196,7 @@ func isPublicVideoReferenceURL(raw string) bool {
 	if strings.Trim(host, "0123456789.") == "" && net.ParseIP(host) == nil {
 		return false
 	}
-	if ip := net.ParseIP(host); ip != nil && (ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified()) {
+	if ip := net.ParseIP(host); ip != nil && (!ip.IsGlobalUnicast() || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified()) {
 		return false
 	}
 	return true
@@ -185,6 +242,9 @@ func (s *OpenAIGatewayService) ForwardOpenAIVideo(ctx context.Context, c *gin.Co
 			return nil, parseErr
 		}
 		createInfo = info
+		if err := account.ValidateOpenAIVideoRequest(info); err != nil {
+			return nil, err
+		}
 		model = info.Model
 		upstreamModel = account.GetMappedModel(model)
 		body, err = sjson.SetBytes(body, "model", upstreamModel)
@@ -231,7 +291,7 @@ func (s *OpenAIGatewayService) ForwardOpenAIVideo(ctx context.Context, c *gin.Co
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if endpoint == OpenAIVideoEndpointContent && resp.StatusCode < 300 {
-		if err := writeGrokMediaContentResponse(c, resp); err != nil {
+		if _, err := writeGrokMediaContentResponse(c, resp); err != nil {
 			return nil, err
 		}
 		videoCount := 0

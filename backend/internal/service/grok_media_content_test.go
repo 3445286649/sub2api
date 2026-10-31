@@ -98,6 +98,7 @@ func TestForwardGrokMediaContentUsesUpstreamCredentialAndStreamsRange(t *testing
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
+	require.Equal(t, 1, result.VideoCount)
 	require.Equal(t, http.StatusPartialContent, recorder.Code)
 	require.Equal(t, "video-payload", recorder.Body.String())
 	require.Len(t, upstream.requests, 2)
@@ -239,17 +240,46 @@ func TestForwardGrokMediaContentFollowsAuthenticatedSub2APIRelay(t *testing.T) {
 			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
 			c, recorder := grokMediaContentTestContext(http.MethodGet, "https://api.example/v1/videos/task-1/content", nil)
 
-			_, err := svc.ForwardGrokMedia(
+			result, err := svc.ForwardGrokMedia(
 				context.Background(), c, grokMediaContentTestAccount(),
 				GrokMediaEndpointVideoContent, "task-1", nil, "",
 			)
 
 			require.NoError(t, err)
+			require.Equal(t, 1, result.VideoCount)
 			require.Equal(t, http.StatusOK, recorder.Code)
 			require.Equal(t, "video-payload", recorder.Body.String())
 			require.Len(t, upstream.requests, 2)
 			require.Equal(t, "https://relay.example/v1/videos/task-1/content", upstream.requests[1].URL.String())
 			require.Equal(t, "Bearer upstream-key", upstream.requests[1].Header.Get("Authorization"))
+		})
+	}
+}
+
+func TestForwardGrokMediaContentOnlyBillsVerifiedCompletedVideo(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		status      string
+		contentType string
+		body        string
+		wantCount   int
+	}{
+		{name: "completed video", status: "completed", contentType: "video/mp4", body: "video-payload", wantCount: 1},
+		{name: "pending video", status: "pending", contentType: "video/mp4", body: "video-payload"},
+		{name: "failed video", status: "failed", contentType: "video/mp4", body: "video-payload"},
+		{name: "completed JSON", status: "completed", contentType: "application/json", body: `{"error":"not ready"}`},
+		{name: "completed empty", status: "completed", contentType: "video/mp4"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			upstream := &grokMediaContentUpstreamStub{responses: []*http.Response{
+				grokMediaContentStatusResponse(`{"status":"` + tc.status + `"}`),
+				{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{tc.contentType}}, Body: io.NopCloser(strings.NewReader(tc.body))},
+			}}
+			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+			c, _ := grokMediaContentTestContext(http.MethodGet, "https://api.example/v1/videos/task-1/content", nil)
+			result, err := svc.ForwardGrokMedia(context.Background(), c, grokMediaContentTestAccount(), GrokMediaEndpointVideoContent, "task-1", nil, "")
+			require.NoError(t, err)
+			require.Equal(t, tc.wantCount, result.VideoCount)
 		})
 	}
 }
@@ -322,6 +352,19 @@ func TestForwardGrokVideoStatusRewritesOnlyProtectedContentURL(t *testing.T) {
 	require.Equal(t, "https://vidgen.x.ai/task-1.mp4", gjson.Get(recorder.Body.String(), "video_url").String())
 	require.Equal(t, "9007199254740993", gjson.Get(recorder.Body.String(), "counter").String())
 	require.NotContains(t, recorder.Body.String(), "malicious.invalid")
+}
+
+func TestForwardGrokVideoRelayStatusUsesCompletionSignalWithoutDefaultModel(t *testing.T) {
+	upstream := &grokMediaContentUpstreamStub{response: grokMediaContentStatusResponse(`{"id":"task-1","request_id":"task-1","status":"completed","data":[{"url":"https://relay.example/v1/videos/task-1/content"}]}`)}
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+	c, recorder := grokMediaContentTestContext(http.MethodGet, "https://api.example/v1/videos/task-1", nil)
+	result, err := svc.ForwardGrokMedia(context.Background(), c, grokMediaContentTestAccount(), GrokMediaEndpointVideoStatus, "task-1", nil, "")
+	require.NoError(t, err)
+	require.Equal(t, 1, result.VideoCount)
+	require.Equal(t, "task-1", result.ResponseID)
+	require.Empty(t, result.Model)
+	require.Empty(t, result.BillingModel)
+	require.Equal(t, "/v1/videos/task-1/content", gjson.Get(recorder.Body.String(), "data.0.url").String())
 }
 
 func TestRewriteGrokMediaVideoContentURLsPreservesOtherIDsAndHandlesNestedEscapedID(t *testing.T) {

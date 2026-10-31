@@ -93,6 +93,10 @@
           </div>
         </div>
 
+        <div v-else-if="menuItem.open_mode === 'new_tab' || menuItem.open_mode === 'redirect'" class="flex h-full items-center justify-center p-6">
+          <a :href="embeddedUrl" :target="menuItem.open_mode === 'new_tab' ? '_blank' : '_self'" rel="noopener noreferrer" class="btn btn-primary">{{ t('customPage.openInNewTab') }}</a>
+        </div>
+
         <!-- Iframe embed mode -->
         <div v-else ref="embedShell" class="custom-embed-shell">
           <a
@@ -116,6 +120,9 @@
           </a>
           <iframe
             :src="embeddedUrl"
+            :title="menuItem.label"
+            referrerpolicy="no-referrer"
+            :sandbox="menuItem.open_mode ? 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads' : undefined"
             class="custom-embed-frame"
             allowfullscreen
           ></iframe>
@@ -136,6 +143,7 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { buildApiUrl } from '@/api/client'
+import { customMenuUrl } from '@/utils/custom-menu'
 import { buildEmbeddedUrl, detectTheme } from '@/utils/embedded-url'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
@@ -225,9 +233,9 @@ const menuItem = computed(() => {
   const id = menuItemId.value
   const publicItems = appStore.cachedPublicSettings?.custom_menu_items ?? []
   const found = publicItems.find((item) => item.id === id) ?? null
-  if (found) return found
+  if (found) return found.enabled === false ? null : found
   if (authStore.isAdmin) {
-    return adminSettingsStore.customMenuItems.find((item) => item.id === id) ?? null
+    return adminSettingsStore.customMenuItems.find((item) => item.id === id && item.enabled !== false) ?? null
   }
   return null
 })
@@ -244,13 +252,12 @@ const isMarkdownMode = computed(() => !!markdownSlug.value)
 
 const embeddedUrl = computed(() => {
   if (!menuItem.value || isMarkdownMode.value) return ''
-  return buildEmbeddedUrl(
-    menuItem.value.url,
-    authStore.user?.id,
-    authStore.token,
-    pageTheme.value,
-    locale.value,
-  )
+  const url = customMenuUrl(menuItem.value)
+  // Entries created before open_mode existed retain their explicit integration
+  // behavior. Newly created or migrated entries never receive station credentials.
+  return url && !menuItem.value.open_mode
+    ? buildEmbeddedUrl(url, authStore.user?.id, authStore.token, pageTheme.value, locale.value)
+    : url
 })
 
 const isValidUrl = computed(() => {

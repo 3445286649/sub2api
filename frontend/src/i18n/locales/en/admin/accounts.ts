@@ -1,5 +1,17 @@
 export default {
     accounts: {
+      videoCapabilities: {
+        title: 'Video model capabilities',
+        add: 'Add model rule',
+        hint: 'Use an exact upstream model name, or * for account defaults. Without rules: nine images and 480p/720p/1080p. Platform limits: 30 images, 10 videos and 10 audios. Duration 0 means no additional limit.',
+        model: 'Upstream model name or *',
+        frames: 'Supports first/last frames',
+        max_reference_images: 'Maximum images',
+        max_reference_videos: 'Maximum videos',
+        max_reference_audios: 'Maximum audios',
+        min_duration: 'Minimum seconds',
+        max_duration: 'Maximum seconds',
+      },
       title: 'Account Management',
       description: 'Manage AI platform accounts and credentials',
       createAccount: 'Create Account',

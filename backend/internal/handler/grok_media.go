@@ -120,7 +120,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 			return
 		}
 		if pending.OpenAIVideoPricing == nil {
-			h.errorResponse(c, http.StatusServiceUnavailable, "video_pricing_required", "Per-request pricing must be configured for this video model")
+			h.errorResponse(c, http.StatusServiceUnavailable, "video_pricing_required", "Explicit per-request or per-second pricing must be configured for this video model")
 			return
 		}
 	}
@@ -161,8 +161,12 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 	if endpoint == service.OpenAIVideoEndpointCreate {
 		videoPricing = h.gatewayService.OpenAIVideoPricing(c.Request.Context(), apiKey, clientRequestedModel(c, requestModel), requestInfo.Resolution)
 	}
+	if endpoint == service.OpenAIVideoEndpointCreate && videoPricing != nil && videoPricing.PerSecond && requestInfo.DurationSeconds <= 0 {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "duration is required for per-second video pricing")
+		return
+	}
 	if endpoint == service.OpenAIVideoEndpointCreate && videoPricing == nil {
-		h.errorResponse(c, http.StatusServiceUnavailable, "video_pricing_required", "Per-request pricing must be configured for this video model")
+		h.errorResponse(c, http.StatusServiceUnavailable, "video_pricing_required", "Explicit per-request or per-second pricing must be configured for this video model")
 		return
 	}
 	routingModel := service.NormalizeGrokMediaModelForEndpoint(endpoint, requestModel, requestInfo.HasInputImage())
@@ -249,6 +253,9 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 	estimate := grokMediaInflightEstimate(endpoint, estimateModel, requestInfo, body)
 	if videoPricing != nil {
 		cost := videoPricing.UnitPrice * videoPricing.RateMultiplier
+		if videoPricing.PerSecond {
+			cost *= float64(requestInfo.DurationSeconds)
+		}
 		estimate.ExactCost = &cost
 	}
 	inflightDone, inflightErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription, estimate)
@@ -287,12 +294,16 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 	// 范围内：显式豁免，防止 service 层防御性装门按文本 D 误过滤媒体请求，
 	// 也防止已计费的在途视频任务因绑定账号被门排除而查询返回伪 404。
 	requestCtx := service.WithOpenAIProfitControlSuppressed(c.Request.Context())
+	if endpoint == service.OpenAIVideoEndpointCreate {
+		requestCtx = service.WithOpenAIVideoRequest(requestCtx, requestInfo)
+	}
 	profitVetoCount := 0
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
 	var oauth429FailoverState service.OpenAIOAuth429FailoverState
 	mediaEligibilityRejected := false
+	var videoCapabilityError error
 	switchCount := 0
 	videoCreateStartedAt := ""
 	if isGrokVideoCreateEndpoint(endpoint) {
@@ -361,6 +372,13 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 			)
 			if endpoint.IsGenerationRequest() && errors.Is(err, service.ErrNoAvailableAccounts) &&
 				(len(failedAccountIDs) == 0 || (mediaEligibilityRejected && lastFailoverErr == nil)) {
+				if videoCapabilityError == nil {
+					videoCapabilityError = service.OpenAIVideoCapabilityError(requestCtx)
+				}
+				if videoCapabilityError != nil {
+					h.errorResponse(c, http.StatusBadRequest, "video_capability_mismatch", videoCapabilityError.Error())
+					return
+				}
 				markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
 				h.errorResponse(c, http.StatusServiceUnavailable, noAccountCode, noAccountMessage)
 				return
@@ -415,6 +433,22 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		)
 
 		account := selection.Account
+		if endpoint == service.OpenAIVideoEndpointCreate {
+			capabilityInfo := requestInfo
+			capabilityInfo.Model = routingModel
+			if capabilityErr := account.ValidateOpenAIVideoRequest(capabilityInfo); capabilityErr != nil {
+				releaseAccount()
+				videoCapabilityError = capabilityErr
+				mediaEligibilityRejected = true
+				failedAccountIDs[account.ID] = struct{}{}
+				if switchCount >= maxAccountSwitches {
+					h.errorResponse(c, http.StatusBadRequest, "video_capability_mismatch", capabilityErr.Error())
+					return
+				}
+				switchCount++
+				continue
+			}
+		}
 		if endpoint.IsGenerationRequest() && !endpoint.IsSeedance() && !endpoint.IsOpenAIVideo() {
 			eligible, eligibilityReason, eligibilityErr := h.ensureGrokMediaAccountEligibility(requestCtx, account)
 			if !eligible {
@@ -589,7 +623,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 				VideoResolution:      result.VideoResolution,
 				VideoDurationSeconds: result.VideoDurationSeconds,
 				OriginalModel:        clientRequestedModel(c, requestModel),
-				// Wall-clock start for usage duration_ms: create accepted → first done discovery.
+				// Wall-clock start for usage duration_ms: create accepted to verified completion.
 				CreatedAt: videoCreateStartedAt,
 			}
 			if endpoint.IsOpenAIVideo() && subscription != nil {
@@ -619,7 +653,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 				c.Data(result.DeferredResponseStatus, "application/json", result.DeferredResponseBody)
 			}
 		}
-		// Status poll OR content download can observe official done+video.url.
+		// Status poll or verified content download can establish completion.
 		// Both paths share the same claim key so the customer is charged once.
 		if endpoint == service.SeedanceEndpointStatus {
 			if billResult := prepareSeedanceCompletionBilling(requestCtx, h, apiKey, subject, requestID, result); billResult != nil {
@@ -694,8 +728,7 @@ func isGrokVideoCreateEndpoint(endpoint service.GrokMediaEndpoint) bool {
 }
 
 // shouldRecordGrokMediaUsage gates usage writes for immediate (image) generation.
-// Async video create never bills here — status polling does on official
-// status=done with video.url (docs.x.ai Video Generation).
+// Async video create never bills here; status polling or content download bills on completion.
 // Status/content polls, empty model, and failed generations with zero billable
 // image units never bill via this helper.
 func shouldRecordGrokMediaUsage(endpoint service.GrokMediaEndpoint, requestModel string, result *service.OpenAIForwardResult) bool {
@@ -729,6 +762,9 @@ func prepareOpenAIVideoCompletionBilling(
 	if pending.OpenAIVideoPricing == nil {
 		return nil
 	}
+	if pending.OpenAIVideoPricing.PerSecond && pending.VideoDurationSeconds <= 0 {
+		return nil
+	}
 	claimed, err := h.gatewayService.ClaimGrokVideoBilling(ctx, taskID, subject.UserID, key.ID)
 	if err != nil || !claimed {
 		return nil
@@ -749,7 +785,7 @@ func prepareOpenAIVideoCompletionBilling(
 	return &merged
 }
 
-// prepareGrokVideoCompletionBilling claims one-shot billing for official done+video.url
+// prepareGrokVideoCompletionBilling claims one-shot billing for verified completion
 // observations (status poll or content download). Duration/model prefer status body;
 // resolution uses create-time request (status response does not document resolution).
 func prepareGrokVideoCompletionBilling(
@@ -764,7 +800,7 @@ func prepareGrokVideoCompletionBilling(
 	if h == nil || h.gatewayService == nil || apiKey == nil || statusResult == nil {
 		return nil
 	}
-	// Forward already set VideoCount only when status=done && video.url (official).
+	// Forward sets VideoCount only for a completed status with URL or verified video content.
 	if statusResult.VideoCount <= 0 {
 		return nil
 	}

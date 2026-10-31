@@ -77,6 +77,20 @@
               </div>
             </template>
             <!-- Normal item (no children) -->
+            <a
+              v-else-if="item.externalUrl"
+              :href="item.externalUrl"
+              :target="item.openMode === 'new_tab' ? '_blank' : '_self'"
+              rel="noopener noreferrer"
+              class="sidebar-link mb-1"
+              :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
+              :title="sidebarCollapsed ? item.label : undefined"
+              @click="closeMobile"
+            >
+              <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
+              <GlobeIcon v-else class="h-5 w-5 flex-shrink-0" />
+              <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }"><span class="min-w-0 truncate">{{ item.label }}</span></span>
+            </a>
             <router-link
               v-else
               :to="item.path"
@@ -136,6 +150,20 @@
                 </router-link>
               </div>
             </template>
+            <a
+              v-else-if="item.externalUrl"
+              :href="item.externalUrl"
+              :target="item.openMode === 'new_tab' ? '_blank' : '_self'"
+              rel="noopener noreferrer"
+              class="sidebar-link mb-1"
+              :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
+              :title="sidebarCollapsed ? item.label : undefined"
+              @click="closeMobile"
+            >
+              <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
+              <GlobeIcon v-else class="h-5 w-5 flex-shrink-0" />
+              <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }"><span class="min-w-0 truncate">{{ item.label }}</span></span>
+            </a>
             <router-link
               v-else
               :to="item.path"
@@ -175,6 +203,20 @@
                 </router-link>
               </div>
             </template>
+            <a
+              v-else-if="item.externalUrl"
+              :href="item.externalUrl"
+              :target="item.openMode === 'new_tab' ? '_blank' : '_self'"
+              rel="noopener noreferrer"
+              class="sidebar-link mb-1"
+              :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
+              :title="sidebarCollapsed ? item.label : undefined"
+              @click="closeMobile"
+            >
+              <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
+              <GlobeIcon v-else class="h-5 w-5 flex-shrink-0" />
+              <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }"><span class="min-w-0 truncate">{{ item.label }}</span></span>
+            </a>
             <router-link
               v-else
               :to="item.path"
@@ -247,6 +289,7 @@ import { adminAPI } from '@/api/admin'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
+import { customMenuExternalUrl } from '@/utils/custom-menu'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
@@ -254,6 +297,8 @@ import { useTheme } from '@/composables/useTheme'
 import { resolveRechargeStorefrontChannels } from '@/utils/rechargeStorefront'
 
 interface NavItem {
+  externalUrl?: string
+  openMode?: string
   path: string
   label: string
   icon: unknown
@@ -803,6 +848,8 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
+      externalUrl: customMenuExternalUrl(item),
+      openMode: item.open_mode,
       label: item.label,
       icon: null,
       iconSvg: item.icon_svg,
@@ -829,13 +876,13 @@ const personalNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavItems
 const customMenuItemsForUser = computed(() => {
   const items = appStore.cachedPublicSettings?.custom_menu_items ?? []
   return items
-    .filter((item) => item.visibility === 'user')
+    .filter((item) => item.visibility === 'user' && item.enabled !== false)
     .sort((a, b) => a.sort_order - b.sort_order)
 })
 
 const customMenuItemsForAdmin = computed(() => {
   return adminSettingsStore.customMenuItems
-    .filter((item) => item.visibility === 'admin')
+    .filter((item) => item.visibility === 'admin' && item.enabled !== false)
     .sort((a, b) => a.sort_order - b.sort_order)
 })
 
@@ -918,14 +965,14 @@ const adminNavItems = computed((): NavItem[] => {
     filtered.push({ path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon })
     filtered.push({ path: '/admin/settings', label: t('nav.settings'), icon: CogIcon })
     for (const cm of customMenuItemsForAdmin.value) {
-      filtered.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
+      filtered.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg, externalUrl: customMenuExternalUrl(cm), openMode: cm.open_mode })
     }
     return filtered
   }
 
   visible.push({ path: '/admin/settings', label: t('nav.settings'), icon: CogIcon })
   for (const cm of customMenuItemsForAdmin.value) {
-    visible.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
+    visible.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg, externalUrl: customMenuExternalUrl(cm), openMode: cm.open_mode })
   }
   return visible
 })

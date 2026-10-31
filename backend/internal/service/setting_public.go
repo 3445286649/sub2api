@@ -815,6 +815,7 @@ func filterUserVisibleMenuItems(raw string) json.RawMessage {
 	}
 	var items []struct {
 		Visibility string `json:"visibility"`
+		Enabled    *bool  `json:"enabled,omitempty"`
 	}
 	if err := json.Unmarshal([]byte(raw), &items); err != nil {
 		return json.RawMessage("[]")
@@ -828,7 +829,7 @@ func filterUserVisibleMenuItems(raw string) json.RawMessage {
 
 	var filtered []json.RawMessage
 	for i, item := range items {
-		if item.Visibility != "admin" {
+		if item.Visibility != "admin" && (item.Enabled == nil || *item.Enabled) {
 			filtered = append(filtered, fullItems[i])
 		}
 	}
@@ -917,14 +918,16 @@ func parseCustomMenuItemURLs(raw string) []string {
 		return nil
 	}
 	var items []struct {
-		URL string `json:"url"`
+		URL      string `json:"url"`
+		OpenMode string `json:"open_mode"`
+		Enabled  *bool  `json:"enabled,omitempty"`
 	}
 	if err := json.Unmarshal([]byte(raw), &items); err != nil {
 		return nil
 	}
 	urls := make([]string, 0, len(items))
 	for _, item := range items {
-		if item.URL != "" {
+		if item.URL != "" && (item.Enabled == nil || *item.Enabled) && (item.OpenMode == "" || item.OpenMode == "embed") {
 			urls = append(urls, item.URL)
 		}
 	}

@@ -7027,6 +7027,24 @@
                     </select>
                   </div>
 
+                  <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">{{ t('admin.settings.customMenu.openMode') }}</label>
+                    <select :value="item.open_mode || ''" class="input text-sm" @change="item.open_mode = ($event.target as HTMLSelectElement).value as 'embed' | 'new_tab' | 'redirect'">
+                      <option v-if="!item.open_mode" value="" disabled>{{ t('admin.settings.customMenu.modeLegacy') }}</option>
+                      <option value="embed">{{ t('admin.settings.customMenu.modeEmbed') }}</option>
+                      <option value="new_tab">{{ t('admin.settings.customMenu.modeNewTab') }}</option>
+                      <option value="redirect">{{ t('admin.settings.customMenu.modeRedirect') }}</option>
+                    </select>
+                  </div>
+                  <label class="flex items-center gap-2">
+                    <input type="checkbox" :checked="item.enabled !== false" @change="item.enabled = ($event.target as HTMLInputElement).checked" />
+                    {{ t('admin.settings.customMenu.enabled') }}
+                  </label>
+
+                  <p v-if="!item.open_mode && !item.url.startsWith('md:')" class="text-xs text-amber-600 sm:col-span-2">
+                    {{ t('admin.settings.customMenu.legacyIntegrationHint') }}
+                  </p>
+
                   <!-- URL (full width) -->
                   <div class="sm:col-span-2">
                     <label
@@ -7044,7 +7062,7 @@
                     />
                   </div>
 
-                  <label class="flex items-center gap-2 sm:col-span-2">
+                  <label v-if="!item.open_mode || item.open_mode === 'embed'" class="flex items-center gap-2 sm:col-span-2">
                     <input
                       v-model="item.hide_open_button"
                       type="checkbox"
@@ -10315,6 +10333,8 @@ const form = reactive<SettingsForm>({
     visibility: "user" | "admin";
     sort_order: number;
     hide_open_button?: boolean;
+    open_mode?: "embed" | "new_tab" | "redirect";
+    enabled?: boolean;
   }>,
   custom_endpoints: [] as Array<{
     name: string;
@@ -11322,6 +11342,8 @@ function addMenuItem() {
     url: "",
     visibility: "user",
     sort_order: form.custom_menu_items.length,
+    open_mode: "embed",
+    enabled: true,
   });
 }
 

@@ -744,8 +744,16 @@ export default {
         integrationDocHint: '包含接口说明、幂等语义及示例代码'
       },
       customMenu: {
+        modeLegacy: '旧集成（站内打开）',
+        legacyIntegrationHint: '旧菜单保留原有登录参数集成。重新选择打开方式后将使用普通网址，不再附带本站登录凭据；请先确认目标网站不依赖旧集成。',
+        openMode: '打开方式',
+        modeEmbed: '站内打开',
+        modeNewTab: '新标签页打开',
+        modeRedirect: '当前标签页跳转',
+        enabled: '启用入口',
+
         title: '自定义菜单页面',
-        description: '添加自定义 iframe 页面到侧边栏导航。每个页面可以设置为普通用户或管理员可见。',
+        description: '添加自定义侧栏入口，支持站内嵌入和网页跳转；新建入口不会向目标网站发送本站登录凭据。',
         itemLabel: '菜单项 #{n}',
         name: '菜单名称',
         namePlaceholder: '如：帮助中心',

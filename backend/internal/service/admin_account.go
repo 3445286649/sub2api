@@ -464,6 +464,9 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 }
 
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {
+	if err := ValidateVideoModelCredentials(input.Credentials); err != nil {
+		return nil, infraerrors.New(http.StatusBadRequest, "INVALID_VIDEO_CAPABILITIES", err.Error())
+	}
 	if err := ValidateAccountImageModelsExtra(input.Extra); err != nil {
 		return nil, err
 	}
@@ -565,6 +568,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 }
 
 func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *UpdateAccountInput) (*Account, error) {
+	if err := ValidateVideoModelCredentials(input.Credentials); err != nil {
+		return nil, infraerrors.New(http.StatusBadRequest, "INVALID_VIDEO_CAPABILITIES", err.Error())
+	}
 	account, err := s.accountRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -1020,6 +1026,9 @@ func (s *adminServiceImpl) UpdateAccountExtra(ctx context.Context, id int64, upd
 // BulkUpdateAccounts updates multiple accounts in one request.
 // It merges credentials/extra keys instead of overwriting the whole object.
 func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error) {
+	if err := ValidateVideoModelCredentials(input.Credentials); err != nil {
+		return nil, infraerrors.New(http.StatusBadRequest, "INVALID_VIDEO_CAPABILITIES", err.Error())
+	}
 	if err := ValidateAccountImageModelsExtra(input.Extra); err != nil {
 		return nil, err
 	}

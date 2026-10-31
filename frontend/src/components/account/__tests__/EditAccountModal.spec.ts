@@ -1513,6 +1513,19 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.openai_capabilities).toEqual(['chat_completions', 'video_tasks'])
   })
 
+  it('loads and saves upstream video model capabilities without losing configured limits', async () => {
+    const account = buildAccount()
+    account.credentials.openai_capabilities = ['video_tasks']
+    account.credentials.video_model_capabilities = [{ model: 'upstream-video', max_reference_images: 30, max_reference_videos: 10, max_reference_audios: 10, supports_frames: true, resolutions: ['4k'], min_duration: 1, max_duration: 15 }]
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+    const wrapper = mountModal(account)
+    expect(wrapper.get('input[aria-label="admin.accounts.videoCapabilities.model"]').element).toBeTruthy()
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.video_model_capabilities).toEqual(account.credentials.video_model_capabilities)
+  })
+
   it('keeps at least one OpenAI APIKey endpoint capability selected', async () => {
     const account = buildAccount()
     updateAccountMock.mockReset()

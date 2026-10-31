@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -1322,6 +1323,16 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 		for i, item := range items {
+			switch item.OpenMode {
+			case "", "embed", "new_tab", "redirect":
+			default:
+				response.BadRequest(c, "Custom menu opening mode must be embed, new_tab or redirect")
+				return
+			}
+			if strings.HasPrefix(strings.TrimSpace(item.URL), "md:") && item.OpenMode != "" && item.OpenMode != "embed" {
+				response.BadRequest(c, "Markdown menu pages only support embedded mode")
+				return
+			}
 			if strings.TrimSpace(item.Label) == "" {
 				response.BadRequest(c, "Custom menu item label is required")
 				return
@@ -1349,6 +1360,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				}
 				if err := config.ValidateAbsoluteHTTPURL(urlTrimmed); err != nil {
 					response.BadRequest(c, "Custom menu item URL must be an absolute http(s) URL or md:<slug>")
+					return
+				}
+				if parsed, err := url.Parse(urlTrimmed); err != nil || parsed.User != nil {
+					response.BadRequest(c, "Custom menu URL must not contain credentials")
 					return
 				}
 			}

@@ -1481,6 +1481,28 @@ func TestForwardGrokMediaImagesEditMultipartConvertsToJSON(t *testing.T) {
 	require.Equal(t, "vendor-image-edit", result.UpstreamModel)
 }
 
+func TestPrepareGrokMediaMultiImageEditUsesImagesArrayOnly(t *testing.T) {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	require.NoError(t, writer.WriteField("model", "grok-imagine-image-2.0"))
+	for _, name := range []string{"person.png", "outfit.png", "pose.png"} {
+		partHeader := textproto.MIMEHeader{}
+		partHeader.Set("Content-Disposition", `form-data; name="image"; filename="`+name+`"`)
+		partHeader.Set("Content-Type", "image/png")
+		part, err := writer.CreatePart(partHeader)
+		require.NoError(t, err)
+		_, err = part.Write([]byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a})
+		require.NoError(t, err)
+	}
+	require.NoError(t, writer.Close())
+
+	body, contentType, err := prepareGrokMediaForwardBody(GrokMediaEndpointImagesEdits, buf.Bytes(), writer.FormDataContentType())
+	require.NoError(t, err)
+	require.Equal(t, "application/json", contentType)
+	require.False(t, gjson.GetBytes(body, "image").Exists())
+	require.Len(t, gjson.GetBytes(body, "images").Array(), 3)
+}
+
 func TestForwardGrokMediaImagesEditMultipartPreservesExplicitGeometry(t *testing.T) {
 	t.Setenv(xai.EnvAllowUnsafeURLOverrides, "true")
 	gin.SetMode(gin.TestMode)

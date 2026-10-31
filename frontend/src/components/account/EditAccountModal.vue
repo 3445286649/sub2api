@@ -2251,6 +2251,7 @@
             </label>
           </div>
           <p class="input-hint">{{ t('admin.accounts.openai.endpointCapabilitiesDesc') }}</p>
+          <VideoModelCapabilitiesEditor v-if="openAIEndpointCapabilities.includes('video_tasks')" v-model="videoModelCapabilities" class="mt-3" />
         </div>
       </div>
 
@@ -3527,6 +3528,9 @@
 </template>
 
 <script setup lang="ts">
+import VideoModelCapabilitiesEditor from '@/components/account/VideoModelCapabilitiesEditor.vue'
+import type { VideoModelCapability } from '@/types'
+
 import { ref, reactive, computed, watch, nextTick, onBeforeUnmount, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -4315,6 +4319,7 @@ const openAIResponsesMode = ref<OpenAIResponsesMode>('auto')
 // Images 非流式响应缺 b64_json 时由网关下载 url 回填（仅 OpenAI API Key）。
 const openAIImagesUrlToB64JsonEnabled = ref(false)
 const openAIEndpointCapabilities = ref<OpenAIEndpointCapability[]>(['chat_completions', 'embeddings'])
+const videoModelCapabilities = ref<VideoModelCapability[]>([])
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const codexCLIOnlyEnabled = ref(false)
@@ -4586,6 +4591,7 @@ const toggleOpenAIEndpointCapability = (capability: OpenAIEndpointCapability, ev
 
 const applyOpenAIEndpointCapabilities = (credentials: Record<string, unknown>) => {
   const capabilities = normalizeOpenAIEndpointCapabilities(openAIEndpointCapabilities.value)
+  credentials.video_model_capabilities = videoModelCapabilities.value
   if (capabilities.length === 2 && !capabilities.includes('seedance') && !capabilities.includes('video_tasks')) {
     delete credentials.openai_capabilities
     return
@@ -4878,6 +4884,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   openAICompactMode.value = 'auto'
   openAIResponsesMode.value = 'auto'
   openAIEndpointCapabilities.value = ['chat_completions', 'embeddings']
+  videoModelCapabilities.value = JSON.parse(JSON.stringify(newAccount.credentials?.video_model_capabilities || [])) as VideoModelCapability[]
   openAICompactModelMappings.value = []
   openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF

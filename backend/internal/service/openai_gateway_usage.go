@@ -429,8 +429,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	isVideoUsage := isGrokVideoUsageResult(result, billingModels)
 	if isVideoUsage {
 		usageLog.VideoCount = result.VideoCount
-		usageLog.VideoResolution = optionalTrimmedStringPtr(NormalizeVideoBillingResolutionOrDefault(result.VideoResolution))
+		resolution := NormalizeVideoBillingResolutionOrDefault(result.VideoResolution)
 		videoDurationSeconds := NormalizeVideoBillingDurationSecondsOrDefault(result.VideoDurationSeconds)
+		if strings.HasPrefix(result.ResponseID, "openai-video:") {
+			resolution, _ = LookupOpenAIVideoResolution(result.VideoResolution)
+			videoDurationSeconds = result.VideoDurationSeconds
+		}
+		usageLog.VideoResolution = optionalTrimmedStringPtr(resolution)
 		usageLog.VideoDurationSeconds = &videoDurationSeconds
 	}
 	if cost != nil {
@@ -868,6 +873,9 @@ func (s *OpenAIGatewayService) calculateOpenAIVideoCost(
 	durationSeconds := NormalizeVideoBillingDurationSecondsOrDefault(result.VideoDurationSeconds)
 	if strings.HasPrefix(result.ResponseID, "openai-video:") && result.OpenAIVideoPricing != nil {
 		price := result.OpenAIVideoPricing.UnitPrice * float64(videoCount)
+		if result.OpenAIVideoPricing.PerSecond {
+			price *= float64(result.VideoDurationSeconds)
+		}
 		return &CostBreakdown{TotalCost: price, ActualCost: price * result.OpenAIVideoPricing.RateMultiplier, BillingMode: string(BillingModeVideo)}
 	}
 	resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey)

@@ -450,6 +450,9 @@ func openAICompatibleAccountEligibilityFailureReasonBeforeProfit(ctx context.Con
 		}
 		return "capability_mismatch"
 	}
+	if !accountSupportsVideoRequest(ctx, account, requestedModel, requiredCapability) {
+		return "video_capability_mismatch"
+	}
 	if requireCompact && openAICompactSupportTier(account) == 0 {
 		return "compact_unsupported"
 	}

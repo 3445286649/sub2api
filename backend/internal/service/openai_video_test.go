@@ -68,7 +68,7 @@ func TestOpenAIVideoForwardLifecycle(t *testing.T) {
 func TestOpenAIVideoRejectsInvalidInput(t *testing.T) {
 	for _, body := range []string{
 		`{`, `[]`, `{}`, `{"model":"video","prompt":""}`,
-		`{"model":"video","prompt":"ok","resolution":"4k"}`,
+		`{"model":"video","prompt":"ok","resolution":"8k"}`,
 		`{"model":"video","prompt":"ok","resolution":1080}`,
 		`{"model":"video","prompt":"ok","reference_images":[{"image_url":"http://127.0.0.1/x.png"}]}`,
 		`{"model":"video","prompt":"ok","reference_images":[{"image_url":"http://127.1/x.png"}]}`,

@@ -98,6 +98,28 @@ func TestOpenAIVideoCreateStoresTaskBeforeResponse(t *testing.T) {
 	slots.assertReleased(t)
 }
 
+func TestOpenAIVideoRejectsUnsupportedReferencesBeforeUpstream(t *testing.T) {
+	h, slots, _, upstream := newGrokMediaSlotHandler(t, false, false, service.PlatformOpenAI)
+	refs := make([]string, 10)
+	for i := range refs {
+		refs[i] = `"https://assets.example/ref.png"`
+	}
+	c, w := grokMediaSlotContext(context.Background(), true)
+	key, _ := middleware.GetAPIKeyFromContext(c)
+	key.Group.Platform = service.PlatformOpenAI
+	key.Group.Status = service.StatusActive
+	key.Group.RateMultiplier = 1
+	price := 0.42
+	key.Group.ModelPricing = []service.ChannelModelPricing{{Models: []string{"gpt-5.4"}, BillingMode: service.BillingModePerRequest, PerRequestPrice: &price}}
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/videos", strings.NewReader(`{"model":"gpt-5.4","reference_images":[`+strings.Join(refs, ",")+`]}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.OpenAIVideoGeneration(c)
+	require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), "video_capability_mismatch")
+	require.Zero(t, upstream.calls)
+	slots.assertReleased(t)
+}
+
 func TestOpenAIVideoCreateUsesResolutionTierWithoutDefault(t *testing.T) {
 	h, slots, bindings, upstream := newGrokMediaSlotHandler(t, false, false, service.PlatformOpenAI)
 	upstream.call = func(req *http.Request, _ int64) (*http.Response, error) {

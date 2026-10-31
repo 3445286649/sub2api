@@ -1,5 +1,17 @@
 export default {
     accounts: {
+      videoCapabilities: {
+        title: '视频模型素材能力',
+        add: '添加模型规则',
+        hint: '填写实际上游模型名；* 表示账号默认规则。未配置时最多九图、480p/720p/1080p。图片上限30，视频和音频各10；时长0表示不额外限制。',
+        model: '实际上游模型名或 *',
+        frames: '支持首尾帧',
+        max_reference_images: '参考图上限',
+        max_reference_videos: '参考视频上限',
+        max_reference_audios: '参考音频上限',
+        min_duration: '最短时长（秒）',
+        max_duration: '最长时长（秒）',
+      },
       title: '账号管理',
       description: '管理 AI 平台账号和 Cookie',
       createAccount: '添加账号',

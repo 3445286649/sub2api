@@ -426,3 +426,22 @@ func TestGrokMediaVideoCompletionStillClaimsBillingOnce(t *testing.T) {
 	}
 	require.Len(t, bindings.billed, 1)
 }
+
+func TestGrokMediaVideoRelayCompletionUsesCreatePricingModel(t *testing.T) {
+	h, _, _, _ := newGrokMediaSlotHandler(t, false, false)
+	c, _ := grokMediaSlotContext(context.Background(), false)
+	key, ok := middleware2.GetAPIKeyFromContext(c)
+	require.True(t, ok)
+	require.NoError(t, h.gatewayService.StoreGrokVideoPendingBilling(c.Request.Context(), "task", 10, 20, service.GrokVideoPendingBilling{
+		Model: "grok-imagine-video-1.5", BillingModel: "grok-imagine-video-1.5", UpstreamModel: "vendor-video",
+		VideoResolution: "720p", VideoDurationSeconds: 6,
+	}))
+	result := service.ExtractGrokVideoBillingFromStatusBody([]byte(`{"status":"completed","data":[{"url":"https://relay.example/task.mp4"}]}`), nil, "task")
+	bill := prepareGrokVideoCompletionBilling(c.Request.Context(), h, zap.NewNop(), key, middleware2.AuthSubject{UserID: 10}, "task", result)
+	require.NotNil(t, bill)
+	require.Equal(t, "grok-imagine-video-1.5", bill.Model)
+	require.Equal(t, "grok-imagine-video-1.5", bill.BillingModel)
+	require.Equal(t, "vendor-video", bill.UpstreamModel)
+	require.Equal(t, "720p", bill.VideoResolution)
+	require.Equal(t, 6, bill.VideoDurationSeconds)
+}

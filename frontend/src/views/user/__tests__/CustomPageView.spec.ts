@@ -79,6 +79,28 @@ describe('custom page open button', () => {
     vi.unstubAllGlobals()
   })
 
+  it('does not forward login credentials for newly configured embedded menus', () => {
+    Object.assign(appStore.cachedPublicSettings.custom_menu_items[0], { open_mode: 'embed' })
+    const wrapper = mountPage()
+    expect(wrapper.get('iframe').attributes('src')).toBe('https://example.com/docs')
+    expect(wrapper.get('a').attributes('href')).toBe('https://example.com/docs')
+    expect(wrapper.get('iframe').attributes('referrerpolicy')).toBe('no-referrer')
+  })
+
+  it.each(['new_tab', 'redirect'])('shows a direct link without an iframe for %s', (open_mode) => {
+    Object.assign(appStore.cachedPublicSettings.custom_menu_items[0], { open_mode })
+    const wrapper = mountPage()
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    const link = wrapper.get('a')
+    expect(link.attributes('href')).toBe('https://example.com/docs')
+    expect(link.attributes('target')).toBe(open_mode === 'new_tab' ? '_blank' : '_self')
+  })
+
+  it('does not render disabled entries', () => {
+    Object.assign(appStore.cachedPublicSettings.custom_menu_items[0], { enabled: false })
+    expect(mountPage().find('iframe').exists()).toBe(false)
+  })
+
   it.each([undefined, false, true])('honors the per-menu hide button setting %s while keeping the iframe', (hidden) => {
     Object.assign(appStore.cachedPublicSettings.custom_menu_items[0], { hide_open_button: hidden })
     const wrapper = mountPage()

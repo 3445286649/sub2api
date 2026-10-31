@@ -57,19 +57,23 @@ func (e GrokMediaEndpoint) IsGenerationRequest() bool {
 }
 
 type GrokMediaRequestInfo struct {
-	Model           string
-	Prompt          string
-	N               int
-	Size            string
-	SizeTier        string
-	AspectRatio     string
-	ImageResolution string
-	Resolution      string
-	DurationSeconds int
-	InputImageURLs  []string
-	MaskImageURL    string
-	Uploads         []OpenAIImagesUpload
-	MaskUpload      *OpenAIImagesUpload
+	Model               string
+	Prompt              string
+	N                   int
+	Size                string
+	SizeTier            string
+	AspectRatio         string
+	ImageResolution     string
+	Resolution          string
+	DurationSeconds     int
+	InputImageURLs      []string
+	ReferenceImageCount int
+	ReferenceVideoCount int
+	ReferenceAudioCount int
+	HasVideoFrames      bool
+	MaskImageURL        string
+	Uploads             []OpenAIImagesUpload
+	MaskUpload          *OpenAIImagesUpload
 }
 
 func (r GrokMediaRequestInfo) ModerationBody() []byte {
@@ -389,7 +393,7 @@ type GrokVideoPendingBilling struct {
 	OriginalModel        string                      `json:"original_model,omitempty"`
 	// CreatedAt is when the gateway accepted the async create (RFC3339Nano UTC).
 	// duration_ms for deferred billing is measured from this instant until the
-	// first official done+video.url observation (status poll or content download),
+	// first verified completion observation (status poll or content download),
 	// not the latency of that single discovery request alone.
 	CreatedAt string `json:"created_at,omitempty"`
 }
@@ -560,30 +564,40 @@ func StableGrokVideoBillingRequestID(taskRequestID string) string {
 // Request may include resolution ("480p"|"720p"|"1080p"); completed status does not
 // document a resolution field — bill resolution from the create-time request snapshot.
 
-// IsGrokVideoStatusBillable matches official success: status == "done" AND non-empty video.url.
-// pending / expired / failed, or done without a video URL, are not billable.
+// IsGrokVideoStatusBillable requires a completed status and a video URL.
+// Relays may use completed + data[0].url where xAI uses done + video.url.
 func IsGrokVideoStatusBillable(statusBody []byte) bool {
 	if len(statusBody) == 0 || !gjson.ValidBytes(statusBody) {
 		return false
 	}
-	if !isOfficialGrokVideoStatusDone(statusBody) {
+	if !isGrokVideoStatusComplete(statusBody) {
 		return false
 	}
-	return strings.TrimSpace(gjson.GetBytes(statusBody, "video.url").String()) != ""
+	for _, path := range []string{"video.url", "data.0.url"} {
+		value := gjson.GetBytes(statusBody, path)
+		if value.Type == gjson.String && strings.TrimSpace(value.String()) != "" {
+			return true
+		}
+	}
+	return false
 }
 
-func isOfficialGrokVideoStatusDone(statusBody []byte) bool {
-	// Official enum: pending | done | expired | failed.
-	return strings.EqualFold(strings.TrimSpace(gjson.GetBytes(statusBody, "status").String()), "done")
+func isGrokVideoStatusComplete(statusBody []byte) bool {
+	status := strings.TrimSpace(gjson.GetBytes(statusBody, "status").String())
+	return strings.EqualFold(status, "done") || strings.EqualFold(status, "completed")
 }
 
-// ExtractGrokVideoBillingFromStatusBody builds usage units from an official done status.
+// ExtractGrokVideoBillingFromStatusBody builds usage units from a completed video status.
 // Field priority (official docs):
 //   - duration: video.duration (seconds)
 //   - model: top-level model
 //   - resolution: not in status response → create-time pending snapshot → default 480p
 func ExtractGrokVideoBillingFromStatusBody(statusBody []byte, pending *GrokVideoPendingBilling, requestID string) *OpenAIForwardResult {
-	if !IsGrokVideoStatusBillable(statusBody) {
+	return extractGrokVideoBillingFromStatusBody(statusBody, pending, requestID, false)
+}
+
+func extractGrokVideoBillingFromStatusBody(statusBody []byte, pending *GrokVideoPendingBilling, requestID string, verifiedContent bool) *OpenAIForwardResult {
+	if !IsGrokVideoStatusBillable(statusBody) && !(verifiedContent && gjson.ValidBytes(statusBody) && isGrokVideoStatusComplete(statusBody)) {
 		return nil
 	}
 	model := ""
@@ -620,8 +634,8 @@ func ExtractGrokVideoBillingFromStatusBody(statusBody []byte, pending *GrokVideo
 			durationSeconds = pending.VideoDurationSeconds
 		}
 	}
-	if model == "" {
-		// Official default video model family when status omits model.
+	if model == "" && pending != nil {
+		// With no snapshot here, leave model empty so the handler can merge its snapshot.
 		model = "grok-imagine-video"
 	}
 	if billingModel == "" {
@@ -912,19 +926,20 @@ func (s *OpenAIGatewayService) forwardGrokMediaVideoContent(
 	}
 
 	s.updateGrokUsageFromResponse(withGrokTeamRateLimitModel(ctx, ""), account, contentResp.Header, contentResp.StatusCode)
-	if err := writeGrokMediaContentResponse(c, contentResp); err != nil {
+	contentBytes, err := writeGrokMediaContentResponse(c, contentResp)
+	if err != nil {
 		return nil, err
 	}
-	// Content download is an alternate completion observation: when status body is
-	// official done+video.url, attach billable units so the handler can claim once
-	// (same path as status polling). Pending snapshot is merged in the handler.
+	// A successful video download proves completion even when a relay omits video.url.
+	verifiedContent := (contentResp.StatusCode == http.StatusOK || contentResp.StatusCode == http.StatusPartialContent) &&
+		contentBytes > 0 && strings.HasPrefix(strings.ToLower(strings.TrimSpace(contentResp.Header.Get("Content-Type"))), "video/")
 	result := &OpenAIForwardResult{
 		RequestID:       contentRequestID,
 		UpstreamHeaders: contentResp.Header,
 		ResponseHeaders: contentResp.Header.Clone(),
 		Duration:        time.Since(startTime),
 	}
-	if billed := ExtractGrokVideoBillingFromStatusBody(statusBody, nil, requestID); billed != nil {
+	if billed := extractGrokVideoBillingFromStatusBody(statusBody, nil, requestID, verifiedContent); billed != nil {
 		result.ResponseID = firstNonEmpty(billed.ResponseID, strings.TrimSpace(requestID))
 		result.Model = billed.Model
 		result.BillingModel = billed.BillingModel
@@ -1013,8 +1028,9 @@ func prepareGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, conten
 		return nil, "", fmt.Errorf("a maximum of %d source images is supported for image edits", grokMediaMaxEditSourceImages)
 	}
 	if len(images) > 0 {
-		payload["image"] = images[0]
-		if len(images) > 1 {
+		if len(images) == 1 {
+			payload["image"] = images[0]
+		} else {
 			payload["images"] = images
 		}
 	}
@@ -1407,9 +1423,9 @@ func writeGrokMediaResponse(c *gin.Context, resp *http.Response, body []byte, fi
 	c.Data(resp.StatusCode, contentType, body)
 }
 
-func writeGrokMediaContentResponse(c *gin.Context, resp *http.Response) error {
+func writeGrokMediaContentResponse(c *gin.Context, resp *http.Response) (int64, error) {
 	if c == nil || resp == nil || resp.Body == nil {
-		return fmt.Errorf("grok media content response is incomplete")
+		return 0, fmt.Errorf("grok media content response is incomplete")
 	}
 
 	for _, name := range []string{
@@ -1431,8 +1447,7 @@ func writeGrokMediaContentResponse(c *gin.Context, resp *http.Response) error {
 	}
 	c.Status(resp.StatusCode)
 	MarkResponseCommitted(c)
-	_, err := io.Copy(c.Writer, resp.Body)
-	return err
+	return io.Copy(c.Writer, resp.Body)
 }
 
 func rewriteGrokMediaVideoContentURLs(body []byte, requestID, proxyURL string) []byte {
