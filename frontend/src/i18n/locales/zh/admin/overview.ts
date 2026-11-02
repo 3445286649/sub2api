@@ -682,6 +682,23 @@ export default {
       failedToUpdateAllowedGroups: '更新允许分组失败',
       // 用户分组配置
       groupConfig: '用户分组配置',
+      accountRestrictions: {
+        title: '分组账号限制',
+        previousPage: '上一页',
+        nextPage: '下一页',
+        hint: '勾选的账号将禁止此用户在所选分组中调用，对该用户所有 API Key 生效。其他账号、其他分组和其他用户不受影响。',
+        group: '选择分组',
+        selected: '已禁用 {count} 个账号（包含其他页的选择）',
+        clear: '清空禁用选择',
+        undo: '撤销未保存更改',
+        unsaved: '请先保存或撤销更改，再切换分组。',
+        search: '搜索账号名称',
+        empty: '当前分组没有匹配的账号',
+        blocked: '禁止调用',
+        loadError: '加载失败，请重试。',
+        saveError: '保存失败，请重试；若账号已移出分组，请清空禁用选择后重新勾选。',
+        saved: '当前分组的账号限制已保存',
+      },
       groupConfigHint: '为用户 {email} 配置专属分组倍率（覆盖分组默认倍率）',
       exclusiveGroups: '专属分组',
       publicGroups: '公开分组（默认可用）',
@@ -1297,6 +1314,13 @@ export default {
         enableAnyway: '仍然开启'
       },
       openaiFast: {
+        usageBadge: '使用记录加速图标',
+        badgeNone: '不指定',
+        badgeFree: '免费 Fast（⚡）',
+        badgeBilledFast: '按 Fast 收费（⚡）',
+        badgeBilledUltrafast: '按 Ultrafast 收费（⚡⚡）',
+        usageBadgeHint: '仅指定使用记录的图标、展示档位和提示文字，不开启真实加速或加价。没有生效的强制档位时，上游请求和用户计费固定为 Standard；真实强制档位及免费 Fast 仍按原规则执行。',
+
         title: 'OpenAI Fast 模式',
         force: '强制使用 Fast（priority）',
         hint: '开启后，未单独指定档位的模型默认按 Fast 请求和计费；上游返回不改变指定计费档位。全局策略冲突时会拒绝请求。',

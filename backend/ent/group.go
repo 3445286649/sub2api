@@ -140,6 +140,8 @@ type Group struct {
 	OpenaiModelTiers map[string]string `json:"openai_model_tiers,omitempty"`
 	// 分组内公开模型名对应的 Fast/Ultrafast 标准价倍率
 	OpenaiModelTierMultipliers map[string]float64 `json:"openai_model_tier_multipliers,omitempty"`
+	// Usage badge override; does not enable accelerated billing
+	UsageAccelerationBadge string `json:"usage_acceleration_badge,omitempty"`
 	// 是否让此 OpenAI/Composite 分组的 Fast/Ultrafast 请求按 Standard 价格计费
 	FreeOpenaiFast bool `json:"free_openai_fast,omitempty"`
 	// 仅允许非 apikey 类型账号关联到此分组
@@ -284,7 +286,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case group.FieldID, group.FieldDefaultValidityDays, group.FieldFallbackGroupID, group.FieldFallbackGroupIDOnInvalidRequest, group.FieldSortOrder, group.FieldRpmLimit:
 			values[i] = new(sql.NullInt64)
-		case group.FieldName, group.FieldDescription, group.FieldPeakStart, group.FieldPeakEnd, group.FieldStatus, group.FieldDuplicateOperationID, group.FieldPlatform, group.FieldSubscriptionType, group.FieldDefaultMappedModel, group.FieldMaxReasoningEffort, group.FieldMaxReasoningEffortOverLimit:
+		case group.FieldName, group.FieldDescription, group.FieldPeakStart, group.FieldPeakEnd, group.FieldStatus, group.FieldDuplicateOperationID, group.FieldPlatform, group.FieldSubscriptionType, group.FieldUsageAccelerationBadge, group.FieldDefaultMappedModel, group.FieldMaxReasoningEffort, group.FieldMaxReasoningEffortOverLimit:
 			values[i] = new(sql.NullString)
 		case group.FieldCreatedAt, group.FieldUpdatedAt, group.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
@@ -704,6 +706,12 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field openai_model_tier_multipliers: %w", err)
 				}
 			}
+		case group.FieldUsageAccelerationBadge:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field usage_acceleration_badge", values[i])
+			} else if value.Valid {
+				_m.UsageAccelerationBadge = value.String
+			}
 		case group.FieldFreeOpenaiFast:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field free_openai_fast", values[i])
@@ -1097,6 +1105,9 @@ func (_m *Group) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("openai_model_tier_multipliers=")
 	builder.WriteString(fmt.Sprintf("%v", _m.OpenaiModelTierMultipliers))
+	builder.WriteString(", ")
+	builder.WriteString("usage_acceleration_badge=")
+	builder.WriteString(_m.UsageAccelerationBadge)
 	builder.WriteString(", ")
 	builder.WriteString("free_openai_fast=")
 	builder.WriteString(fmt.Sprintf("%v", _m.FreeOpenaiFast))

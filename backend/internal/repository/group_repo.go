@@ -145,6 +145,7 @@ func createGroupRecord(ctx context.Context, client *dbent.Client, groupIn *servi
 		SetOpenaiModelTiers(groupIn.OpenAIModelTiers).
 		SetOpenaiModelTierMultipliers(groupIn.OpenAIModelTierMultipliers).
 		SetFreeOpenaiFast(groupIn.FreeOpenAIFast).
+		SetUsageAccelerationBadge(groupIn.UsageAccelerationBadge).
 		SetRequireOauthOnly(groupIn.RequireOAuthOnly).
 		SetRequirePrivacySet(groupIn.RequirePrivacySet).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).
@@ -337,6 +338,7 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetOpenaiModelTiers(groupIn.OpenAIModelTiers).
 		SetOpenaiModelTierMultipliers(groupIn.OpenAIModelTierMultipliers).
 		SetFreeOpenaiFast(groupIn.FreeOpenAIFast).
+		SetUsageAccelerationBadge(groupIn.UsageAccelerationBadge).
 		SetRequireOauthOnly(groupIn.RequireOAuthOnly).
 		SetRequirePrivacySet(groupIn.RequirePrivacySet).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).

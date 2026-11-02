@@ -35,12 +35,13 @@ type APIKeyAuthSnapshot struct {
 
 // APIKeyAuthUserSnapshot 用户快照
 type APIKeyAuthUserSnapshot struct {
-	ID            int64   `json:"id"`
-	Status        string  `json:"status"`
-	Role          string  `json:"role"`
-	Balance       float64 `json:"balance"`
-	Concurrency   int     `json:"concurrency"`
-	AllowedGroups []int64 `json:"allowed_groups,omitempty"`
+	ID                  int64                   `json:"id"`
+	Status              string                  `json:"status"`
+	Role                string                  `json:"role"`
+	Balance             float64                 `json:"balance"`
+	Concurrency         int                     `json:"concurrency"`
+	AllowedGroups       []int64                 `json:"allowed_groups,omitempty"`
+	AccountRestrictions UserAccountRestrictions `json:"account_restrictions,omitempty"`
 
 	// Balance notification fields (required for CheckBalanceAfterDeduction)
 	Email                      string             `json:"email"`
@@ -117,6 +118,7 @@ type APIKeyAuthGroupSnapshot struct {
 	OpenAIModelTiers            map[string]string                 `json:"openai_model_tiers,omitempty"`
 	OpenAIModelTierMultipliers  map[string]float64                `json:"openai_model_tier_multipliers,omitempty"`
 	FreeOpenAIFast              bool                              `json:"free_openai_fast"`
+	UsageAccelerationBadge      string                            `json:"usage_acceleration_badge"`
 	DefaultMappedModel          string                            `json:"default_mapped_model,omitempty"`
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config,omitempty"`
 	ModelAllowlist              GroupModelAllowlist               `json:"model_allowlist,omitempty"`

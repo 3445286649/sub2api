@@ -136,6 +136,8 @@ const (
 	FieldOpenaiModelTiers = "openai_model_tiers"
 	// FieldOpenaiModelTierMultipliers holds the string denoting the openai_model_tier_multipliers field in the database.
 	FieldOpenaiModelTierMultipliers = "openai_model_tier_multipliers"
+	// FieldUsageAccelerationBadge holds the string denoting the usage_acceleration_badge field in the database.
+	FieldUsageAccelerationBadge = "usage_acceleration_badge"
 	// FieldFreeOpenaiFast holds the string denoting the free_openai_fast field in the database.
 	FieldFreeOpenaiFast = "free_openai_fast"
 	// FieldRequireOauthOnly holds the string denoting the require_oauth_only field in the database.
@@ -301,6 +303,7 @@ var Columns = []string{
 	FieldForceOpenaiUltrafast,
 	FieldOpenaiModelTiers,
 	FieldOpenaiModelTierMultipliers,
+	FieldUsageAccelerationBadge,
 	FieldFreeOpenaiFast,
 	FieldRequireOauthOnly,
 	FieldRequirePrivacySet,
@@ -441,6 +444,10 @@ var (
 	DefaultOpenaiModelTiers map[string]string
 	// DefaultOpenaiModelTierMultipliers holds the default value on creation for the "openai_model_tier_multipliers" field.
 	DefaultOpenaiModelTierMultipliers map[string]float64
+	// DefaultUsageAccelerationBadge holds the default value on creation for the "usage_acceleration_badge" field.
+	DefaultUsageAccelerationBadge string
+	// UsageAccelerationBadgeValidator is a validator for the "usage_acceleration_badge" field. It is called by the builders before save.
+	UsageAccelerationBadgeValidator func(string) error
 	// DefaultFreeOpenaiFast holds the default value on creation for the "free_openai_fast" field.
 	DefaultFreeOpenaiFast bool
 	// DefaultRequireOauthOnly holds the default value on creation for the "require_oauth_only" field.
@@ -745,6 +752,11 @@ func ByForceOpenaiFast(opts ...sql.OrderTermOption) OrderOption {
 // ByForceOpenaiUltrafast orders the results by the force_openai_ultrafast field.
 func ByForceOpenaiUltrafast(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldForceOpenaiUltrafast, opts...).ToFunc()
+}
+
+// ByUsageAccelerationBadge orders the results by the usage_acceleration_badge field.
+func ByUsageAccelerationBadge(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUsageAccelerationBadge, opts...).ToFunc()
 }
 
 // ByFreeOpenaiFast orders the results by the free_openai_fast field.

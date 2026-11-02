@@ -2366,7 +2366,8 @@ func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(
 	// Some upstreams (e.g. other sub2api instances) may return SSE even when
 	// stream=false was requested. Without this conversion the client would
 	// receive raw SSE text or a terminal event with empty output.
-	if isEventStreamResponse(resp.Header) {
+	// A complete JSON body takes precedence over a mislabeled SSE header.
+	if isEventStreamResponse(resp.Header) && !gjson.ValidBytes(body) {
 		return s.handlePassthroughSSEToJSON(resp, c, account, body, originalModel, mappedModel)
 	}
 
@@ -2387,7 +2388,7 @@ func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(
 	writeOpenAIPassthroughResponseHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 
 	contentType := resp.Header.Get("Content-Type")
-	if contentType == "" {
+	if contentType == "" || isEventStreamResponse(resp.Header) {
 		contentType = "application/json"
 	}
 	if originalModel != "" && mappedModel != "" && originalModel != mappedModel {
@@ -2403,6 +2404,9 @@ func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(
 		return nil, fmt.Errorf("restore OpenAI Responses client tools: %w", err)
 	}
 	if !writeOpenAICompactSSEBridge(c, resp.StatusCode, body) {
+		if isEventStreamResponse(resp.Header) {
+			c.Header("Content-Type", contentType)
+		}
 		c.Data(resp.StatusCode, contentType, body)
 	}
 	return &openaiNonStreamingResultPassthrough{

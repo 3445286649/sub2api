@@ -337,11 +337,13 @@ describe('GroupsView duplicate action', () => {
       await wrapper.get('input[placeholder="admin.groups.openaiFast.customModel"]').setValue('standard-model')
       await wrapper.findAll('button').find(button => button.text() === 'admin.groups.openaiFast.addModel')!.trigger('click')
       await wrapper.get('select[aria-label="standard-model"]').setValue('default')
+      await wrapper.get('[data-testid="create-usage-acceleration-badge"]').setValue('billed_fast')
       await wrapper.get('#create-group-form').trigger('submit')
       await flushPromises()
       expect(adminAPI.groups.create).toHaveBeenCalledWith(expect.objectContaining({
         name: 'Mixed models', platform: 'openai', force_openai_fast: false, force_openai_ultrafast: false,
         openai_model_tiers: { 'standard-model': 'default' },
+        usage_acceleration_badge: 'billed_fast',
       }))
     } finally {
       wrapper.unmount()

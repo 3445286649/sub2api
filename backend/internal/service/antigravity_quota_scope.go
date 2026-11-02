@@ -35,7 +35,7 @@ func (a *Account) IsSchedulableForModel(requestedModel string) bool {
 }
 
 func (a *Account) IsSchedulableForModelWithContext(ctx context.Context, requestedModel string) bool {
-	if a == nil {
+	if !userAccountAllowed(ctx, a) {
 		return false
 	}
 	if !a.IsSchedulable() {

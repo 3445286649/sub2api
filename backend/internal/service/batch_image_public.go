@@ -615,6 +615,7 @@ func (s *BatchImagePublicService) DeleteRecord(ctx context.Context, owner BatchI
 }
 
 func (s *BatchImagePublicService) ListModels(ctx context.Context, owner BatchImageOwner) (*BatchImagePublicModelsResponse, error) {
+	ctx = withAccountRestrictionGroup(ctx, owner.GroupID)
 	if !s.enabled() {
 		return nil, ErrBatchImageDisabled
 	}
@@ -637,7 +638,7 @@ func (s *BatchImagePublicService) ListModels(ctx context.Context, owner BatchIma
 		}
 		for i := range accounts {
 			account := accounts[i]
-			if !account.IsSchedulable() || !provider.SupportsAccount(&account) {
+			if !userAccountAllowed(ctx, &account) || !account.IsSchedulable() || !provider.SupportsAccount(&account) {
 				continue
 			}
 			for _, model := range batchImageModelsFromAccountMapping(&account) {
@@ -934,6 +935,7 @@ func maxBatchImageReferenceImagesForModel(model string) int {
 }
 
 func (s *BatchImagePublicService) selectProviderAndAccount(ctx context.Context, owner BatchImageOwner, requestedProvider, model string) (BatchImageProvider, *Account, error) {
+	ctx = withAccountRestrictionGroup(ctx, owner.GroupID)
 	providers := batchImageProviderSelectionOrder(requestedProvider)
 	for _, providerName := range providers {
 		provider, ok := s.ProviderRegistry.Get(providerName)
@@ -953,7 +955,7 @@ func (s *BatchImagePublicService) selectProviderAndAccount(ctx context.Context, 
 		})
 		for i := range accounts {
 			account := accounts[i]
-			if !account.IsSchedulable() || !account.IsModelSupported(model) {
+			if !userAccountAllowed(ctx, &account) || !account.IsSchedulable() || !account.IsModelSupported(model) {
 				continue
 			}
 			if provider.SupportsAccount(&account) {

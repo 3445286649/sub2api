@@ -247,6 +247,7 @@ type CreateGroupRequest struct {
 	OpenAIModelTiers            map[string]string                         `json:"openai_model_tiers"`
 	OpenAIModelTierMultipliers  map[string]float64                        `json:"openai_model_tier_multipliers"`
 	FreeOpenAIFast              bool                                      `json:"free_openai_fast"`
+	UsageAccelerationBadge      string                                    `json:"usage_acceleration_badge"`
 	RequireOAuthOnly            bool                                      `json:"require_oauth_only"`
 	RequirePrivacySet           bool                                      `json:"require_privacy_set"`
 	DefaultMappedModel          string                                    `json:"default_mapped_model"`
@@ -331,6 +332,7 @@ type UpdateGroupRequest struct {
 	OpenAIModelTiers            *map[string]string                         `json:"openai_model_tiers"`
 	OpenAIModelTierMultipliers  *map[string]float64                        `json:"openai_model_tier_multipliers"`
 	FreeOpenAIFast              *bool                                      `json:"free_openai_fast"`
+	UsageAccelerationBadge      *string                                    `json:"usage_acceleration_badge"`
 	RequireOAuthOnly            *bool                                      `json:"require_oauth_only"`
 	RequirePrivacySet           *bool                                      `json:"require_privacy_set"`
 	DefaultMappedModel          *string                                    `json:"default_mapped_model"`
@@ -750,6 +752,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		OpenAIModelTiers:                req.OpenAIModelTiers,
 		OpenAIModelTierMultipliers:      req.OpenAIModelTierMultipliers,
 		FreeOpenAIFast:                  req.FreeOpenAIFast,
+		UsageAccelerationBadge:          req.UsageAccelerationBadge,
 		RequireOAuthOnly:                req.RequireOAuthOnly,
 		RequirePrivacySet:               req.RequirePrivacySet,
 		DefaultMappedModel:              req.DefaultMappedModel,
@@ -905,6 +908,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		OpenAIModelTiers:                req.OpenAIModelTiers,
 		OpenAIModelTierMultipliers:      req.OpenAIModelTierMultipliers,
 		FreeOpenAIFast:                  req.FreeOpenAIFast,
+		UsageAccelerationBadge:          req.UsageAccelerationBadge,
 		RequireOAuthOnly:                req.RequireOAuthOnly,
 		RequirePrivacySet:               req.RequirePrivacySet,
 		DefaultMappedModel:              req.DefaultMappedModel,

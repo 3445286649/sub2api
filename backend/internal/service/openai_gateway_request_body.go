@@ -1932,6 +1932,11 @@ func (s *OpenAIGatewayService) evaluateOpenAIFastPolicy(ctx context.Context, acc
 		settings = fetched
 	}
 	action, errMsg = evaluateOpenAIFastPolicyWithSettings(settings, openAIFastPolicyUserID(ctx), account, model, tier)
+	// A badge-only group fixes Standard. Global rewriting must not silently
+	// upgrade or remove that decision; explicit blocking remains authoritative.
+	if openAIUsageBadgeStandard(ctx, account, model) && (action == BetaPolicyActionFilter || action == OpenAIFastPolicyActionForcePriority) {
+		return BetaPolicyActionPass, ""
+	}
 	if conflict := openAIGroupTierPolicyConflict(ctx, account, model, action); conflict != "" {
 		return BetaPolicyActionBlock, conflict
 	}
@@ -2082,6 +2087,9 @@ func openAIGroupForcedTier(ctx context.Context, account *Account, upstreamModel 
 	}
 	if group.ForceOpenAIFast {
 		return OpenAIFastTierPriority
+	}
+	if group.UsageAccelerationBadge != "" {
+		return "default"
 	}
 	return ""
 }

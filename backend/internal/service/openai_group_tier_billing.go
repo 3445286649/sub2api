@@ -11,20 +11,22 @@ import (
 // ServiceTierDetails is an immutable receipt of this request's tier decision.
 // Nil on historical rows: never infer their customer tier from today's group.
 type ServiceTierDetails struct {
-	GroupTier     string                    `json:"group_tier,omitempty"`
-	RequestedTier string                    `json:"requested_tier,omitempty"`
-	UpstreamTier  string                    `json:"upstream_tier,omitempty"`
-	BillingTier   string                    `json:"billing_tier"`
-	Source        string                    `json:"source"`
-	CustomerCosts *ServiceTierCustomerCosts `json:"customer_costs,omitempty"`
+	UsageAccelerationBadge string                    `json:"usage_acceleration_badge,omitempty"`
+	GroupTier              string                    `json:"group_tier,omitempty"`
+	RequestedTier          string                    `json:"requested_tier,omitempty"`
+	UpstreamTier           string                    `json:"upstream_tier,omitempty"`
+	BillingTier            string                    `json:"billing_tier"`
+	Source                 string                    `json:"source"`
+	CustomerCosts          *ServiceTierCustomerCosts `json:"customer_costs,omitempty"`
 }
 
 type openAIGroupTierSnapshot struct {
-	GroupID    int64
-	Tier       string
-	Source     string
-	FreeFast   bool
-	Multiplier float64
+	UsageAccelerationBadge string
+	GroupID                int64
+	Tier                   string
+	Source                 string
+	FreeFast               bool
+	Multiplier             float64
 }
 
 type openAIGroupTierSnapshotKey struct{}
@@ -50,9 +52,12 @@ func freezeOpenAIGroupTier(ctx context.Context, account *Account, model string) 
 	// Each forward attempt / WS turn gets its own scalar snapshot, including
 	// the no-override case. Never retain the mutable per-model map for billing.
 	tier := openAIGroupForcedTier(ctx, account, model)
-	snapshot := &openAIGroupTierSnapshot{GroupID: group.ID, Tier: tier, FreeFast: group.FreeOpenAIFast, Source: "existing_policy"}
+	snapshot := &openAIGroupTierSnapshot{GroupID: group.ID, UsageAccelerationBadge: group.UsageAccelerationBadge, Tier: tier, FreeFast: group.FreeOpenAIFast, Source: "existing_policy"}
 	if tier != "" {
 		snapshot.Source = "group_default"
+		if tier == "default" && group.UsageAccelerationBadge != "" {
+			snapshot.Source = "group_display_standard"
+		}
 		requestedModel := openAIGroupRequestedModel(ctx, model)
 		if group.OpenAIModelTiers[requestedModel] == tier {
 			snapshot.Source = "group_model"
@@ -105,6 +110,9 @@ func resolveOpenAIRecordServiceTier(apiKey *APIKey, account *Account, result *Op
 		result.ServiceTier = &tier
 	} else {
 		logServiceTierBillingDowngrade("service.openai_gateway", account, result.RequestID, ApplyOpenAIServiceTierBillingResolution(account, result))
+	}
+	if snapshot != nil {
+		details.UsageAccelerationBadge = snapshot.UsageAccelerationBadge
 	}
 	details.BillingTier = customerServiceTier(optionalStringValue(result.ServiceTier))
 	free := groupBillsOpenAIFastAtStandard(apiKey, account, optionalStringValue(result.ServiceTier))

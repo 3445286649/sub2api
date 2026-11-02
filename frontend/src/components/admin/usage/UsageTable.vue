@@ -204,6 +204,7 @@
             </div>
             <span data-testid="usage-tier-slot" class="order-first inline-flex w-5 shrink-0 items-center justify-center">
               <UsageServiceTierBadge
+                :display="row.service_tier_source === 'group_display_standard' && row.billing_service_tier === 'standard' ? row.usage_acceleration_badge : undefined"
                 :tier="row.effective_service_tier ?? row.billing_service_tier"
                 :free="row.service_tier_source === 'free_fast' && row.billing_service_tier === 'standard'"
               />
@@ -511,8 +512,8 @@
           <template v-if="tooltipData?.billing_service_tier">
             <template v-if="showAccountBilling && tooltipData.service_tier_details">
               <div v-if="tooltipData.service_tier_details.group_tier" class="flex items-center justify-between gap-6">
-                <span class="text-gray-400">{{ t('usage.groupServiceTier') }}</span>
-                <span>{{ getUsageServiceTierLabel(tooltipData.service_tier_details.group_tier, t) }}</span>
+                <span class="text-gray-400">{{ tooltipData.service_tier_source === 'group_display_standard' && getUsageAccelerationDisplayLabel(tooltipData.usage_acceleration_badge, t) ? t('usage.displayTier') : t('usage.groupServiceTier') }}</span>
+                <span>{{ tooltipData.service_tier_source === 'group_display_standard' && getUsageAccelerationDisplayLabel(tooltipData.usage_acceleration_badge, t) || getUsageServiceTierLabel(tooltipData.service_tier_details.group_tier, t) }}</span>
               </div>
               <div class="flex items-center justify-between gap-6">
                 <span class="text-gray-400">{{ t('usage.upstreamServiceTier') }}</span>
@@ -525,7 +526,7 @@
             </div>
             <div class="flex items-center justify-between gap-6" data-testid="usage-tier-source">
               <span class="text-gray-400">{{ t('usage.serviceTierSource') }}</span>
-              <span>{{ tierSourceLabel(tooltipData.service_tier_source) }}</span>
+              <span>{{ tierSourceLabel(tooltipData.service_tier_source, tooltipData.usage_acceleration_badge, tooltipData.billing_service_tier) }}</span>
             </div>
           </template>
           <div v-else class="flex items-center justify-between gap-6">
@@ -579,7 +580,7 @@ import { useAppStore } from '@/stores/app'
 import { formatDateTime, formatReasoningEffort, reasoningEffortValuesEqual } from '@/utils/format'
 import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
-import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
+import { getUsageAccelerationDisplayLabel, getUsageServiceTierLabel } from '@/utils/usageServiceTier'
 import { resolveUsageRequestType } from '@/utils/usageRequestType'
 import {
   LATENCY_BAR_CLASSES,
@@ -657,10 +658,15 @@ const emit = defineEmits<{
   ipGeoBatchFailed: []
 }>()
 const { t } = useI18n()
-function tierSourceLabel(source?: string | null): string {
+function tierSourceLabel(source?: string | null, badge?: string | null, billingTier?: string | null): string {
+  const display = source === 'group_display_standard' && billingTier === 'standard'
+    ? getUsageAccelerationDisplayLabel(badge, t)
+    : null
+  if (display) return `${t('usage.displayTier')} ${display} (${t('usage.displayStandardBilling')})`
   const keys: Record<string, string> = {
     group_model: 'usage.serviceTierSourceGroupModel',
     group_default: 'usage.serviceTierSourceGroupDefault',
+    group_display_standard: 'usage.serviceTierSourceDisplayStandard',
     free_fast: 'usage.serviceTierSourceFreeFast',
   }
   return t(keys[source ?? ''] ?? 'usage.serviceTierSourceExisting')

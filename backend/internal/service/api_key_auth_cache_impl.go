@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 29 // v29: API Key additional groups
+const apiKeyAuthSnapshotVersion = 31 // v31: group usage acceleration badge
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -296,7 +296,7 @@ func (s *APIKeyService) lookupAPIKeyForAuth(ctx context.Context, key string) (*A
 		return nil, ErrAPIKeyNotFound
 	}
 	if s.authLookupSlots == nil {
-		return s.apiKeyRepo.GetByKeyForAuth(ctx, key)
+		return s.lookupAPIKeyWithAccountRestrictions(ctx, key)
 	}
 	s.authLookupTotal.Add(1)
 	select {
@@ -312,7 +312,22 @@ func (s *APIKeyService) lookupAPIKeyForAuth(ctx context.Context, key string) (*A
 		s.authLookupRejected.Add(1)
 		return nil, ErrAPIKeyAuthOverloaded
 	}
-	return s.apiKeyRepo.GetByKeyForAuth(ctx, key)
+	return s.lookupAPIKeyWithAccountRestrictions(ctx, key)
+}
+
+func (s *APIKeyService) lookupAPIKeyWithAccountRestrictions(ctx context.Context, key string) (*APIKey, error) {
+	apiKey, err := s.apiKeyRepo.GetByKeyForAuth(ctx, key)
+	if err != nil || apiKey == nil || apiKey.User == nil || s.accountRestrictionRepo == nil {
+		return apiKey, err
+	}
+	restrictions, err := s.accountRestrictionRepo.GetByUserID(ctx, apiKey.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("load user account restrictions: %w", err)
+	}
+	user := *apiKey.User
+	user.AccountRestrictions = restrictions
+	apiKey.User = &user
+	return apiKey, nil
 }
 
 func (s *APIKeyService) applyAuthCacheEntry(key string, entry *APIKeyAuthCacheEntry) (*APIKey, bool, error) {
@@ -358,6 +373,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			Balance:                    apiKey.User.Balance,
 			Concurrency:                apiKey.User.Concurrency,
 			AllowedGroups:              apiKey.User.AllowedGroups,
+			AccountRestrictions:        cloneUserAccountRestrictions(apiKey.User.AccountRestrictions),
 			Email:                      apiKey.User.Email,
 			Username:                   apiKey.User.Username,
 			BalanceNotifyEnabled:       apiKey.User.BalanceNotifyEnabled,
@@ -428,6 +444,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			OpenAIModelTiers:                apiKey.Group.OpenAIModelTiers,
 			OpenAIModelTierMultipliers:      apiKey.Group.OpenAIModelTierMultipliers,
 			FreeOpenAIFast:                  apiKey.Group.FreeOpenAIFast,
+			UsageAccelerationBadge:          apiKey.Group.UsageAccelerationBadge,
 			DefaultMappedModel:              apiKey.Group.DefaultMappedModel,
 			MessagesDispatchModelConfig:     apiKey.Group.MessagesDispatchModelConfig,
 			ModelAllowlist:                  apiKey.Group.ModelAllowlist,
@@ -476,6 +493,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			Balance:                    snapshot.User.Balance,
 			Concurrency:                snapshot.User.Concurrency,
 			AllowedGroups:              snapshot.User.AllowedGroups,
+			AccountRestrictions:        cloneUserAccountRestrictions(snapshot.User.AccountRestrictions),
 			Email:                      snapshot.User.Email,
 			Username:                   snapshot.User.Username,
 			BalanceNotifyEnabled:       snapshot.User.BalanceNotifyEnabled,
@@ -539,6 +557,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			OpenAIModelTiers:                snapshot.Group.OpenAIModelTiers,
 			OpenAIModelTierMultipliers:      snapshot.Group.OpenAIModelTierMultipliers,
 			FreeOpenAIFast:                  snapshot.Group.FreeOpenAIFast,
+			UsageAccelerationBadge:          snapshot.Group.UsageAccelerationBadge,
 			DefaultMappedModel:              snapshot.Group.DefaultMappedModel,
 			MessagesDispatchModelConfig:     snapshot.Group.MessagesDispatchModelConfig,
 			ModelAllowlist:                  snapshot.Group.ModelAllowlist,

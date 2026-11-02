@@ -395,9 +395,13 @@
             </div>
           </div>
           <!-- Rate and Summary -->
+          <div v-if="tooltipData?.service_tier_source === 'group_display_standard' && tooltipData.billing_service_tier === 'standard' && getUsageAccelerationDisplayLabel(tooltipData.usage_acceleration_badge, t)" class="flex items-center justify-between gap-6">
+            <span class="text-gray-400">{{ t('usage.displayTier') }}</span>
+            <span class="font-semibold text-cyan-300">{{ getUsageAccelerationDisplayLabel(tooltipData.usage_acceleration_badge, t) }}</span>
+          </div>
           <div class="flex items-center justify-between gap-6">
-            <span class="text-gray-400">{{ t('usage.serviceTier') }}</span>
-            <span class="font-semibold text-cyan-300">{{ getUsageServiceTierLabel(tooltipData?.service_tier, t) }}</span>
+            <span class="text-gray-400">{{ tooltipData?.service_tier_source === 'group_display_standard' ? t('usage.customerServiceTier') : t('usage.serviceTier') }}</span>
+            <span class="font-semibold text-cyan-300">{{ getUsageServiceTierLabel(tooltipData?.service_tier_source === 'group_display_standard' ? tooltipData.billing_service_tier : tooltipData?.service_tier, t) }}</span>
           </div>
           <div v-if="tooltipData && tooltipData.rate_multiplier !== 1" class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t('usage.rate') }}</span>
@@ -451,7 +455,7 @@ import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatReasoningEffort } from '@/utils/format'
 import { formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
-import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
+import { getUsageAccelerationDisplayLabel, getUsageServiceTierLabel } from '@/utils/usageServiceTier'
 import { BILLING_MODE_TOKEN, getBillingModeLabel, getDisplayBillingMode as resolveDisplayBillingMode, imageUnitPrice, isImageUsage } from '@/utils/billingMode'
 import {
   formatImageBillingSize,

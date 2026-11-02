@@ -48,6 +48,14 @@ const messages: Record<string, string> = {
   'usage.serviceTierUltrafast': 'Ultrafast',
   'usage.serviceTierFlex': 'Flex',
   'usage.serviceTierStandard': 'Standard',
+  'usage.displayTier': 'Display tier',
+  'usage.customerServiceTier': 'Customer billing tier',
+  'usage.displayStandardBilling': 'Standard billing',
+  'usage.displayBadgeFast': 'Fast',
+  'usage.displayBadgeUltrafast': 'Ultrafast',
+  'usage.displayBadgeFreeFast': 'Free Fast',
+  'usage.displayBadgeBilledFast': 'Fast billing',
+  'usage.displayBadgeBilledUltrafast': 'Ultrafast billing',
   'usage.cacheHitRate': 'Cache hit rate',
   'usage.rate': 'Rate',
   'usage.accountMultiplier': 'Account rate',
@@ -985,6 +993,37 @@ describe('admin UsageTable deleted-user badge', () => {
 
 
 describe('usage tier billing receipt', () => {
+  it.each([
+    ['fast', 'Fast'],
+    ['ultrafast', 'Ultrafast'],
+    ['free_fast', 'Free Fast'],
+    ['billed_fast', 'Fast billing'],
+    ['billed_ultrafast', 'Ultrafast billing'],
+  ])('shows the frozen %s display tier with Standard billing in admin and user records', async (badge, label) => {
+    for (const admin of [true, false]) {
+      const wrapper = mount(UsageTable, {
+        props: { data: [{ ...baseImageRow, image_count: 0, billing_mode: 'token',
+          billing_service_tier: 'standard', effective_service_tier: 'default',
+          service_tier_source: 'group_display_standard', usage_acceleration_badge: badge,
+          service_tier_details: { group_tier: 'default', upstream_tier: 'default', billing_tier: 'standard', source: 'group_display_standard' },
+        }], columns: [], showAccountBilling: admin },
+        global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+      })
+      const triggers = wrapper.findAll('.group.relative')
+      await triggers[triggers.length - 1].trigger('mouseenter')
+      expect(wrapper.text()).toContain(`Display tier ${label}`)
+      expect(wrapper.text()).toContain('Customer billing tier')
+      expect(wrapper.text()).toContain('Standard')
+      expect(wrapper.text()).toContain('Standard billing')
+      expect(wrapper.text()).not.toContain('usage.serviceTierSourceDisplayStandard')
+      if (admin) {
+        expect(wrapper.text()).not.toContain('usage.groupServiceTier')
+        expect(wrapper.text()).toContain('usage.upstreamServiceTierStandard')
+      }
+      wrapper.unmount()
+    }
+  })
+
   it.each([true, false])('shows frozen acceleration tiers including free Fast in admin=%s without guessing legacy tiers', (admin) => {
     const base = { ...baseImageRow, image_count: 0, billing_mode: 'token' }
     const wrapper = mount(UsageTable, {
@@ -994,13 +1033,15 @@ describe('usage tier billing receipt', () => {
         { ...base, request_id: 'free-fast', service_tier: 'standard', effective_service_tier: 'priority', billing_service_tier: 'standard', service_tier_source: 'free_fast' },
         { ...base, request_id: 'free-ultra', service_tier: 'fast', effective_service_tier: 'ultrafast', billing_service_tier: 'standard', service_tier_source: 'free_fast' },
         { ...base, request_id: 'standard', service_tier: 'default', effective_service_tier: 'default', billing_service_tier: 'standard', service_tier_source: 'group_model' },
+        { ...base, request_id: 'display-fast-standard', service_tier: 'default', effective_service_tier: 'default', billing_service_tier: 'standard', service_tier_source: 'group_display_standard', usage_acceleration_badge: 'fast' as const },
+        { ...base, request_id: 'forced-fast-with-display', service_tier: 'priority', effective_service_tier: 'priority', billing_service_tier: 'priority', service_tier_source: 'group_default', usage_acceleration_badge: 'ultrafast' as const },
         { ...base, request_id: 'legacy', service_tier: 'ultrafast' },
       ], columns: [], showAccountBilling: admin },
       global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
     })
-    expect(wrapper.findAll('[data-testid="usage-tier-badge"]').map(b => b.attributes('data-tier'))).toEqual(['priority', 'ultrafast', 'priority', 'ultrafast'])
+    expect(wrapper.findAll('[data-testid="usage-tier-badge"]').map(b => b.attributes('data-tier'))).toEqual(['priority', 'ultrafast', 'priority', 'ultrafast', 'priority', 'priority'])
     // Standard, free acceleration and historical rows keep the same alignment.
-    expect(wrapper.findAll('[data-testid="usage-tier-slot"]')).toHaveLength(6)
+    expect(wrapper.findAll('[data-testid="usage-tier-slot"]')).toHaveLength(8)
     for (const slot of wrapper.findAll('[data-testid="usage-tier-slot"]')) {
       expect(slot.classes()).toContain('order-first')
       expect(slot.classes()).not.toContain('md:order-none')
@@ -1021,7 +1062,7 @@ describe('usage tier billing receipt', () => {
     })
     const triggers = wrapper.findAll('.group.relative')
     await triggers[triggers.length - 1].trigger('mouseenter')
-    expect(wrapper.text()).toContain('usage.customerServiceTier')
+    expect(wrapper.text()).toContain('Customer billing tier')
     expect(wrapper.text()).toContain('Standard')
     expect(wrapper.text()).toContain('usage.serviceTierSourceFreeFast')
     expect(wrapper.text().includes('usage.upstreamServiceTier')).toBe(admin)

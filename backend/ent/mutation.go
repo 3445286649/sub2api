@@ -24339,6 +24339,7 @@ type GroupMutation struct {
 	force_openai_ultrafast                  *bool
 	openai_model_tiers                      *map[string]string
 	openai_model_tier_multipliers           *map[string]float64
+	usage_acceleration_badge                *string
 	free_openai_fast                        *bool
 	require_oauth_only                      *bool
 	require_privacy_set                     *bool
@@ -27466,6 +27467,42 @@ func (m *GroupMutation) ResetOpenaiModelTierMultipliers() {
 	m.openai_model_tier_multipliers = nil
 }
 
+// SetUsageAccelerationBadge sets the "usage_acceleration_badge" field.
+func (m *GroupMutation) SetUsageAccelerationBadge(s string) {
+	m.usage_acceleration_badge = &s
+}
+
+// UsageAccelerationBadge returns the value of the "usage_acceleration_badge" field in the mutation.
+func (m *GroupMutation) UsageAccelerationBadge() (r string, exists bool) {
+	v := m.usage_acceleration_badge
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsageAccelerationBadge returns the old "usage_acceleration_badge" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldUsageAccelerationBadge(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsageAccelerationBadge is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsageAccelerationBadge requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsageAccelerationBadge: %w", err)
+	}
+	return oldValue.UsageAccelerationBadge, nil
+}
+
+// ResetUsageAccelerationBadge resets all changes to the "usage_acceleration_badge" field.
+func (m *GroupMutation) ResetUsageAccelerationBadge() {
+	m.usage_acceleration_badge = nil
+}
+
 // SetFreeOpenaiFast sets the "free_openai_fast" field.
 func (m *GroupMutation) SetFreeOpenaiFast(b bool) {
 	m.free_openai_fast = &b
@@ -28439,7 +28476,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 75)
+	fields := make([]string, 0, 76)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -28620,6 +28657,9 @@ func (m *GroupMutation) Fields() []string {
 	if m.openai_model_tier_multipliers != nil {
 		fields = append(fields, group.FieldOpenaiModelTierMultipliers)
 	}
+	if m.usage_acceleration_badge != nil {
+		fields = append(fields, group.FieldUsageAccelerationBadge)
+	}
 	if m.free_openai_fast != nil {
 		fields = append(fields, group.FieldFreeOpenaiFast)
 	}
@@ -28793,6 +28833,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.OpenaiModelTiers()
 	case group.FieldOpenaiModelTierMultipliers:
 		return m.OpenaiModelTierMultipliers()
+	case group.FieldUsageAccelerationBadge:
+		return m.UsageAccelerationBadge()
 	case group.FieldFreeOpenaiFast:
 		return m.FreeOpenaiFast()
 	case group.FieldRequireOauthOnly:
@@ -28952,6 +28994,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldOpenaiModelTiers(ctx)
 	case group.FieldOpenaiModelTierMultipliers:
 		return m.OldOpenaiModelTierMultipliers(ctx)
+	case group.FieldUsageAccelerationBadge:
+		return m.OldUsageAccelerationBadge(ctx)
 	case group.FieldFreeOpenaiFast:
 		return m.OldFreeOpenaiFast(ctx)
 	case group.FieldRequireOauthOnly:
@@ -29410,6 +29454,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetOpenaiModelTierMultipliers(v)
+		return nil
+	case group.FieldUsageAccelerationBadge:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsageAccelerationBadge(v)
 		return nil
 	case group.FieldFreeOpenaiFast:
 		v, ok := value.(bool)
@@ -30212,6 +30263,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldOpenaiModelTierMultipliers:
 		m.ResetOpenaiModelTierMultipliers()
+		return nil
+	case group.FieldUsageAccelerationBadge:
+		m.ResetUsageAccelerationBadge()
 		return nil
 	case group.FieldFreeOpenaiFast:
 		m.ResetFreeOpenaiFast()

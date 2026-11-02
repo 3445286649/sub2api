@@ -24,3 +24,18 @@ export function getUsageServiceTierLabel(
   if (tier === 'standard') return translate('usage.serviceTierStandard')
   return tier
 }
+
+export function getUsageAccelerationDisplayLabel(
+  badge: string | null | undefined,
+  translate: (key: string) => string,
+): string | null {
+  const labels: Record<string, string> = {
+    fast: 'usage.displayBadgeFast',
+    ultrafast: 'usage.displayBadgeUltrafast',
+    free_fast: 'usage.displayBadgeFreeFast',
+    billed_fast: 'usage.displayBadgeBilledFast',
+    billed_ultrafast: 'usage.displayBadgeBilledUltrafast',
+  }
+  const key = labels[badge ?? '']
+  return key ? translate(key) : null
+}

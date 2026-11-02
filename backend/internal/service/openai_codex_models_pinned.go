@@ -164,6 +164,7 @@ func (s *OpenAIGatewayService) fetchPinnedOpenAIModels(ctx context.Context, grou
 	if s == nil || s.accountRepo == nil || group == nil {
 		return nil, ErrNoPinnedCodexModelsAccounts
 	}
+	ctx = withAccountRestrictionGroup(ctx, &group.ID)
 	cfg := group.CodexModelsManifestConfig
 	if group.Platform != PlatformOpenAI || !cfg.Enabled || len(cfg.AccountIDs) == 0 {
 		return nil, ErrNoPinnedCodexModelsAccounts
@@ -185,7 +186,7 @@ func (s *OpenAIGatewayService) fetchPinnedOpenAIModels(ctx context.Context, grou
 		if !ok || member.Platform != PlatformOpenAI {
 			continue
 		}
-		if !isPinnedCodexModelsAccountUsable(&member) {
+		if !userAccountAllowed(ctx, &member) || !isPinnedCodexModelsAccountUsable(&member) {
 			continue
 		}
 		usable = append(usable, member)

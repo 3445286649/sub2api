@@ -9,6 +9,22 @@ import (
 	"github.com/google/wire"
 )
 
+func ProvideAdminUserHandler(
+	adminService service.AdminService,
+	concurrency *service.ConcurrencyService,
+	quotas service.UserPlatformQuotaRepository,
+	billing service.BillingCache,
+	totp *service.TotpService,
+	users *service.UserService,
+	settings *service.SettingService,
+	restrictions service.UserAccountRestrictionRepository,
+	invalidator service.APIKeyAuthCacheInvalidator,
+) *admin.UserHandler {
+	h := admin.NewUserHandler(adminService, concurrency, quotas, billing, totp, users, settings)
+	h.ConfigureAccountRestrictions(restrictions, invalidator)
+	return h
+}
+
 // ProvideAdminHandlers creates the AdminHandlers struct
 func ProvideAdminHandlers(
 	dashboardHandler *admin.DashboardHandler,
@@ -339,7 +355,7 @@ var ProviderSet = wire.NewSet(
 
 	// Admin handlers
 	admin.NewDashboardHandler,
-	admin.NewUserHandler,
+	ProvideAdminUserHandler,
 	admin.NewGroupHandlerWithConfig,
 	ProvideAdminAccountHandler,
 	admin.NewAccountSchedulingHoldHandler,

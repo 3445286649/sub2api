@@ -798,6 +798,20 @@ func (_c *GroupCreate) SetOpenaiModelTierMultipliers(v map[string]float64) *Grou
 	return _c
 }
 
+// SetUsageAccelerationBadge sets the "usage_acceleration_badge" field.
+func (_c *GroupCreate) SetUsageAccelerationBadge(v string) *GroupCreate {
+	_c.mutation.SetUsageAccelerationBadge(v)
+	return _c
+}
+
+// SetNillableUsageAccelerationBadge sets the "usage_acceleration_badge" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableUsageAccelerationBadge(v *string) *GroupCreate {
+	if v != nil {
+		_c.SetUsageAccelerationBadge(*v)
+	}
+	return _c
+}
+
 // SetFreeOpenaiFast sets the "free_openai_fast" field.
 func (_c *GroupCreate) SetFreeOpenaiFast(v bool) *GroupCreate {
 	_c.mutation.SetFreeOpenaiFast(v)
@@ -1269,6 +1283,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultOpenaiModelTierMultipliers
 		_c.mutation.SetOpenaiModelTierMultipliers(v)
 	}
+	if _, ok := _c.mutation.UsageAccelerationBadge(); !ok {
+		v := group.DefaultUsageAccelerationBadge
+		_c.mutation.SetUsageAccelerationBadge(v)
+	}
 	if _, ok := _c.mutation.FreeOpenaiFast(); !ok {
 		v := group.DefaultFreeOpenaiFast
 		_c.mutation.SetFreeOpenaiFast(v)
@@ -1499,6 +1517,14 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.OpenaiModelTierMultipliers(); !ok {
 		return &ValidationError{Name: "openai_model_tier_multipliers", err: errors.New(`ent: missing required field "Group.openai_model_tier_multipliers"`)}
+	}
+	if _, ok := _c.mutation.UsageAccelerationBadge(); !ok {
+		return &ValidationError{Name: "usage_acceleration_badge", err: errors.New(`ent: missing required field "Group.usage_acceleration_badge"`)}
+	}
+	if v, ok := _c.mutation.UsageAccelerationBadge(); ok {
+		if err := group.UsageAccelerationBadgeValidator(v); err != nil {
+			return &ValidationError{Name: "usage_acceleration_badge", err: fmt.Errorf(`ent: validator failed for field "Group.usage_acceleration_badge": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.FreeOpenaiFast(); !ok {
 		return &ValidationError{Name: "free_openai_fast", err: errors.New(`ent: missing required field "Group.free_openai_fast"`)}
@@ -1826,6 +1852,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.OpenaiModelTierMultipliers(); ok {
 		_spec.SetField(group.FieldOpenaiModelTierMultipliers, field.TypeJSON, value)
 		_node.OpenaiModelTierMultipliers = value
+	}
+	if value, ok := _c.mutation.UsageAccelerationBadge(); ok {
+		_spec.SetField(group.FieldUsageAccelerationBadge, field.TypeString, value)
+		_node.UsageAccelerationBadge = value
 	}
 	if value, ok := _c.mutation.FreeOpenaiFast(); ok {
 		_spec.SetField(group.FieldFreeOpenaiFast, field.TypeBool, value)
@@ -3012,6 +3042,18 @@ func (u *GroupUpsert) SetOpenaiModelTierMultipliers(v map[string]float64) *Group
 // UpdateOpenaiModelTierMultipliers sets the "openai_model_tier_multipliers" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateOpenaiModelTierMultipliers() *GroupUpsert {
 	u.SetExcluded(group.FieldOpenaiModelTierMultipliers)
+	return u
+}
+
+// SetUsageAccelerationBadge sets the "usage_acceleration_badge" field.
+func (u *GroupUpsert) SetUsageAccelerationBadge(v string) *GroupUpsert {
+	u.Set(group.FieldUsageAccelerationBadge, v)
+	return u
+}
+
+// UpdateUsageAccelerationBadge sets the "usage_acceleration_badge" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateUsageAccelerationBadge() *GroupUpsert {
+	u.SetExcluded(group.FieldUsageAccelerationBadge)
 	return u
 }
 
@@ -4392,6 +4434,20 @@ func (u *GroupUpsertOne) SetOpenaiModelTierMultipliers(v map[string]float64) *Gr
 func (u *GroupUpsertOne) UpdateOpenaiModelTierMultipliers() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateOpenaiModelTierMultipliers()
+	})
+}
+
+// SetUsageAccelerationBadge sets the "usage_acceleration_badge" field.
+func (u *GroupUpsertOne) SetUsageAccelerationBadge(v string) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetUsageAccelerationBadge(v)
+	})
+}
+
+// UpdateUsageAccelerationBadge sets the "usage_acceleration_badge" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateUsageAccelerationBadge() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateUsageAccelerationBadge()
 	})
 }
 
@@ -5971,6 +6027,20 @@ func (u *GroupUpsertBulk) SetOpenaiModelTierMultipliers(v map[string]float64) *G
 func (u *GroupUpsertBulk) UpdateOpenaiModelTierMultipliers() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateOpenaiModelTierMultipliers()
+	})
+}
+
+// SetUsageAccelerationBadge sets the "usage_acceleration_badge" field.
+func (u *GroupUpsertBulk) SetUsageAccelerationBadge(v string) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetUsageAccelerationBadge(v)
+	})
+}
+
+// UpdateUsageAccelerationBadge sets the "usage_acceleration_badge" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateUsageAccelerationBadge() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateUsageAccelerationBadge()
 	})
 }
 

@@ -765,6 +765,7 @@ export interface AdminGroup extends Group {
   openai_model_tiers: Record<string, 'default' | 'priority' | 'ultrafast'>
   openai_model_tier_multipliers: Record<string, number>
   image_input_overrides: Record<string, boolean>
+  usage_acceleration_badge?: UsageAccelerationBadge
   free_openai_fast: boolean
   allow_deepseek_search?: boolean
   allow_deepseek_fetch?: boolean
@@ -945,6 +946,7 @@ export interface CreateGroupRequest {
   monthly_limit_usd?: number | null
   long_context_pricing_enabled?: boolean
   force_openai_fast?: boolean
+  usage_acceleration_badge?: UsageAccelerationBadge
   free_openai_fast?: boolean
   model_pricing?: import('@/api/admin/channels').ChannelModelPricing[]
   allow_image_generation?: boolean
@@ -1020,6 +1022,7 @@ export interface UpdateGroupRequest {
   monthly_limit_usd?: number | null
   long_context_pricing_enabled?: boolean
   force_openai_fast?: boolean
+  usage_acceleration_badge?: UsageAccelerationBadge
   free_openai_fast?: boolean
   model_pricing?: import('@/api/admin/channels').ChannelModelPricing[]
   allow_image_generation?: boolean
@@ -2059,6 +2062,7 @@ export interface UsageLog {
     cache_read_cost: number
     total_cost: number
   } | null
+  usage_acceleration_badge?: UsageAccelerationBadge
   service_tier_source?: string | null
   reasoning_effort?: string | null
   inbound_endpoint?: string | null
@@ -2840,3 +2844,5 @@ export interface VideoModelCapability {
   min_duration: number
   max_duration: number
 }
+
+export type UsageAccelerationBadge = '' | 'fast' | 'ultrafast' | 'free_fast' | 'billed_fast' | 'billed_ultrafast'

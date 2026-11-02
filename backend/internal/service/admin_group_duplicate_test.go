@@ -169,6 +169,7 @@ func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing
 		ForceOpenAIFast:                 true,
 		OpenAIModelTiers:                map[string]string{"standard-model": "default", "fast-model": "priority"},
 		FreeOpenAIFast:                  true,
+		UsageAccelerationBadge:          "free_fast",
 		RequireOAuthOnly:                true,
 		RequirePrivacySet:               true,
 		DefaultMappedModel:              "gpt-5.4",
@@ -219,6 +220,7 @@ func TestDuplicateGroupCopiesConfigurationDeeplyAndResetsRuntimeState(t *testing
 	require.Equal(t, source.ForceOpenAIFast, duplicate.ForceOpenAIFast)
 	require.Equal(t, source.OpenAIModelTiers, duplicate.OpenAIModelTiers)
 	require.Equal(t, source.FreeOpenAIFast, duplicate.FreeOpenAIFast)
+	require.Equal(t, source.UsageAccelerationBadge, duplicate.UsageAccelerationBadge)
 	require.Equal(t, source.ModelAllowlist, duplicate.ModelAllowlist)
 	require.Equal(t, source.RPMLimit, duplicate.RPMLimit)
 	require.Equal(t, source.MaxReasoningEffort, duplicate.MaxReasoningEffort)

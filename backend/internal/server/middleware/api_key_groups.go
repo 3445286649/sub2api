@@ -12,6 +12,10 @@ import (
 )
 
 func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subscriptions *service.SubscriptionService, cfg *config.Config, key *service.APIKey, google bool) (*service.APIKey, bool) {
+	if key != nil && key.User != nil {
+		ctx := service.WithUserAccountRestrictions(c.Request.Context(), key.User.AccountRestrictions)
+		c.Request = c.Request.WithContext(ctx)
+	}
 	if key == nil || len(key.ConfiguredGroupIDs()) < 2 || c.Request.URL.Path == "/v1/usage" ||
 		c.Request.URL.Path == "/v1/sub2api/billing" || isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path) ||
 		isOpenAIVideoTaskRead(c.Request.Method, c.Request.URL.Path) {

@@ -154,6 +154,7 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		OpenAIModelTiers:            g.OpenAIModelTiers,
 		OpenAIModelTierMultipliers:  g.OpenAIModelTierMultipliers,
 		FreeOpenAIFast:              g.FreeOpenAIFast,
+		UsageAccelerationBadge:      g.UsageAccelerationBadge,
 		AllowDeepSeekSearch:         g.AllowDeepSeekSearch,
 		AllowDeepSeekFetch:          g.AllowDeepSeekFetch,
 		ProfitControlEnabled:        g.ProfitControlEnabled,
@@ -715,12 +716,14 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 	}
 	var billingTier, effectiveTier, tierSource *string
 	var billingCosts *service.ServiceTierCustomerCosts
+	var usageBadge string
 	if l.ServiceTierDetails != nil {
 		billingTier = &l.ServiceTierDetails.BillingTier
 		effectiveTier = billingTier
 		if l.ServiceTierDetails.GroupTier != "" {
 			effectiveTier = &l.ServiceTierDetails.GroupTier
 		}
+		usageBadge = l.ServiceTierDetails.UsageAccelerationBadge
 		billingCosts = l.ServiceTierDetails.CustomerCosts
 		tierSource = &l.ServiceTierDetails.Source
 	}
@@ -736,6 +739,7 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		EffectiveServiceTier:      effectiveTier,
 		BillingCosts:              billingCosts,
 		ServiceTierSource:         tierSource,
+		UsageAccelerationBadge:    usageBadge,
 		ReasoningEffort:           userFacingReasoningEffort(l),
 		InboundEndpoint:           l.InboundEndpoint,
 		GroupID:                   l.GroupID,

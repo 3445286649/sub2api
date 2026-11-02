@@ -121,6 +121,7 @@ func (s *APIKeyService) SelectRequestGroup(ctx context.Context, key *APIKey, mod
 	if s.groupRouter == nil || key.User == nil {
 		return nil, infraerrors.ServiceUnavailable("MULTI_GROUP_ROUTING_UNAVAILABLE", "Multi-group routing is unavailable")
 	}
+	ctx = WithUserAccountRestrictions(ctx, key.User.AccountRestrictions)
 	for _, id := range key.ConfiguredGroupIDs() {
 		group, err := s.groupRepo.GetByIDLite(ctx, id)
 		if err != nil {

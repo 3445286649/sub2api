@@ -155,6 +155,7 @@ func cloneGroupForDuplicate(source *Group, operationID string) *Group {
 		OpenAIModelTiers:                maps.Clone(source.OpenAIModelTiers),
 		OpenAIModelTierMultipliers:      maps.Clone(source.OpenAIModelTierMultipliers),
 		FreeOpenAIFast:                  source.FreeOpenAIFast,
+		UsageAccelerationBadge:          source.UsageAccelerationBadge,
 		RequireOAuthOnly:                source.RequireOAuthOnly,
 		RequirePrivacySet:               source.RequirePrivacySet,
 		DefaultMappedModel:              source.DefaultMappedModel,

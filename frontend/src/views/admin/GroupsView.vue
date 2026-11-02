@@ -1654,6 +1654,18 @@
             {{ t("admin.groups.openaiFast.freeHint") }}
           </p>
           <div class="mt-4">
+            <label for="create-usage-acceleration-badge" class="mb-2 block text-sm text-gray-600 dark:text-gray-400">{{ t("admin.groups.openaiFast.usageBadge") }}</label>
+            <select id="create-usage-acceleration-badge" v-model="createForm.usage_acceleration_badge" class="input w-full" data-testid="create-usage-acceleration-badge">
+              <option value="">{{ t("admin.groups.openaiFast.badgeNone") }}</option>
+              <option value="fast">Fast（⚡）</option>
+              <option value="ultrafast">Ultrafast（⚡⚡）</option>
+              <option value="free_fast">{{ t("admin.groups.openaiFast.badgeFree") }}</option>
+              <option value="billed_fast">{{ t("admin.groups.openaiFast.badgeBilledFast") }}</option>
+              <option value="billed_ultrafast">{{ t("admin.groups.openaiFast.badgeBilledUltrafast") }}</option>
+            </select>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t("admin.groups.openaiFast.usageBadgeHint") }}</p>
+          </div>
+          <div class="mt-4">
             <button type="button" class="btn btn-secondary btn-sm" :disabled="createTierModelsLoading" @click="loadOpenAITierModels('create')">
               {{ t("admin.groups.openaiFast.loadModels") }}
             </button>
@@ -3395,6 +3407,18 @@
           <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
             {{ t("admin.groups.openaiFast.freeHint") }}
           </p>
+          <div class="mt-4">
+            <label for="edit-usage-acceleration-badge" class="mb-2 block text-sm text-gray-600 dark:text-gray-400">{{ t("admin.groups.openaiFast.usageBadge") }}</label>
+            <select id="edit-usage-acceleration-badge" v-model="editForm.usage_acceleration_badge" class="input w-full" data-testid="edit-usage-acceleration-badge">
+              <option value="">{{ t("admin.groups.openaiFast.badgeNone") }}</option>
+              <option value="fast">Fast（⚡）</option>
+              <option value="ultrafast">Ultrafast（⚡⚡）</option>
+              <option value="free_fast">{{ t("admin.groups.openaiFast.badgeFree") }}</option>
+              <option value="billed_fast">{{ t("admin.groups.openaiFast.badgeBilledFast") }}</option>
+              <option value="billed_ultrafast">{{ t("admin.groups.openaiFast.badgeBilledUltrafast") }}</option>
+            </select>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t("admin.groups.openaiFast.usageBadgeHint") }}</p>
+          </div>
           <div class="mt-4">
             <button type="button" class="btn btn-secondary btn-sm" :disabled="editTierModelsLoading" @click="loadOpenAITierModels('edit')">
               {{ t("admin.groups.openaiFast.loadModels") }}
@@ -5256,6 +5280,7 @@ const createForm = reactive({
   openai_model_tiers: {} as Record<string, OpenAIModelTier>,
   openai_model_tier_multipliers: {} as Record<string, number>,
   image_input_overrides: {} as Record<string, boolean>,
+  usage_acceleration_badge: "" as import("@/types").UsageAccelerationBadge,
   free_openai_fast: false,
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
@@ -5630,6 +5655,7 @@ const editForm = reactive({
   openai_model_tiers: {} as Record<string, OpenAIModelTier>,
   openai_model_tier_multipliers: {} as Record<string, number>,
   image_input_overrides: {} as Record<string, boolean>,
+  usage_acceleration_badge: "" as import("@/types").UsageAccelerationBadge,
   free_openai_fast: false,
   model_pricing: [] as PricingFormEntry[],
   // 图片生成计费配置
@@ -6134,6 +6160,7 @@ const closeCreateModal = () => {
   createTierModels.value = [];
   createTierModelInput.value = "";
   createTierModelInputError.value = false;
+  createForm.usage_acceleration_badge = "";
   createForm.free_openai_fast = false;
   createForm.model_pricing = [];
   createForm.web_search_price_per_call = null;
@@ -6265,6 +6292,7 @@ const handleCreateGroup = async () => {
       force_openai_ultrafast: normalizeGroupOpenAIFast(createForm.platform, createForm.force_openai_ultrafast),
       openai_model_tiers: supportsGroupOpenAIFast(createForm.platform) ? createForm.openai_model_tiers : {},
       openai_model_tier_multipliers: supportsGroupOpenAIFast(createForm.platform) ? createForm.openai_model_tier_multipliers : {},
+      usage_acceleration_badge: supportsGroupOpenAIFast(createForm.platform) ? createForm.usage_acceleration_badge : "",
       free_openai_fast: normalizeGroupOpenAIFast(
         createForm.platform,
         createForm.free_openai_fast,
@@ -6427,6 +6455,7 @@ const handleEdit = async (group: AdminGroup) => {
   editTierModels.value = Object.keys(editForm.openai_model_tiers).sort();
   editTierModelInput.value = "";
   editTierModelInputError.value = false;
+  editForm.usage_acceleration_badge = group.usage_acceleration_badge ?? "";
   editForm.free_openai_fast = group.free_openai_fast ?? false;
   editForm.model_pricing = groupPricingFromAPI(group.model_pricing);
   editForm.allow_image_generation = group.allow_image_generation ?? false;
@@ -6572,6 +6601,7 @@ const closeEditModal = () => {
   editTierModels.value = [];
   editTierModelInput.value = "";
   editTierModelInputError.value = false;
+  editForm.usage_acceleration_badge = "";
   editForm.free_openai_fast = false;
   editForm.model_pricing = [];
   editForm.web_search_price_per_call = null;
@@ -6637,6 +6667,7 @@ const handleUpdateGroup = async () => {
       force_openai_ultrafast: normalizeGroupOpenAIFast(editForm.platform, editForm.force_openai_ultrafast),
       openai_model_tiers: supportsGroupOpenAIFast(editForm.platform) ? editForm.openai_model_tiers : {},
       openai_model_tier_multipliers: supportsGroupOpenAIFast(editForm.platform) ? editForm.openai_model_tier_multipliers : {},
+      usage_acceleration_badge: supportsGroupOpenAIFast(editForm.platform) ? editForm.usage_acceleration_badge : "",
       free_openai_fast: normalizeGroupOpenAIFast(
         editForm.platform,
         editForm.free_openai_fast,

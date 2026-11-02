@@ -3315,6 +3315,7 @@ func TestOpenAIGatewayServiceRecordUsage_ModelTierMultiplierUsesStandardPrice(t 
 		{"free fast wins", "priority", 3, true, false, 1},
 		{"free ultrafast wins", "ultrafast", 2.5, true, false, 1},
 		{"standard ignores stale multiplier", "default", 3, false, false, 1},
+		{"badge only ignores acceleration multiplier", "priority", 3, false, false, 1},
 		{"channel standard price", "ultrafast", 3, false, true, 3},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -3346,6 +3347,10 @@ func TestOpenAIGatewayServiceRecordUsage_ModelTierMultiplierUsesStandardPrice(t 
 				RateMultiplier: 0.5, ForceOpenAIFast: true, ForceOpenAIUltrafast: true,
 				FreeOpenAIFast: tc.free, OpenAIModelTiers: map[string]string{"gpt-6-astra": tc.tier},
 				OpenAIModelTierMultipliers: multipliers,
+			}
+			if tc.name == "badge only ignores acceleration multiplier" {
+				group.ForceOpenAIFast, group.ForceOpenAIUltrafast = false, false
+				group.UsageAccelerationBadge = "fast"
 			}
 			if !tc.channel {
 				group.ModelPricing = []ChannelModelPricing{{Models: []string{"gpt-6-astra"}, BillingMode: BillingModeToken,

@@ -315,6 +315,11 @@ func ForceOpenaiUltrafast(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldForceOpenaiUltrafast, v))
 }
 
+// UsageAccelerationBadge applies equality check predicate on the "usage_acceleration_badge" field. It's identical to UsageAccelerationBadgeEQ.
+func UsageAccelerationBadge(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldUsageAccelerationBadge, v))
+}
+
 // FreeOpenaiFast applies equality check predicate on the "free_openai_fast" field. It's identical to FreeOpenaiFastEQ.
 func FreeOpenaiFast(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldFreeOpenaiFast, v))
@@ -2363,6 +2368,71 @@ func ForceOpenaiUltrafastEQ(v bool) predicate.Group {
 // ForceOpenaiUltrafastNEQ applies the NEQ predicate on the "force_openai_ultrafast" field.
 func ForceOpenaiUltrafastNEQ(v bool) predicate.Group {
 	return predicate.Group(sql.FieldNEQ(FieldForceOpenaiUltrafast, v))
+}
+
+// UsageAccelerationBadgeEQ applies the EQ predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldUsageAccelerationBadge, v))
+}
+
+// UsageAccelerationBadgeNEQ applies the NEQ predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeNEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldUsageAccelerationBadge, v))
+}
+
+// UsageAccelerationBadgeIn applies the In predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldUsageAccelerationBadge, vs...))
+}
+
+// UsageAccelerationBadgeNotIn applies the NotIn predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeNotIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldUsageAccelerationBadge, vs...))
+}
+
+// UsageAccelerationBadgeGT applies the GT predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeGT(v string) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldUsageAccelerationBadge, v))
+}
+
+// UsageAccelerationBadgeGTE applies the GTE predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeGTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldUsageAccelerationBadge, v))
+}
+
+// UsageAccelerationBadgeLT applies the LT predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeLT(v string) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldUsageAccelerationBadge, v))
+}
+
+// UsageAccelerationBadgeLTE applies the LTE predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeLTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldUsageAccelerationBadge, v))
+}
+
+// UsageAccelerationBadgeContains applies the Contains predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeContains(v string) predicate.Group {
+	return predicate.Group(sql.FieldContains(FieldUsageAccelerationBadge, v))
+}
+
+// UsageAccelerationBadgeHasPrefix applies the HasPrefix predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeHasPrefix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasPrefix(FieldUsageAccelerationBadge, v))
+}
+
+// UsageAccelerationBadgeHasSuffix applies the HasSuffix predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeHasSuffix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasSuffix(FieldUsageAccelerationBadge, v))
+}
+
+// UsageAccelerationBadgeEqualFold applies the EqualFold predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeEqualFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldEqualFold(FieldUsageAccelerationBadge, v))
+}
+
+// UsageAccelerationBadgeContainsFold applies the ContainsFold predicate on the "usage_acceleration_badge" field.
+func UsageAccelerationBadgeContainsFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldContainsFold(FieldUsageAccelerationBadge, v))
 }
 
 // FreeOpenaiFastEQ applies the EQ predicate on the "free_openai_fast" field.

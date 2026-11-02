@@ -335,10 +335,12 @@ func f64Ptr(value float64) *float64 {
 
 func TestUsageLogFromService_TierReceiptVisibilityAndHistoricalUnknown(t *testing.T) {
 	receipt := &service.ServiceTierDetails{GroupTier: "ultrafast", RequestedTier: "ultrafast", UpstreamTier: "fast", BillingTier: "standard", Source: "free_fast", CustomerCosts: &service.ServiceTierCustomerCosts{InputCost: .01, OutputCost: .02, TotalCost: .03}}
+	receipt.UsageAccelerationBadge = "billed_fast"
 	log := &service.UsageLog{Model: "gpt-6-astra", ServiceTierDetails: receipt}
 	user := UsageLogFromService(log)
 	admin := UsageLogFromServiceAdmin(log)
 	require.Equal(t, "standard", *user.BillingServiceTier)
+	require.Equal(t, "billed_fast", user.UsageAccelerationBadge)
 	require.Equal(t, "ultrafast", *user.EffectiveServiceTier)
 	require.Equal(t, "ultrafast", *admin.EffectiveServiceTier)
 	require.Equal(t, "free_fast", *user.ServiceTierSource)
@@ -353,6 +355,7 @@ func TestUsageLogFromService_TierReceiptVisibilityAndHistoricalUnknown(t *testin
 	require.Nil(t, legacy.BillingServiceTier)
 	require.Nil(t, legacy.EffectiveServiceTier)
 	require.Nil(t, legacy.ServiceTierSource)
+	require.Empty(t, legacy.UsageAccelerationBadge)
 }
 
 func TestUsageLogFromService_FreeAccelerationTierDoesNotChangeBilling(t *testing.T) {

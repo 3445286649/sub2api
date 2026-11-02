@@ -292,6 +292,7 @@ type CreateGroupInput struct {
 	OpenAIModelTiers            map[string]string
 	OpenAIModelTierMultipliers  map[string]float64
 	FreeOpenAIFast              bool
+	UsageAccelerationBadge      string
 	DefaultMappedModel          string
 	RequireOAuthOnly            bool
 	RequirePrivacySet           bool
@@ -382,6 +383,7 @@ type UpdateGroupInput struct {
 	OpenAIModelTiers            *map[string]string
 	OpenAIModelTierMultipliers  *map[string]float64
 	FreeOpenAIFast              *bool
+	UsageAccelerationBadge      *string
 	DefaultMappedModel          *string
 	RequireOAuthOnly            *bool
 	RequirePrivacySet           *bool

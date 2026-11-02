@@ -529,6 +529,7 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 	requiredCapability OpenAIEndpointCapability,
 	requireCompact bool,
 ) (int64, *Account, string, OpenAIWSStateStore) {
+	ctx = withAccountRestrictionGroup(ctx, groupID)
 	if s == nil {
 		return 0, nil, "", nil
 	}

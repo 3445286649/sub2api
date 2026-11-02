@@ -4,6 +4,7 @@ import "context"
 
 // ProbeAPIKeyGroup reads scheduler eligibility without reserving slots or binding a session.
 func (s *GatewayService) ProbeAPIKeyGroup(ctx context.Context, group *Group, model, kind string) (bool, error) {
+	ctx = withAccountRestrictionGroup(ctx, &group.ID)
 	ctx = s.withGroupContext(ctx, group)
 	platform, forced, err := s.resolvePlatform(ctx, &group.ID, group, model)
 	if err != nil {

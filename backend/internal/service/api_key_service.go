@@ -297,6 +297,7 @@ type APIKeyService struct {
 	userSubRepo               UserSubscriptionRepository
 	userGroupRateRepo         UserGroupRateRepository
 	groupRouter               APIKeyGroupRouter
+	accountRestrictionRepo    UserAccountRestrictionRepository
 	cache                     APIKeyCache
 	rateLimitCacheInvalid     RateLimitCacheInvalidator // optional: invalidate Redis rate limit cache
 	concurrencyService        *ConcurrencyService

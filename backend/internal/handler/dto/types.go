@@ -179,9 +179,10 @@ type AdminGroup struct {
 	OpenAIModelTiers           map[string]string  `json:"openai_model_tiers"`
 	OpenAIModelTierMultipliers map[string]float64 `json:"openai_model_tier_multipliers"`
 	// FreeOpenAIFast 是管理端计费策略，用户侧分组 DTO 无需暴露。
-	FreeOpenAIFast      bool `json:"free_openai_fast"`
-	AllowDeepSeekSearch bool `json:"allow_deepseek_search"`
-	AllowDeepSeekFetch  bool `json:"allow_deepseek_fetch"`
+	FreeOpenAIFast         bool   `json:"free_openai_fast"`
+	UsageAccelerationBadge string `json:"usage_acceleration_badge"`
+	AllowDeepSeekSearch    bool   `json:"allow_deepseek_search"`
+	AllowDeepSeekFetch     bool   `json:"allow_deepseek_fetch"`
 
 	// 分组利润控制（五个 token 平台分组可启用；margin/buffer 为小数存储）。
 	// 仅管理员可见：这三个字段与同响应中的 rate_multiplier 相乘即可反推出
@@ -624,11 +625,12 @@ type UsageLog struct {
 	RequestID string `json:"request_id"`
 	Model     string `json:"model"`
 	// ServiceTier records the OpenAI service tier used for billing, e.g. "priority" / "flex".
-	ServiceTier          *string                           `json:"service_tier,omitempty"`
-	BillingServiceTier   *string                           `json:"billing_service_tier,omitempty"`
-	EffectiveServiceTier *string                           `json:"effective_service_tier,omitempty"`
-	BillingCosts         *service.ServiceTierCustomerCosts `json:"billing_costs,omitempty"`
-	ServiceTierSource    *string                           `json:"service_tier_source,omitempty"`
+	ServiceTier            *string                           `json:"service_tier,omitempty"`
+	BillingServiceTier     *string                           `json:"billing_service_tier,omitempty"`
+	EffectiveServiceTier   *string                           `json:"effective_service_tier,omitempty"`
+	BillingCosts           *service.ServiceTierCustomerCosts `json:"billing_costs,omitempty"`
+	UsageAccelerationBadge string                            `json:"usage_acceleration_badge,omitempty"`
+	ServiceTierSource      *string                           `json:"service_tier_source,omitempty"`
 	// ReasoningEffort is the client-requested effort (mapping-hidden, like Model).
 	// OpenAI: "low"/"medium"/"high"/"xhigh"; Claude: "low"/"medium"/"high"/"max".
 	// Historical rows without requested_reasoning_effort fall back to the stored effective value.

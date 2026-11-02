@@ -96,6 +96,8 @@ func TestForward_GroupTierBillingSnapshot_HTTPAndSSE(t *testing.T) {
 			result, err := svc.Forward(ctx, c, account, body)
 			require.NoError(t, err)
 			require.Equal(t, tier, gjson.GetBytes(upstream.lastBody, "service_tier").String())
+			require.Equal(t, 1000, result.Usage.InputTokens)
+			require.Equal(t, 500, result.Usage.OutputTokens)
 			require.Equal(t, "priority", result.UpstreamResponseServiceTier)
 			require.Contains(t, rec.Body.String(), `"service_tier":"fast"`, "do not falsify upstream response")
 			// Simulate a settings change while the usage task is queued.

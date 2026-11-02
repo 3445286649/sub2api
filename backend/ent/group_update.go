@@ -1089,6 +1089,20 @@ func (_u *GroupUpdate) SetOpenaiModelTierMultipliers(v map[string]float64) *Grou
 	return _u
 }
 
+// SetUsageAccelerationBadge sets the "usage_acceleration_badge" field.
+func (_u *GroupUpdate) SetUsageAccelerationBadge(v string) *GroupUpdate {
+	_u.mutation.SetUsageAccelerationBadge(v)
+	return _u
+}
+
+// SetNillableUsageAccelerationBadge sets the "usage_acceleration_badge" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableUsageAccelerationBadge(v *string) *GroupUpdate {
+	if v != nil {
+		_u.SetUsageAccelerationBadge(*v)
+	}
+	return _u
+}
+
 // SetFreeOpenaiFast sets the "free_openai_fast" field.
 func (_u *GroupUpdate) SetFreeOpenaiFast(v bool) *GroupUpdate {
 	_u.mutation.SetFreeOpenaiFast(v)
@@ -1625,6 +1639,11 @@ func (_u *GroupUpdate) check() error {
 			return &ValidationError{Name: "audio_stt_price_per_hour", err: fmt.Errorf(`ent: validator failed for field "Group.audio_stt_price_per_hour": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UsageAccelerationBadge(); ok {
+		if err := group.UsageAccelerationBadgeValidator(v); err != nil {
+			return &ValidationError{Name: "usage_acceleration_badge", err: fmt.Errorf(`ent: validator failed for field "Group.usage_acceleration_badge": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultMappedModel(); ok {
 		if err := group.DefaultMappedModelValidator(v); err != nil {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
@@ -1979,6 +1998,9 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.OpenaiModelTierMultipliers(); ok {
 		_spec.SetField(group.FieldOpenaiModelTierMultipliers, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.UsageAccelerationBadge(); ok {
+		_spec.SetField(group.FieldUsageAccelerationBadge, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.FreeOpenaiFast(); ok {
 		_spec.SetField(group.FieldFreeOpenaiFast, field.TypeBool, value)
@@ -3405,6 +3427,20 @@ func (_u *GroupUpdateOne) SetOpenaiModelTierMultipliers(v map[string]float64) *G
 	return _u
 }
 
+// SetUsageAccelerationBadge sets the "usage_acceleration_badge" field.
+func (_u *GroupUpdateOne) SetUsageAccelerationBadge(v string) *GroupUpdateOne {
+	_u.mutation.SetUsageAccelerationBadge(v)
+	return _u
+}
+
+// SetNillableUsageAccelerationBadge sets the "usage_acceleration_badge" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableUsageAccelerationBadge(v *string) *GroupUpdateOne {
+	if v != nil {
+		_u.SetUsageAccelerationBadge(*v)
+	}
+	return _u
+}
+
 // SetFreeOpenaiFast sets the "free_openai_fast" field.
 func (_u *GroupUpdateOne) SetFreeOpenaiFast(v bool) *GroupUpdateOne {
 	_u.mutation.SetFreeOpenaiFast(v)
@@ -3954,6 +3990,11 @@ func (_u *GroupUpdateOne) check() error {
 			return &ValidationError{Name: "audio_stt_price_per_hour", err: fmt.Errorf(`ent: validator failed for field "Group.audio_stt_price_per_hour": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UsageAccelerationBadge(); ok {
+		if err := group.UsageAccelerationBadgeValidator(v); err != nil {
+			return &ValidationError{Name: "usage_acceleration_badge", err: fmt.Errorf(`ent: validator failed for field "Group.usage_acceleration_badge": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultMappedModel(); ok {
 		if err := group.DefaultMappedModelValidator(v); err != nil {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
@@ -4325,6 +4366,9 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.OpenaiModelTierMultipliers(); ok {
 		_spec.SetField(group.FieldOpenaiModelTierMultipliers, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.UsageAccelerationBadge(); ok {
+		_spec.SetField(group.FieldUsageAccelerationBadge, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.FreeOpenaiFast(); ok {
 		_spec.SetField(group.FieldFreeOpenaiFast, field.TypeBool, value)

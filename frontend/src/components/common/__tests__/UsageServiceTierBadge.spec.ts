@@ -3,9 +3,35 @@ import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import UsageServiceTierBadge from '../UsageServiceTierBadge.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'zh', messages: { zh: { usage: { billedFast: () => 'Fast 计费', billedUltrafast: () => 'Ultrafast 计费', freeFastEnabled: () => 'Fast 已开启，免费加速 · 按标准档计费', freeUltrafastEnabled: () => 'Ultrafast 已开启，免费加速 · 按标准档计费' } } } })
+const i18n = createI18n({ legacy: false, locale: 'zh', messages: { zh: { usage: {
+  billedFast: () => 'Fast 计费', billedUltrafast: () => 'Ultrafast 计费',
+  freeFastEnabled: () => 'Fast 已开启，免费加速 · 按标准档计费', freeUltrafastEnabled: () => 'Ultrafast 已开启，免费加速 · 按标准档计费',
+  displayTier: () => '展示档位', displayStandardBilling: () => '实际按 Standard 计费',
+  displayBadgeFast: () => 'Fast', displayBadgeUltrafast: () => 'Ultrafast', displayBadgeFreeFast: () => '免费 Fast',
+  displayBadgeBilledFast: () => '按 Fast 收费', displayBadgeBilledUltrafast: () => '按 Ultrafast 收费',
+} } } })
 
 describe('UsageServiceTierBadge', () => {
+  it.each([
+    ['fast', 'priority', '展示档位 Fast (实际按 Standard 计费)'],
+    ['ultrafast', 'ultrafast', '展示档位 Ultrafast (实际按 Standard 计费)'],
+    ['billed_fast', 'priority', '展示档位 按 Fast 收费 (实际按 Standard 计费)'],
+    ['billed_ultrafast', 'ultrafast', '展示档位 按 Ultrafast 收费 (实际按 Standard 计费)'],
+    ['free_fast', 'priority', '展示档位 免费 Fast (实际按 Standard 计费)'],
+  ])('shows the frozen display override independently of Standard billing: %s', async (display, tier, label) => {
+    const wrapper = mount(UsageServiceTierBadge, { props: { tier: 'standard', display }, global: { plugins: [i18n], stubs: { Teleport: true } } })
+    expect(wrapper.get('button').attributes('data-tier')).toBe(tier)
+    expect(wrapper.get('button').attributes('aria-label')).toBe(label)
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.get('[role="tooltip"]').text()).toBe(label)
+    wrapper.unmount()
+  })
+
+  it('ignores an invalid override and retains real billing display', () => {
+    const wrapper = mount(UsageServiceTierBadge, { props: { tier: 'ultrafast', display: 'invalid' }, global: { plugins: [i18n] } })
+    expect(wrapper.get('button').attributes('data-tier')).toBe('ultrafast')
+    wrapper.unmount()
+  })
   it.each(['priority', 'ultrafast'])('shows enabled free acceleration without claiming accelerated billing: %s', async (tier) => {
     const wrapper = mount(UsageServiceTierBadge, { props: { tier, free: true }, global: { plugins: [i18n], stubs: { Teleport: true } } })
     const label = `${tier === 'ultrafast' ? 'Ultrafast' : 'Fast'} 已开启，免费加速 · 按标准档计费`

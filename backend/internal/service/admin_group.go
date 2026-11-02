@@ -387,6 +387,7 @@ func sanitizeGroupOpenAIFast(group *Group) {
 			group.OpenAIModelTiers = map[string]string{}
 			group.OpenAIModelTierMultipliers = map[string]float64{}
 			group.FreeOpenAIFast = false
+			group.UsageAccelerationBadge = ""
 		}
 	}
 }
@@ -658,6 +659,10 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if err != nil {
 		return nil, err
 	}
+	usageBadge, err := normalizeUsageAccelerationBadge(input.UsageAccelerationBadge)
+	if err != nil {
+		return nil, err
+	}
 	openAIModelTiers, err := normalizeOpenAIModelTiers(input.OpenAIModelTiers)
 	if err != nil {
 		return nil, err
@@ -729,6 +734,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		OpenAIModelTiers:                openAIModelTiers,
 		OpenAIModelTierMultipliers:      openAIModelTierMultipliers,
 		FreeOpenAIFast:                  input.FreeOpenAIFast,
+		UsageAccelerationBadge:          usageBadge,
 		RequireOAuthOnly:                input.RequireOAuthOnly,
 		RequirePrivacySet:               input.RequirePrivacySet,
 		DefaultMappedModel:              input.DefaultMappedModel,
@@ -1163,6 +1169,13 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 				delete(group.OpenAIModelTierMultipliers, model)
 			}
 		}
+	}
+	if input.UsageAccelerationBadge != nil {
+		badge, err := normalizeUsageAccelerationBadge(*input.UsageAccelerationBadge)
+		if err != nil {
+			return nil, err
+		}
+		group.UsageAccelerationBadge = badge
 	}
 	if input.FreeOpenAIFast != nil {
 		group.FreeOpenAIFast = *input.FreeOpenAIFast

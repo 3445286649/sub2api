@@ -62,6 +62,9 @@ const messages: Record<string, string> = {
   'usage.serviceTierPriority': 'Fast',
   'usage.serviceTierFlex': 'Flex',
   'usage.serviceTierStandard': 'Standard',
+  'usage.displayTier': 'Display tier',
+  'usage.customerServiceTier': 'Customer billing tier',
+  'usage.displayBadgeBilledUltrafast': 'Ultrafast billing',
   'usage.cacheHitRate': 'Cache hit rate',
   'usage.rate': 'Rate',
   'usage.original': 'Original',
@@ -676,6 +679,26 @@ describe('user UsageView', () => {
     expect(text).toContain('$0.092883')
     expect(text).toContain('$5.0000 / 1M tokens')
     expect(text).toContain('$30.0000 / 1M tokens')
+  })
+
+  it('separates the selected display tier from real Standard billing in the user tooltip', async () => {
+    const wrapper = mountUsageView()
+    await flushPromises()
+    const setupState = (wrapper.vm as any).$?.setupState
+    setupState.tooltipData = {
+      ...usageLog,
+      service_tier: 'default',
+      billing_service_tier: 'standard',
+      service_tier_source: 'group_display_standard',
+      usage_acceleration_badge: 'billed_ultrafast',
+    }
+    setupState.tooltipVisible = true
+    await nextTick()
+    expect(wrapper.text()).toContain('Display tier')
+    expect(wrapper.text()).toContain('Ultrafast billing')
+    expect(wrapper.text()).toContain('Customer billing tier')
+    expect(wrapper.text()).toContain('Standard')
+    wrapper.unmount()
   })
 
 })

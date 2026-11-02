@@ -404,7 +404,23 @@ export async function resetPlatformQuotaWindow(
   return data
 }
 
+export interface UserAccountRestrictionsResponse {
+  restrictions: Record<number, number[]>
+}
+
+export async function getAccountRestrictions(id: number, signal?: AbortSignal): Promise<UserAccountRestrictionsResponse> {
+  const { data } = await apiClient.get<UserAccountRestrictionsResponse>(`/admin/users/${id}/account-restrictions`, { signal })
+  return data
+}
+
+export async function updateAccountRestrictions(id: number, groupId: number, accountIds: number[]): Promise<{ account_ids: number[] }> {
+  const { data } = await apiClient.put<{ account_ids: number[] }>(`/admin/users/${id}/groups/${groupId}/account-restrictions`, { account_ids: accountIds })
+  return data
+}
+
 export const usersAPI = {
+  getAccountRestrictions,
+  updateAccountRestrictions,
   list,
   getById,
   create,

@@ -678,6 +678,23 @@ export default {
       failedToUpdateAllowedGroups: 'Failed to update allowed groups',
       // User Group Configuration
       groupConfig: 'User Group Configuration',
+      accountRestrictions: {
+        title: 'Group account restrictions',
+        previousPage: 'Previous page',
+        nextPage: 'Next page',
+        hint: 'Checked accounts cannot be used by this user in the selected group, across all their API keys. Other accounts, groups and users are unaffected.',
+        group: 'Select group',
+        selected: '{count} accounts blocked (including selections on other pages)',
+        clear: 'Clear blocked selection',
+        undo: 'Discard unsaved changes',
+        unsaved: 'Save or discard changes before switching groups.',
+        search: 'Search account names',
+        empty: 'No matching accounts in this group',
+        blocked: 'Blocked',
+        loadError: 'Failed to load. Please retry.',
+        saveError: 'Failed to save. Retry, or clear and reselect blocked accounts if accounts have left this group.',
+        saved: 'Account restrictions saved for this group',
+      },
       groupConfigHint: 'Configure custom rate multipliers for user {email} (overrides group defaults)',
       exclusiveGroups: 'Exclusive Groups',
       publicGroups: 'Public Groups (Default Available)',
@@ -1299,6 +1316,13 @@ export default {
         enableAnyway: 'Enable anyway'
       },
       openaiFast: {
+        usageBadge: 'Usage acceleration badge',
+        badgeNone: 'Not specified',
+        badgeFree: 'Free Fast (⚡)',
+        badgeBilledFast: 'Fast billing (⚡)',
+        badgeBilledUltrafast: 'Ultrafast billing (⚡⚡)',
+        usageBadgeHint: 'Overrides only the usage icon, display tier and tooltip. Without an active forced tier, requests and customer billing use Standard. Forced tiers and free Fast keep their existing rules.',
+
         title: 'OpenAI Fast mode',
         force: 'Force Fast (priority)',
         hint: 'Models without an individual tier use Fast for requests and billing. Upstream tier reports do not change the configured billing tier. Conflicting global policies reject the request.',

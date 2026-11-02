@@ -2,15 +2,22 @@
 import { computed, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onClickOutside, useEventListener } from '@vueuse/core'
-import { normalizeUsageServiceTier } from '@/utils/usageServiceTier'
+import { getUsageAccelerationDisplayLabel, normalizeUsageServiceTier } from '@/utils/usageServiceTier'
 
-const props = defineProps<{ tier?: string | null; free?: boolean }>()
+const props = defineProps<{ tier?: string | null; free?: boolean; display?: string | null }>()
 const { t } = useI18n()
-const tier = computed(() => normalizeUsageServiceTier(props.tier))
+const display = computed(() => ['fast', 'ultrafast', 'free_fast', 'billed_fast', 'billed_ultrafast'].includes(props.display ?? '') ? props.display : '')
+const tier = computed(() => display.value
+  ? (['ultrafast', 'billed_ultrafast'].includes(display.value) ? 'ultrafast' : 'priority')
+  : normalizeUsageServiceTier(props.tier))
 const visible = computed(() => tier.value === 'priority' || tier.value === 'ultrafast')
-const label = computed(() => t(props.free
-  ? (tier.value === 'ultrafast' ? 'usage.freeUltrafastEnabled' : 'usage.freeFastEnabled')
-  : (tier.value === 'ultrafast' ? 'usage.billedUltrafast' : 'usage.billedFast')))
+const label = computed(() => {
+  const displayLabel = getUsageAccelerationDisplayLabel(display.value, t)
+  if (displayLabel) return `${t('usage.displayTier')} ${displayLabel} (${t('usage.displayStandardBilling')})`
+  return t(props.free
+    ? (tier.value === 'ultrafast' ? 'usage.freeUltrafastEnabled' : 'usage.freeFastEnabled')
+    : (tier.value === 'ultrafast' ? 'usage.billedUltrafast' : 'usage.billedFast'))
+})
 const id = useId()
 const maskId = `usage-tier-mask-${id}`
 const tooltipId = `usage-tier-tooltip-${id}`
