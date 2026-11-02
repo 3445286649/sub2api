@@ -115,6 +115,7 @@ type APIKeyAuthGroupSnapshot struct {
 	ForceOpenAIFast             bool                              `json:"force_openai_fast"`
 	ForceOpenAIUltrafast        bool                              `json:"force_openai_ultrafast"`
 	OpenAIModelTiers            map[string]string                 `json:"openai_model_tiers,omitempty"`
+	OpenAIModelTierMultipliers  map[string]float64                `json:"openai_model_tier_multipliers,omitempty"`
 	FreeOpenAIFast              bool                              `json:"free_openai_fast"`
 	DefaultMappedModel          string                            `json:"default_mapped_model,omitempty"`
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config,omitempty"`

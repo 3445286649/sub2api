@@ -1,6 +1,6 @@
 <template>
   <header class="glass sticky top-0 z-30 border-b border-gray-200/50 dark:border-dark-700/50">
-    <div class="flex h-16 items-center justify-between gap-2 px-2 sm:px-4 md:px-6">
+    <div class="flex min-h-16 items-center justify-between gap-2 px-2 sm:px-4 md:px-6" :class="{ '2xl:py-2': headerButtons.length > 4 }">
       <!-- Left: Mobile Menu Toggle + Page Title -->
       <div class="flex min-w-0 max-w-[25%] shrink-0 items-center gap-2 sm:gap-4">
         <button
@@ -22,7 +22,7 @@
       </div>
 
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
-      <div class="header-controls flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-3">
+      <div class="header-controls flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-3" :class="{ '2xl:flex-wrap': headerButtons.length > 4 }">
         <!-- Announcement Bell -->
         <AnnouncementBell v-if="user" />
 
@@ -129,7 +129,7 @@
           </div>
         </div>
 
-        <HeaderQuickLinks :buttons="headerButtons" @select="openHeaderButton" />
+        <HeaderQuickLinks :buttons="headerButtons" :desktop-expanded="headerButtons.length > 4" @select="openHeaderButton" />
 
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">

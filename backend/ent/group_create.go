@@ -792,6 +792,12 @@ func (_c *GroupCreate) SetOpenaiModelTiers(v map[string]string) *GroupCreate {
 	return _c
 }
 
+// SetOpenaiModelTierMultipliers sets the "openai_model_tier_multipliers" field.
+func (_c *GroupCreate) SetOpenaiModelTierMultipliers(v map[string]float64) *GroupCreate {
+	_c.mutation.SetOpenaiModelTierMultipliers(v)
+	return _c
+}
+
 // SetFreeOpenaiFast sets the "free_openai_fast" field.
 func (_c *GroupCreate) SetFreeOpenaiFast(v bool) *GroupCreate {
 	_c.mutation.SetFreeOpenaiFast(v)
@@ -1259,6 +1265,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultOpenaiModelTiers
 		_c.mutation.SetOpenaiModelTiers(v)
 	}
+	if _, ok := _c.mutation.OpenaiModelTierMultipliers(); !ok {
+		v := group.DefaultOpenaiModelTierMultipliers
+		_c.mutation.SetOpenaiModelTierMultipliers(v)
+	}
 	if _, ok := _c.mutation.FreeOpenaiFast(); !ok {
 		v := group.DefaultFreeOpenaiFast
 		_c.mutation.SetFreeOpenaiFast(v)
@@ -1486,6 +1496,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.OpenaiModelTiers(); !ok {
 		return &ValidationError{Name: "openai_model_tiers", err: errors.New(`ent: missing required field "Group.openai_model_tiers"`)}
+	}
+	if _, ok := _c.mutation.OpenaiModelTierMultipliers(); !ok {
+		return &ValidationError{Name: "openai_model_tier_multipliers", err: errors.New(`ent: missing required field "Group.openai_model_tier_multipliers"`)}
 	}
 	if _, ok := _c.mutation.FreeOpenaiFast(); !ok {
 		return &ValidationError{Name: "free_openai_fast", err: errors.New(`ent: missing required field "Group.free_openai_fast"`)}
@@ -1809,6 +1822,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.OpenaiModelTiers(); ok {
 		_spec.SetField(group.FieldOpenaiModelTiers, field.TypeJSON, value)
 		_node.OpenaiModelTiers = value
+	}
+	if value, ok := _c.mutation.OpenaiModelTierMultipliers(); ok {
+		_spec.SetField(group.FieldOpenaiModelTierMultipliers, field.TypeJSON, value)
+		_node.OpenaiModelTierMultipliers = value
 	}
 	if value, ok := _c.mutation.FreeOpenaiFast(); ok {
 		_spec.SetField(group.FieldFreeOpenaiFast, field.TypeBool, value)
@@ -2983,6 +3000,18 @@ func (u *GroupUpsert) SetOpenaiModelTiers(v map[string]string) *GroupUpsert {
 // UpdateOpenaiModelTiers sets the "openai_model_tiers" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateOpenaiModelTiers() *GroupUpsert {
 	u.SetExcluded(group.FieldOpenaiModelTiers)
+	return u
+}
+
+// SetOpenaiModelTierMultipliers sets the "openai_model_tier_multipliers" field.
+func (u *GroupUpsert) SetOpenaiModelTierMultipliers(v map[string]float64) *GroupUpsert {
+	u.Set(group.FieldOpenaiModelTierMultipliers, v)
+	return u
+}
+
+// UpdateOpenaiModelTierMultipliers sets the "openai_model_tier_multipliers" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateOpenaiModelTierMultipliers() *GroupUpsert {
+	u.SetExcluded(group.FieldOpenaiModelTierMultipliers)
 	return u
 }
 
@@ -4349,6 +4378,20 @@ func (u *GroupUpsertOne) SetOpenaiModelTiers(v map[string]string) *GroupUpsertOn
 func (u *GroupUpsertOne) UpdateOpenaiModelTiers() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateOpenaiModelTiers()
+	})
+}
+
+// SetOpenaiModelTierMultipliers sets the "openai_model_tier_multipliers" field.
+func (u *GroupUpsertOne) SetOpenaiModelTierMultipliers(v map[string]float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetOpenaiModelTierMultipliers(v)
+	})
+}
+
+// UpdateOpenaiModelTierMultipliers sets the "openai_model_tier_multipliers" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateOpenaiModelTierMultipliers() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateOpenaiModelTierMultipliers()
 	})
 }
 
@@ -5914,6 +5957,20 @@ func (u *GroupUpsertBulk) SetOpenaiModelTiers(v map[string]string) *GroupUpsertB
 func (u *GroupUpsertBulk) UpdateOpenaiModelTiers() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateOpenaiModelTiers()
+	})
+}
+
+// SetOpenaiModelTierMultipliers sets the "openai_model_tier_multipliers" field.
+func (u *GroupUpsertBulk) SetOpenaiModelTierMultipliers(v map[string]float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetOpenaiModelTierMultipliers(v)
+	})
+}
+
+// UpdateOpenaiModelTierMultipliers sets the "openai_model_tier_multipliers" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateOpenaiModelTierMultipliers() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateOpenaiModelTierMultipliers()
 	})
 }
 

@@ -50,4 +50,13 @@ describe('responsive header shortcuts', () => {
     expect(document.activeElement).toBe(wrapper.get('[aria-haspopup]').element)
     wrapper.unmount()
   })
+  it('can occupy a full desktop row without changing narrow-screen overflow', async () => {
+    const wrapper = mount(HeaderQuickLinks, { props: { buttons: [...buttons, buttons[0]], desktopExpanded: true } })
+    await nextTick(); await nextTick()
+    expect(wrapper.get('[data-testid="header-quick-links"]').classes()).toContain('2xl:basis-full')
+    available = 700
+    resize(); await nextTick()
+    expect(visibleButtons(wrapper).map(button => button.text())).toHaveLength(5)
+    wrapper.unmount()
+  })
 })

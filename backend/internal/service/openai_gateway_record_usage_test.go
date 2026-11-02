@@ -3301,6 +3301,72 @@ func TestOpenAIGatewayServiceRecordUsage_FreeUltrafastChargesStandard(t *testing
 	require.InDelta(t, standard.TotalCost, usageRepo.lastLog.ActualCost, 1e-10)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_ModelTierMultiplierUsesStandardPrice(t *testing.T) {
+	for _, tc := range []struct {
+		name, tier string
+		custom     float64
+		free       bool
+		channel    bool
+		wantFactor float64
+	}{
+		{"fast custom", "priority", 3, false, false, 3},
+		{"ultrafast custom", "ultrafast", 2.5, false, false, 2.5},
+		{"ultrafast default", "ultrafast", 0, false, false, 6},
+		{"free fast wins", "priority", 3, true, false, 1},
+		{"free ultrafast wins", "ultrafast", 2.5, true, false, 1},
+		{"standard ignores stale multiplier", "default", 3, false, false, 1},
+		{"channel standard price", "ultrafast", 3, false, true, 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+			svc := newOpenAIRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{}, nil)
+			svc.resolver = NewModelPricingResolver(nil, svc.billingService)
+			groupID := int64(790)
+			inputPrice, outputPrice := 1e-6, 4e-6
+			if tc.channel {
+				inputPrice, outputPrice = 2e-6, 6e-6
+				pricing := &ChannelModelPricing{Platform: PlatformOpenAI, Models: []string{"gpt-6-astra"}, BillingMode: BillingModeToken,
+					InputPrice: &inputPrice, OutputPrice: &outputPrice}
+				cache := newEmptyChannelCache()
+				cache.channelByGroupID[groupID] = &Channel{ID: 1, Status: StatusActive}
+				cache.groupPlatform[groupID] = PlatformOpenAI
+				cache.pricingByGroupModel[channelModelKey{groupID: groupID, platform: PlatformOpenAI, model: "gpt-6-astra"}] = pricing
+				cache.loadedAt = time.Now()
+				channelService := &ChannelService{}
+				channelService.cache.Store(cache)
+				svc.channelService = channelService
+				svc.resolver = NewModelPricingResolver(channelService, svc.billingService)
+			}
+			multipliers := map[string]float64{}
+			if tc.custom > 0 {
+				multipliers["gpt-6-astra"] = tc.custom
+			}
+			group := &Group{
+				ID: groupID, Platform: PlatformOpenAI, Status: StatusActive, Hydrated: true,
+				RateMultiplier: 0.5, ForceOpenAIFast: true, ForceOpenAIUltrafast: true,
+				FreeOpenAIFast: tc.free, OpenAIModelTiers: map[string]string{"gpt-6-astra": tc.tier},
+				OpenAIModelTierMultipliers: multipliers,
+			}
+			if !tc.channel {
+				group.ModelPricing = []ChannelModelPricing{{Models: []string{"gpt-6-astra"}, BillingMode: BillingModeToken,
+					InputPrice: &inputPrice, OutputPrice: &outputPrice}}
+			}
+			result := &OpenAIForwardResult{
+				RequestID: "resp_tier_multiplier", Model: "gpt-6-astra", ServiceTier: &tc.tier,
+				Usage: OpenAIUsage{InputTokens: 1000, OutputTokens: 500}, Duration: time.Second,
+			}
+			err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+				Result: result, APIKey: &APIKey{ID: 1090, GroupID: &groupID, Group: group},
+				User: &User{ID: 2090}, Account: &Account{ID: 3090, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+			})
+			require.NoError(t, err)
+			standard := 1000*inputPrice + 500*outputPrice
+			require.InDelta(t, standard*tc.wantFactor, usageRepo.lastLog.TotalCost, 1e-10)
+			require.InDelta(t, standard*tc.wantFactor*0.5, usageRepo.lastLog.ActualCost, 1e-10)
+		})
+	}
+}
+
 func TestOpenAIGatewayServiceRecordUsage_FreeOpenAIFastMissingPricingRecordsZeroCostUsageLog(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	svc := newOpenAIRecordUsageServiceForTest(

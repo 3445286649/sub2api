@@ -152,6 +152,7 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		ForceOpenAIFast:             g.ForceOpenAIFast,
 		ForceOpenAIUltrafast:        g.ForceOpenAIUltrafast,
 		OpenAIModelTiers:            g.OpenAIModelTiers,
+		OpenAIModelTierMultipliers:  g.OpenAIModelTierMultipliers,
 		FreeOpenAIFast:              g.FreeOpenAIFast,
 		AllowDeepSeekSearch:         g.AllowDeepSeekSearch,
 		AllowDeepSeekFetch:          g.AllowDeepSeekFetch,

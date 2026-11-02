@@ -1665,14 +1665,21 @@
             </div>
             <p v-if="createTierModelInputError" class="text-xs text-red-600 mt-1">{{ t("admin.groups.openaiFast.invalidModel") }}</p>
             <div v-if="createTierModels.length" class="mt-2 max-h-64 overflow-y-auto border border-gray-200 dark:border-dark-400 rounded-md divide-y divide-gray-200 dark:divide-dark-400">
-              <div v-for="model in createTierModels" :key="model" class="flex items-center justify-between gap-3 px-3 py-2">
-                <span class="min-w-0 break-all text-sm text-gray-700 dark:text-gray-300">{{ model }}</span>
-                <select class="input w-36 shrink-0" :aria-label="model" :value="createForm.openai_model_tiers[model] ?? ''" @change="updateOpenAIModelTier(createForm.openai_model_tiers, model, $event)">
+              <div v-for="model in createTierModels" :key="model" class="flex flex-wrap items-center gap-3 px-3 py-2">
+                <span class="min-w-0 flex-1 basis-full break-all text-sm text-gray-700 dark:text-gray-300 sm:basis-0">{{ model }}</span>
+                <select class="input w-36 shrink-0" :aria-label="model" :value="createForm.openai_model_tiers[model] ?? ''" @change="updateOpenAIModelTier(createForm.openai_model_tiers, createForm.openai_model_tier_multipliers, model, $event)">
                   <option value="">{{ t("admin.groups.openaiFast.followDefault") }}</option>
                   <option value="default">{{ t("admin.groups.openaiFast.standard") }}</option>
                   <option value="priority" :disabled="!createForm.force_openai_fast">Fast</option>
                   <option value="ultrafast" :disabled="!createForm.force_openai_ultrafast">Ultrafast</option>
                 </select>
+                <input type="number" class="input w-28 shrink-0" min="0.01" max="1000" step="any"
+                  :aria-label="`${model} ${t('admin.groups.openaiFast.tierMultiplier')}`"
+                  :title="t('admin.groups.openaiFast.tierMultiplierHint')"
+                  :placeholder="t('admin.groups.openaiFast.tierMultiplier')"
+                  :disabled="!['priority', 'ultrafast'].includes(createForm.openai_model_tiers[model] ?? '')"
+                  :value="createForm.openai_model_tier_multipliers[model] ?? ''"
+                  @input="updateOpenAIModelTierMultiplier(createForm.openai_model_tier_multipliers, model, $event)" />
               </div>
             </div>
           </div>
@@ -3400,14 +3407,21 @@
             </div>
             <p v-if="editTierModelInputError" class="text-xs text-red-600 mt-1">{{ t("admin.groups.openaiFast.invalidModel") }}</p>
             <div v-if="editTierModels.length" class="mt-2 max-h-64 overflow-y-auto border border-gray-200 dark:border-dark-400 rounded-md divide-y divide-gray-200 dark:divide-dark-400">
-              <div v-for="model in editTierModels" :key="model" class="flex items-center justify-between gap-3 px-3 py-2">
-                <span class="min-w-0 break-all text-sm text-gray-700 dark:text-gray-300">{{ model }}</span>
-                <select class="input w-36 shrink-0" :aria-label="model" :value="editForm.openai_model_tiers[model] ?? ''" @change="updateOpenAIModelTier(editForm.openai_model_tiers, model, $event)">
+              <div v-for="model in editTierModels" :key="model" class="flex flex-wrap items-center gap-3 px-3 py-2">
+                <span class="min-w-0 flex-1 basis-full break-all text-sm text-gray-700 dark:text-gray-300 sm:basis-0">{{ model }}</span>
+                <select class="input w-36 shrink-0" :aria-label="model" :value="editForm.openai_model_tiers[model] ?? ''" @change="updateOpenAIModelTier(editForm.openai_model_tiers, editForm.openai_model_tier_multipliers, model, $event)">
                   <option value="">{{ t("admin.groups.openaiFast.followDefault") }}</option>
                   <option value="default">{{ t("admin.groups.openaiFast.standard") }}</option>
                   <option value="priority" :disabled="!editForm.force_openai_fast">Fast</option>
                   <option value="ultrafast" :disabled="!editForm.force_openai_ultrafast">Ultrafast</option>
                 </select>
+                <input type="number" class="input w-28 shrink-0" min="0.01" max="1000" step="any"
+                  :aria-label="`${model} ${t('admin.groups.openaiFast.tierMultiplier')}`"
+                  :title="t('admin.groups.openaiFast.tierMultiplierHint')"
+                  :placeholder="t('admin.groups.openaiFast.tierMultiplier')"
+                  :disabled="!['priority', 'ultrafast'].includes(editForm.openai_model_tiers[model] ?? '')"
+                  :value="editForm.openai_model_tier_multipliers[model] ?? ''"
+                  @input="updateOpenAIModelTierMultiplier(editForm.openai_model_tier_multipliers, model, $event)" />
               </div>
             </div>
           </div>
@@ -5093,6 +5107,7 @@ const addOpenAITierModel = (mode: "create" | "edit") => {
 };
 const updateOpenAIModelTier = (
   tiers: Record<string, OpenAIModelTier>,
+  multipliers: Record<string, number>,
   model: string,
   event: Event,
 ) => {
@@ -5100,6 +5115,21 @@ const updateOpenAIModelTier = (
   const tier = (event.target as HTMLSelectElement).value;
   if (tier === "default" || tier === "priority" || tier === "ultrafast") tiers[model] = tier;
   else delete tiers[model];
+  if (tier !== 'priority' && tier !== 'ultrafast') delete multipliers[model];
+};
+const updateOpenAIModelTierMultiplier = (multipliers: Record<string, number>, model: string, event: Event) => {
+  const value = (event.target as HTMLInputElement).value.trim();
+  if (value === '') delete multipliers[model];
+  else multipliers[model] = Number(value);
+};
+const validateOpenAIModelTierMultipliers = (tiers: Record<string, OpenAIModelTier>, multipliers: Record<string, number>) => {
+  for (const [model, value] of Object.entries(multipliers)) {
+    if (!['priority', 'ultrafast'].includes(tiers[model] ?? '') || !Number.isFinite(value) || value < 0.01 || value > 1000) {
+      appStore.showError(`${model}: ${t('admin.groups.openaiFast.invalidTierMultiplier')}`);
+      return false;
+    }
+  }
+  return true;
 };
 const loadOpenAITierModels = async (mode: "create" | "edit") => {
   const form = mode === "create" ? createForm : editForm;
@@ -5111,9 +5141,20 @@ const loadOpenAITierModels = async (mode: "create" | "edit") => {
   loadingRef.value = true;
   errorRef.value = false;
   try {
-    const candidates = await adminAPI.groups.getModelAllowlistCandidates(groupID, form.platform);
-    if (requestID !== tierModelsRequestID) return;
-    modelsRef.value = [...new Set([...modelsRef.value, ...Object.keys(form.openai_model_tiers), ...candidates])].sort();
+    const candidates = await adminAPI.groups.getModelAllowlistCandidates(groupID, form.platform, mode === 'edit');
+    if (requestID !== tierModelsRequestID || (mode === 'edit' && editingGroup.value?.id !== groupID)) return;
+    if (mode === 'edit') {
+      const available = new Set(candidates);
+      for (const model of Object.keys(form.openai_model_tiers)) {
+        if (!available.has(model)) delete form.openai_model_tiers[model];
+      }
+      for (const model of Object.keys(form.openai_model_tier_multipliers)) {
+        if (!available.has(model)) delete form.openai_model_tier_multipliers[model];
+      }
+      modelsRef.value = [...available].sort();
+    } else {
+      modelsRef.value = [...new Set([...modelsRef.value, ...Object.keys(form.openai_model_tiers), ...candidates])].sort();
+    }
   } catch {
     if (requestID === tierModelsRequestID) errorRef.value = true;
   } finally {
@@ -5213,6 +5254,7 @@ const createForm = reactive({
   force_openai_fast: false,
   force_openai_ultrafast: false,
   openai_model_tiers: {} as Record<string, OpenAIModelTier>,
+  openai_model_tier_multipliers: {} as Record<string, number>,
   image_input_overrides: {} as Record<string, boolean>,
   free_openai_fast: false,
   model_pricing: [] as PricingFormEntry[],
@@ -5586,6 +5628,7 @@ const editForm = reactive({
   force_openai_fast: false,
   force_openai_ultrafast: false,
   openai_model_tiers: {} as Record<string, OpenAIModelTier>,
+  openai_model_tier_multipliers: {} as Record<string, number>,
   image_input_overrides: {} as Record<string, boolean>,
   free_openai_fast: false,
   model_pricing: [] as PricingFormEntry[],
@@ -6086,6 +6129,7 @@ const closeCreateModal = () => {
   createForm.force_openai_fast = false;
   createForm.force_openai_ultrafast = false;
   createForm.openai_model_tiers = {};
+  createForm.openai_model_tier_multipliers = {};
   createForm.image_input_overrides = {};
   createTierModels.value = [];
   createTierModelInput.value = "";
@@ -6193,6 +6237,7 @@ const handleCreateGroup = async () => {
     return;
   }
   if (!validateGroupReasoningMultipliers(createForm.model_pricing)) return;
+  if (!validateOpenAIModelTierMultipliers(createForm.openai_model_tiers, createForm.openai_model_tier_multipliers)) return;
   // 模型白名单：开启且没有任何条目时阻止提交，与后端 400 对齐。
   if (
     createModelAllowlistState.enabled &&
@@ -6219,6 +6264,7 @@ const handleCreateGroup = async () => {
       ),
       force_openai_ultrafast: normalizeGroupOpenAIFast(createForm.platform, createForm.force_openai_ultrafast),
       openai_model_tiers: supportsGroupOpenAIFast(createForm.platform) ? createForm.openai_model_tiers : {},
+      openai_model_tier_multipliers: supportsGroupOpenAIFast(createForm.platform) ? createForm.openai_model_tier_multipliers : {},
       free_openai_fast: normalizeGroupOpenAIFast(
         createForm.platform,
         createForm.free_openai_fast,
@@ -6376,6 +6422,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.force_openai_fast = group.force_openai_fast ?? false;
   editForm.force_openai_ultrafast = group.force_openai_ultrafast ?? false;
   editForm.openai_model_tiers = { ...(group.openai_model_tiers ?? {}) };
+  editForm.openai_model_tier_multipliers = { ...(group.openai_model_tier_multipliers ?? {}) };
   editForm.image_input_overrides = { ...(group.image_input_overrides ?? {}) };
   editTierModels.value = Object.keys(editForm.openai_model_tiers).sort();
   editTierModelInput.value = "";
@@ -6520,6 +6567,7 @@ const closeEditModal = () => {
   editForm.force_openai_fast = false;
   editForm.force_openai_ultrafast = false;
   editForm.openai_model_tiers = {};
+  editForm.openai_model_tier_multipliers = {};
   editForm.image_input_overrides = {};
   editTierModels.value = [];
   editTierModelInput.value = "";
@@ -6557,6 +6605,7 @@ const handleUpdateGroup = async () => {
     return;
   }
   if (!validateGroupReasoningMultipliers(editForm.model_pricing)) return;
+  if (!validateOpenAIModelTierMultipliers(editForm.openai_model_tiers, editForm.openai_model_tier_multipliers)) return;
   // 模型白名单：开启且没有任何条目时阻止提交，与后端 400 对齐。
   if (
     editModelAllowlistState.enabled &&
@@ -6587,6 +6636,7 @@ const handleUpdateGroup = async () => {
       ),
       force_openai_ultrafast: normalizeGroupOpenAIFast(editForm.platform, editForm.force_openai_ultrafast),
       openai_model_tiers: supportsGroupOpenAIFast(editForm.platform) ? editForm.openai_model_tiers : {},
+      openai_model_tier_multipliers: supportsGroupOpenAIFast(editForm.platform) ? editForm.openai_model_tier_multipliers : {},
       free_openai_fast: normalizeGroupOpenAIFast(
         editForm.platform,
         editForm.free_openai_fast,

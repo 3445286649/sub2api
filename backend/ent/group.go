@@ -138,6 +138,8 @@ type Group struct {
 	ForceOpenaiUltrafast bool `json:"force_openai_ultrafast,omitempty"`
 	// 分组内公开模型名对应的 Fast/Ultrafast 档位
 	OpenaiModelTiers map[string]string `json:"openai_model_tiers,omitempty"`
+	// 分组内公开模型名对应的 Fast/Ultrafast 标准价倍率
+	OpenaiModelTierMultipliers map[string]float64 `json:"openai_model_tier_multipliers,omitempty"`
 	// 是否让此 OpenAI/Composite 分组的 Fast/Ultrafast 请求按 Standard 价格计费
 	FreeOpenaiFast bool `json:"free_openai_fast,omitempty"`
 	// 仅允许非 apikey 类型账号关联到此分组
@@ -274,7 +276,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case group.FieldI18n, group.FieldVideoModelPrices, group.FieldDeepseekToolPricing, group.FieldModelPricing, group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldOpenaiModelTiers, group.FieldMessagesDispatchModelConfig, group.FieldModelAllowlist, group.FieldImageInputOverrides, group.FieldCodexModelsManifestConfig, group.FieldReasoningEffortMappings:
+		case group.FieldI18n, group.FieldVideoModelPrices, group.FieldDeepseekToolPricing, group.FieldModelPricing, group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldOpenaiModelTiers, group.FieldOpenaiModelTierMultipliers, group.FieldMessagesDispatchModelConfig, group.FieldModelAllowlist, group.FieldImageInputOverrides, group.FieldCodexModelsManifestConfig, group.FieldReasoningEffortMappings:
 			values[i] = new([]byte)
 		case group.FieldPeakRateEnabled, group.FieldIsExclusive, group.FieldAllowImageGeneration, group.FieldAllowBatchImageGeneration, group.FieldAllowDeepseekSearch, group.FieldAllowDeepseekFetch, group.FieldImageCountBilling, group.FieldImageRateIndependent, group.FieldVideoRateIndependent, group.FieldLongContextPricingEnabled, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldAllowLive, group.FieldForceOpenaiFast, group.FieldForceOpenaiUltrafast, group.FieldFreeOpenaiFast, group.FieldRequireOauthOnly, group.FieldRequirePrivacySet, group.FieldProfitControlEnabled:
 			values[i] = new(sql.NullBool)
@@ -694,6 +696,14 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field openai_model_tiers: %w", err)
 				}
 			}
+		case group.FieldOpenaiModelTierMultipliers:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field openai_model_tier_multipliers", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.OpenaiModelTierMultipliers); err != nil {
+					return fmt.Errorf("unmarshal field openai_model_tier_multipliers: %w", err)
+				}
+			}
 		case group.FieldFreeOpenaiFast:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field free_openai_fast", values[i])
@@ -1084,6 +1094,9 @@ func (_m *Group) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("openai_model_tiers=")
 	builder.WriteString(fmt.Sprintf("%v", _m.OpenaiModelTiers))
+	builder.WriteString(", ")
+	builder.WriteString("openai_model_tier_multipliers=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OpenaiModelTierMultipliers))
 	builder.WriteString(", ")
 	builder.WriteString("free_openai_fast=")
 	builder.WriteString(fmt.Sprintf("%v", _m.FreeOpenaiFast))

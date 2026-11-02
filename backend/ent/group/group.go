@@ -134,6 +134,8 @@ const (
 	FieldForceOpenaiUltrafast = "force_openai_ultrafast"
 	// FieldOpenaiModelTiers holds the string denoting the openai_model_tiers field in the database.
 	FieldOpenaiModelTiers = "openai_model_tiers"
+	// FieldOpenaiModelTierMultipliers holds the string denoting the openai_model_tier_multipliers field in the database.
+	FieldOpenaiModelTierMultipliers = "openai_model_tier_multipliers"
 	// FieldFreeOpenaiFast holds the string denoting the free_openai_fast field in the database.
 	FieldFreeOpenaiFast = "free_openai_fast"
 	// FieldRequireOauthOnly holds the string denoting the require_oauth_only field in the database.
@@ -298,6 +300,7 @@ var Columns = []string{
 	FieldForceOpenaiFast,
 	FieldForceOpenaiUltrafast,
 	FieldOpenaiModelTiers,
+	FieldOpenaiModelTierMultipliers,
 	FieldFreeOpenaiFast,
 	FieldRequireOauthOnly,
 	FieldRequirePrivacySet,
@@ -436,6 +439,8 @@ var (
 	DefaultForceOpenaiUltrafast bool
 	// DefaultOpenaiModelTiers holds the default value on creation for the "openai_model_tiers" field.
 	DefaultOpenaiModelTiers map[string]string
+	// DefaultOpenaiModelTierMultipliers holds the default value on creation for the "openai_model_tier_multipliers" field.
+	DefaultOpenaiModelTierMultipliers map[string]float64
 	// DefaultFreeOpenaiFast holds the default value on creation for the "free_openai_fast" field.
 	DefaultFreeOpenaiFast bool
 	// DefaultRequireOauthOnly holds the default value on creation for the "require_oauth_only" field.

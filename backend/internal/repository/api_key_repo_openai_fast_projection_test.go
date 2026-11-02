@@ -22,7 +22,8 @@ func TestGetByKeyForAuth_OpenAIModelTiersStayInTheirGroup(t *testing.T) {
 			SetRateMultiplier(1)
 		if ultrafast {
 			builder.SetForceOpenaiUltrafast(true).
-				SetOpenaiModelTiers(map[string]string{"gpt-6.1-sol": "ultrafast"})
+				SetOpenaiModelTiers(map[string]string{"gpt-6.1-sol": "ultrafast"}).
+				SetOpenaiModelTierMultipliers(map[string]float64{"gpt-6.1-sol": 3})
 		}
 		group, err := builder.Save(ctx)
 		require.NoError(t, err)
@@ -41,9 +42,11 @@ func TestGetByKeyForAuth_OpenAIModelTiersStayInTheirGroup(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, testAuth.Group.ForceOpenAIUltrafast)
 	require.Equal(t, "ultrafast", testAuth.Group.OpenAIModelTiers["gpt-6.1-sol"])
+	require.Equal(t, 3.0, testAuth.Group.OpenAIModelTierMultipliers["gpt-6.1-sol"])
 
 	otherAuth, err := repo.GetByKeyForAuth(ctx, otherKey)
 	require.NoError(t, err)
 	require.False(t, otherAuth.Group.ForceOpenAIUltrafast)
 	require.Empty(t, otherAuth.Group.OpenAIModelTiers)
+	require.Empty(t, otherAuth.Group.OpenAIModelTierMultipliers)
 }

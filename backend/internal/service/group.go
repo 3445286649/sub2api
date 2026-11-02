@@ -107,10 +107,11 @@ type Group struct {
 	AllowLive                   bool
 	ForceOpenAIFast             bool // 强制 OpenAI 网关请求使用 service_tier=priority
 	ForceOpenAIUltrafast        bool
-	OpenAIModelTiers            map[string]string // 公开模型名 -> default/priority/ultrafast；仅当前分组生效
-	FreeOpenAIFast              bool              // OpenAI Fast/Ultrafast 请求按 Standard 价格向用户计费
-	RequireOAuthOnly            bool              // 仅允许非 apikey 类型账号关联（OpenAI/Antigravity/Anthropic/Gemini）
-	RequirePrivacySet           bool              // 调度时仅允许 privacy 已成功设置的账号（OpenAI/Antigravity/Anthropic/Gemini）
+	OpenAIModelTiers            map[string]string  // 公开模型名 -> default/priority/ultrafast；仅当前分组生效
+	OpenAIModelTierMultipliers  map[string]float64 // 公开模型名 -> Fast/Ultrafast 相对 Standard 的计费倍率
+	FreeOpenAIFast              bool               // OpenAI Fast/Ultrafast 请求按 Standard 价格向用户计费
+	RequireOAuthOnly            bool               // 仅允许非 apikey 类型账号关联（OpenAI/Antigravity/Anthropic/Gemini）
+	RequirePrivacySet           bool               // 调度时仅允许 privacy 已成功设置的账号（OpenAI/Antigravity/Anthropic/Gemini）
 	DefaultMappedModel          string
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig
 	ModelAllowlist              GroupModelAllowlist

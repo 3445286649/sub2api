@@ -390,6 +390,90 @@ describe('GroupsView duplicate action', () => {
     }
   })
 
+  it('saves a model tier multiplier and clears it when switching to Standard', async () => {
+    const group = {
+      ...sourceGroup,
+      force_openai_fast: true,
+      openai_model_tiers: { 'fast-model': 'priority' },
+      openai_model_tier_multipliers: { 'fast-model': 3 },
+    }
+    listGroups.mockResolvedValue({ items: [group], total: 1, page: 1, page_size: 20, pages: 1 })
+    updateGroup.mockImplementation(async (_id, payload) => {
+      Object.assign(group, payload)
+      return group
+    })
+    const wrapper = mountView()
+    try {
+      await flushPromises()
+      const edit = () => wrapper.findAll('button').find(button => button.text() === 'common.edit')!
+      await edit().trigger('click')
+      await flushPromises()
+      const multiplier = wrapper.get<HTMLInputElement>('input[aria-label="fast-model admin.groups.openaiFast.tierMultiplier"]')
+      expect(multiplier.element.value).toBe('3')
+      await multiplier.setValue('4')
+      await wrapper.get('#edit-group-form').trigger('submit')
+      await flushPromises()
+      expect(updateGroup).toHaveBeenLastCalledWith(42, expect.objectContaining({
+        openai_model_tier_multipliers: { 'fast-model': 4 },
+      }))
+
+      await edit().trigger('click')
+      await flushPromises()
+      await wrapper.get('select[aria-label="fast-model"]').setValue('default')
+      await wrapper.get('#edit-group-form').trigger('submit')
+      await flushPromises()
+      expect(updateGroup).toHaveBeenLastCalledWith(42, expect.objectContaining({
+        openai_model_tiers: { 'fast-model': 'default' },
+        openai_model_tier_multipliers: {},
+      }))
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('refreshes edit tier models from enabled group accounts without retaining stale tiers', async () => {
+    const group = {
+      ...sourceGroup,
+      force_openai_fast: true,
+      openai_model_tiers: { 'old-channel-model': 'priority' },
+      openai_model_tier_multipliers: { 'old-channel-model': 3 },
+    }
+    listGroups.mockResolvedValue({ items: [group], total: 1, page: 1, page_size: 20, pages: 1 })
+    getModelAllowlistCandidates.mockResolvedValue(['enabled-account-model'])
+    updateGroup.mockResolvedValue(group)
+    const wrapper = mountView()
+    try {
+      await flushPromises()
+      await wrapper.findAll('button').find(button => button.text() === 'common.edit')!.trigger('click')
+      await flushPromises()
+      expect(wrapper.find('select[aria-label="old-channel-model"]').exists()).toBe(true)
+
+      await wrapper.findAll('button').find(button => button.text() === 'admin.groups.openaiFast.loadModels')!.trigger('click')
+      await flushPromises()
+
+      expect(getModelAllowlistCandidates).toHaveBeenCalledWith(42, 'openai', true)
+      expect(wrapper.find('select[aria-label="old-channel-model"]').exists()).toBe(false)
+      expect(wrapper.find('select[aria-label="enabled-account-model"]').exists()).toBe(true)
+      getModelAllowlistCandidates.mockRejectedValueOnce(new Error('temporary failure'))
+      await wrapper.findAll('button').find(button => button.text() === 'admin.groups.openaiFast.loadModels')!.trigger('click')
+      await flushPromises()
+      expect(wrapper.find('select[aria-label="enabled-account-model"]').exists()).toBe(true)
+
+      getModelAllowlistCandidates.mockResolvedValueOnce([])
+      await wrapper.findAll('button').find(button => button.text() === 'admin.groups.openaiFast.loadModels')!.trigger('click')
+      await flushPromises()
+      expect(wrapper.find('select[aria-label="enabled-account-model"]').exists()).toBe(false)
+      await wrapper.get('#edit-group-form').trigger('submit')
+      await flushPromises()
+      expect(updateGroup).toHaveBeenLastCalledWith(42, expect.objectContaining({
+        openai_model_tiers: {},
+        openai_model_tier_multipliers: {},
+      }))
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('loads, edits, and saves custom reasoning multipliers for group pricing', async () => {
     const group = {
       ...sourceGroup,

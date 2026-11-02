@@ -1083,6 +1083,12 @@ func (_u *GroupUpdate) SetOpenaiModelTiers(v map[string]string) *GroupUpdate {
 	return _u
 }
 
+// SetOpenaiModelTierMultipliers sets the "openai_model_tier_multipliers" field.
+func (_u *GroupUpdate) SetOpenaiModelTierMultipliers(v map[string]float64) *GroupUpdate {
+	_u.mutation.SetOpenaiModelTierMultipliers(v)
+	return _u
+}
+
 // SetFreeOpenaiFast sets the "free_openai_fast" field.
 func (_u *GroupUpdate) SetFreeOpenaiFast(v bool) *GroupUpdate {
 	_u.mutation.SetFreeOpenaiFast(v)
@@ -1970,6 +1976,9 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.OpenaiModelTiers(); ok {
 		_spec.SetField(group.FieldOpenaiModelTiers, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.OpenaiModelTierMultipliers(); ok {
+		_spec.SetField(group.FieldOpenaiModelTierMultipliers, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.FreeOpenaiFast(); ok {
 		_spec.SetField(group.FieldFreeOpenaiFast, field.TypeBool, value)
@@ -3390,6 +3399,12 @@ func (_u *GroupUpdateOne) SetOpenaiModelTiers(v map[string]string) *GroupUpdateO
 	return _u
 }
 
+// SetOpenaiModelTierMultipliers sets the "openai_model_tier_multipliers" field.
+func (_u *GroupUpdateOne) SetOpenaiModelTierMultipliers(v map[string]float64) *GroupUpdateOne {
+	_u.mutation.SetOpenaiModelTierMultipliers(v)
+	return _u
+}
+
 // SetFreeOpenaiFast sets the "free_openai_fast" field.
 func (_u *GroupUpdateOne) SetFreeOpenaiFast(v bool) *GroupUpdateOne {
 	_u.mutation.SetFreeOpenaiFast(v)
@@ -4307,6 +4322,9 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.OpenaiModelTiers(); ok {
 		_spec.SetField(group.FieldOpenaiModelTiers, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.OpenaiModelTierMultipliers(); ok {
+		_spec.SetField(group.FieldOpenaiModelTierMultipliers, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.FreeOpenaiFast(); ok {
 		_spec.SetField(group.FieldFreeOpenaiFast, field.TypeBool, value)

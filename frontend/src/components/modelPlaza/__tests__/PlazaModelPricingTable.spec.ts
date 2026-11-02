@@ -77,6 +77,9 @@ describe('PlazaModelPricingTable', () => {
     })
     try {
       expect(wrapper.text()).toContain(`$${(2 * tc.expected).toFixed(2)}`)
+      expect(wrapper.text()).toContain('modelPlaza.table.perVideo')
+      expect(wrapper.text()).toContain('modelPlaza.table.perUnitSecond')
+      expect(wrapper.text()).not.toContain('modelPlaza.table.perUnitRequest')
       const rateCell = wrapper.findAll('tbody tr td').at(-1)!
       if (tc.enabled) expect(rateCell.text()).toBe(`${tc.expected}x`)
       else expect(rateCell.text()).toContain(`${tc.expected}x`)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -82,7 +83,7 @@ func (s *adminServiceImpl) validateSimpleModeGroupAccess(group *Group) error {
 	return nil
 }
 
-func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id int64, platform string) ([]string, error) {
+func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id int64, platform string, activeOnly bool) ([]string, error) {
 	platform = strings.TrimSpace(platform)
 	if id > 0 {
 		group, err := s.groupRepo.GetByIDLite(ctx, id)
@@ -97,12 +98,25 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 		platform = PlatformAnthropic
 	}
 
-	candidates := defaultModelsListCandidateIDs(platform)
+	var candidates []string
+	if !activeOnly {
+		candidates = defaultModelsListCandidateIDs(platform)
+	}
 	if id <= 0 || s.accountRepo == nil {
 		return candidates, nil
 	}
 
-	accounts, err := s.accountRepo.ListSchedulableByGroupID(ctx, id)
+	var accounts []Account
+	var err error
+	if activeOnly {
+		platforms := []string{platform}
+		if platform == PlatformComposite {
+			platforms = domain.ConcretePlatformIDs()
+		}
+		accounts, err = s.accountRepo.ListModelAvailabilityCandidates(ctx, &id, platforms, false)
+	} else {
+		accounts, err = s.accountRepo.ListSchedulableByGroupID(ctx, id)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +135,7 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 		}
 		for model := range acc.GetModelMapping() {
 			model = strings.TrimSpace(model)
-			if model == "" {
+			if model == "" || (activeOnly && strings.ContainsAny(model, "*?")) {
 				continue
 			}
 			if _, ok := seen[model]; ok {
@@ -371,6 +385,7 @@ func sanitizeGroupOpenAIFast(group *Group) {
 			group.ForceOpenAIFast = false
 			group.ForceOpenAIUltrafast = false
 			group.OpenAIModelTiers = map[string]string{}
+			group.OpenAIModelTierMultipliers = map[string]float64{}
 			group.FreeOpenAIFast = false
 		}
 	}
@@ -393,6 +408,23 @@ func normalizeOpenAIModelTiers(tiers map[string]string) (map[string]string, erro
 			return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIERS", "duplicate model in tier assignments")
 		}
 		result[model] = tier
+	}
+	return result, nil
+}
+
+func normalizeOpenAIModelTierMultipliers(multipliers map[string]float64, tiers map[string]string) (map[string]float64, error) {
+	if len(multipliers) > 256 {
+		return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIER_MULTIPLIERS", "too many model tier multipliers")
+	}
+	result := make(map[string]float64, len(multipliers))
+	for model, multiplier := range multipliers {
+		if tiers[model] != OpenAIFastTierPriority && tiers[model] != OpenAIFastTierUltrafast {
+			return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIER_MULTIPLIERS", "model tier multiplier requires Fast or Ultrafast assignment")
+		}
+		if math.IsNaN(multiplier) || math.IsInf(multiplier, 0) || multiplier < 0.01 || multiplier > 1000 {
+			return nil, infraerrors.BadRequest("INVALID_OPENAI_MODEL_TIER_MULTIPLIERS", "model tier multiplier must be between 0.01 and 1000")
+		}
+		result[model] = multiplier
 	}
 	return result, nil
 }
@@ -630,6 +662,10 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if err != nil {
 		return nil, err
 	}
+	openAIModelTierMultipliers, err := normalizeOpenAIModelTierMultipliers(input.OpenAIModelTierMultipliers, openAIModelTiers)
+	if err != nil {
+		return nil, err
+	}
 	imageInputOverrides, err := normalizeImageInputOverrides(input.ImageInputOverrides)
 	if err != nil {
 		return nil, err
@@ -691,6 +727,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		ForceOpenAIFast:                 input.ForceOpenAIFast,
 		ForceOpenAIUltrafast:            input.ForceOpenAIUltrafast,
 		OpenAIModelTiers:                openAIModelTiers,
+		OpenAIModelTierMultipliers:      openAIModelTierMultipliers,
 		FreeOpenAIFast:                  input.FreeOpenAIFast,
 		RequireOAuthOnly:                input.RequireOAuthOnly,
 		RequirePrivacySet:               input.RequirePrivacySet,
@@ -1113,6 +1150,19 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 			return nil, err
 		}
 		group.OpenAIModelTiers = openAIModelTiers
+	}
+	if input.OpenAIModelTierMultipliers != nil {
+		multipliers, err := normalizeOpenAIModelTierMultipliers(*input.OpenAIModelTierMultipliers, group.OpenAIModelTiers)
+		if err != nil {
+			return nil, err
+		}
+		group.OpenAIModelTierMultipliers = multipliers
+	} else if input.OpenAIModelTiers != nil {
+		for model := range group.OpenAIModelTierMultipliers {
+			if tier := group.OpenAIModelTiers[model]; tier != OpenAIFastTierPriority && tier != OpenAIFastTierUltrafast {
+				delete(group.OpenAIModelTierMultipliers, model)
+			}
+		}
 	}
 	if input.FreeOpenAIFast != nil {
 		group.FreeOpenAIFast = *input.FreeOpenAIFast

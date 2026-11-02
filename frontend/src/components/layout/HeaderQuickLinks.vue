@@ -1,5 +1,5 @@
 <template>
-  <div v-if="buttons.length" ref="root" class="relative min-w-0 flex-1" :style="{ maxWidth: naturalWidth ? `${naturalWidth}px` : undefined }" data-testid="header-quick-links" @keydown.esc.stop.prevent="closeAndFocus">
+  <div v-if="buttons.length" ref="root" class="relative min-w-0 flex-1" :class="{ '2xl:order-last 2xl:basis-full': desktopExpanded }" :style="desktopExpanded ? undefined : { maxWidth: naturalWidth ? `${naturalWidth}px` : undefined }" data-testid="header-quick-links" @keydown.esc.stop.prevent="closeAndFocus">
     <div class="flex items-center justify-end gap-2">
       <button v-for="(button, index) in buttons.slice(0, visibleCount)" :key="index" type="button" class="quick-link" :title="button.name" @click="select(button)">
         <Icon :name="icon(button.action)" size="sm" /><span class="truncate">{{ button.name }}</span>
@@ -31,7 +31,7 @@ import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import type { HeaderButton } from '@/types'
 
-const props = defineProps<{ buttons: HeaderButton[] }>()
+const props = defineProps<{ buttons: HeaderButton[]; desktopExpanded?: boolean }>()
 const emit = defineEmits<{ select: [HeaderButton] }>()
 const { t } = useI18n()
 const root = ref<HTMLElement | null>(null)

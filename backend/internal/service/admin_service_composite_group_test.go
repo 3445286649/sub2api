@@ -19,6 +19,10 @@ func (s *accountRepoStubForCompositeModelsList) ListSchedulableByGroupID(_ conte
 	return s.accounts, nil
 }
 
+func (s *accountRepoStubForCompositeModelsList) ListModelAvailabilityCandidates(_ context.Context, _ *int64, _ []string, _ bool) ([]Account, error) {
+	return s.accounts, nil
+}
+
 func TestAdminService_CreateCompositeGroupCopiesAccountsFromConcreteGroups(t *testing.T) {
 	var copiedFrom []int64
 	var boundGroupID int64
@@ -196,7 +200,7 @@ func TestAdminService_CompositeModelsListCandidatesIncludeConcreteAccountMapping
 	}
 	svc := &adminServiceImpl{accountRepo: accountRepo, groupRepo: groupRepo}
 
-	candidates, err := svc.GetGroupModelsListCandidates(context.Background(), 99, PlatformComposite)
+	candidates, err := svc.GetGroupModelsListCandidates(context.Background(), 99, PlatformComposite, false)
 
 	require.NoError(t, err)
 	require.Contains(t, candidates, "gpt-custom")
@@ -204,6 +208,31 @@ func TestAdminService_CompositeModelsListCandidatesIncludeConcreteAccountMapping
 	require.Contains(t, candidates, "kimi-custom")
 	require.Contains(t, candidates, "gpt-5.5")
 	require.Contains(t, candidates, "gemini-2.5-flash")
+}
+
+func TestAdminService_ActiveGroupModelsListCandidatesExcludeDefaultsAndUnboundPlatforms(t *testing.T) {
+	accountRepo := &accountRepoStubForCompositeModelsList{accounts: []Account{
+		{
+			Platform: PlatformOpenAI,
+			Credentials: map[string]any{"model_mapping": map[string]any{
+				"current-model": "gpt-5", "wild-*": "gpt-5",
+			}},
+		},
+		{Platform: PlatformGemini, Credentials: map[string]any{"model_mapping": map[string]any{"other-model": "gemini-2.5-flash"}}},
+	}}
+	groupRepo := &groupRepoStubForAdmin{getByIDByID: map[int64]*Group{
+		99: {ID: 99, Platform: PlatformOpenAI},
+	}}
+	svc := &adminServiceImpl{accountRepo: accountRepo, groupRepo: groupRepo}
+
+	candidates, err := svc.GetGroupModelsListCandidates(context.Background(), 99, PlatformOpenAI, true)
+	require.NoError(t, err)
+	require.Equal(t, []string{"current-model"}, candidates)
+
+	accountRepo.accounts = nil
+	candidates, err = svc.GetGroupModelsListCandidates(context.Background(), 99, PlatformOpenAI, true)
+	require.NoError(t, err)
+	require.Empty(t, candidates)
 }
 
 // 独立 CN 分组的模型列表候选沿用 default 分支的 Claude 默认列表；

@@ -1307,13 +1307,16 @@ export default {
         free: 'Free Fast',
         freeHint: 'Charge Standard rates for Fast and Ultrafast requests in this group. Estimated account costs still use the configured service tier.',
         loadModels: 'Load model candidates',
-        modelsHint: 'Candidates come from site defaults and account mappings in this group, not a live upstream list. Changes affect only this group. Models assigned Standard always use Standard requests and billing, regardless of group acceleration switches or client acceleration parameters, and show no acceleration badge.',
+        modelsHint: 'When editing, refresh uses only model mappings from enabled accounts allowed to schedule in this group. Stale candidates and their unsaved tiers are removed. Pass-through accounts without mappings cannot be listed; add those models manually. New groups still show site defaults. Models assigned Standard always use Standard requests and billing.',
         loadError: 'Could not load model candidates. Retry.',
         customModel: 'Enter a public model name',
         addModel: 'Add model',
         invalidModel: 'Use a model name of up to 100 characters without wildcards; at most 256 models.',
         followDefault: 'Follow group default',
-        standard: 'Standard'
+        standard: 'Standard',
+        tierMultiplier: 'Billing multiplier',
+        tierMultiplierHint: 'Leave blank for existing tier pricing; otherwise charge this multiple of the effective Standard price (0.01–1000). Free Fast still bills at Standard.',
+        invalidTierMultiplier: 'Billing multipliers must be between 0.01 and 1000 and apply only to Fast or Ultrafast models.'
       },
       invalidRequestFallback: {
         title: 'Invalid Request Fallback Group',

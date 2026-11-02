@@ -245,6 +245,7 @@ type CreateGroupRequest struct {
 	ForceOpenAIFast             bool                                      `json:"force_openai_fast"`
 	ForceOpenAIUltrafast        bool                                      `json:"force_openai_ultrafast"`
 	OpenAIModelTiers            map[string]string                         `json:"openai_model_tiers"`
+	OpenAIModelTierMultipliers  map[string]float64                        `json:"openai_model_tier_multipliers"`
 	FreeOpenAIFast              bool                                      `json:"free_openai_fast"`
 	RequireOAuthOnly            bool                                      `json:"require_oauth_only"`
 	RequirePrivacySet           bool                                      `json:"require_privacy_set"`
@@ -328,6 +329,7 @@ type UpdateGroupRequest struct {
 	ForceOpenAIFast             *bool                                      `json:"force_openai_fast"`
 	ForceOpenAIUltrafast        *bool                                      `json:"force_openai_ultrafast"`
 	OpenAIModelTiers            *map[string]string                         `json:"openai_model_tiers"`
+	OpenAIModelTierMultipliers  *map[string]float64                        `json:"openai_model_tier_multipliers"`
 	FreeOpenAIFast              *bool                                      `json:"free_openai_fast"`
 	RequireOAuthOnly            *bool                                      `json:"require_oauth_only"`
 	RequirePrivacySet           *bool                                      `json:"require_privacy_set"`
@@ -636,11 +638,20 @@ func (h *GroupHandler) GetGroupModelAllowlistCandidates(c *gin.Context) {
 		response.BadRequest(c, "Invalid group ID")
 		return
 	}
+	activeOnly := false
+	if value := c.Query("active_only"); value != "" {
+		activeOnly, err = strconv.ParseBool(value)
+		if err != nil {
+			response.BadRequest(c, "Invalid active_only value")
+			return
+		}
+	}
 
 	models, err := h.adminService.GetGroupModelsListCandidates(
 		c.Request.Context(),
 		groupID,
 		c.Query("platform"),
+		activeOnly,
 	)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -737,6 +748,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		ForceOpenAIFast:                 req.ForceOpenAIFast,
 		ForceOpenAIUltrafast:            req.ForceOpenAIUltrafast,
 		OpenAIModelTiers:                req.OpenAIModelTiers,
+		OpenAIModelTierMultipliers:      req.OpenAIModelTierMultipliers,
 		FreeOpenAIFast:                  req.FreeOpenAIFast,
 		RequireOAuthOnly:                req.RequireOAuthOnly,
 		RequirePrivacySet:               req.RequirePrivacySet,
@@ -891,6 +903,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		ForceOpenAIFast:                 req.ForceOpenAIFast,
 		ForceOpenAIUltrafast:            req.ForceOpenAIUltrafast,
 		OpenAIModelTiers:                req.OpenAIModelTiers,
+		OpenAIModelTierMultipliers:      req.OpenAIModelTierMultipliers,
 		FreeOpenAIFast:                  req.FreeOpenAIFast,
 		RequireOAuthOnly:                req.RequireOAuthOnly,
 		RequirePrivacySet:               req.RequirePrivacySet,

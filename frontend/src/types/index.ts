@@ -763,6 +763,7 @@ export interface AdminGroup extends Group {
   force_openai_fast: boolean
   force_openai_ultrafast: boolean
   openai_model_tiers: Record<string, 'default' | 'priority' | 'ultrafast'>
+  openai_model_tier_multipliers: Record<string, number>
   image_input_overrides: Record<string, boolean>
   free_openai_fast: boolean
   allow_deepseek_search?: boolean
@@ -990,6 +991,7 @@ export interface CreateGroupRequest {
   allow_live?: boolean
   force_openai_ultrafast?: boolean
   openai_model_tiers?: Record<string, 'default' | 'priority' | 'ultrafast'>
+  openai_model_tier_multipliers?: Record<string, number>
   default_mapped_model?: string
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   model_routing?: Record<string, number[]> | null
@@ -1064,6 +1066,7 @@ export interface UpdateGroupRequest {
   allow_live?: boolean
   force_openai_ultrafast?: boolean
   openai_model_tiers?: Record<string, 'default' | 'priority' | 'ultrafast'>
+  openai_model_tier_multipliers?: Record<string, number>
   default_mapped_model?: string
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   model_routing?: Record<string, number[]> | null

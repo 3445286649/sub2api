@@ -270,6 +270,10 @@ func (Group) Fields() []ent.Field {
 			Default(map[string]string{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
 			Comment("分组内公开模型名对应的 Fast/Ultrafast 档位"),
+		field.JSON("openai_model_tier_multipliers", map[string]float64{}).
+			Default(map[string]float64{}).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("分组内公开模型名对应的 Fast/Ultrafast 标准价倍率"),
 		field.Bool("free_openai_fast").
 			Default(false).
 			Comment("是否让此 OpenAI/Composite 分组的 Fast/Ultrafast 请求按 Standard 价格计费"),

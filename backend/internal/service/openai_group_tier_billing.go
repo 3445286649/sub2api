@@ -20,10 +20,11 @@ type ServiceTierDetails struct {
 }
 
 type openAIGroupTierSnapshot struct {
-	GroupID  int64
-	Tier     string
-	Source   string
-	FreeFast bool
+	GroupID    int64
+	Tier       string
+	Source     string
+	FreeFast   bool
+	Multiplier float64
 }
 
 type openAIGroupTierSnapshotKey struct{}
@@ -52,8 +53,12 @@ func freezeOpenAIGroupTier(ctx context.Context, account *Account, model string) 
 	snapshot := &openAIGroupTierSnapshot{GroupID: group.ID, Tier: tier, FreeFast: group.FreeOpenAIFast, Source: "existing_policy"}
 	if tier != "" {
 		snapshot.Source = "group_default"
-		if group.OpenAIModelTiers[openAIGroupRequestedModel(ctx, model)] == tier {
+		requestedModel := openAIGroupRequestedModel(ctx, model)
+		if group.OpenAIModelTiers[requestedModel] == tier {
 			snapshot.Source = "group_model"
+			if tier == OpenAIFastTierPriority || tier == OpenAIFastTierUltrafast {
+				snapshot.Multiplier = group.OpenAIModelTierMultipliers[requestedModel]
+			}
 		}
 	}
 	return context.WithValue(ctx, openAIGroupTierSnapshotKey{}, snapshot), snapshot
@@ -88,6 +93,7 @@ func resolveOpenAIRecordServiceTier(apiKey *APIKey, account *Account, result *Op
 			requestedModel = result.Model
 		}
 		_, snapshot = freezeOpenAIGroupTier(ctx, account, requestedModel)
+		result.groupTierSnapshot = snapshot
 	}
 	if snapshot != nil && (apiKey == nil || apiKey.GroupID == nil || apiKey.Group == nil || apiKey.Group.ID != snapshot.GroupID || *apiKey.GroupID != snapshot.GroupID) {
 		return nil, false, fmt.Errorf("OpenAI billing group does not match request tier snapshot")
