@@ -313,7 +313,8 @@
 
   /* ============ 卡片样式 ============ */
   .card {
-    @apply bg-white dark:bg-dark-800/50;
+    /* 浅色也半透明，让背景的水墨樱花能透出来（深色本来就是 /50） */
+    @apply bg-white/70 dark:bg-dark-800/50;
     @apply rounded-2xl;
     @apply border border-gray-100 dark:border-dark-700/50;
     @apply shadow-card;

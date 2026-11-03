@@ -2,6 +2,10 @@
   <div class="bg-gray-50 dark:bg-dark-950" :class="fullHeight ? 'h-dvh overflow-hidden' : 'min-h-screen'">
     <!-- Background Decoration -->
     <div class="pointer-events-none fixed inset-0 bg-mesh-gradient"></div>
+    <!-- 右下角水墨樱花：浅色花开、深色收苞；放在内容之前，卡片会盖住它 -->
+    <InkSakura front />
+    <!-- CSS 飘落花瓣：GPU 合成，不触发 canvas 重绘 -->
+    <SakuraFallingPetals />
 
     <!-- Sidebar -->
     <AppSidebar />
@@ -31,6 +35,8 @@ import { useOnboardingTour } from '@/composables/useOnboardingTour'
 import { useOnboardingStore } from '@/stores/onboarding'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
+import InkSakura from './InkSakura.vue'
+import SakuraFallingPetals from './SakuraFallingPetals.vue'
 
 withDefaults(defineProps<{ fullHeight?: boolean; hideHeader?: boolean }>(), { fullHeight: false, hideHeader: false })
 

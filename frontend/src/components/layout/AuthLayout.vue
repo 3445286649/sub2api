@@ -4,6 +4,10 @@
     <div class="cp-auth-grid" aria-hidden="true"></div>
     <div class="cp-auth-glow cp-auth-glow-a" :style="glowStyleA" aria-hidden="true"></div>
     <div class="cp-auth-glow cp-auth-glow-b" :style="glowStyleB" aria-hidden="true"></div>
+    <!-- 水墨樱花：在背景之上、表单之下 -->
+    <InkSakura front />
+    <!-- CSS 飘落花瓣：GPU 合成，不触发 canvas 重绘 -->
+    <SakuraFallingPetals />
 
     <div class="cp-auth-tools">
       <LocaleSwitcher />
@@ -96,6 +100,8 @@ import { sanitizeUrl } from '@/utils/url'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
 import RequestJourney from '@/components/landing/RequestJourney.vue'
+import InkSakura from './InkSakura.vue'
+import SakuraFallingPetals from './SakuraFallingPetals.vue'
 import { useTheme } from '@/composables/useTheme'
 
 const { t } = useI18n()
