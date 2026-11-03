@@ -4,7 +4,7 @@
       <!-- Filters -->
       <div class="card p-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div class="inline-flex w-full rounded-lg bg-gray-100 p-1 dark:bg-dark-800 sm:w-auto" role="tablist" :aria-label="t('points.userOrders.tabsLabel')">
+          <div class="inline-flex w-full rounded-lg bg-gray-100/70 p-1 dark:bg-dark-800/50 sm:w-auto" role="tablist" :aria-label="t('points.userOrders.tabsLabel')">
             <button
               v-for="tab in orderTabs"
               :key="tab.key"
@@ -94,7 +94,7 @@
     <!-- Refund Dialog -->
     <BaseDialog :show="!!refundTarget" :title="t('payment.orders.requestRefund')" @close="refundTarget = null">
       <div v-if="refundTarget" class="space-y-4">
-        <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
+        <div class="rounded-xl bg-gray-50/60 p-4 dark:bg-dark-800/50">
           <div class="flex justify-between text-sm">
             <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
             <span class="font-mono text-gray-900 dark:text-white">#{{ refundTarget.id }}</span>

@@ -435,7 +435,7 @@ onUnmounted(() => {
   padding: 32px;
   border: 1px solid var(--border);
   border-radius: 20px;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
   box-shadow: var(--shadow-float), inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
   backdrop-filter: blur(16px);
   animation: cp-auth-rise 0.72s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
