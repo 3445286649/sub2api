@@ -169,14 +169,42 @@ func (s *PaymentService) RequestRefund(ctx context.Context, oid, uid int64, reas
 	nr := strings.TrimSpace(reason)
 	now := time.Now()
 	by := fmt.Sprintf("%d", uid)
-	c, err := s.entClient.PaymentOrder.Update().Where(paymentorder.IDEQ(oid), paymentorder.UserIDEQ(uid), paymentorder.StatusEQ(OrderStatusCompleted), paymentorder.OrderTypeEQ(payment.OrderTypeBalance)).SetStatus(OrderStatusRefundRequested).SetRefundRequestedAt(now).SetRefundRequestReason(nr).SetRefundRequestedBy(by).SetRefundAmount(o.Amount).Save(ctx)
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin refund request: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	c, err := tx.PaymentOrder.Update().Where(paymentorder.IDEQ(oid), paymentorder.UserIDEQ(uid), paymentorder.StatusEQ(OrderStatusCompleted), paymentorder.OrderTypeEQ(payment.OrderTypeBalance)).SetStatus(OrderStatusRefundRequested).SetRefundRequestedAt(now).SetRefundRequestReason(nr).SetRefundRequestedBy(by).SetRefundAmount(o.Amount).Save(ctx)
 	if err != nil {
 		return fmt.Errorf("update: %w", err)
 	}
 	if c == 0 {
 		return infraerrors.Conflict("CONFLICT", "order status changed")
 	}
+	// 必须在 UPDATE 之后查：UPDATE 拿到行锁时，正在提交的开票申请已经落库，这里一定看得到；
+	// 反过来，之后的开票申请会等这个事务结束，再看到订单已进入退款流程而被拒绝。
+	if err := s.ensureOrderNotInvoiced(ctx, oid); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit refund request: %w", err)
+	}
 	s.writeAuditLog(ctx, oid, "REFUND_REQUESTED", fmt.Sprintf("user:%d", uid), map[string]any{"amount": o.Amount, "reason": nr})
+	return nil
+}
+
+// 查询失败时拒绝退款：宁可让用户重试，也不放过一笔已开票的订单。
+func (s *PaymentService) ensureOrderNotInvoiced(ctx context.Context, oid int64) error {
+	if s.invoiceRepo == nil {
+		return nil
+	}
+	state, err := s.invoiceRepo.GetOrderInvoiceState(ctx, oid)
+	if err != nil {
+		return fmt.Errorf("check order invoice state: %w", err)
+	}
+	if state.Invoiced() {
+		return ErrOrderInvoicedRefundBlocked
+	}
 	return nil
 }
 

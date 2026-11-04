@@ -14,6 +14,7 @@ type AdminHandlers struct {
 	AccountSchedulingHold  *admin.AccountSchedulingHoldHandler
 	Announcement           *admin.AnnouncementHandler
 	Support                *admin.SupportHandler
+	Invoice                *admin.InvoiceHandler
 	DataManagement         *admin.DataManagementHandler
 	Backup                 *admin.BackupHandler
 	OAuth                  *admin.OAuthHandler
@@ -62,6 +63,7 @@ type Handlers struct {
 	Subscription     *SubscriptionHandler
 	Announcement     *AnnouncementHandler
 	Support          *SupportHandler
+	Invoice          *InvoiceHandler
 	ChannelMonitor   *ChannelMonitorUserHandler
 	ChannelMonitorV2 *ChannelMonitorV2Handler
 	Admin            *AdminHandlers

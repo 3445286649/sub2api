@@ -40,6 +40,9 @@
               <Icon name="dollar" size="sm" />
               <span>{{ t('payment.orders.requestRefund') }}</span>
             </button>
+            <span v-else-if="isRefundBlockedByInvoice(row)" class="text-xs text-gray-400 dark:text-dark-400" data-testid="order-invoiced-no-refund">
+              {{ t('payment.orders.invoicedNoRefund') }}
+            </span>
           </div>
         </template>
       </OrderTable>
@@ -125,8 +128,9 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
+import { invoiceAPI } from '@/api/invoice'
 import { pointsAPI } from '@/api/points'
-import { extractI18nErrorMessage } from '@/utils/apiError'
+import { extractApiErrorCode, extractI18nErrorMessage } from '@/utils/apiError'
 import type { PaymentOrder } from '@/types/payment'
 import type { PointsShopOrder } from '@/types/points'
 import type { Column } from '@/components/common/types'
@@ -148,6 +152,7 @@ const activeOrderTab = ref<'payment' | 'points'>('payment')
 const paymentOrders = ref<PaymentOrder[]>([])
 const pointsOrders = ref<PointsShopOrder[]>([])
 const refundEligibleProviders = ref<Set<string>>(new Set())
+const invoicedOrderIds = ref<Set<number>>(new Set())
 const currentFilter = ref('')
 const cancelTargetId = ref<number | null>(null)
 const refundTarget = ref<PaymentOrder | null>(null)
@@ -250,16 +255,29 @@ async function confirmRefund() {
     await fetchOrders()
   } catch (err: unknown) {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
+    // 刚开票被后端拦下时关掉对话框并刷新，按钮会换成已开票提示；其他错误保留用户填的原因
+    if (extractApiErrorCode(err) === 'ORDER_INVOICED_REFUND_BLOCKED') {
+      refundTarget.value = null
+      void loadInvoicedOrders()
+    }
   } finally {
     actionLoading.value = false
   }
 }
 
-function canRequestRefund(order: PaymentOrder): boolean {
+function isRefundEligible(order: PaymentOrder): boolean {
   if (order.payment_type === 'usdt_gateway') return false
   if (order.status !== 'COMPLETED') return false
   if (!order.provider_instance_id) return false
   return refundEligibleProviders.value.has(order.provider_instance_id)
+}
+
+function isRefundBlockedByInvoice(order: PaymentOrder): boolean {
+  return isRefundEligible(order) && invoicedOrderIds.value.has(order.id)
+}
+
+function canRequestRefund(order: PaymentOrder): boolean {
+  return isRefundEligible(order) && !invoicedOrderIds.value.has(order.id)
 }
 
 async function loadRefundEligibility() {
@@ -269,5 +287,13 @@ async function loadRefundEligibility() {
   } catch { /* ignore — default to hiding refund button */ }
 }
 
-onMounted(() => { fetchOrders(); loadRefundEligibility() })
+// 只影响按钮显示，失败时不提示：真正的拦截在后端，点退款时仍会被拒绝
+async function loadInvoicedOrders() {
+  try {
+    const res = await invoiceAPI.getInvoiceableOrders()
+    invoicedOrderIds.value = new Set(res.items.filter((o) => o.already_invoiced).map((o) => o.id))
+  } catch { /* ignore */ }
+}
+
+onMounted(() => { fetchOrders(); loadRefundEligibility(); void loadInvoicedOrders() })
 </script>

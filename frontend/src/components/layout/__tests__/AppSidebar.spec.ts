@@ -85,8 +85,28 @@ describe('AppSidebar subscription feature flag', () => {
 
   it('derives the purchase entry label from the site billing mode', () => {
     expect(componentSource).toContain("import { resolveSiteBillingMode } from '@/utils/siteBillingMode'")
-    expect(componentSource).toMatch(/case 'recharge_only':\s*return t\('nav\.recharge'\)/)
-    expect(componentSource).toMatch(/case 'subscription_only':\s*return t\('nav\.subscribe'\)/)
+    expect(componentSource).toMatch(/case 'recharge_only':\s*return t\('nav\.rechargeInvoice'\)/)
+    expect(componentSource).toMatch(/case 'subscription_only':\s*return t\('nav\.subscribeInvoice'\)/)
+    expect(componentSource).toMatch(/default:\s*return t\('nav\.purchaseInvoice'\)/)
     expect(componentSource).toMatch(/path: '\/purchase'[^\n]*label: purchaseNavLabel\.value/)
+  })
+})
+
+describe('AppSidebar invoice pending badge', () => {
+  it('shows the pending invoice count on the order management group and the invoices entry', () => {
+    expect(componentSource).toMatch(/featureFlag: flagAdminPayment,\s*\/\/[^\n]*\n\s*badge: invoicePendingCount\.value/)
+    expect(componentSource).toMatch(/path: '\/admin\/orders\/invoices'[^\n]*badge: invoicePendingCount\.value/)
+  })
+
+  it('polls pending invoices with the other badges and syncs from the invoice page event', () => {
+    expect(componentSource).toContain('invoicePendingCount.value = (await adminInvoiceAPI.getStats()).pending')
+    expect(componentSource).toContain('supportBadgeTimer = window.setInterval(refreshSidebarBadges, 30000)')
+    expect(componentSource).toContain('window.addEventListener(INVOICE_PENDING_EVENT, onInvoicePendingChanged)')
+    expect(componentSource).toContain('window.removeEventListener(INVOICE_PENDING_EVENT, onInvoicePendingChanged)')
+  })
+
+  it('renders group badges only while the group is collapsed so the count is not shown twice', () => {
+    expect(componentSource).toContain('v-if="item.badge && !isGroupExpanded(item)"')
+    expect(componentSource).toContain('v-if="child.badge"')
   })
 })

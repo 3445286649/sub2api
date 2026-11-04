@@ -220,6 +220,12 @@ type PaymentService struct {
 	acquisitionService         *AcquisitionService
 	notificationEmailService   *NotificationEmailService
 	telegramService            *TelegramNotificationService
+	invoiceRepo                InvoiceRepository
+}
+
+// SetInvoiceRepository 注入开票查询，用于拦截已开票订单的用户退款申请。
+func (s *PaymentService) SetInvoiceRepository(invoiceRepo InvoiceRepository) {
+	s.invoiceRepo = invoiceRepo
 }
 
 func (s *PaymentService) SetPointsShopService(pointsShopService *PointsShopService) {

@@ -1001,11 +1001,12 @@ describe('PaymentView subscription feature flag', () => {
     expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(2)
   })
 
-  it('drops the subscribe tab, hides the switcher and ignores ?tab=subscription when subscriptions are disabled', async () => {
+  it('drops the subscribe tab and ignores ?tab=subscription when subscriptions are disabled', async () => {
     appStoreState.setPublicSettings({ subscription_enabled: false })
     const wrapper = await mountSubscriptionPlanList(2)
 
-    expect(tabLabels(wrapper)).toEqual([])
+    // 发票开具标签依附充值存在，切换器仍显示，但订阅标签必须消失
+    expect(tabLabels(wrapper)).toEqual(['payment.tabTopUp'])
     expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(0)
     expect(wrapper.text()).toContain('payment.rechargeAccount')
   })
@@ -1029,7 +1030,7 @@ describe('PaymentView subscription feature flag', () => {
     appStoreState.setPublicSettings({ subscription_enabled: false })
     await flushPromises()
 
-    expect(tabLabels(wrapper)).toEqual([])
+    expect(tabLabels(wrapper)).toEqual(['payment.tabTopUp'])
     expect(wrapper.findAllComponents(SubscriptionPlanCard)).toHaveLength(0)
     expect(wrapper.text()).toContain('payment.rechargeAccount')
     wrapper.unmount()

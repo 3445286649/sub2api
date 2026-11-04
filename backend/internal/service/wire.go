@@ -962,6 +962,7 @@ var ProviderSet = wire.NewSet(
 	ProvideBillingCacheService,
 	NewAnnouncementService,
 	NewSupportService,
+	NewInvoiceService,
 	NewAccountHealthService,
 	NewAccountSchedulingHoldService,
 	ProvideAccountSchedulingHoldExpiryRunner,
@@ -1113,11 +1114,12 @@ func ProvideBalanceNotifyService(emailService *EmailService, settingRepo Setting
 }
 
 // ProvidePaymentService creates PaymentService and attaches notification email delivery.
-func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, pointsShopService *PointsShopService, notificationEmailService *NotificationEmailService, telegramService *TelegramNotificationService) *PaymentService {
+func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, pointsShopService *PointsShopService, notificationEmailService *NotificationEmailService, telegramService *TelegramNotificationService, invoiceRepo InvoiceRepository) *PaymentService {
 	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService)
 	svc.SetPointsShopService(pointsShopService)
 	svc.SetNotificationEmailService(notificationEmailService)
 	svc.SetTelegramService(telegramService)
+	svc.SetInvoiceRepository(invoiceRepo)
 	return svc
 }
 

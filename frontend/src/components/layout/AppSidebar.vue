@@ -48,13 +48,17 @@
                 :title="sidebarCollapsed ? item.label : undefined"
                 @click="handleGroupClick(item)"
               >
-                <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+                <span class="relative flex-shrink-0">
+                  <component :is="item.icon" class="h-5 w-5" />
+                  <span v-if="item.badge && sidebarCollapsed" class="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-dark-900" />
+                </span>
                 <span
                   class="sidebar-label sidebar-label-flex"
                   :class="{ 'sidebar-label-collapsed': sidebarCollapsed }"
                   :aria-hidden="sidebarCollapsed ? 'true' : 'false'"
                 >
                   <span class="min-w-0 truncate">{{ item.label }}</span>
+                  <span v-if="item.badge && !isGroupExpanded(item)" class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">{{ item.badge > 99 ? '99+' : item.badge }}</span>
                   <ChevronDownIcon
                     class="h-4 w-4 flex-shrink-0 transition-transform duration-200"
                     :class="isGroupExpanded(item) ? 'rotate-180' : ''"
@@ -72,7 +76,8 @@
                   @click="handleMenuItemClick(child.path)"
                 >
                   <component :is="child.icon" class="h-4 w-4 flex-shrink-0" />
-                  <span>{{ child.label }}</span>
+                  <span class="min-w-0 truncate">{{ child.label }}</span>
+                  <span v-if="child.badge" class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">{{ child.badge > 99 ? '99+' : child.badge }}</span>
                 </router-link>
               </div>
             </template>
@@ -140,13 +145,15 @@
                 <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
                 <span class="sidebar-label sidebar-label-flex" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
                   <span class="min-w-0 truncate">{{ item.label }}</span>
+                  <span v-if="item.badge && !isGroupExpanded(item)" class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">{{ item.badge > 99 ? '99+' : item.badge }}</span>
                   <ChevronDownIcon class="h-4 w-4 flex-shrink-0 transition-transform duration-200" :class="isGroupExpanded(item) ? 'rotate-180' : ''" />
                 </span>
               </button>
               <div v-if="!sidebarCollapsed && isGroupExpanded(item)" class="mb-1 ml-4 border-l border-gray-200 pl-2 dark:border-dark-600">
                 <router-link v-for="child in item.children" :key="child.path" :to="child.path" class="sidebar-link mb-0.5 py-1.5 text-sm" :class="{ 'sidebar-link-active': isActive(child.path) }" @click="handleMenuItemClick(child.path)">
                   <component :is="child.icon" class="h-4 w-4 flex-shrink-0" />
-                  <span>{{ child.label }}</span>
+                  <span class="min-w-0 truncate">{{ child.label }}</span>
+                  <span v-if="child.badge" class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">{{ child.badge > 99 ? '99+' : child.badge }}</span>
                 </router-link>
               </div>
             </template>
@@ -193,13 +200,15 @@
                 <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
                 <span class="sidebar-label sidebar-label-flex" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
                   <span class="min-w-0 truncate">{{ item.label }}</span>
+                  <span v-if="item.badge && !isGroupExpanded(item)" class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">{{ item.badge > 99 ? '99+' : item.badge }}</span>
                   <ChevronDownIcon class="h-4 w-4 flex-shrink-0 transition-transform duration-200" :class="isGroupExpanded(item) ? 'rotate-180' : ''" />
                 </span>
               </button>
               <div v-if="!sidebarCollapsed && isGroupExpanded(item)" class="mb-1 ml-4 border-l border-gray-200 pl-2 dark:border-dark-600">
                 <router-link v-for="child in item.children" :key="child.path" :to="child.path" class="sidebar-link mb-0.5 py-1.5 text-sm" :class="{ 'sidebar-link-active': isActive(child.path) }" @click="handleMenuItemClick(child.path)">
                   <component :is="child.icon" class="h-4 w-4 flex-shrink-0" />
-                  <span>{{ child.label }}</span>
+                  <span class="min-w-0 truncate">{{ child.label }}</span>
+                  <span v-if="child.badge" class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">{{ child.badge > 99 ? '99+' : child.badge }}</span>
                 </router-link>
               </div>
             </template>
@@ -286,6 +295,7 @@ import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } 
 import VersionBadge from '@/components/common/VersionBadge.vue'
 import { supportAPI } from '@/api'
 import { adminAPI } from '@/api/admin'
+import { adminInvoiceAPI, INVOICE_PENDING_EVENT } from '@/api/admin/invoice'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
@@ -366,6 +376,7 @@ const siteVersion = computed(() => appStore.siteVersion)
 const settingsLoaded = computed(() => appStore.publicSettingsLoaded)
 const supportUnreadCount = ref(0)
 const adminSupportUnreadCount = ref(0)
+const invoicePendingCount = ref(0)
 let supportBadgeTimer: number | null = null
 
 // SVG Icon Components
@@ -797,15 +808,16 @@ const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagSupportTickets = makeSidebarFlag(FeatureFlags.supportTickets)
 const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)
 
-// 购买入口文案随站点计费模式切换：仅充值 → 「充值」，仅订阅 → 「订阅」，否则「充值/订阅」。
+// 购买入口文案列出购买页里的各个 Tab，随站点计费模式切换：
+// 订阅关闭 → 「充值/积分/发票开具」，仅订阅 → 「订阅/积分/发票开具」，否则「充值/订阅/积分/发票开具」。
 const purchaseNavLabel = computed(() => {
   switch (resolveSiteBillingMode(appStore.cachedPublicSettings)) {
     case 'recharge_only':
-      return t('nav.recharge')
+      return t('nav.rechargeInvoice')
     case 'subscription_only':
-      return t('nav.subscribe')
+      return t('nav.subscribeInvoice')
     default:
-      return t('nav.buySubscription')
+      return t('nav.purchaseInvoice')
   }
 })
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
@@ -946,9 +958,12 @@ const adminNavItems = computed((): NavItem[] => {
       hideInSimpleMode: true,
       expandOnly: true,
       featureFlag: flagAdminPayment,
+      // 有待处理的开票申请时在分组上提示，折叠状态下也能看到
+      badge: invoicePendingCount.value,
       children: [
         { path: '/admin/orders/dashboard', label: t('nav.paymentDashboard'), icon: ChartIcon },
         { path: '/admin/orders', label: t('nav.orderManagement'), icon: OrderIcon },
+        { path: '/admin/orders/invoices', label: t('nav.invoiceManagement'), icon: OrderListIcon, badge: invoicePendingCount.value },
         { path: '/admin/orders/plans', label: t('nav.paymentPlans'), icon: CreditCardIcon },
         { path: '/admin/orders/points', label: t('nav.pointsShop'), icon: GiftIcon },
       ],
@@ -1067,6 +1082,29 @@ async function refreshSupportBadges() {
   }
 }
 
+async function refreshInvoiceBadge() {
+  if (!isAdmin.value || !flagAdminPayment()) {
+    invoicePendingCount.value = 0
+    return
+  }
+  try {
+    invoicePendingCount.value = (await adminInvoiceAPI.getStats()).pending
+  } catch {
+    // 同上：角标只是提示，失败时保留上次的数字
+  }
+}
+
+// 发票管理页刷新统计后广播待处理数，处理完一笔角标立即更新，不必等下一轮轮询
+function onInvoicePendingChanged(event: Event) {
+  const pending = (event as CustomEvent<number>).detail
+  if (typeof pending === 'number') invoicePendingCount.value = pending
+}
+
+function refreshSidebarBadges() {
+  void refreshSupportBadges()
+  void refreshInvoiceBadge()
+}
+
 // Fetch admin settings (for feature-gated nav items like Ops).
 watch(
   isAdmin,
@@ -1078,15 +1116,17 @@ watch(
   { immediate: true }
 )
 
+// 支付开关来自异步加载的管理设置，就绪或切换后重新拉一次待处理发票数
+watch(() => flagAdminPayment(), () => void refreshInvoiceBadge())
+
 onMounted(() => {
   void refreshBatchImageAccess()
   if (isAdmin.value) {
     adminSettingsStore.fetch()
   }
-  void refreshSupportBadges()
-  supportBadgeTimer = window.setInterval(() => {
-    void refreshSupportBadges()
-  }, 30000)
+  refreshSidebarBadges()
+  supportBadgeTimer = window.setInterval(refreshSidebarBadges, 30000)
+  window.addEventListener(INVOICE_PENDING_EVENT, onInvoicePendingChanged)
   // Restore sidebar scroll position after route change re-mounts the component
   if (appStore.sidebarScrollTop > 0 && sidebarNavRef.value) {
     void nextTick(() => {
@@ -1104,7 +1144,9 @@ onBeforeUnmount(() => {
 })
 
 onUnmounted(() => {
-  if (supportBadgeTimer) window.clearInterval(supportBadgeTimer)})
+  if (supportBadgeTimer) window.clearInterval(supportBadgeTimer)
+  window.removeEventListener(INVOICE_PENDING_EVENT, onInvoicePendingChanged)
+})
 </script>
 
 <style scoped>

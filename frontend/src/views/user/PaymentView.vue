@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto space-y-6" :class="activeTab === 'storefront' && paymentPhase === 'select' ? 'max-w-6xl' : 'max-w-4xl'">
+    <div class="mx-auto space-y-6" :class="paymentPhase !== 'select' ? 'max-w-4xl' : activeTab === 'storefront' ? 'max-w-6xl' : activeTab === 'invoice' ? 'max-w-5xl' : 'max-w-4xl'">
       <div v-if="loading" class="flex items-center justify-center py-20">
         <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
       </div>
@@ -332,6 +332,10 @@
               </div>
             </template>
           </template>
+          <!-- 发票开具 Tab：申请开票 + 开票记录 -->
+          <template v-else-if="activeTab === 'invoice'">
+            <InvoicePanel @go-recharge="activeTab = 'recharge'" />
+          </template>
           <!-- Storefront Tab：外部卡网购买 + 站内兑换 -->
           <template v-else-if="activeTab === 'storefront'">
             <StorefrontPanel v-model:channel-id="storefrontChannelId" :channels="storefrontChannels" />
@@ -374,7 +378,7 @@
             </div>
           </template>
         </template>
-        <div v-if="activeTab !== 'points' && activeTab !== 'storefront' && (checkout.help_text || checkout.help_image_url) && paymentPhase === 'select' && !selectedPlan" class="card p-4">
+        <div v-if="activeTab !== 'points' && activeTab !== 'storefront' && activeTab !== 'invoice' && (checkout.help_text || checkout.help_image_url) && paymentPhase === 'select' && !selectedPlan" class="card p-4">
           <div class="flex flex-col items-center gap-3">
             <img v-if="checkout.help_image_url" :src="checkout.help_image_url" alt=""
               class="h-40 max-w-full cursor-pointer rounded-lg object-contain transition-opacity hover:opacity-80"
@@ -464,6 +468,7 @@ import PointsProductCard from '@/components/payment/PointsProductCard.vue'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
 import PaymentSummaryCard from '@/components/payment/PaymentSummaryCard.vue'
 import StorefrontPanel from '@/components/payment/StorefrontPanel.vue'
+import InvoicePanel from '@/components/invoice/InvoicePanel.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
@@ -502,7 +507,7 @@ const loading = ref(true)
 const submitting = ref(false)
 const errorMessage = ref('')
 const errorHintMessage = ref('')
-type PaymentTabKey = 'recharge' | 'subscription' | 'points' | 'storefront'
+type PaymentTabKey = 'recharge' | 'subscription' | 'points' | 'storefront' | 'invoice'
 const activeTab = ref<PaymentTabKey>('recharge')
 const purchaseMode = ref<'subscription' | 'reset'>('subscription')
 const resetGroupId = ref<number | null>(null)
@@ -736,6 +741,8 @@ const tabs = computed(() => {
 	if (paymentEnabled.value && !checkout.value.balance_disabled) result.push({ key: 'recharge', label: t('payment.tabTopUp') })
 	if (paymentEnabled.value && subscriptionEnabled.value) result.push({ key: 'subscription', label: t('payment.tabSubscribe') })
 	if (pointsConfig.value.enabled) result.push({ key: 'points', label: t('points.shop') })
+	// 发票开具只针对在线实付订单，依附于充值/订阅入口存在；卡密渠道保持在最后
+	if (result.some((tab) => tab.key === 'recharge' || tab.key === 'subscription')) result.push({ key: 'invoice', label: t('payment.tabInvoice') })
 	if (storefrontChannels.value.length > 0) result.push({ key: 'storefront', label: t('payment.tabStorefront'), badge: t('payment.storefront.badge') })
 	return result
 })
@@ -1578,6 +1585,9 @@ onMounted(async () => {
 		}
 		if (route.query.tab === 'storefront' && storefrontChannels.value.length > 0) {
 			activeTab.value = 'storefront'
+		}
+		if (route.query.tab === 'invoice' && tabs.value.some((tab) => tab.key === 'invoice')) {
+			activeTab.value = 'invoice'
 		}
 	} catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
   finally { loading.value = false }

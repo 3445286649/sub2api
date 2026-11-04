@@ -6,6 +6,17 @@
     @close="emit('cancel')"
   >
     <form id="refund-form" @submit.prevent="handleSubmit" class="space-y-4">
+      <!-- 已开票提醒：管理员仍可退款，但要知道发票不会跟着作废 -->
+      <div
+        v-if="invoiceNotice"
+        class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200"
+        role="alert"
+        data-testid="refund-invoice-notice"
+      >
+        <p class="font-medium">{{ invoiceNoticeTitle }}</p>
+        <p class="mt-1">{{ invoiceNotice }}</p>
+      </div>
+
       <!-- Refund Request Info -->
       <div
         v-if="order?.refund_requested_at || order?.refund_request_reason"
@@ -180,6 +191,8 @@ const props = defineProps<{
   userBalance?: number | null
   requireForce?: boolean
   warning?: string
+  invoiceNotice?: string
+  invoiceNoticeTitle?: string
 }>()
 
 const emit = defineEmits<{

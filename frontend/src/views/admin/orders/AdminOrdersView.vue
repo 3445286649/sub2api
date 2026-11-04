@@ -111,7 +111,7 @@
       </div>
     </BaseDialog>
 
-    <AdminRefundDialog :show="showRefundDialog" :order="selectedOrder" :submitting="refundSubmitting" :require-force="refundRequireForce" :warning="refundWarning" @confirm="handleRefund" @cancel="closeRefundDialog" />
+    <AdminRefundDialog :show="showRefundDialog" :order="selectedOrder" :submitting="refundSubmitting" :require-force="refundRequireForce" :warning="refundWarning" :invoice-notice="refundInvoiceText" :invoice-notice-title="refundInvoiceTitle" @confirm="handleRefund" @cancel="closeRefundDialog" />
   </AppLayout>
 </template>
 
@@ -129,6 +129,8 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import AdminRefundDialog from '@/components/admin/payment/AdminRefundDialog.vue'
+import { refundInvoiceNotice } from '@/components/invoice/invoiceFormat'
+import { adminInvoiceAPI } from '@/api/admin/invoice'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import OrderTable from '@/components/payment/OrderTable.vue'
 import { currencySymbol } from '@/components/payment/currency'
@@ -155,6 +157,9 @@ const showRefundDialog = ref(false)
 const refundSubmitting = ref(false)
 const refundRequireForce = ref(false)
 const refundWarning = ref('')
+const refundInvoiceText = ref('')
+const refundInvoiceTitle = ref('')
+let refundDialogRequest = 0
 const refundQueryingIds = ref(new Set<number>())
 const orderAuditLogs = ref<AuditLog[]>([])
 const creditedAmountSymbol = currencySymbol('USD')
@@ -239,7 +244,25 @@ async function handleRetryOrder(order: PaymentOrder) {
   catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
 }
 
-function openRefundDialog(order: PaymentOrder) {
+async function openRefundDialog(order: PaymentOrder) {
+  const request = ++refundDialogRequest
+  // 先查开票情况再打开，确保管理员动手前就能看到提醒
+  let text = ''
+  let title = ''
+  try {
+    const notice = refundInvoiceNotice(await adminInvoiceAPI.getOrderState(order.id))
+    if (notice) {
+      text = t(notice.key, notice.params)
+      title = t('invoice.refundNotice.title')
+    }
+  } catch {
+    // 查不到就明说，不能当成没开过票
+    text = t('invoice.refundNotice.unknown')
+    title = t('invoice.refundNotice.unknownTitle')
+  }
+  if (request !== refundDialogRequest) return
+  refundInvoiceText.value = text
+  refundInvoiceTitle.value = title
   selectedOrder.value = order
   refundRequireForce.value = false
   refundWarning.value = ''

@@ -57,6 +57,9 @@ func RegisterAdminRoutes(
 		// 工单管理
 		registerSupportRoutes(admin, h)
 
+		// 发票管理
+		registerInvoiceRoutes(admin, h)
+
 		// OpenAI OAuth
 		registerOpenAIOAuthRoutes(admin, h)
 
@@ -541,6 +544,21 @@ func registerAnnouncementRoutes(admin *gin.RouterGroup, h *handler.Handlers, ima
 		announcements.PUT("/:id", h.Admin.Announcement.Update)
 		announcements.DELETE("/:id", h.Admin.Announcement.Delete)
 		announcements.GET("/:id/read-status", h.Admin.Announcement.ListReadStatus)
+	}
+}
+
+func registerInvoiceRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	invoice := admin.Group("/invoice")
+	{
+		invoice.GET("/stats", h.Admin.Invoice.GetStats)
+		invoice.GET("/requests", h.Admin.Invoice.List)
+		invoice.GET("/requests/:id", h.Admin.Invoice.GetByID)
+		invoice.PATCH("/requests/:id/status", h.Admin.Invoice.UpdateStatus)
+		invoice.POST("/requests/:id/send-email", h.Admin.Invoice.SendEmail)
+		invoice.GET("/orders/:id/state", h.Admin.Invoice.GetOrderState)
+		invoice.GET("/exclusions", h.Admin.Invoice.ListExclusions)
+		invoice.POST("/exclusions", h.Admin.Invoice.AddExclusions)
+		invoice.DELETE("/exclusions/:id", h.Admin.Invoice.DeleteExclusion)
 	}
 }
 

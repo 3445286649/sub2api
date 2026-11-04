@@ -167,6 +167,15 @@ func RegisterUserRoutes(
 			support.POST("/:id/reopen", h.Support.Reopen)
 		}
 
+		// 在线开票
+		invoice := authenticated.Group("/invoice")
+		{
+			invoice.GET("/orders", h.Invoice.ListOrders)
+			invoice.GET("/requests", h.Invoice.List)
+			invoice.POST("/requests", h.Invoice.Create)
+			invoice.GET("/requests/:id", h.Invoice.GetByID)
+		}
+
 		// 卡密兑换
 		redeem := authenticated.Group("/redeem")
 		{
