@@ -56,8 +56,18 @@
         <button v-if="request?.status === 'rejected'" type="button" class="btn btn-primary" @click="emit('reapply', request)">
           {{ t('invoice.detail.reapply') }}
         </button>
+        <button
+          v-if="request?.status === 'completed' && request.has_file"
+          type="button"
+          class="btn btn-primary"
+          :disabled="downloading"
+          data-testid="invoice-download"
+          @click="download"
+        >
+          <Icon name="download" size="sm" class="mr-1.5" />{{ downloading ? t('invoice.records.downloading') : t('invoice.records.download') }}
+        </button>
         <a
-          v-if="request?.status === 'completed' && request.invoice_file_url"
+          v-else-if="request?.status === 'completed' && request.invoice_file_url"
           :href="request.invoice_file_url"
           target="_blank"
           rel="noopener noreferrer"
@@ -71,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -79,11 +89,32 @@ import { formatDateTimeToMinute } from '@/utils/format'
 import type { InvoiceRequest } from '@/types/invoice'
 import InvoiceStatusBadge from './InvoiceStatusBadge.vue'
 import InvoiceTimeline from './InvoiceTimeline.vue'
+import { invoiceAPI } from '@/api/invoice'
+import { useAppStore } from '@/stores/app'
+import { saveBlob } from './invoiceFile'
 import { formatCny, orderNumberOf } from './invoiceFormat'
 
 const props = defineProps<{ show: boolean; loading: boolean; request: InvoiceRequest | null }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'reapply', request: InvoiceRequest): void }>()
 const { t } = useI18n()
+const appStore = useAppStore()
+const downloading = ref(false)
+
+// 登录态在请求头里，不能直接用 <a href>，先取 Blob 再保存。失败时错误体也是 Blob，只能按状态码区分。
+async function download() {
+  const r = props.request
+  if (!r || downloading.value) return
+  downloading.value = true
+  try {
+    const blob = await invoiceAPI.downloadFile(r.id)
+    saveBlob(blob, r.invoice_file_name || `invoice-${r.id}.pdf`)
+  } catch (err) {
+    const status = (err as { status?: number } | null)?.status
+    appStore.showError(status === 404 ? t('invoice.records.fileNotFound') : t('invoice.records.downloadFailed'))
+  } finally {
+    downloading.value = false
+  }
+}
 
 const rows = computed(() => {
   const r = props.request

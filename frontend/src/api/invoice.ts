@@ -23,6 +23,8 @@ export interface InvoiceAPI {
   createRequest(payload: CreateInvoiceRequest): Promise<InvoiceRequest>
   listRequests(params?: InvoiceRequestListParams): Promise<BasePaginationResponse<InvoiceRequest>>
   getRequest(id: number): Promise<InvoiceRequest>
+  /** 只有申请人本人、且发票已开具时才能下载 */
+  downloadFile(id: number): Promise<Blob>
 }
 
 const remoteInvoiceAPI: InvoiceAPI = {
@@ -42,6 +44,10 @@ const remoteInvoiceAPI: InvoiceAPI = {
     const { data } = await apiClient.get<InvoiceRequest>(`/invoice/requests/${id}`)
     return data
   },
+  async downloadFile(id) {
+    const { data } = await apiClient.get<Blob>(`/invoice/requests/${id}/file`, { responseType: 'blob' })
+    return data
+  },
 }
 
 const useMock = import.meta.env.DEV && import.meta.env.VITE_INVOICE_MOCK === 'true'
@@ -58,4 +64,5 @@ export const invoiceAPI: InvoiceAPI = {
   createRequest: (payload) => resolveAPI().then((api) => api.createRequest(payload)),
   listRequests: (params) => resolveAPI().then((api) => api.listRequests(params)),
   getRequest: (id) => resolveAPI().then((api) => api.getRequest(id)),
+  downloadFile: (id) => resolveAPI().then((api) => api.downloadFile(id)),
 }

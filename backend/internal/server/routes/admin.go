@@ -555,6 +555,8 @@ func registerInvoiceRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		invoice.GET("/requests/:id", h.Admin.Invoice.GetByID)
 		invoice.PATCH("/requests/:id/status", h.Admin.Invoice.UpdateStatus)
 		invoice.POST("/requests/:id/send-email", h.Admin.Invoice.SendEmail)
+		invoice.POST("/requests/:id/file", h.Admin.Invoice.UploadFile)
+		invoice.GET("/requests/:id/file", h.Admin.Invoice.DownloadFile)
 		invoice.GET("/orders/:id/state", h.Admin.Invoice.GetOrderState)
 		invoice.GET("/exclusions", h.Admin.Invoice.ListExclusions)
 		invoice.POST("/exclusions", h.Admin.Invoice.AddExclusions)

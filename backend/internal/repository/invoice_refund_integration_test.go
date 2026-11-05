@@ -42,7 +42,7 @@ func newInvoiceRefundFixture(t *testing.T) *invoiceRefundFixture {
 	payments := service.NewPaymentService(integrationEntClient, nil, nil, nil, nil, nil, NewUserRepository(integrationEntClient, integrationDB), nil, nil)
 	payments.SetInvoiceRepository(repo)
 	return &invoiceRefundFixture{
-		invoices: service.NewInvoiceService(repo, nil, nil, nil),
+		invoices: service.NewInvoiceService(repo, nil, nil, nil, nil),
 		payments: payments,
 		repo:     repo,
 		user:     user,

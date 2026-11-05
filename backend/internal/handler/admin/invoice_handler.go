@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"io"
+	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
@@ -100,6 +102,47 @@ func (h *InvoiceHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 	response.Success(c, dto.AdminInvoiceRequestFromService(updated))
+}
+
+// UploadFile 接收管理员上传的发票 PDF（multipart 字段名 file），重复上传会替换旧文件。
+func (h *InvoiceHandler) UploadFile(c *gin.Context) {
+	id, ok := parsePositiveID(c, "id", "Invalid invoice request ID")
+	if !ok {
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, service.InvoiceFileMaxBytes+(1<<20))
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		response.BadRequest(c, "Invoice file is required (PDF, maximum 10 MB)")
+		return
+	}
+	defer func() { _ = file.Close() }()
+
+	data, err := io.ReadAll(io.LimitReader(file, service.InvoiceFileMaxBytes+1))
+	if err != nil {
+		response.BadRequest(c, "Failed to read the uploaded file")
+		return
+	}
+	updated, err := h.invoiceService.UploadFile(c.Request.Context(), id, header.Filename, data)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, dto.AdminInvoiceRequestFromService(updated))
+}
+
+// DownloadFile 管理员下载已上传的发票文件，任何状态都可以，用于开票前核对。
+func (h *InvoiceHandler) DownloadFile(c *gin.Context) {
+	id, ok := parsePositiveID(c, "id", "Invalid invoice request ID")
+	if !ok {
+		return
+	}
+	name, data, err := h.invoiceService.DownloadFileForAdmin(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.PrivateFile(c, name, "application/pdf", data)
 }
 
 func (h *InvoiceHandler) SendEmail(c *gin.Context) {

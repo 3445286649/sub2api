@@ -54,7 +54,7 @@ func newInvoiceIntegrationService(t *testing.T) (*service.InvoiceService, servic
 	repo := NewInvoiceRepository(integrationDB)
 	user := mustCreateUser(t, integrationEntClient, &service.User{Email: invoiceTestUnique("invoice") + "@example.com"})
 	// 这些用例不走加密和邮件分支，依赖传 nil 即可。
-	return service.NewInvoiceService(repo, nil, nil, nil), repo, user
+	return service.NewInvoiceService(repo, nil, nil, nil, nil), repo, user
 }
 
 func enterpriseInvoiceInput(userID int64, orderIDs ...int64) service.CreateInvoiceRequestInput {

@@ -103,7 +103,7 @@ seed({ id: 1004, user_id: 15, user_email: 'chen@studio.io', invoice_type: 'indiv
   receiver_email: 'chen@studio.io', reject_reason: '订单含退款，请退款完成后重新申请',
   created_at: daysAgo(10, 13), rejected_at: daysAgo(9, 11) }, [319990])
 seed({ id: 1002, user_id: ME.id, user_email: ME.email, ...yunzhan, status: 'completed', receiver_email: 'finance@example.com',
-  invoice_number: '26332000000184527761', invoice_file_url: 'https://example.com/invoice-demo.pdf',
+  invoice_number: '26332000000184527761', has_file: true, invoice_file_name: '发票-26332.pdf', invoice_file_size: 52341,
   admin_notes: '已开具数电普通发票', created_at: daysAgo(18, 11), processing_at: daysAgo(17, 9),
   completed_at: daysAgo(17, 16), email_sent_at: daysAgo(17, 16) }, [319755])
 seed({ id: 1001, user_id: ME.id, user_email: ME.email, invoice_type: 'individual', title: '张三',
@@ -116,6 +116,8 @@ function withOrders(req: AdminInvoiceRequest): AdminInvoiceRequest {
 }
 function stripAdmin(req: AdminInvoiceRequest): InvoiceRequest {
   const { user_id: _u, user_email: _e, ...rest } = req
+  // 与后端一致：开票前管理员上传的文件对用户不可见
+  if (rest.status !== 'completed') return { ...rest, has_file: false, invoice_file_name: null, invoice_file_size: null }
   return rest
 }
 function paginate<T>(list: T[], page = 1, pageSize = 10) {
@@ -193,6 +195,15 @@ export const invoiceMockAPI: InvoiceAPI = {
     if (found.user_id !== ME.id) throw mockError(404, 'INVOICE_REQUEST_NOT_FOUND', '发票申请不存在')
     return stripAdmin(withOrders(found))
   },
+
+  async downloadFile(id) {
+    await delay(300)
+    const found = find(id)
+    if (found.user_id !== ME.id || found.status !== 'completed' || !found.has_file) {
+      throw mockError(404, 'INVOICE_FILE_NOT_FOUND', '发票文件不存在')
+    }
+    return new Blob(['%PDF-1.4 mock invoice'], { type: 'application/pdf' })
+  },
 }
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -248,13 +259,13 @@ export const adminInvoiceMockAPI: AdminInvoiceAPI = {
     if (payload.status === 'processing') {
       req.processing_at = now
     } else if (payload.status === 'completed') {
-      if (!payload.invoice_number || !payload.invoice_file_url) {
+      if (!payload.invoice_number || (!payload.invoice_file_url && !req.has_file)) {
         throw mockError(400, 'MISSING_REQUIRED_FIELDS', '请填写发票号码并上传发票文件')
       }
       req.processing_at ??= now
       req.completed_at = now
       req.invoice_number = payload.invoice_number
-      req.invoice_file_url = payload.invoice_file_url
+      if (payload.invoice_file_url) req.invoice_file_url = payload.invoice_file_url
       if (payload.send_email) req.email_sent_at = now
     } else if (payload.status === 'rejected') {
       if (!payload.reject_reason) throw mockError(400, 'MISSING_REQUIRED_FIELDS', '请填写驳回原因')
@@ -271,6 +282,26 @@ export const adminInvoiceMockAPI: AdminInvoiceAPI = {
     if (req.status !== 'completed') throw mockError(400, 'CANNOT_SEND_EMAIL', '发票未开具，不能发送邮件')
     req.email_sent_at = new Date().toISOString()
     return withOrders(req)
+  },
+
+  async uploadFile(id, file) {
+    await delay(500)
+    const req = find(id)
+    if (req.status === 'rejected') throw mockError(409, 'INVOICE_FILE_STATUS', '已驳回的申请不能上传发票文件')
+    if (file.size === 0) throw mockError(400, 'INVOICE_FILE_REQUIRED', '请选择发票文件')
+    if (file.size > 10 * 1024 * 1024) throw mockError(400, 'INVOICE_FILE_TOO_LARGE', '发票文件不能超过 10 MB')
+    if (!/\.pdf$/i.test(file.name)) throw mockError(400, 'INVOICE_FILE_NOT_PDF', '只支持 PDF 格式的发票文件')
+    req.has_file = true
+    req.invoice_file_name = file.name
+    req.invoice_file_size = file.size
+    return withOrders(req)
+  },
+
+  async downloadFile(id) {
+    await delay(300)
+    const req = find(id)
+    if (!req.has_file) throw mockError(404, 'INVOICE_FILE_NOT_FOUND', '发票文件不存在')
+    return new Blob(['%PDF-1.4 mock invoice'], { type: 'application/pdf' })
   },
 
   async getOrderState(orderId) {

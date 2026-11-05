@@ -75,6 +75,11 @@ export interface InvoiceRequest {
   receiver_email: string
   invoice_number?: string | null
   invoice_file_url?: string | null
+  /** 管理员上传了 PDF；用户端只在已开具后为 true，管理端任何状态都可见 */
+  has_file?: boolean
+  invoice_file_name?: string | null
+  /** 字节 */
+  invoice_file_size?: number | null
   email_sent_at?: string | null
   reject_reason?: string | null
   created_at: string
