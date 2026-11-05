@@ -3,11 +3,16 @@ import {
   BILLING_MODE_IMAGE,
   BILLING_MODE_TOKEN,
   BILLING_MODE_VIDEO,
+	getBillingModeLabel,
   getDisplayBillingMode,
   isImageUsage
 } from '../billingMode'
 
 describe('billingMode helpers', () => {
+	it('displays rejection fees independently of token and image billing', () => {
+		expect(getDisplayBillingMode({ image_count: 0, billing_mode: 'grok_rejection' })).toBe('grok_rejection')
+		expect(getBillingModeLabel('grok_rejection', key => key)).toBe('admin.usage.billingModeGrokRejection')
+	})
   it('prefers explicit video mode over image_count', () => {
     expect(
       getDisplayBillingMode({ image_count: 1, billing_mode: BILLING_MODE_VIDEO })

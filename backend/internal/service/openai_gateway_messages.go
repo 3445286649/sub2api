@@ -35,6 +35,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 ) (forwardResult *OpenAIForwardResult, forwardErr error) {
 	ctx, tierSnapshot := freezeOpenAIGroupTier(ctx, account, gjson.GetBytes(body, "model").String())
 	defer func() { stampOpenAIGroupTier(forwardResult, tierSnapshot) }()
+	defer func() { stampGrokRejection(c, forwardResult) }()
 	// 工具 Schema 清洗必须先于所有分流：下游每条路径（原生 Anthropic 直通、
 	// Chat Completions 转换、Responses 转换）都会把 tools 原样带给上游，而
 	// xAI / Moonshot 等严格校验方会因 input_schema 里的 required:null 或
@@ -436,7 +437,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 				return nil, fmt.Errorf("build grok retry request: %w", err)
 			}
 		}
-		resp, err = s.doOpenAIUpstream(upstreamReq, proxyURL, account)
+		resp, err = s.doOpenAIUpstream(upstreamReq, proxyURL, account, c)
 		if err != nil {
 			return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, err, false)
 		}

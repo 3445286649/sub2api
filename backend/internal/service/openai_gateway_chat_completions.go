@@ -76,6 +76,7 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 ) (forwardResult *OpenAIForwardResult, forwardErr error) {
 	ctx, tierSnapshot := freezeOpenAIGroupTier(ctx, account, gjson.GetBytes(body, "model").String())
 	defer func() { stampOpenAIGroupTier(forwardResult, tierSnapshot) }()
+	defer func() { stampGrokRejection(c, forwardResult) }()
 	rememberOpenCodeInboundBody(c, body)
 	beginUpstreamResponseModelObservation(c)
 	ClearActualOpenAIUpstreamEndpoint(c)
@@ -393,7 +394,7 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
-	resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account)
+	resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account, c)
 	if err != nil {
 		return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, err, false)
 	}

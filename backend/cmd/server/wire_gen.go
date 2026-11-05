@@ -707,6 +707,7 @@ func provideCleanup(
 			{"OpenAICodexTicketHarvester", func() error {
 				if openAIGateway != nil {
 					openAIGateway.StopOpenAICodexTicketHarvester()
+					openAIGateway.StopGrokRejectionRecovery()
 				}
 				return nil
 			}},

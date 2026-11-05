@@ -234,8 +234,9 @@ type OpenAIUsage struct {
 
 // OpenAIForwardResult represents the result of forwarding
 type OpenAIForwardResult struct {
-	RequestID  string
-	ResponseID string
+	GrokNormalBillingReplaced bool
+	RequestID                 string
+	ResponseID                string
 	// DeferredResponse is emitted only after an asynchronous task is bound locally.
 	DeferredResponseBody   []byte
 	DeferredResponseStatus int
@@ -452,6 +453,7 @@ var ErrNoAvailableCompactAccounts = errors.New("no available accounts support /r
 
 // OpenAIGatewayService handles OpenAI API gateway operations
 type OpenAIGatewayService struct {
+	rejectionRecovery     *grokRejectionRecovery
 	accountRepo           AccountRepository
 	usageLogRepo          UsageLogRepository
 	usageBillingRepo      UsageBillingRepository
@@ -603,6 +605,7 @@ func NewOpenAIGatewayService(
 	}
 	svc.logOpenAIWSModeBootstrap()
 	svc.StartOpenAICodexTicketHarvester()
+	svc.startGrokRejectionRecovery()
 	return svc
 }
 

@@ -265,6 +265,7 @@ WITH totals AS (
     JOIN users u ON u.id=ul.user_id
     WHERE ul.created_at >= $1 AND ul.created_at < $2
       AND ul.billing_type=0 AND ul.actual_cost > 0
+      AND COALESCE(ul.billing_mode, '') <> 'grok_rejection'
     GROUP BY ul.user_id
 ), ranked AS (
     SELECT totals.*,
@@ -404,6 +405,7 @@ WITH ranked AS (
     JOIN users u ON u.id=ul.user_id
     WHERE ul.created_at >= $1 AND ul.created_at < $2
       AND ul.billing_type=0 AND ul.actual_cost > 0
+      AND COALESCE(ul.billing_mode, '') <> 'grok_rejection'
     GROUP BY ul.user_id, u.username
 )
 SELECT user_id, username, requests, tokens, spend_amount, rank

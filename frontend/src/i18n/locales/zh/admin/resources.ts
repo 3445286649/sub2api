@@ -558,6 +558,7 @@ export default {
       billingModeToken: '按量',
       billingModePerRequest: '按次',
       billingModeImage: '按次(图片)',
+      billingModeGrokRejection: "Grok 内容审核拒绝费",
       billingModeVideo: '按次(视频)',
       allBillingModes: '全部计费模式',
 	  upstreamModelAudit: '上游模型审计',

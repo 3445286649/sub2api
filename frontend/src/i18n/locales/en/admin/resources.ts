@@ -561,6 +561,7 @@ export default {
       billingModeToken: 'Token',
       billingModePerRequest: 'Per Request',
       billingModeImage: 'Image',
+      billingModeGrokRejection: "Grok content moderation rejection fee",
       billingModeVideo: 'Video',
       allBillingModes: 'All Billing Modes',
 	  upstreamModelAudit: 'Upstream model audit',

@@ -112,6 +112,15 @@ export default {
         video: 'Video (Per Second)'
       },
       form: {
+        grokRejectionTitle: "Grok content moderation rejection fee",
+        grokRejectionHint: "Accept valid charged receipts only from the trusted origins below. Charge the wallet per receipt without multipliers, including subscription users. Duplicate receipts and later configuration changes never rebill historical charges.",
+        grokRejectionSource: "Stable upstream source ID (share across channels for the same provider)",
+        grokRejectionOrigins: "Trusted HTTPS origins (no paths, one per line)",
+        grokRejectionAmountMode: "Charge amount",
+        grokRejectionUpstream: "Follow upstream charged_amount",
+        grokRejectionFixed: "Fixed amount override",
+        grokRejectionAmount: "Charge per receipt (USD)",
+
         name: 'Name',
         namePlaceholder: 'Enter channel name',
         description: 'Description',

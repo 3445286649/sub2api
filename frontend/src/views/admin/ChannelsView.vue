@@ -228,6 +228,35 @@
               </p>
             </div>
 
+            <div class="space-y-3 rounded-lg border border-gray-200 p-4 dark:border-dark-600">
+              <div class="flex items-center justify-between gap-3">
+                <label class="input-label mb-0">{{ t('admin.channels.form.grokRejectionTitle') }}</label>
+                <Toggle v-model="form.grok_rejection_enabled" />
+              </div>
+              <p class="text-xs text-gray-500">{{ t('admin.channels.form.grokRejectionHint') }}</p>
+              <template v-if="form.grok_rejection_enabled">
+                <label class="block input-label">
+                  {{ t('admin.channels.form.grokRejectionSource') }}
+                  <input v-model.trim="form.grok_rejection_source" class="input mt-1" required pattern="[a-z0-9][a-z0-9_.-]{0,63}" placeholder="supe-ai" />
+                </label>
+                <label class="block input-label">
+                  {{ t('admin.channels.form.grokRejectionOrigins') }}
+                  <textarea v-model="form.grok_rejection_origins" class="input mt-1" required rows="2" placeholder="https://api.example.com"></textarea>
+                </label>
+                <label class="block input-label">
+                  {{ t('admin.channels.form.grokRejectionAmountMode') }}
+                  <Select v-model="form.grok_rejection_amount_mode" :options="[
+                    { value: 'upstream', label: t('admin.channels.form.grokRejectionUpstream') },
+                    { value: 'fixed', label: t('admin.channels.form.grokRejectionFixed') }
+                  ]" />
+                </label>
+                <label v-if="form.grok_rejection_amount_mode === 'fixed'" class="block input-label">
+                  {{ t('admin.channels.form.grokRejectionAmount') }}
+                  <input v-model="form.grok_rejection_fixed_amount" class="input mt-1" type="number" min="0.00000001" max="999999999999" step="0.00000001" required />
+                </label>
+              </template>
+            </div>
+
             <!-- Platform Management -->
             <div class="space-y-3">
               <label class="input-label mb-0">{{ t('admin.channels.form.platformConfig') }}</label>
@@ -770,6 +799,11 @@ const form = reactive({
   name: '',
   description: '',
   status: 'active',
+  grok_rejection_enabled: false,
+  grok_rejection_source: '',
+  grok_rejection_origins: '',
+  grok_rejection_amount_mode: 'upstream',
+  grok_rejection_fixed_amount: '',
   restrict_models: false,
   billing_model_source: 'channel_mapped' as string,
   platforms: [] as PlatformSection[],
@@ -1204,6 +1238,13 @@ function formToAPI(): { group_ids: number[], model_pricing: ChannelModelPricing[
     delete featuresConfig.bedrock_cc_compat
   }
 
+  featuresConfig.grok_rejection_billing = {
+    enabled: form.grok_rejection_enabled,
+    source_id: form.grok_rejection_source,
+    allowed_origins: form.grok_rejection_origins.split(/\r?\n/).map(v => v.trim()).filter(Boolean),
+    amount_mode: form.grok_rejection_amount_mode,
+    fixed_amount_usd: String(form.grok_rejection_fixed_amount)
+  }
   return { group_ids: uniqueGroupIds, model_pricing, model_mapping, features_config: featuresConfig }
 }
 
@@ -1367,6 +1408,11 @@ function handleSort(key: string, order: 'asc' | 'desc') {
 
 // ── Dialog ──
 function resetForm() {
+  form.grok_rejection_enabled = false
+  form.grok_rejection_source = ''
+  form.grok_rejection_origins = ''
+  form.grok_rejection_amount_mode = 'upstream'
+  form.grok_rejection_fixed_amount = ''
   form.name = ''
   form.description = ''
   form.status = 'active'
@@ -1389,6 +1435,12 @@ async function openCreateDialog() {
 
 async function openEditDialog(channel: Channel) {
   editingChannel.value = channel
+  const rejection = channel.features_config?.grok_rejection_billing as { enabled?: boolean; source_id?: string; allowed_origins?: string[]; amount_mode?: string; fixed_amount_usd?: string } | undefined
+  form.grok_rejection_enabled = rejection?.enabled === true
+  form.grok_rejection_source = rejection?.source_id || ''
+  form.grok_rejection_origins = (rejection?.allowed_origins || []).join('\n')
+  form.grok_rejection_amount_mode = rejection?.amount_mode || 'upstream'
+  form.grok_rejection_fixed_amount = rejection?.fixed_amount_usd || ''
   form.name = channel.name
   form.description = channel.description || ''
   form.status = channel.status

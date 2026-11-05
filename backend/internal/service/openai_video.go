@@ -221,7 +221,8 @@ func buildOpenAIVideoURL(base string, endpoint GrokMediaEndpoint, taskID string)
 }
 
 // ForwardOpenAIVideo preserves the upstream task protocol and rewrites only the mapped model and public task ID.
-func (s *OpenAIGatewayService) ForwardOpenAIVideo(ctx context.Context, c *gin.Context, account *Account, endpoint GrokMediaEndpoint, taskID string, body []byte) (*OpenAIForwardResult, error) {
+func (s *OpenAIGatewayService) ForwardOpenAIVideo(ctx context.Context, c *gin.Context, account *Account, endpoint GrokMediaEndpoint, taskID string, body []byte) (forwardResult *OpenAIForwardResult, forwardErr error) {
+	defer func() { stampGrokRejection(c, forwardResult) }()
 	if account == nil || !account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityVideoTasks) || !endpoint.IsOpenAIVideo() {
 		return nil, fmt.Errorf("OpenAI video tasks require an enabled API key account")
 	}
@@ -284,7 +285,7 @@ func (s *OpenAIGatewayService) ForwardOpenAIVideo(ctx context.Context, c *gin.Co
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxy = account.Proxy.URL()
 	}
-	resp, err := s.httpUpstream.Do(req, proxy, account.ID, account.Concurrency)
+	resp, err := s.doOpenAIUpstream(req, proxy, account, c)
 	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(started).Milliseconds())
 	if err != nil {
 		return nil, err

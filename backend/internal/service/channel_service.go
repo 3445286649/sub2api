@@ -839,6 +839,9 @@ func formatMaxTokens(max *int) string {
 
 // Create 创建渠道
 func (s *ChannelService) Create(ctx context.Context, input *CreateChannelInput) (*Channel, error) {
+	if _, err := ParseGrokRejectionConfig(input.FeaturesConfig); err != nil {
+		return nil, infraerrors.BadRequest("INVALID_GROK_REJECTION_CONFIG", err.Error())
+	}
 	exists, err := s.repo.ExistsByName(ctx, input.Name)
 	if err != nil {
 		return nil, fmt.Errorf("check channel exists: %w", err)
@@ -907,6 +910,9 @@ func (s *ChannelService) Update(ctx context.Context, id int64, input *UpdateChan
 
 	if err := s.applyUpdateInput(ctx, channel, input); err != nil {
 		return nil, err
+	}
+	if _, err := ParseGrokRejectionConfig(channel.FeaturesConfig); err != nil {
+		return nil, infraerrors.BadRequest("INVALID_GROK_REJECTION_CONFIG", err.Error())
 	}
 
 	if err := validateChannelConfig(channel.ModelPricing, channel.ModelMapping); err != nil {

@@ -112,6 +112,15 @@ export default {
         video: '视频（按秒）'
       },
       form: {
+        grokRejectionTitle: "Grok 内容审核拒绝费",
+        grokRejectionHint: "仅信任以下上游的有效 charged 凭据。逐笔扣钱包余额，不叠加倍率；订阅用户同样扣钱包。重复凭据不重扣，历史金额不随配置变化。",
+        grokRejectionSource: "上游来源标识（同一上游跨渠道保持一致，不随意更改）",
+        grokRejectionOrigins: "可信上游 HTTPS 源地址（不含路径，每行一个）",
+        grokRejectionAmountMode: "扣费金额",
+        grokRejectionUpstream: "跟随上游 charged_amount",
+        grokRejectionFixed: "固定金额覆盖",
+        grokRejectionAmount: "每笔扣费金额（美元）",
+
         name: '名称',
         namePlaceholder: '输入渠道名称',
         description: '描述',
