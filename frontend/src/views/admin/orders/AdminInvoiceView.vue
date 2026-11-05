@@ -115,9 +115,13 @@
       :loading="detailLoading"
       :submitting="submitting"
       :request="detail"
+      :uploading="uploading"
+      :downloading="downloading"
       @close="detailOpen = false"
       @update="handleUpdate"
       @send-email="handleSendEmail"
+      @upload-file="handleUpload"
+      @download-file="handleDownload"
     />
     <AdminInvoiceExclusionDialog :show="exclusionsOpen" @close="exclusionsOpen = false" />
   </AppLayout>
@@ -135,6 +139,7 @@ import Icon from '@/components/icons/Icon.vue'
 import AdminInvoiceExclusionDialog from '@/components/invoice/AdminInvoiceExclusionDialog.vue'
 import AdminInvoiceProcessDialog from '@/components/invoice/AdminInvoiceProcessDialog.vue'
 import InvoiceStatusBadge from '@/components/invoice/InvoiceStatusBadge.vue'
+import { saveBlob } from '@/components/invoice/invoiceFile'
 import { formatCny } from '@/components/invoice/invoiceFormat'
 import { adminInvoiceAPI, INVOICE_PENDING_EVENT } from '@/api/admin/invoice'
 import { useAppStore } from '@/stores/app'
@@ -313,6 +318,37 @@ async function handleSendEmail(id: number) {
     appStore.showError(extractI18nErrorMessage(err, t, 'invoice.errors', t('invoice.admin.updateFailed')))
   } finally {
     submitting.value = false
+  }
+}
+
+const uploading = ref(false)
+const downloading = ref(false)
+
+async function handleUpload(id: number, file: File) {
+  uploading.value = true
+  try {
+    const updated = await adminInvoiceAPI.uploadFile(id, file)
+    // 上传期间管理员可能已经切到别的申请，只刷新仍在查看的那一条
+    if (detail.value?.id === id) detail.value = updated
+    appStore.showSuccess(t('invoice.admin.file.uploaded'))
+    void loadList()
+  } catch (err) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'invoice.errors', t('invoice.admin.file.uploadFailed')))
+  } finally {
+    uploading.value = false
+  }
+}
+
+async function handleDownload(id: number) {
+  downloading.value = true
+  try {
+    const blob = await adminInvoiceAPI.downloadFile(id)
+    const name = detail.value?.id === id ? detail.value.invoice_file_name : null
+    saveBlob(blob, name || `invoice-${id}.pdf`)
+  } catch {
+    appStore.showError(t('invoice.admin.file.downloadFailed'))
+  } finally {
+    downloading.value = false
   }
 }
 

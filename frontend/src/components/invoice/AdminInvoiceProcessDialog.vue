@@ -104,9 +104,14 @@
                 : t('invoice.admin.emailNotSent') }}
             </p>
           </div>
-          <a v-if="request.invoice_file_url" :href="request.invoice_file_url" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
-            <Icon name="externalLink" size="sm" class="mr-1" />{{ t('invoice.admin.viewFile') }}
-          </a>
+          <div class="flex flex-wrap gap-2">
+            <button v-if="request.has_file" type="button" class="btn btn-secondary btn-sm" :disabled="downloading" data-testid="admin-invoice-download" @click="emit('download-file', request.id)">
+              <Icon name="download" size="sm" class="mr-1" />{{ t('invoice.admin.file.download') }}
+            </button>
+            <a v-if="request.invoice_file_url" :href="request.invoice_file_url" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
+              <Icon name="externalLink" size="sm" class="mr-1" />{{ t('invoice.admin.viewFile') }}
+            </a>
+          </div>
         </div>
       </section>
 
@@ -133,11 +138,39 @@
               :placeholder="t('invoice.admin.invoiceNumberPlaceholder')" maxlength="32" spellcheck="false" />
           </div>
           <div>
-            <label class="input-label" for="adm-inv-file">{{ t('invoice.admin.fileUrl') }}<span class="text-red-500"> *</span></label>
-            <input id="adm-inv-file" v-model.trim="draft.invoice_file_url" class="input" :class="{ 'input-error': showErrors && !fileUrlValid }"
-              placeholder="https://" spellcheck="false" />
-            <p v-if="showErrors && !fileUrlValid" class="input-error-text">{{ t('invoice.admin.fileUrlInvalid') }}</p>
-            <p v-else class="input-hint">{{ t('invoice.admin.fileUrlHint') }}</p>
+            <label class="input-label">{{ t('invoice.admin.file.label') }}<span class="text-red-500"> *</span></label>
+            <input ref="fileInput" type="file" accept=".pdf,application/pdf" class="hidden" data-testid="admin-invoice-file-input" @change="onFileChosen" />
+            <div
+              v-if="request.has_file"
+              class="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm dark:border-emerald-500/30 dark:bg-emerald-500/10"
+              data-testid="admin-invoice-file-card"
+            >
+              <div class="min-w-0">
+                <p class="truncate font-medium text-emerald-900 dark:text-emerald-100">{{ request.invoice_file_name }}</p>
+                <p class="text-xs text-emerald-700/80 dark:text-emerald-300/80">{{ formatFileSize(request.invoice_file_size) }}</p>
+              </div>
+              <div class="flex shrink-0 gap-1.5">
+                <button type="button" class="btn btn-secondary btn-sm" :disabled="downloading || uploading" @click="emit('download-file', request.id)">
+                  <Icon name="download" size="sm" />
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" :disabled="uploading" data-testid="admin-invoice-replace-file" @click="pickFile">
+                  {{ uploading ? t('invoice.admin.file.uploading') : t('invoice.admin.file.replace') }}
+                </button>
+              </div>
+            </div>
+            <button v-else type="button" class="btn btn-secondary w-full" :disabled="uploading" data-testid="admin-invoice-choose-file" @click="pickFile">
+              <Icon name="upload" size="sm" class="mr-1.5" />{{ uploading ? t('invoice.admin.file.uploading') : t('invoice.admin.file.choose') }}
+            </button>
+            <p v-if="fileError" class="input-error-text" data-testid="admin-invoice-file-error">{{ fileError }}</p>
+            <p v-else-if="showErrors && !fileOk" class="input-error-text">{{ t('invoice.admin.file.required') }}</p>
+            <p v-else class="input-hint">{{ t('invoice.admin.file.hint') }}</p>
+            <button type="button" class="mt-1 text-xs text-primary-600 hover:underline dark:text-primary-400" data-testid="admin-invoice-toggle-link" @click="linkMode = !linkMode">
+              {{ linkMode ? t('invoice.admin.file.useUpload') : t('invoice.admin.file.useLink') }}
+            </button>
+            <template v-if="linkMode">
+              <input v-model.trim="draft.invoice_file_url" class="input mt-2" :class="{ 'input-error': showErrors && !fileOk }" placeholder="https://" spellcheck="false" />
+              <p v-if="showErrors && draft.invoice_file_url && !fileUrlValid" class="input-error-text">{{ t('invoice.admin.fileUrlInvalid') }}</p>
+            </template>
           </div>
           <label class="flex cursor-pointer select-none items-center gap-2 text-sm text-gray-700 dark:text-gray-300 sm:col-span-2">
             <input v-model="draft.send_email" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-500 dark:bg-dark-700" />
@@ -199,15 +232,25 @@ import { formatDateTimeToMinute } from '@/utils/format'
 import type { AdminInvoiceRequest, AdminUpdateInvoiceStatus } from '@/types/invoice'
 import InvoiceStatusBadge from './InvoiceStatusBadge.vue'
 import InvoiceTimeline from './InvoiceTimeline.vue'
+import { checkInvoiceFile, formatFileSize } from './invoiceFile'
 import { formatCny, orderNumberOf, sumAmounts } from './invoiceFormat'
 
 type Mode = 'processing' | 'complete' | 'reject'
 
-const props = defineProps<{ show: boolean; loading: boolean; submitting: boolean; request: AdminInvoiceRequest | null }>()
+const props = defineProps<{
+  show: boolean
+  loading: boolean
+  submitting: boolean
+  request: AdminInvoiceRequest | null
+  uploading?: boolean
+  downloading?: boolean
+}>()
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'update', id: number, payload: AdminUpdateInvoiceStatus): void
   (e: 'send-email', id: number): void
+  (e: 'upload-file', id: number, file: File): void
+  (e: 'download-file', id: number): void
 }>()
 const { t, te } = useI18n()
 const { copyToClipboard } = useClipboard()
@@ -216,6 +259,10 @@ const actionable = computed(() => props.request?.status === 'pending' || props.r
 const modes = computed<Mode[]>(() => (props.request?.status === 'pending' ? ['processing', 'complete', 'reject'] : ['complete', 'reject']))
 const mode = ref<Mode>('processing')
 const showErrors = ref(false)
+const fileError = ref('')
+// 默认走上传；只有申请上已经有外部链接、且没有上传文件时，才展开链接输入框
+const linkMode = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
 const draft = reactive({ invoice_number: '', invoice_file_url: '', send_email: true, reject_reason: '', admin_notes: '' })
 
 // 切换到新的申请时重置操作区
@@ -225,6 +272,8 @@ watch(
     const r = props.request
     mode.value = r?.status === 'pending' ? 'processing' : 'complete'
     showErrors.value = false
+    fileError.value = ''
+    linkMode.value = !!r?.invoice_file_url && !r?.has_file
     Object.assign(draft, {
       invoice_number: r?.invoice_number ?? '',
       invoice_file_url: r?.invoice_file_url ?? '',
@@ -236,7 +285,11 @@ watch(
   { immediate: true },
 )
 
-const fileUrlValid = computed(() => /^https?:\/\/\S+$/i.test(draft.invoice_file_url))
+// 只有展开链接输入框时，填的链接才算数；收起后即使里面还有字也不会提交
+const effectiveUrl = computed(() => (linkMode.value ? draft.invoice_file_url : ''))
+const fileUrlValid = computed(() => /^https?:\/\/\S+$/i.test(effectiveUrl.value))
+// 发票文件二选一：已上传 PDF，或填了有效的外部链接；已上传时多填的链接也要有效
+const fileOk = computed(() => (props.request?.has_file ? !effectiveUrl.value || fileUrlValid.value : fileUrlValid.value))
 const bonusTotal = computed(() => sumAmounts((props.request?.orders ?? []).map((o) => o.bonus_amount)))
 
 const rejectPresets = computed(() => [
@@ -270,6 +323,26 @@ const titleRows = computed(() => {
   return rows
 })
 
+function pickFile() {
+  fileError.value = ''
+  fileInput.value?.click()
+}
+
+function onFileChosen(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  // 清空后选同一个文件也会再次触发 change
+  input.value = ''
+  if (!file || !props.request) return
+  const check = checkInvoiceFile(file)
+  if (check !== 'ok') {
+    fileError.value = t(`invoice.admin.file.${check}`)
+    return
+  }
+  fileError.value = ''
+  emit('upload-file', props.request.id, file)
+}
+
 function submit() {
   const r = props.request
   if (!r) return
@@ -279,7 +352,7 @@ function submit() {
     return
   }
   if (mode.value === 'complete') {
-    if (!draft.invoice_number || !fileUrlValid.value) {
+    if (!draft.invoice_number || !fileOk.value) {
       showErrors.value = true
       return
     }
@@ -287,7 +360,7 @@ function submit() {
       status: 'completed',
       admin_notes: notes,
       invoice_number: draft.invoice_number,
-      invoice_file_url: draft.invoice_file_url,
+      invoice_file_url: effectiveUrl.value || undefined,
       send_email: draft.send_email,
     })
     return

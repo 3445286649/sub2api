@@ -174,6 +174,7 @@ func RegisterUserRoutes(
 			invoice.GET("/requests", h.Invoice.List)
 			invoice.POST("/requests", h.Invoice.Create)
 			invoice.GET("/requests/:id", h.Invoice.GetByID)
+			invoice.GET("/requests/:id/file", h.Invoice.DownloadFile)
 		}
 
 		// 卡密兑换

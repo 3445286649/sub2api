@@ -49,15 +49,21 @@ type invoiceSiteNamer interface {
 	GetSiteName(ctx context.Context) string
 }
 
+// invoiceAttachmentSender 是邮件发送方的可选能力：能带附件时发票 PDF 随邮件发出，否则只发正文。
+type invoiceAttachmentSender interface {
+	SendEmailWithAttachment(ctx context.Context, to, subject, body string, attachment *EmailAttachment) error
+}
+
 type InvoiceService struct {
 	repo      InvoiceRepository
 	email     invoiceEmailSender
 	site      invoiceSiteNamer
 	encryptor SecretEncryptor
+	files     InvoiceFileStore
 }
 
-func NewInvoiceService(repo InvoiceRepository, emailService *EmailService, settingService *SettingService, encryptor SecretEncryptor) *InvoiceService {
-	return &InvoiceService{repo: repo, email: emailService, site: settingService, encryptor: encryptor}
+func NewInvoiceService(repo InvoiceRepository, emailService *EmailService, settingService *SettingService, encryptor SecretEncryptor, files InvoiceFileStore) *InvoiceService {
+	return &InvoiceService{repo: repo, email: emailService, site: settingService, encryptor: encryptor, files: files}
 }
 
 // invoiceableAmount 返回订单可开票的人民币金额，0 表示不可开票。
@@ -341,12 +347,23 @@ func (s *InvoiceService) UpdateStatus(ctx context.Context, id int64, input Updat
 		if number == "" || len(number) > 64 {
 			return nil, ErrInvoiceNumberRequired
 		}
+		// 发票文件二选一：填了外部链接就校验链接；没填则必须已经上传过 PDF。
 		fileURL := strings.TrimSpace(input.InvoiceFileURL)
-		if !isInvoiceFileURL(fileURL) {
-			return nil, ErrInvoiceFileURLInvalid
+		if fileURL != "" {
+			if !isInvoiceFileURL(fileURL) {
+				return nil, ErrInvoiceFileURLInvalid
+			}
+			update.InvoiceFileURL = &fileURL
+		} else {
+			current, err := s.repo.GetRequest(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if current.InvoiceFileKey == nil {
+				return nil, ErrInvoiceFileURLInvalid
+			}
 		}
 		update.InvoiceNumber = &number
-		update.InvoiceFileURL = &fileURL
 	case InvoiceStatusRejected:
 		reason := strings.TrimSpace(input.RejectReason)
 		if reason == "" {
@@ -407,8 +424,31 @@ func (s *InvoiceService) SendEmail(ctx context.Context, id int64) (*InvoiceReque
 func (s *InvoiceService) deliverEmail(ctx context.Context, req *InvoiceRequest) error {
 	siteName := s.site.GetSiteName(ctx)
 	subject := fmt.Sprintf("[%s] 您的电子发票已开具（申请 #%d）", siteName, req.ID)
-	if err := s.email.SendEmail(ctx, req.ReceiverEmail, subject, buildInvoiceEmailBody(siteName, req)); err != nil {
-		return err
+	body := buildInvoiceEmailBody(siteName, req)
+
+	// 上传过 PDF 就作为附件发出；读文件失败不挡邮件，退回只发正文，用户仍能登录后下载。
+	var attachment *EmailAttachment
+	if req.InvoiceFileKey != nil && s.files != nil {
+		data, err := s.files.Read(ctx, *req.InvoiceFileKey)
+		if err != nil {
+			slog.Warn("invoice file unreadable for email attachment", "request_id", req.ID, "error", err)
+		} else {
+			name := fmt.Sprintf("invoice-%d.pdf", req.ID)
+			if req.InvoiceFileName != nil && *req.InvoiceFileName != "" {
+				name = *req.InvoiceFileName
+			}
+			attachment = &EmailAttachment{Filename: name, ContentType: "application/pdf", Data: data}
+		}
+	}
+
+	var sendErr error
+	if sender, ok := s.email.(invoiceAttachmentSender); ok && attachment != nil {
+		sendErr = sender.SendEmailWithAttachment(ctx, req.ReceiverEmail, subject, body, attachment)
+	} else {
+		sendErr = s.email.SendEmail(ctx, req.ReceiverEmail, subject, body)
+	}
+	if sendErr != nil {
+		return sendErr
 	}
 	now := time.Now()
 	if err := s.repo.MarkEmailSent(ctx, req.ID, now); err != nil {

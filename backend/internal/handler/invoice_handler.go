@@ -103,6 +103,25 @@ func (h *InvoiceHandler) List(c *gin.Context) {
 	response.Paginated(c, dto.InvoiceRequestsFromService(items), result.Total, page, pageSize)
 }
 
+// DownloadFile 只有申请人本人、且发票已开具时才能下载。
+func (h *InvoiceHandler) DownloadFile(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	id, ok := parsePositiveID(c, "id", "Invalid invoice request ID")
+	if !ok {
+		return
+	}
+	name, data, err := h.invoiceService.DownloadFileForUser(c.Request.Context(), subject.UserID, id)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.PrivateFile(c, name, "application/pdf", data)
+}
+
 func (h *InvoiceHandler) GetByID(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {

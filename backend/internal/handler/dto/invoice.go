@@ -48,6 +48,9 @@ type InvoiceRequest struct {
 	ReceiverEmail         string             `json:"receiver_email"`
 	InvoiceNumber         *string            `json:"invoice_number"`
 	InvoiceFileURL        *string            `json:"invoice_file_url"`
+	HasFile               bool               `json:"has_file"`
+	InvoiceFileName       *string            `json:"invoice_file_name"`
+	InvoiceFileSize       *int64             `json:"invoice_file_size"`
 	EmailSentAt           *time.Time         `json:"email_sent_at"`
 	RejectReason          *string            `json:"reject_reason"`
 	CreatedAt             time.Time          `json:"created_at"`
@@ -168,6 +171,12 @@ func InvoiceRequestFromService(req *service.InvoiceRequest) *InvoiceRequest {
 		CompletedAt:           req.CompletedAt,
 		RejectedAt:            req.RejectedAt,
 	}
+	// 用户只在发票已开具后才看到文件，开票前管理员上传的草稿对用户不可见。
+	if req.InvoiceFileKey != nil && req.Status == service.InvoiceStatusCompleted {
+		out.HasFile = true
+		out.InvoiceFileName = req.InvoiceFileName
+		out.InvoiceFileSize = req.InvoiceFileSize
+	}
 	if len(req.Orders) > 0 {
 		out.Orders = InvoiceableOrdersFromService(req.Orders)
 	}
@@ -191,6 +200,12 @@ func AdminInvoiceRequestFromService(req *service.InvoiceRequest) *AdminInvoiceRe
 		UserID:         req.UserID,
 		UserEmail:      req.UserEmail,
 		AdminNotes:     req.AdminNotes,
+	}
+	// 管理员在任何状态下都能看到已上传的文件，开票前可以核对。
+	if req.InvoiceFileKey != nil {
+		out.HasFile = true
+		out.InvoiceFileName = req.InvoiceFileName
+		out.InvoiceFileSize = req.InvoiceFileSize
 	}
 	// 详情接口解密后给完整身份证号，列表和解密失败时仍是打码值。
 	if req.IDNumberPlain != nil {

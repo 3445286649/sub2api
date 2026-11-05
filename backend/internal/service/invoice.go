@@ -119,14 +119,18 @@ type InvoiceRequest struct {
 	ReceiverEmail  string
 	InvoiceNumber  *string
 	InvoiceFileURL *string
-	EmailSentAt    *time.Time
-	AdminNotes     *string
-	RejectReason   *string
-	CreatedAt      time.Time
-	ProcessingAt   *time.Time
-	CompletedAt    *time.Time
-	RejectedAt     *time.Time
-	Orders         []InvoiceableOrder
+	// 管理员上传的 PDF 的元数据。Key 是磁盘上的存储名，只在 service 内部使用，不进响应。
+	InvoiceFileName *string
+	InvoiceFileKey  *string
+	InvoiceFileSize *int64
+	EmailSentAt     *time.Time
+	AdminNotes      *string
+	RejectReason    *string
+	CreatedAt       time.Time
+	ProcessingAt    *time.Time
+	CompletedAt     *time.Time
+	RejectedAt      *time.Time
+	Orders          []InvoiceableOrder
 }
 
 type InvoiceRequestListFilters struct {
@@ -216,6 +220,9 @@ type InvoiceRepository interface {
 	// UpdateStatus 只在当前状态属于 FromStatuses 时生效，返回是否更新；驳回时同时释放订单。
 	UpdateStatus(ctx context.Context, id int64, update InvoiceStatusUpdate) (bool, error)
 	MarkEmailSent(ctx context.Context, id int64, at time.Time) error
+	// SetFile 记录上传的发票文件，返回被替换的旧文件 key（没有则为 nil），由调用方删除旧文件。
+	// 只有 pending、processing、completed 的申请可以上传；申请不存在或状态不允许时返回对应错误。
+	SetFile(ctx context.Context, id int64, meta InvoiceFileMeta) (*string, error)
 	GetStats(ctx context.Context, todayStart time.Time) (*InvoiceStatusCounts, error)
 	MatchOrders(ctx context.Context, orderNumbers []string, orderIDs []int64) ([]InvoiceOrderMatch, error)
 	AddExclusions(ctx context.Context, orderIDs []int64, adminID int64) ([]InvoiceExclusion, error)

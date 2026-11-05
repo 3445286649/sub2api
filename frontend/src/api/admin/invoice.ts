@@ -22,6 +22,9 @@ export interface AdminInvoiceAPI {
   getRequest(id: number): Promise<AdminInvoiceRequest>
   updateStatus(id: number, payload: AdminUpdateInvoiceStatus): Promise<AdminInvoiceRequest>
   sendEmail(id: number): Promise<AdminInvoiceRequest>
+  /** 上传发票 PDF，重复上传会替换旧文件 */
+  uploadFile(id: number, file: File): Promise<AdminInvoiceRequest>
+  downloadFile(id: number): Promise<Blob>
   getOrderState(orderId: number): Promise<InvoiceOrderState>
   listExclusions(params?: InvoiceExclusionListParams): Promise<BasePaginationResponse<InvoiceExclusion>>
   addExclusions(orderNumbers: string[]): Promise<AddInvoiceExclusionsResult>
@@ -47,6 +50,19 @@ const remoteAdminInvoiceAPI: AdminInvoiceAPI = {
   },
   async sendEmail(id) {
     const { data } = await apiClient.post<AdminInvoiceRequest>(`/admin/invoice/requests/${id}/send-email`)
+    return data
+  },
+  async uploadFile(id, file) {
+    const form = new FormData()
+    form.append('file', file)
+    const { data } = await apiClient.post<AdminInvoiceRequest>(`/admin/invoice/requests/${id}/file`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    })
+    return data
+  },
+  async downloadFile(id) {
+    const { data } = await apiClient.get<Blob>(`/admin/invoice/requests/${id}/file`, { responseType: 'blob' })
     return data
   },
   async getOrderState(orderId) {
@@ -84,6 +100,8 @@ export const adminInvoiceAPI: AdminInvoiceAPI = {
   getRequest: (id) => resolveAPI().then((api) => api.getRequest(id)),
   updateStatus: (id, payload) => resolveAPI().then((api) => api.updateStatus(id, payload)),
   sendEmail: (id) => resolveAPI().then((api) => api.sendEmail(id)),
+  uploadFile: (id, file) => resolveAPI().then((api) => api.uploadFile(id, file)),
+  downloadFile: (id) => resolveAPI().then((api) => api.downloadFile(id)),
   getOrderState: (orderId) => resolveAPI().then((api) => api.getOrderState(orderId)),
   listExclusions: (params) => resolveAPI().then((api) => api.listExclusions(params)),
   addExclusions: (orderNumbers) => resolveAPI().then((api) => api.addExclusions(orderNumbers)),

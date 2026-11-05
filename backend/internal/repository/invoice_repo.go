@@ -171,20 +171,23 @@ const invoiceRequestColumns = `
 	enterprise_tax_number, enterprise_address, enterprise_phone, enterprise_bank, enterprise_bank_account,
 	individual_id_number_encrypted, individual_id_number_masked,
 	total_amount, order_count, status, receiver_email,
-	invoice_number, invoice_file_url, email_sent_at, admin_notes, reject_reason,
+	invoice_number, invoice_file_url, invoice_file_name, invoice_file_key, invoice_file_size,
+	email_sent_at, admin_notes, reject_reason,
 	created_at, processing_at, completed_at, rejected_at`
 
 func scanInvoiceRequest(row invoiceRowScanner) (*service.InvoiceRequest, error) {
 	var req service.InvoiceRequest
 	var taxNumber, address, phone, bank, bankAccount, encrypted, masked sql.NullString
-	var invoiceNumber, fileURL, notes, reason sql.NullString
+	var invoiceNumber, fileURL, fileName, fileKey, notes, reason sql.NullString
+	var fileSize sql.NullInt64
 	var emailSentAt, processingAt, completedAt, rejectedAt sql.NullTime
 	err := row.Scan(
 		&req.ID, &req.UserID, &req.UserEmail, &req.InvoiceType, &req.Title,
 		&taxNumber, &address, &phone, &bank, &bankAccount,
 		&encrypted, &masked,
 		&req.TotalAmount, &req.OrderCount, &req.Status, &req.ReceiverEmail,
-		&invoiceNumber, &fileURL, &emailSentAt, &notes, &reason,
+		&invoiceNumber, &fileURL, &fileName, &fileKey, &fileSize,
+		&emailSentAt, &notes, &reason,
 		&req.CreatedAt, &processingAt, &completedAt, &rejectedAt,
 	)
 	if err != nil {
@@ -199,6 +202,12 @@ func scanInvoiceRequest(row invoiceRowScanner) (*service.InvoiceRequest, error) 
 	req.IDNumberMasked = invoiceNullString(masked)
 	req.InvoiceNumber = invoiceNullString(invoiceNumber)
 	req.InvoiceFileURL = invoiceNullString(fileURL)
+	req.InvoiceFileName = invoiceNullString(fileName)
+	req.InvoiceFileKey = invoiceNullString(fileKey)
+	if fileSize.Valid {
+		size := fileSize.Int64
+		req.InvoiceFileSize = &size
+	}
 	req.AdminNotes = invoiceNullString(notes)
 	req.RejectReason = invoiceNullString(reason)
 	req.EmailSentAt = invoiceNullTime(emailSentAt)
@@ -377,6 +386,47 @@ func (r *invoiceRepository) UpdateStatus(ctx context.Context, id int64, update s
 func (r *invoiceRepository) MarkEmailSent(ctx context.Context, id int64, at time.Time) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE invoice_requests SET email_sent_at = $2, updated_at = $2 WHERE id = $1`, id, at)
 	return err
+}
+
+// SetFile 在事务里先锁住申请行并读出旧文件 key，再写入新文件。并发上传会排队，
+// 每次都能读到上一次写入的 key，不会各自漏删一个文件。
+// 不能把读旧 key 放进同一条 UPDATE 的 CTE：它会在更新之后才被求值，FOR UPDATE 会跳过已被本语句改过的行，读到空值。
+func (r *invoiceRepository) SetFile(ctx context.Context, id int64, meta service.InvoiceFileMeta) (*string, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var status string
+	var previous sql.NullString
+	err = tx.QueryRowContext(ctx,
+		`SELECT status, invoice_file_key FROM invoice_requests WHERE id = $1 FOR UPDATE`, id,
+	).Scan(&status, &previous)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, service.ErrInvoiceRequestNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if status == service.InvoiceStatusRejected {
+		return nil, service.ErrInvoiceFileStatus
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE invoice_requests SET
+			invoice_file_name = $2,
+			invoice_file_key = $3,
+			invoice_file_size = $4,
+			updated_at = $5
+		WHERE id = $1`,
+		id, meta.Name, meta.Key, meta.Size, meta.UpdatedAt,
+	); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return invoiceNullString(previous), nil
 }
 
 func (r *invoiceRepository) GetStats(ctx context.Context, todayStart time.Time) (*service.InvoiceStatusCounts, error) {

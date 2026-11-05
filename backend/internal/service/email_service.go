@@ -197,7 +197,21 @@ const smtpIOTimeout = 20 * time.Second
 
 // SendEmailWithConfig 使用指定配置发送邮件
 func (s *EmailService) SendEmailWithConfig(config *SMTPConfig, to, subject, body string) error {
-	message, err := buildSMTPMessage(config, to, subject, body)
+	return s.SendEmailWithConfigAndAttachment(config, to, subject, body, nil)
+}
+
+// SendEmailWithAttachment 发送带一个附件的邮件（使用数据库中保存的配置）。
+func (s *EmailService) SendEmailWithAttachment(ctx context.Context, to, subject, body string, attachment *EmailAttachment) error {
+	config, err := s.GetSMTPConfig(ctx)
+	if err != nil {
+		return err
+	}
+	return s.SendEmailWithConfigAndAttachment(config, to, subject, body, attachment)
+}
+
+// SendEmailWithConfigAndAttachment 使用指定配置发送邮件，attachment 为 nil 时与 SendEmailWithConfig 相同。
+func (s *EmailService) SendEmailWithConfigAndAttachment(config *SMTPConfig, to, subject, body string, attachment *EmailAttachment) error {
+	message, err := buildSMTPMessageWithAttachment(config, to, subject, body, attachment)
 	if err != nil {
 		return err
 	}

@@ -52,7 +52,7 @@ func (r *invoiceHandlerRepo) ListRequests(_ context.Context, params pagination.P
 
 func newInvoiceTestRouter(repo service.InvoiceRepository, userID int64) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	h := NewInvoiceHandler(service.NewInvoiceService(repo, nil, nil, nil))
+	h := NewInvoiceHandler(service.NewInvoiceService(repo, nil, nil, nil, nil))
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
 		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: userID})
