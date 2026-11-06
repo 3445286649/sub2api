@@ -147,7 +147,7 @@ const props = withDefaults(defineProps<{
   network: string; cryptoAmount: string; receiveAddress: string; orderNo: string; orderAmount: string;
   remainingSeconds: number; totalSeconds?: number; cryptoRate?: string; gatewayStatus?: string; createStage?: string; orderStatus?: string;
   confirmations?: number; requiredConfirmations?: number; txHash?: string; checking?: boolean;
-  cancelling?: boolean; showSupport?: boolean; queryFailed?: boolean;
+  cancelling?: boolean; showSupport?: boolean; queryFailed?: boolean; acceptedSlow?: boolean;
 }>(), { confirmations: 0, requiredConfirmations: 0, totalSeconds: 0 })
 const emit = defineEmits<{ cancel: []; check: []; done: [] }>()
 const { t } = useI18n()
@@ -191,7 +191,9 @@ const mode = computed(() => {
 const payable = computed(() => mode.value === 'waiting')
 const showCountdown = computed(() => payable.value || mode.value === 'creating')
 const statusLabel = computed(() => t('payment.gateway.' + mode.value))
-const stateHint = computed(() => t('payment.gateway.' + (mode.value === 'expired' || mode.value === 'cancelled' ? 'closed' : mode.value) + 'Hint'))
+const stateHint = computed(() => mode.value === 'accepted' && props.acceptedSlow
+  ? t('payment.gateway.acceptedSlowHint')
+  : t('payment.gateway.' + (mode.value === 'expired' || mode.value === 'cancelled' ? 'closed' : mode.value) + 'Hint'))
 const stateIconClass = computed(() => mode.value === 'review' || mode.value === 'expired'
   ? 'bg-amber-50 text-amber-500 dark:bg-amber-500/10'
   : mode.value === 'rejected' ? 'bg-red-50 text-red-500 dark:bg-red-500/10'

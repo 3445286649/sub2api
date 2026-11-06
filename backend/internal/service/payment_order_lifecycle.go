@@ -326,8 +326,9 @@ func (s *PaymentService) VerifyOrderByOutTradeNo(ctx context.Context, outTradeNo
 	if o.UserID != userID {
 		return nil, infraerrors.Forbidden("FORBIDDEN", "no permission for this order")
 	}
-	// Only verify orders that are still pending or recently expired
-	if o.Status == OrderStatusPending || o.Status == OrderStatusExpired {
+	// Only verify orders that are still pending or recently expired.
+	// Gateway orders are throttled per order: each check costs a signed gateway query.
+	if (o.Status == OrderStatusPending || o.Status == OrderStatusExpired) && (psStringValue(o.ProviderKey) != payment.ProviderBepusdt || bepusdtVerifyAllowed(o.ID, time.Now())) {
 		result := s.reconcilePaid(ctx, o)
 		if result == checkPaidResultAlreadyPaid {
 			// Reload order to get updated status

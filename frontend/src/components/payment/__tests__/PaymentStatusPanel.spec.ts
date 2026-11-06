@@ -86,7 +86,7 @@ const usdtProps = (overrides: Record<string, unknown> = {}) => ({
 
 const gatewayCheckoutStub = {
   name: 'CryptoGatewayCheckout',
-  props: ['cryptoRate', 'totalSeconds', 'remainingSeconds', 'cryptoAmount', 'receiveAddress', 'orderStatus', 'gatewayStatus', 'queryFailed'],
+  props: ['cryptoRate', 'totalSeconds', 'remainingSeconds', 'cryptoAmount', 'receiveAddress', 'orderStatus', 'gatewayStatus', 'queryFailed', 'acceptedSlow'],
   emits: ['check'],
   template: '<div data-test="gateway-checkout"><button @click="$emit(\'check\')" /></div>',
 }
@@ -269,6 +269,91 @@ describe('PaymentStatusPanel', () => {
     expect(wrapper.emitted('settled')).toBeUndefined()
     await vi.advanceTimersByTimeAsync(5000)
     expect(pollOrderStatus).toHaveBeenCalledTimes(1)
+  })
+
+  const setDocumentHidden = (hidden: boolean) => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden })
+  }
+
+  it('polls a gateway order slowly while the tab is hidden', async () => {
+    const order = orderFactory('PENDING', gatewayQuote())
+    pollOrderStatus.mockResolvedValue(order)
+    verifyOrder.mockResolvedValue({ data: order })
+    setDocumentHidden(true)
+    try {
+      const wrapper = gatewayPanel()
+      await flushPromises()
+      expect(pollOrderStatus).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(20000)
+      expect(pollOrderStatus).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(10000)
+      expect(pollOrderStatus).toHaveBeenCalledTimes(2)
+      wrapper.unmount()
+    } finally {
+      setDocumentHidden(false)
+    }
+  })
+
+  it('checks a gateway order immediately when the tab returns to the foreground', async () => {
+    const order = orderFactory('PENDING', gatewayQuote())
+    pollOrderStatus.mockResolvedValue(order)
+    verifyOrder.mockResolvedValue({ data: order })
+    setDocumentHidden(true)
+    try {
+      const wrapper = gatewayPanel()
+      await flushPromises()
+      expect(pollOrderStatus).toHaveBeenCalledTimes(1)
+      setDocumentHidden(false)
+      document.dispatchEvent(new Event('visibilitychange'))
+      await flushPromises()
+      expect(pollOrderStatus).toHaveBeenCalledTimes(2)
+      // The loop is back on the foreground cadence instead of waiting out the slow tick.
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(pollOrderStatus).toHaveBeenCalledTimes(3)
+      wrapper.unmount()
+    } finally {
+      setDocumentHidden(false)
+    }
+  })
+
+  it('announces a closed gateway order once and stops polling after the grace period', async () => {
+    const closedOrder = orderFactory('EXPIRED', gatewayQuote({ gateway_status: 'EXPIRED' }))
+    pollOrderStatus.mockResolvedValue(closedOrder)
+    verifyOrder.mockResolvedValue({ data: closedOrder })
+    const wrapper = gatewayPanel()
+    await flushPromises()
+    expect(wrapper.emitted('closed')).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(7 * 60 * 1000)
+    expect(wrapper.emitted('closed')).toHaveLength(1)
+    const callsAfterGrace = pollOrderStatus.mock.calls.length
+    expect(callsAfterGrace).toBeGreaterThan(10)
+    await vi.advanceTimersByTimeAsync(60 * 1000)
+    expect(pollOrderStatus).toHaveBeenCalledTimes(callsAfterGrace)
+    wrapper.unmount()
+  })
+
+  it('does not announce closure for a failed gateway order that was already paid', async () => {
+    pollOrderStatus.mockResolvedValue(orderFactory('FAILED', gatewayQuote({ gateway_status: 'PAID', paid_at: '2026-10-09T11:00:00Z' })))
+    const wrapper = gatewayPanel()
+    await flushPromises()
+    expect(wrapper.emitted('closed')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('flags a paid gateway order that is slow to be credited and clears the wait on completion', async () => {
+    pollOrderStatus.mockResolvedValue(orderFactory('PAID', gatewayQuote({ gateway_status: 'PAID', paid_at: '2026-10-09T11:00:00Z' })))
+    const wrapper = gatewayPanel()
+    await flushPromises()
+    const checkout = wrapper.findComponent({ name: 'CryptoGatewayCheckout' })
+    expect(checkout.props('acceptedSlow')).toBe(false)
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(checkout.props('acceptedSlow')).toBe(false)
+    await vi.advanceTimersByTimeAsync(35000)
+    expect(checkout.props('acceptedSlow')).toBe(true)
+    pollOrderStatus.mockResolvedValue(orderFactory('COMPLETED', gatewayQuote({ gateway_status: 'PAID', paid_at: '2026-10-09T11:00:00Z' })))
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(wrapper.emitted('success')).toHaveLength(1)
+    wrapper.unmount()
   })
 
   it('recovers gateway quotes, shows confirmations/review and waits for fulfillment before success', async () => {

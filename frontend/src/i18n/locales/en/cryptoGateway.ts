@@ -33,6 +33,7 @@ export default {
       exchangeDecimalsWarning: 'Use a wallet if the exchange cannot retain every decimal digit shown above or deducts fees from the amount.',
       confirmingHint: 'An on-chain transfer was found and is awaiting safe confirmations. Do not pay again.',
       acceptedHint: 'On-chain payment is confirmed. Keep this order open while fulfillment completes.',
+      acceptedSlowHint: 'Your payment was received, but crediting is taking longer than usual. You can leave this page: the balance is credited automatically, and you can follow progress in your orders. Do not pay again.',
       checkingExpiry: 'Payment window ended, checking order',
       checkingExpiryHint: 'Do not send another transfer. The original order is being checked for its final server status.',
       closedWatchHint: 'The original order is still checked automatically. Transfers included during its valid window will update the result after confirmation.',

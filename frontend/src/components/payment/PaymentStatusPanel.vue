@@ -69,6 +69,7 @@
       :tx-hash="gatewayOrder?.crypto_tx_hash"
       :checking="gatewayChecking"
       :query-failed="gatewayQueryFailed"
+      :accepted-slow="gatewayAcceptedSlow"
       :cancelling="cancelling"
       :show-support="supportEnabled"
       @check="checkGatewayOrder"
@@ -368,7 +369,7 @@ const props = defineProps<{
 
 type PaymentOutcome = 'success' | 'cancelled' | 'expired'
 
-const emit = defineEmits<{ done: []; success: []; settled: [outcome: PaymentOutcome] }>()
+const emit = defineEmits<{ done: []; success: []; settled: [outcome: PaymentOutcome]; closed: [] }>()
 
 const i18n = useI18n()
 const { t } = i18n
@@ -386,6 +387,7 @@ const gatewayOrder = ref<PaymentOrder | null>(null)
 const gatewayChecking = ref(false)
 const paymentReviewStatus = ref('')
 const gatewayQueryFailed = ref(false)
+const gatewayAcceptedSlow = ref(false)
 const isGateway = computed(() => props.paymentType === 'usdt_gateway')
 const deepLinkState = ref<AlipayDeepLinkState>('idle')
 const deepLinkFallbackVisible = ref(false)
@@ -418,6 +420,12 @@ const USDT_VERIFY_INTERVAL_MS = 20000
 const USDT_WATCH_SECONDS = 6 * 60
 const USDT_WATCH_POLL_SECONDS = 15
 const USDT_WATCH_VERIFY_INTERVAL_MS = 30000
+// Gateway polling: slow down while the tab is hidden and stop shortly after the order closes.
+const GATEWAY_POLL_VISIBLE_MS = 5000
+const GATEWAY_POLL_HIDDEN_MS = 30000
+const GATEWAY_CLOSED_GRACE_MS = 6 * 60 * 1000
+// A paid gateway order that is still not credited after this long gets a reassuring hint.
+const GATEWAY_ACCEPTED_SLOW_MS = 60 * 1000
 
 const isAlipay = computed(() => isBuiltInAlipayMethod(props.paymentType))
 const isWxpay = computed(() => isBuiltInWxpayMethod(props.paymentType))
@@ -654,6 +662,7 @@ async function checkGatewayOrder() {
     orderLifetimeSeconds.value = orderLifetimeOf(order)
     const expiresAt = Date.parse(order.expires_at)
     if (Number.isFinite(expiresAt)) remainingSeconds.value = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000))
+    trackGatewayLifecycle(order)
     if (order.status === 'COMPLETED') {
       paidOrder.value = order
       cleanup()
@@ -664,6 +673,51 @@ async function checkGatewayOrder() {
     if (!gatewayDisposed) gatewayQueryFailed.value = true
   } finally {
     gatewayChecking.value = false
+  }
+}
+
+let gatewayTimer: ReturnType<typeof setTimeout> | null = null
+let gatewayClosedSince = 0
+let gatewayAcceptedSince = 0
+let gatewayClosedEmitted = false
+
+// Self-scheduling loop: the delay follows tab visibility, and the loop ends a grace period after the order closes.
+function scheduleGatewayPoll() {
+  if (gatewayDisposed || outcome.value === 'success') return
+  if (gatewayClosedSince && Date.now() - gatewayClosedSince > GATEWAY_CLOSED_GRACE_MS) return
+  if (gatewayTimer) clearTimeout(gatewayTimer)
+  gatewayTimer = setTimeout(async () => {
+    gatewayTimer = null
+    await checkGatewayOrder()
+    scheduleGatewayPoll()
+  }, document.hidden ? GATEWAY_POLL_HIDDEN_MS : GATEWAY_POLL_VISIBLE_MS)
+}
+
+function onGatewayVisibilityChange() {
+  if (document.hidden || gatewayDisposed || outcome.value === 'success') return
+  // Back in the foreground: check now instead of waiting out a slow background tick.
+  void checkGatewayOrder().finally(scheduleGatewayPoll)
+}
+
+function trackGatewayLifecycle(order: PaymentOrder) {
+  const status = String(order.status || '').trim().toUpperCase()
+  if (status === 'PAID' || status === 'RECHARGING') {
+    if (!gatewayAcceptedSince) gatewayAcceptedSince = Date.now()
+    gatewayAcceptedSlow.value = Date.now() - gatewayAcceptedSince >= GATEWAY_ACCEPTED_SLOW_MS
+  } else {
+    gatewayAcceptedSince = 0
+    gatewayAcceptedSlow.value = false
+  }
+  // A paid order that failed fulfillment is still being recovered by the backend, so it is not a closed order.
+  const closed = (status === 'EXPIRED' || status === 'CANCELLED' || status === 'FAILED') && !order.paid_at
+  if (closed) {
+    if (!gatewayClosedSince) gatewayClosedSince = Date.now()
+    if (!gatewayClosedEmitted) {
+      gatewayClosedEmitted = true
+      emit('closed')
+    }
+  } else {
+    gatewayClosedSince = 0
   }
 }
 
@@ -733,6 +787,7 @@ async function handleCancel() {
 function handleDone() { cleanup(); stopUsdtWatch(); emit('done') }
 
 function cleanup() {
+  if (gatewayTimer) { clearTimeout(gatewayTimer); gatewayTimer = null }
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
   alipayLauncher?.dispose()
@@ -750,8 +805,8 @@ if (props.expiresAt) {
 if (isGateway.value) {
   remainingSeconds.value = Math.max(0, seconds)
   countdownTimer = setInterval(() => { remainingSeconds.value = Math.max(0, remainingSeconds.value - 1) }, 1000)
-  pollTimer = setInterval(checkGatewayOrder, 5000)
-  void checkGatewayOrder()
+  void checkGatewayOrder().finally(scheduleGatewayPoll)
+  document.addEventListener('visibilitychange', onGatewayVisibilityChange)
 } else {
   startCountdown(seconds)
   pollTimer = setInterval(pollStatus, 3000)
@@ -771,7 +826,12 @@ onMounted(() => {
   })
   alipayLauncher.launch()
 })
-onUnmounted(() => { gatewayDisposed = true; cleanup(); stopUsdtWatch() })
+onUnmounted(() => {
+  gatewayDisposed = true
+  document.removeEventListener('visibilitychange', onGatewayVisibilityChange)
+  cleanup()
+  stopUsdtWatch()
+})
 </script>
 
 <style scoped>

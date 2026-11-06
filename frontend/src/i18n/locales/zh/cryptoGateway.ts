@@ -33,6 +33,7 @@ export default {
       exchangeDecimalsWarning: '若交易所无法保留上方全部小数位，或会从金额中扣除手续费，请改用钱包转账。',
       confirmingHint: '已发现链上转账，正在等待安全确认。请勿重复付款。',
       acceptedHint: '链上付款已确认，正在完成订单入账。请保留此订单并等待结果。',
+      acceptedSlowHint: '款项已收到，入账比平时慢。可以放心离开此页面，到账后会自动充值，也可在订单记录中查看进度。请勿重复付款。',
       checkingExpiry: '付款时间已结束，正在核对',
       checkingExpiryHint: '请勿继续转账。正在核对原订单，最终状态以服务端确认为准。',
       closedWatchHint: '仍在自动核对原订单；有效时间内已入块的转账确认后会更新结果。',

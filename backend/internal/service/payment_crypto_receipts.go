@@ -270,35 +270,6 @@ func (s *PaymentService) RecoverCryptoFulfillment(ctx context.Context) (int, err
 	return count, nil
 }
 
-func (s *PaymentService) ReconcileBepusdtOrders(ctx context.Context) (int, error) {
-	s.cryptoReconcileMu.Lock()
-	defer s.cryptoReconcileMu.Unlock()
-	orders, err := s.entClient.PaymentOrder.Query().Where(paymentorder.IDGT(s.bepusdtReconcileCursor), paymentorder.ProviderKeyEQ(payment.ProviderBepusdt), paymentorder.PaidAtIsNil(), paymentorder.StatusIn(OrderStatusPending, OrderStatusExpired, OrderStatusCancelled)).Order(dbent.Asc(paymentorder.FieldID)).Limit(20).All(ctx)
-	if err != nil {
-		return 0, err
-	}
-	count := 0
-	if len(orders) == 0 {
-		s.bepusdtReconcileCursor = 0
-		return 0, nil
-	}
-	for _, order := range orders {
-		if err = ctx.Err(); err != nil {
-			return count, err
-		}
-		s.bepusdtReconcileCursor = order.ID
-		if err = s.reconcileBepusdtOrder(ctx, order); err != nil {
-			slog.Warn("gateway reconcile failed", "order_id", order.ID, "error", err)
-			continue
-		}
-		count++
-	}
-	if len(orders) < 20 {
-		s.bepusdtReconcileCursor = 0
-	}
-	return count, nil
-}
-
 func cryptoReceiptExplorer(network, hash string) string {
 	switch network {
 	case "bsc_mainnet":

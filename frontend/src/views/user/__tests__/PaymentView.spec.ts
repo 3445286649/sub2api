@@ -470,6 +470,26 @@ describe('PaymentView subscription confirmation amounts', () => {
     expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({ amount: 12, plan_id: 7, payment_type: 'usdt_gateway', crypto_network: 'tron_mainnet' }))
     wrapper.unmount()
   })
+  it('drops the saved gateway request ID once the status panel reports the order closed', async () => {
+    const base = checkoutInfoFixture().data.methods.wxpay
+    const wrapper = await mountSubscriptionConfirm({ checkout: { methods: { usdt_gateway: { ...base, currency: 'CNY', networks: ['tron_mainnet'] } }, subscription_usd_to_cny_rate: 7.2 }, plan: { price: 12, currency: 'USD' } })
+    wrapper.findComponent({ name: 'PaymentMethodSelector' }).vm.$emit('select', 'usdt_gateway')
+    await flushPromises()
+    const pay = wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))!
+    createOrder.mockResolvedValue({ order_id: 8, amount: 12, pay_amount: 86.4, fee_rate: 0, expires_at: '2099-01-01T00:00:00Z', create_stage: 'unknown' })
+    await pay.trigger('click')
+    await flushPromises()
+    const intentKey = 'payment.crypto.intent.99'
+    expect(window.localStorage.getItem(intentKey)).not.toBeNull()
+    const panel = wrapper.findComponent({ name: 'PaymentStatusPanel' })
+    expect(panel.exists()).toBe(true)
+    // Still waiting: the saved request ID must survive so a retry reuses the same order.
+    expect(window.localStorage.getItem(intentKey)).not.toBeNull()
+    panel.vm.$emit('closed')
+    await flushPromises()
+    expect(window.localStorage.getItem(intentKey)).toBeNull()
+    wrapper.unmount()
+  })
   it('keeps subscription plan price independent from balance recharge multiplier', async () => {
     const wrapper = await mountSubscriptionConfirm({
       checkout: {

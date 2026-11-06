@@ -53,6 +53,7 @@
             @done="onPaymentDone"
             @success="onPaymentSuccess"
             @settled="onPaymentSettled"
+            @closed="onGatewayClosed"
           />
         </template>
         <!-- Tab content (select phase) -->
@@ -713,6 +714,11 @@ async function onPaymentSuccess() {
 
 function onPaymentSettled() {
   removeRecoverySnapshot()
+}
+
+// The gateway order is closed (expired, cancelled or rejected): drop the saved request ID so the next attempt gets a fresh order instead of the closed one.
+function onGatewayClosed() {
+  if (paymentState.value.paymentType === 'usdt_gateway' && user.value?.id) clearCryptoPaymentIntent(window.localStorage, user.value.id)
 }
 
 // All checkout data from single API call

@@ -238,6 +238,11 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	if err := s.checkPendingLimit(ctx, tx, req.UserID, cfg.MaxPendingOrders); err != nil {
 		return nil, err
 	}
+	if req.PaymentType == payment.TypeUSDTGateway {
+		if err := s.checkGatewayCreateRate(ctx, tx, req.UserID); err != nil {
+			return nil, err
+		}
+	}
 	if err := s.checkDailyLimit(ctx, tx, req.UserID, limitAmount, cfg.DailyLimit); err != nil {
 		return nil, err
 	}
