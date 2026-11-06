@@ -194,6 +194,9 @@ export default {
         emailDomainQuota: 'Non-allowlist Domain Quota',
         emailDomainQuotaHint:
           'When enabled and the allowlist is not empty, every other registrable domain can register one account. When disabled, non-allowlist domains are rejected. Has no effect while the allowlist is empty',
+        ipLimit: 'Registration IP Limit',
+        ipLimitHint:
+          'When enabled, one IPv4 address or one IPv6 /64 network can register at most 2 accounts in total. Deleting an account does not refund the quota, and accounts created by admins are not counted. Confirm server.trusted_proxies is configured correctly before enabling, otherwise users behind the same proxy address will share the quota',
         promoCode: 'Promo Code',
         promoCodeHint: 'Allow users to use promo codes during registration',
         invitationCode: 'Invitation Code Registration',

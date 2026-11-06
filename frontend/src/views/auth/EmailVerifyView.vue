@@ -785,6 +785,9 @@ function buildRegistrationErrorMessage(error: unknown, fallback: string): string
   if (extractApiErrorCode(error) === 'EMAIL_DOMAIN_REGISTRATION_LIMIT') {
     return t('auth.emailDomainRegistrationLimit')
   }
+  if (extractApiErrorCode(error) === 'REGISTRATION_IP_LIMIT') {
+    return t('auth.registrationIpLimit')
+  }
   return buildAuthErrorMessage(error, { fallback })
 }
 </script>

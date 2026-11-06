@@ -20,6 +20,7 @@ import (
 	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/authguard"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
@@ -137,6 +138,30 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 		}
 		if aliasExists {
 			return service.ErrEmailExists
+		}
+	}
+
+	if key, enabled := authguard.RegistrationIP(txCtx); enabled {
+		if key == "" {
+			// 公开注册但无法解析客户端 IP：宁可拒绝，也不放行绕过额度。
+			return service.ErrServiceUnavailable
+		}
+		// 原子 UPSERT 让并发注册和多实例都串行到同一行；额度与建号同事务提交或回滚，
+		// 删号不退额度。用 txClient 执行，兼容注入式事务 client。
+		result, err := txClient.ExecContext(txCtx, `
+INSERT INTO registration_ip_quotas (ip_hash, account_count) VALUES ($1, 1)
+ON CONFLICT (ip_hash) DO UPDATE
+SET account_count = registration_ip_quotas.account_count + 1
+WHERE registration_ip_quotas.account_count < 2`, key)
+		if err != nil {
+			return fmt.Errorf("claim registration IP quota: %w", err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affected == 0 {
+			return service.ErrRegistrationIPLimit
 		}
 	}
 

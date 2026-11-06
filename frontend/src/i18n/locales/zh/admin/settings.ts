@@ -194,6 +194,9 @@ export default {
         emailDomainQuota: '非白名单域名限量注册',
         emailDomainQuotaHint:
           '开启后，白名单非空时，其他可注册主域名各限注册一个账户；关闭时非白名单域名直接拒绝注册。白名单为空时本开关无效果',
+        ipLimit: '同一 IP 注册上限',
+        ipLimitHint:
+          '开启后，同一 IPv4 地址或同一 IPv6 /64 网段累计最多注册 2 个账号，删号不退还额度，管理员代建账号不计入。开启前请确认 server.trusted_proxies 已正确配置，否则共用代理地址的用户会共用名额',
         promoCode: '优惠码',
         promoCodeHint: '允许用户在注册时使用优惠码',
         invitationCode: '邀请码注册',

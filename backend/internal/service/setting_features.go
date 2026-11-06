@@ -45,6 +45,16 @@ func (s *SettingService) IsRegistrationEmailDomainQuotaEnabled(ctx context.Conte
 	return value == "true"
 }
 
+// IsRegistrationIPLimitEnabled 检查是否启用“同一 IP 最多注册两个账号”的终身额度。
+// 默认关闭：设置缺失或查询出错时按关闭处理，避免共享出口的用户在升级后被误拦。
+func (s *SettingService) IsRegistrationIPLimitEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyRegistrationIPLimitEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
 // GetRegistrationEmailSuffixWhitelist returns normalized registration email suffix whitelist.
 func (s *SettingService) GetRegistrationEmailSuffixWhitelist(ctx context.Context) []string {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyRegistrationEmailSuffixWhitelist)

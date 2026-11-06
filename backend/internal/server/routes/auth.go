@@ -30,6 +30,10 @@ func RegisterAuthRoutes(
 	auth.Use(servermiddleware.BackendModeAuthGuard(settingService))
 	// 认证事件（登录/注册/2FA/token 刷新失败）入审计
 	auth.Use(gin.HandlerFunc(auditLog))
+	// 公开注册入口标记可信客户端 IP，供建号事务按 IP 扣减终身额度（开关默认关闭）
+	auth.Use(middleware.RegistrationIPGuard(func(c *gin.Context) bool {
+		return settingService != nil && settingService.IsRegistrationIPLimitEnabled(c.Request.Context())
+	}))
 	{
 		// 注册/登录/2FA/验证码发送均属于高风险入口，增加服务端兜底限流（Redis 故障时 fail-close）
 		auth.POST("/register", rateLimiter.LimitWithOptions("auth-register", 5, time.Minute, middleware.RateLimitOptions{
