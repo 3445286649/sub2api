@@ -194,6 +194,9 @@ export default {
         emailDomainQuota: 'Non-allowlist Domain Quota',
         emailDomainQuotaHint:
           'When enabled and the allowlist is not empty, every other registrable domain can register one account. When disabled, non-allowlist domains are rejected. Has no effect while the allowlist is empty',
+        emailAliasBlock: 'Block Email Alias Registration',
+        emailAliasBlockHint:
+          'Enabled by default: reject Gmail/Googlemail usernames containing dots, +tag addresses, and trailing domain dots, including new third-party accounts. Dots in usernames on other domains are allowed; existing accounts can still sign in. Disabling this switch keeps duplicate-inbox checks active.',
         promoCode: 'Promo Code',
         promoCodeHint: 'Allow users to use promo codes during registration',
         invitationCode: 'Invitation Code Registration',

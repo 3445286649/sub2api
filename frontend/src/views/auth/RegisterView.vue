@@ -1134,6 +1134,9 @@ function buildRegistrationErrorMessage(error: unknown, fallback: string): string
   if (extractApiErrorCode(error) === 'EMAIL_DOMAIN_REGISTRATION_LIMIT') {
     return t('auth.emailDomainRegistrationLimit')
   }
+  if (extractApiErrorCode(error) === 'EMAIL_ALIAS_NOT_ALLOWED') {
+    return t('auth.emailAliasNotAllowed')
+  }
   return buildAuthErrorMessage(error, { fallback })
 }
 </script>

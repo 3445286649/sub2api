@@ -16,6 +16,7 @@ type SystemSettings struct {
 	EmailVerifyEnabled                  bool
 	RegistrationEmailSuffixWhitelist    []string
 	RegistrationEmailDomainQuotaEnabled bool
+	RegistrationEmailAliasBlockEnabled  bool // 屏蔽 Gmail 点号、+标签及域名尾点注册（默认开启）
 	PromoCodeEnabled                    bool
 	PasswordResetEnabled                bool
 	FrontendURL                         string

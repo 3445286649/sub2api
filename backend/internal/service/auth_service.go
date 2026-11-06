@@ -42,6 +42,7 @@ var (
 		"EMAIL_DOMAIN_REGISTRATION_LIMIT",
 		"this email domain cannot register another account; use a mainstream email or contact support to add the enterprise domain",
 	)
+	ErrEmailAliasNotAllowed    = infraerrors.BadRequest("EMAIL_ALIAS_NOT_ALLOWED", "email aliases cannot register; remove dots from Gmail usernames, +tags, and trailing domain dots")
 	ErrRegDisabled             = infraerrors.Forbidden("REGISTRATION_DISABLED", "registration is currently disabled")
 	ErrServiceUnavailable      = infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "service temporarily unavailable")
 	ErrInvitationCodeRequired  = infraerrors.BadRequest("INVITATION_CODE_REQUIRED", "invitation code is required")
@@ -170,6 +171,9 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	if isReservedEmail(email) {
 		return "", nil, ErrEmailReserved
 	}
+	if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+		return "", nil, err
+	}
 	// 检查是否需要邀请码
 	var invitationRedeemCode *RedeemCode
 	if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
@@ -252,6 +256,8 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 			return "", nil, ErrEmailExists
 		case errors.Is(err, ErrEmailDomainRegistrationLimit):
 			return "", nil, ErrEmailDomainRegistrationLimit
+		case errors.Is(err, ErrEmailAliasNotAllowed):
+			return "", nil, ErrEmailAliasNotAllowed
 		case errors.Is(err, ErrInvitationCodeInvalid):
 			return "", nil, ErrInvitationCodeInvalid
 		default:
@@ -314,6 +320,9 @@ func (s *AuthService) SendVerifyCode(ctx context.Context, email string, locale .
 	if isReservedEmail(email) {
 		return ErrEmailReserved
 	}
+	if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+		return err
+	}
 	// 检查邮箱是否已存在（含 +别名 / Gmail 点号变体归一化，防止单个收件箱批量派生注册）
 	existsEmail, err := s.existsByEmailOrAlias(ctx, email)
 	if err != nil {
@@ -353,6 +362,9 @@ func (s *AuthService) SendVerifyCodeAsync(ctx context.Context, email string, loc
 
 	if isReservedEmail(email) {
 		return nil, ErrEmailReserved
+	}
+	if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+		return nil, err
 	}
 	// 检查邮箱是否已存在（含 +别名 / Gmail 点号变体归一化；在发信前拦截，避免批量脚本消耗发信配额）
 	existsEmail, err := s.existsByEmailOrAlias(ctx, email)
@@ -591,6 +603,10 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				return "", nil, ErrRegDisabled
 			}
 
+			if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+				return "", nil, err
+			}
+
 			randomPassword, err := randomHexString(32)
 			if err != nil {
 				logger.LegacyPrintf("service.auth", "[Auth] Failed to generate random password for oauth signup: %v", err)
@@ -734,6 +750,10 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					return nil, nil, ErrInvitationCodeInvalid
 				}
 				invitationRedeemCode = redeemCode
+			}
+
+			if err := s.validateRegistrationEmailAlias(ctx, email); err != nil {
+				return nil, nil, err
 			}
 
 			randomPassword, err := randomHexString(32)
@@ -1245,6 +1265,9 @@ func (s *AuthService) validateRegistrationEmailQuota(ctx context.Context, email 
 func (s *AuthService) createUserWithRegistrationEmailGuard(ctx context.Context, user *User) error {
 	if s == nil || s.userRepo == nil {
 		return ErrServiceUnavailable
+	}
+	if err := s.validateRegistrationEmailAlias(ctx, user.Email); err != nil {
+		return err
 	}
 	whitelist := []string{}
 	if s.settingService != nil {

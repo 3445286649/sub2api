@@ -386,14 +386,59 @@ func TestAuthService_Register_EmailExists(t *testing.T) {
 }
 
 func TestAuthService_Register_AliasDuplicateRejected(t *testing.T) {
+	// 关闭“屏蔽别名写法”后，同一收件箱的去重仍然生效。
 	repo := &userRepoStub{aliasExists: true}
 	service := newAuthService(repo, map[string]string{
-		SettingKeyRegistrationEnabled: "true",
+		SettingKeyRegistrationEnabled:                "true",
+		SettingKeyRegistrationEmailAliasBlockEnabled: "false",
 	}, nil, nil)
 
 	_, _, err := service.Register(context.Background(), "some.one+bulk294@gmail.com", "password")
 	require.ErrorIs(t, err, ErrEmailExists)
 	require.Empty(t, repo.created)
+}
+
+func TestAuthService_Register_AliasBlockedByDefault(t *testing.T) {
+	// 设置缺失时按默认开启处理：别名写法直接拒绝，不查重也不建号。
+	repo := &userRepoStub{}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil, nil)
+
+	for _, email := range []string{"user+tag@example.com", "some.one@gmail.com", "user@example.com."} {
+		_, _, err := service.Register(context.Background(), email, "password")
+		require.ErrorIs(t, err, ErrEmailAliasNotAllowed, email)
+	}
+	require.Empty(t, repo.created)
+	require.Equal(t, 0, repo.guardedCreates)
+}
+
+func TestAuthService_SendVerifyCode_AliasBlockedByDefault(t *testing.T) {
+	// 发信前就拦截，避免批量脚本消耗发信配额。
+	repo := &userRepoStub{}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil, nil)
+
+	err := service.SendVerifyCode(context.Background(), "user+tag@example.com")
+	require.ErrorIs(t, err, ErrEmailAliasNotAllowed)
+}
+
+func TestIsRegistrationEmailAlias(t *testing.T) {
+	cases := map[string]bool{
+		"user@example.com":        false,
+		"user+tag@example.com":    true,
+		"user@example.com.":       true,
+		"some.one@gmail.com":      true,
+		"some.one@googlemail.com": true,
+		"someone@gmail.com":       false,
+		"some.one@example.com":    false,
+		"+tag@example.com":        false,
+		"not-an-email":            false,
+	}
+	for email, want := range cases {
+		require.Equal(t, want, IsRegistrationEmailAlias(email), email)
+	}
 }
 
 func TestAuthService_Register_UsesAliasGuardedCreate(t *testing.T) {

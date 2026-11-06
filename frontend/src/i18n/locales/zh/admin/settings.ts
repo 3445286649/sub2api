@@ -194,6 +194,9 @@ export default {
         emailDomainQuota: '非白名单域名限量注册',
         emailDomainQuotaHint:
           '开启后，白名单非空时，其他可注册主域名各限注册一个账户；关闭时非白名单域名直接拒绝注册。白名单为空时本开关无效果',
+        emailAliasBlock: '屏蔽邮箱别名注册',
+        emailAliasBlockHint:
+          '默认开启：拒绝 Gmail/Googlemail 用户名中带点号、邮箱中带 +标签、域名末尾带点号的地址注册（含第三方新用户注册）。其他域名用户名中的正常点号不受影响；已有账号仍可登录。关闭后仍会对同一邮箱的别名进行注册去重。',
         promoCode: '优惠码',
         promoCodeHint: '允许用户在注册时使用优惠码',
         invitationCode: '邀请码注册',
