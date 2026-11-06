@@ -542,6 +542,8 @@ export default {
       PAYMENT_PROVIDER_CONFLICT: 'Another enabled provider instance is already serving this payment method. Disable it before continuing.',
       JIANPAY_METHOD_MERCHANT_CONFLICT: 'Different JianPay merchants cannot serve the same payment method. Assign each instance to Alipay or WeChat first.',
       CANCEL_RATE_LIMITED: 'Too many cancellations. Please try again later.',
+      GATEWAY_CREATE_RATE_LIMITED: 'You have reached the limit of {max} unpaid crypto orders in the last {window_minutes} minutes. Please finish an existing order or try again later.',
+      PAYMENT_REVIEW: 'This payment is being confirmed or reviewed, so the order cannot be cancelled now. Do not send another transfer; check your orders later for the result.',
       NOT_FOUND: 'Order not found.',
       FORBIDDEN: 'No permission for this order.',
       CONFLICT: 'Order status has changed. Please refresh.',

@@ -70,6 +70,7 @@
       :checking="gatewayChecking"
       :query-failed="gatewayQueryFailed"
       :accepted-slow="gatewayAcceptedSlow"
+      :last-checked-at="gatewayLastCheckedAt"
       :cancelling="cancelling"
       :show-support="supportEnabled"
       @check="checkGatewayOrder"
@@ -388,6 +389,7 @@ const gatewayChecking = ref(false)
 const paymentReviewStatus = ref('')
 const gatewayQueryFailed = ref(false)
 const gatewayAcceptedSlow = ref(false)
+const gatewayLastCheckedAt = ref(0)
 const isGateway = computed(() => props.paymentType === 'usdt_gateway')
 const deepLinkState = ref<AlipayDeepLinkState>('idle')
 const deepLinkFallbackVisible = ref(false)
@@ -658,6 +660,7 @@ async function checkGatewayOrder() {
     }
     if (gatewayDisposed) return
     gatewayOrder.value = order
+    gatewayLastCheckedAt.value = Date.now()
     gatewayQueryFailed.value = queryFailed
     orderLifetimeSeconds.value = orderLifetimeOf(order)
     const expiresAt = Date.parse(order.expires_at)

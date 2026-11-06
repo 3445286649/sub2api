@@ -603,6 +603,8 @@ export default {
       PAYMENT_PROVIDER_CONFLICT: '该支付方式已有其他启用中的服务商实例，请先停用后再继续。',
       JIANPAY_METHOD_MERCHANT_CONFLICT: '不同简付商户号不能同时承接同一种支付方式。请先将原实例改为支付宝或微信专用。',
       CANCEL_RATE_LIMITED: '取消订单过于频繁，请稍后再试',
+      GATEWAY_CREATE_RATE_LIMITED: '最近 {window_minutes} 分钟内未支付的加密货币订单已达上限（{max} 个），请先完成已有订单，或稍后再试',
+      PAYMENT_REVIEW: '付款正在确认或复核中，暂时无法取消。请勿重复转账，稍后到订单记录查看结果。',
       NOT_FOUND: '订单不存在',
       FORBIDDEN: '无权限操作此订单',
       CONFLICT: '订单状态已变更，请刷新',

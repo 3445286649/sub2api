@@ -6,7 +6,7 @@
           <img :src="usdtIcon" alt="" class="h-10 w-10 shrink-0" />
           <div class="min-w-0 flex-1">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('payment.crypto.title') }}</h2>
-            <p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400" :title="orderNo">{{ t('payment.orders.orderNo') }} {{ orderNo }}</p>
+            <p class="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-gray-500 dark:text-gray-400"><span class="truncate" :title="orderNo">{{ t('payment.orders.orderNo') }} {{ orderNo }}</span><button v-if="orderNo" type="button" data-test="gateway-copy-order-no" class="shrink-0 rounded p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" :aria-label="t('payment.gateway.copyOrderNo')" :title="t('payment.gateway.copyOrderNo')" @click="copyOrderNo"><Icon :name="orderNoCopied ? 'check' : 'copy'" size="xs" /></button></p>
           </div>
           <span class="hidden shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold sm:inline-flex" :class="networkBadgeClass">
             <span class="h-1.5 w-1.5 rounded-full bg-current"></span>{{ networkBadge }}
@@ -56,8 +56,7 @@
           <div class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300">
             <span :class="stepNumClass(1)"><Icon v-if="addressDone" name="check" size="xs" :stroke-width="3" /><template v-else>2</template></span>
             {{ t('payment.crypto.stepAddress') }}
-            <span class="ml-auto rounded-full border px-2 py-0.5 text-[11px] font-semibold" :class="networkBadgeClass">{{ t('payment.gateway.networkOnly', { network: networkStandard }) }}</span>
-          </div>
+                      </div>
           <div class="grid grid-cols-1 items-center gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-5">
             <div class="order-2 flex flex-col items-center gap-3 sm:order-none">
               <div id="gateway-qr" class="relative rounded-lg border border-gray-200 bg-white p-2.5 dark:border-dark-600" :class="qrOpen ? 'block' : 'hidden sm:block'">
@@ -70,7 +69,7 @@
             </div>
             <div class="min-w-0">
               <p data-test="gateway-address" class="break-all rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-3 font-mono text-sm leading-[1.7] text-gray-600 dark:border-dark-600 dark:bg-dark-900/60 dark:text-gray-300 sm:text-[15px]">
-                <span v-for="(group, index) in addressGroups" :key="index" class="inline-block" :class="[index < addressGroups.length - 1 ? 'mr-[0.45em]' : '', index === 0 || index === addressGroups.length - 1 ? 'font-bold text-gray-900 dark:text-white' : '']">{{ group }}</span>
+                <span v-for="(row, rowIndex) in addressRows" :key="rowIndex" class="block"><span v-for="(group, colIndex) in row" :key="colIndex" class="inline-block" :class="[colIndex < row.length - 1 ? 'mr-[0.45em]' : '', rowIndex * ADDRESS_GROUPS_PER_ROW + colIndex === 0 || rowIndex * ADDRESS_GROUPS_PER_ROW + colIndex === addressGroups.length - 1 ? 'font-bold text-gray-900 dark:text-white' : '']">{{ group }}</span></span>
               </p>
               <p class="mb-3 mt-2 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.crypto.addressHint') }}</p>
               <button type="button" data-test="gateway-copy-address" class="btn w-full border border-primary-200 bg-primary-50 py-3 text-primary-700 hover:border-primary-400 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300 sm:w-auto sm:py-2.5" @click="copyAddress">
@@ -120,10 +119,11 @@
     </div>
 
     <p v-if="queryFailed" role="alert" data-test="gateway-query-failed" class="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"><Icon name="exclamationTriangle" size="sm" class="mt-0.5 shrink-0" />{{ t('payment.gateway.queryFailed') }}</p>
+    <p v-if="lastCheckedAgo !== null" data-test="gateway-last-checked" class="mt-3 px-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.gateway.lastChecked', { seconds: lastCheckedAgo }) }} · {{ t('payment.gateway.autoCheckHint') }}</p>
     <footer class="mt-3.5 flex flex-wrap items-center gap-2.5 px-1">
       <router-link v-if="showSupport" to="/support" class="mr-auto text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">{{ t('payment.crypto.needHelp') }}</router-link>
-      <span v-else class="mr-auto"></span>
-      <button type="button" data-test="gateway-check" class="btn btn-secondary inline-flex items-center gap-2" :disabled="checking" @click="emit('check')"><Icon name="refresh" size="sm" :class="checking ? 'animate-spin motion-reduce:animate-none' : ''" />{{ t('payment.gateway.retry') }}</button>
+      <p v-else data-test="gateway-help-fallback" class="mr-auto max-w-xs text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('payment.gateway.helpFallback') }}</p>
+      <button type="button" data-test="gateway-check" class="btn btn-secondary inline-flex items-center gap-2" :disabled="checking" @click="emit('check')"><Icon name="refresh" size="sm" :class="checking ? 'animate-spin motion-reduce:animate-none' : ''" />{{ checking ? t('payment.gateway.checking') : t('payment.gateway.retry') }}</button>
       <button v-if="payable || mode === 'creating'" type="button" data-test="gateway-cancel" class="btn btn-secondary" :disabled="cancelling" @click="confirmingCancel = true">{{ cancelling ? t('common.processing') : t('payment.qr.cancelOrder') }}</button>
       <button v-if="mode === 'expired' || mode === 'cancelled' || mode === 'rejected'" type="button" class="btn btn-primary" @click="emit('done')">{{ t('payment.result.backToRecharge') }}</button>
     </footer>
@@ -147,25 +147,34 @@ const props = withDefaults(defineProps<{
   network: string; cryptoAmount: string; receiveAddress: string; orderNo: string; orderAmount: string;
   remainingSeconds: number; totalSeconds?: number; cryptoRate?: string; gatewayStatus?: string; createStage?: string; orderStatus?: string;
   confirmations?: number; requiredConfirmations?: number; txHash?: string; checking?: boolean;
-  cancelling?: boolean; showSupport?: boolean; queryFailed?: boolean; acceptedSlow?: boolean;
+  cancelling?: boolean; showSupport?: boolean; queryFailed?: boolean; acceptedSlow?: boolean; lastCheckedAt?: number;
 }>(), { confirmations: 0, requiredConfirmations: 0, totalSeconds: 0 })
 const emit = defineEmits<{ cancel: []; check: []; done: [] }>()
 const { t } = useI18n()
 const { copied: amountCopied, copyToClipboard: copyAmountToClipboard } = useClipboard()
 const { copied: addressCopied, copyToClipboard: copyAddressToClipboard } = useClipboard()
+const { copied: orderNoCopied, copyToClipboard: copyOrderNoToClipboard } = useClipboard()
 const qrCanvas = ref<HTMLCanvasElement | null>(null)
 const qrOpen = ref(false)
 const amountDone = ref(false)
 const addressDone = ref(false)
 const confirmingCancel = ref(false)
 const networkLabel = computed(() => cryptoNetworkLabel(props.network))
-const networkStandard = computed(() => props.network === 'tron_mainnet' ? 'TRC20' : props.network === 'bsc_mainnet' ? 'BEP20' : '')
 const networkBadge = computed(() => props.network === 'tron_mainnet' ? 'TRON · TRC20' : props.network === 'bsc_mainnet' ? 'BSC · BEP20' : t('payment.gateway.network'))
 const networkBadgeClass = computed(() => props.network === 'tron_mainnet' ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300')
 const countdown = computed(() => formatCountdown(props.remainingSeconds))
 const urgent = computed(() => props.remainingSeconds <= 300)
 const amountParts = computed(() => splitUsdtAmount(props.cryptoAmount))
 const addressGroups = computed(() => groupWalletAddress(props.receiveAddress))
+// Fixed rows of five groups: a BSC address becomes 5 + 5, so the first and last groups sit on the same edge for checking.
+const ADDRESS_GROUPS_PER_ROW = 5
+const addressRows = computed(() => {
+  const rows: string[][] = []
+  for (let i = 0; i < addressGroups.value.length; i += ADDRESS_GROUPS_PER_ROW) rows.push(addressGroups.value.slice(i, i + ADDRESS_GROUPS_PER_ROW))
+  return rows
+})
+// remainingSeconds ticks every second, which keeps this label fresh without another timer.
+const lastCheckedAgo = computed(() => props.lastCheckedAt && props.remainingSeconds >= 0 ? Math.max(0, Math.floor((Date.now() - props.lastCheckedAt) / 1000)) : null)
 const rateText = computed(() => props.cryptoRate ? t('payment.crypto.exchangeRateValue', { rate: formatUsdtRate(props.cryptoRate) }) : '')
 const progressPercent = computed(() => props.totalSeconds > 0 ? Math.min(100, Math.max(0, props.remainingSeconds / props.totalSeconds * 100)) : 100)
 const confirmationPercent = computed(() => Math.min(100, Math.max(0, props.confirmations / props.requiredConfirmations * 100)))
@@ -208,6 +217,9 @@ function stepNumClass(index: number) {
 }
 async function copyAmount() {
   if (payable.value && await copyAmountToClipboard(props.cryptoAmount, t('payment.crypto.amountCopied'))) amountDone.value = true
+}
+async function copyOrderNo() {
+  if (props.orderNo) await copyOrderNoToClipboard(props.orderNo, t('payment.gateway.orderNoCopied'))
 }
 async function copyAddress() {
   if (payable.value && await copyAddressToClipboard(props.receiveAddress, t('payment.crypto.addressCopied'))) addressDone.value = true

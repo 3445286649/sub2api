@@ -54,6 +54,51 @@ describe('CryptoGatewayCheckout', () => {
   })
 })
 
+describe('gateway help and check feedback', () => {
+  beforeEach(() => {
+    toCanvas.mockReset().mockResolvedValue(undefined)
+    copyToClipboard.mockReset().mockResolvedValue(true)
+  })
+
+  it('copies the full order number from the header', async () => {
+    const wrapper = checkout()
+    await wrapper.get('[data-test="gateway-copy-order-no"]').trigger('click')
+    expect(copyToClipboard).toHaveBeenCalledWith('sub2_gateway_fixture', 'payment.gateway.orderNoCopied')
+  })
+
+  it('shows a fallback help hint only when the support entry is unavailable', () => {
+    expect(checkout({ showSupport: false }).find('[data-test="gateway-help-fallback"]').exists()).toBe(true)
+    expect(checkout({ showSupport: true }).find('[data-test="gateway-help-fallback"]').exists()).toBe(false)
+  })
+
+  it('lays the address out in fixed rows of five groups without changing its characters', async () => {
+    const wrapper = checkout()
+    const rowSizes = () => wrapper.findAll('[data-test="gateway-address"] > span.block').map(row => row.findAll('span.inline-block').length)
+    expect(rowSizes()).toEqual([5, 5])
+    expect(wrapper.get('[data-test="gateway-address"]').text().replace(/\s/g, '')).toBe(address)
+    const tronAddress = 'TYrRGMhFiCVJ3D9s1VsFxbbxFtq5eER3qJ'
+    await wrapper.setProps({ network: 'tron_mainnet', receiveAddress: tronAddress })
+    expect(rowSizes()).toEqual([5, 4])
+    expect(wrapper.get('[data-test="gateway-address"]').text().replace(/\s/g, '')).toBe(tronAddress)
+  })
+
+  it('shows when the order was last checked and labels the check button while checking', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-11-06T12:00:00Z'))
+      const wrapper = checkout({ lastCheckedAt: Date.now() - 7000 })
+      expect(wrapper.get('[data-test="gateway-last-checked"]').text()).toContain('"seconds":7')
+      expect(wrapper.get('[data-test="gateway-check"]').text()).toContain('payment.gateway.retry')
+      await wrapper.setProps({ checking: true })
+      expect(wrapper.get('[data-test="gateway-check"]').text()).toContain('payment.gateway.checking')
+      expect(wrapper.get('[data-test="gateway-check"]').attributes('disabled')).toBeDefined()
+      expect(checkout().find('[data-test="gateway-last-checked"]').exists()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('gateway state boundaries', () => {
   beforeEach(() => {
     toCanvas.mockReset().mockResolvedValue(undefined)
