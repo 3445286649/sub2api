@@ -25,6 +25,28 @@ var MaxExpiresAt = time.Date(2099, 12, 31, 23, 59, 59, 0, time.UTC)
 // MaxValidityDays is the maximum allowed validity days for subscriptions (100 years)
 const MaxValidityDays = 36500
 
+// SubscriptionRenewalMode is captured on a paid subscription order: restart replaces the
+// current term with a fresh one, extend adds the purchased days to it.
+type SubscriptionRenewalMode string
+
+const (
+	SubscriptionRenewalModeRestart SubscriptionRenewalMode = "restart"
+	SubscriptionRenewalModeExtend  SubscriptionRenewalMode = "extend"
+)
+
+// NormalizeSubscriptionRenewalMode treats an empty value as extend, which is the legacy
+// accumulate behavior, so old clients and old orders keep their semantics.
+func NormalizeSubscriptionRenewalMode(raw string) (SubscriptionRenewalMode, error) {
+	switch SubscriptionRenewalMode(strings.TrimSpace(raw)) {
+	case "", SubscriptionRenewalModeExtend:
+		return SubscriptionRenewalModeExtend, nil
+	case SubscriptionRenewalModeRestart:
+		return SubscriptionRenewalModeRestart, nil
+	default:
+		return "", infraerrors.BadRequest("INVALID_RENEWAL_MODE", "renewal_mode must be 'restart' or 'extend'")
+	}
+}
+
 var (
 	ErrSubscriptionNotFound        = infraerrors.NotFound("SUBSCRIPTION_NOT_FOUND", "subscription not found")
 	ErrSubscriptionExpired         = infraerrors.Forbidden("SUBSCRIPTION_EXPIRED", "subscription has expired")
@@ -267,6 +289,84 @@ func (s *SubscriptionService) assignOrExtendSubscription(ctx context.Context, in
 	s.maybeInvalidateAssignmentCaches(input.UserID, input.GroupID, deferCacheInvalidation)
 
 	return sub, false, nil // false 表示是新建
+}
+
+// assignOrRenewPaidSubscription applies the renewal mode captured on a paid order.
+// Extend delegates to the legacy accumulate path unchanged; redeem codes, signup grants
+// and admin assignment never go through restart.
+func (s *SubscriptionService) assignOrRenewPaidSubscription(
+	ctx context.Context,
+	input *AssignSubscriptionInput,
+	mode SubscriptionRenewalMode,
+	deferCacheInvalidation bool,
+) (*UserSubscription, bool, error) {
+	normalized, err := NormalizeSubscriptionRenewalMode(string(mode))
+	if err != nil {
+		return nil, false, err
+	}
+	if normalized == SubscriptionRenewalModeExtend {
+		return s.assignOrExtendSubscription(ctx, input, deferCacheInvalidation)
+	}
+
+	group, err := s.groupRepo.GetByID(ctx, input.GroupID)
+	if err != nil {
+		return nil, false, fmt.Errorf("group not found: %w", err)
+	}
+	if !group.IsSubscriptionType() {
+		return nil, false, ErrGroupNotSubscriptionType
+	}
+
+	existingSub, err := s.userSubRepo.GetByUserIDAndGroupID(ctx, input.UserID, input.GroupID)
+	if err != nil {
+		existingSub = nil
+	}
+	if existingSub == nil {
+		sub, err := s.createSubscription(ctx, input)
+		if err != nil {
+			return nil, false, err
+		}
+		s.maybeInvalidateAssignmentCaches(input.UserID, input.GroupID, deferCacheInvalidation)
+		return sub, false, nil
+	}
+
+	validityDays := input.ValidityDays
+	if validityDays <= 0 {
+		validityDays = 30
+	}
+	if validityDays > MaxValidityDays {
+		validityDays = MaxValidityDays
+	}
+	if err := s.restartExistingSubscriptionTerm(ctx, existingSub.ID, validityDays, input.Notes); err != nil {
+		return nil, false, err
+	}
+	s.maybeInvalidateAssignmentCaches(input.UserID, input.GroupID, deferCacheInvalidation)
+	sub, getErr := s.userSubRepo.GetByID(ctx, existingSub.ID)
+	return sub, true, getErr
+}
+
+// restartExistingSubscriptionTerm replaces the term with one starting now and refills quotas.
+func (s *SubscriptionService) restartExistingSubscriptionTerm(ctx context.Context, subscriptionID int64, validityDays int, notes string) error {
+	return s.withSubscriptionUpdateTx(ctx, func(txCtx context.Context) error {
+		existingSub, err := s.userSubRepo.GetByIDForUpdate(txCtx, subscriptionID)
+		if err != nil {
+			return fmt.Errorf("lock subscription for renewal restart: %w", err)
+		}
+
+		now := time.Now()
+		if s.now != nil {
+			now = s.now()
+		}
+		newExpiresAt := now.AddDate(0, 0, validityDays)
+		if newExpiresAt.After(MaxExpiresAt) {
+			newExpiresAt = MaxExpiresAt
+		}
+
+		renewed := renewedSubscriptionTerm(existingSub, notes, now, newExpiresAt)
+		if err := s.userSubRepo.Update(txCtx, renewed); err != nil {
+			return fmt.Errorf("restart subscription renewal: %w", err)
+		}
+		return nil
+	})
 }
 
 func (s *SubscriptionService) maybeInvalidateAssignmentCaches(userID, groupID int64, deferred bool) {

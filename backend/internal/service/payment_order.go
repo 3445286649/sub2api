@@ -28,6 +28,15 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if normalized := NormalizeVisibleMethod(req.PaymentType); normalized != "" {
 		req.PaymentType = normalized
 	}
+	if req.OrderType == payment.OrderTypeSubscription {
+		renewalMode, err := NormalizeSubscriptionRenewalMode(req.RenewalMode)
+		if err != nil {
+			return nil, err
+		}
+		req.RenewalMode = string(renewalMode)
+	} else {
+		req.RenewalMode = ""
+	}
 	if err := validateBepusdtCreateInput(req); err != nil {
 		return nil, err
 	}
@@ -310,7 +319,8 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		b.SetPlanID(plan.ID).
 			SetSubscriptionGroupID(plan.GroupID).
 			SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit)).
-			SetSubscriptionPlanType(planType)
+			SetSubscriptionPlanType(planType).
+			SetSubscriptionRenewalMode(req.RenewalMode)
 		if planType == SubscriptionPlanTypeQuotaReset {
 			b.SetQuotaResetScope(plan.QuotaResetScope).SetQuotaResetValue(plan.QuotaResetValue)
 		}
@@ -900,6 +910,9 @@ func buildWeChatPaymentOAuthStartURL(req CreateOrderRequest, scope string) (stri
 	}
 	if req.PlanID > 0 {
 		q.Set("plan_id", strconv.FormatInt(req.PlanID, 10))
+	}
+	if renewalMode := strings.TrimSpace(req.RenewalMode); renewalMode != "" {
+		q.Set("renewal_mode", renewalMode)
 	}
 	if scope = strings.TrimSpace(scope); scope != "" {
 		q.Set("scope", scope)

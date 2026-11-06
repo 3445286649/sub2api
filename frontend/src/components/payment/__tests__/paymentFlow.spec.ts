@@ -380,6 +380,14 @@ describe('buildCreateOrderPayload', () => {
     })
   })
 
+  it('sends renewal_mode only for subscription orders that chose one', () => {
+    const base = { amount: 128, paymentType: 'wxpay', planId: 7, isMobile: false, isWechatBrowser: false }
+    expect(buildCreateOrderPayload({ ...base, orderType: 'subscription', renewalMode: 'restart' })).toMatchObject({ renewal_mode: 'restart' })
+    expect(buildCreateOrderPayload({ ...base, orderType: 'subscription', renewalMode: 'extend' })).toMatchObject({ renewal_mode: 'extend' })
+    expect(buildCreateOrderPayload({ ...base, orderType: 'subscription' })).not.toHaveProperty('renewal_mode')
+    expect(buildCreateOrderPayload({ ...base, orderType: 'balance', renewalMode: 'restart' })).not.toHaveProperty('renewal_mode')
+  })
+
   it('passes is_mobile: false when forceQRCode is enabled for alipay', () => {
     expect(buildCreateOrderPayload({
       amount: 50,

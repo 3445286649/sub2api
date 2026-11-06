@@ -259,6 +259,7 @@ type CreateOrderRequest struct {
 	PaymentSource     string  `json:"payment_source"`
 	OrderType         string  `json:"order_type"`
 	PlanID            int64   `json:"plan_id"`
+	RenewalMode       string  `json:"renewal_mode"`
 	CryptoNetwork     string  `json:"crypto_network"`
 	ClientRequestID   string  `json:"client_request_id"`
 	// IsMobile lets the frontend declare its mobile status directly. When
@@ -309,6 +310,7 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 		PaymentSource:   req.PaymentSource,
 		OrderType:       req.OrderType,
 		PlanID:          req.PlanID,
+		RenewalMode:     req.RenewalMode,
 		Locale:          c.GetHeader("Accept-Language"),
 		CryptoNetwork:   req.CryptoNetwork,
 		ClientRequestID: req.ClientRequestID,
@@ -354,6 +356,22 @@ func applyWeChatPaymentResumeClaims(req *CreateOrderRequest, claims *service.WeC
 	}
 	if claims.PlanID > 0 {
 		req.PlanID = claims.PlanID
+	}
+	if claims.RenewalMode != "" {
+		claimMode, err := service.NormalizeSubscriptionRenewalMode(claims.RenewalMode)
+		if err != nil {
+			return err
+		}
+		if req.RenewalMode != "" {
+			requestMode, err := service.NormalizeSubscriptionRenewalMode(req.RenewalMode)
+			if err != nil {
+				return err
+			}
+			if requestMode != claimMode {
+				return infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume token renewal mode mismatch")
+			}
+		}
+		req.RenewalMode = string(claimMode)
 	}
 	return nil
 }

@@ -242,6 +242,40 @@
                   </div>
                 </div>
               </div>
+              <div
+                v-if="selectedActiveSubscription"
+                class="card bg-white p-6 dark:bg-dark-800"
+                data-test="renewal-mode-selector"
+              >
+                <div class="mb-3">
+                  <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('payment.renewalMode.title') }}</p>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('payment.renewalMode.currentExpiry', { date: formatDateTimeToMinute(selectedActiveSubscription.expires_at) }) }}
+                  </p>
+                </div>
+                <div class="grid grid-cols-2 gap-3" role="radiogroup" :aria-label="t('payment.renewalMode.title')">
+                  <button
+                    v-for="mode in (['extend', 'restart'] as const)"
+                    :key="mode"
+                    type="button"
+                    role="radio"
+                    :data-test="`renewal-mode-${mode}`"
+                    :aria-checked="renewalMode === mode"
+                    :class="[
+                      'min-h-[60px] min-w-0 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
+                      renewalMode === mode
+                        ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm dark:bg-primary-900/30 dark:text-primary-300'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200'
+                    ]"
+                    @click="renewalMode = mode"
+                  >
+                    {{ t(`payment.renewalMode.${mode}`) }}
+                  </button>
+                </div>
+                <p class="mt-3 text-xs leading-relaxed" :class="renewalMode === 'restart' ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'">
+                  {{ t(`payment.renewalMode.${renewalMode}Hint`) }}
+                </p>
+              </div>
               <div v-if="enabledMethods.length >= 1" class="card p-6">
                 <PaymentMethodSelector
                   :methods="subMethodOptions"
@@ -443,8 +477,9 @@ import { paymentAPI } from '@/api/payment'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
-import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType, CryptoNetwork } from '@/types/payment'
+import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType, CryptoNetwork, SubscriptionRenewalMode } from '@/types/payment'
 import { normalizeRechargeBonusTiers, normalizeRechargeBonusMode, quoteRechargeBonus } from '@/utils/rechargeBonus'
+import { formatDateTimeToMinute } from '@/utils/format'
 import type { PointsProduct } from '@/types/points'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
@@ -516,6 +551,8 @@ const amount = ref<number | null>(null)
 const selectedMethod = ref('')
 const selectedCryptoNetwork = ref<CryptoNetwork | ''>('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
+// 续费方式只在已有同分组订阅时展示；默认顺延，与后端缺省和历史订单语义一致
+const renewalMode = ref<SubscriptionRenewalMode>('extend')
 const previewImage = ref('')
 const selectedPointsProduct = ref<PointsProduct | null>(null)
 
@@ -545,6 +582,7 @@ interface CreateOrderOptions {
   paymentType?: string
   isResume?: boolean
   mobileQrFallbackAttempted?: boolean
+  renewalMode?: SubscriptionRenewalMode
 }
 
 interface WeixinJSBridgeLike {
@@ -656,7 +694,7 @@ async function redirectToPaymentResult(state: PaymentRecoverySnapshot): Promise<
 
 function buildWechatOAuthAuthorizeUrl(
   authorizeUrl: string,
-  context: { paymentType: string; orderType: OrderType; planId?: number; orderAmount: number },
+  context: { paymentType: string; orderType: OrderType; planId?: number; orderAmount: number; renewalMode?: SubscriptionRenewalMode },
 ): string {
   const normalizedUrl = authorizeUrl.trim()
   if (!normalizedUrl || typeof window === 'undefined') {
@@ -676,6 +714,12 @@ function buildWechatOAuthAuthorizeUrl(
       redirectUrl.searchParams.set('plan_id', String(context.planId))
     } else {
       redirectUrl.searchParams.delete('plan_id')
+    }
+
+    if (context.orderType === 'subscription' && context.renewalMode) {
+      redirectUrl.searchParams.set('renewal_mode', context.renewalMode)
+    } else {
+      redirectUrl.searchParams.delete('renewal_mode')
     }
 
     if (context.orderAmount > 0) {
@@ -822,6 +866,9 @@ function isQuotaResetPlan(plan: SubscriptionPlan): boolean {
 
 const subscriptionPlans = computed(() => checkout.value.plans.filter(plan => !isQuotaResetPlan(plan)))
 const quotaResetPlans = computed(() => checkout.value.plans.filter(isQuotaResetPlan))
+const selectedActiveSubscription = computed(() =>
+  selectedPlan.value && !isQuotaResetPlan(selectedPlan.value) ? activeSubscriptionForPlan(selectedPlan.value) : undefined,
+)
 
 function activeSubscriptionForPlan(plan: SubscriptionPlan) {
   return activeSubscriptions.value.find(sub => sub.status === 'active' && sub.group_id === plan.group_id)
@@ -1147,6 +1194,7 @@ function planPeakRateLabel(plan: SubscriptionPlan): string {
 
 function selectPlan(plan: SubscriptionPlan) {
   selectedPlan.value = plan
+  renewalMode.value = 'extend'
   errorMessage.value = ''
 }
 
@@ -1154,6 +1202,7 @@ function selectPlanFromModal(plan: SubscriptionPlan) {
   showRenewalModal.value = false
   renewGroupId.value = null
   selectedPlan.value = plan
+  renewalMode.value = 'extend'
   errorMessage.value = ''
 }
 
@@ -1175,7 +1224,7 @@ async function handleSubmitRecharge() {
 
 async function confirmSubscribe() {
   if (!selectedPlan.value || submitting.value) return
-  await createOrder(selectedPlan.value.price, 'subscription', selectedPlan.value.id)
+  await createOrder(selectedPlan.value.price, 'subscription', selectedPlan.value.id, { renewalMode: renewalMode.value })
 }
 
 async function createOrder(orderAmount: number, orderType: OrderType, planId?: number, options: CreateOrderOptions = {}) {
@@ -1190,6 +1239,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       paymentType: requestType,
       orderType,
       planId,
+      renewalMode: orderType === 'subscription' ? (options.renewalMode ?? renewalMode.value) : undefined,
       origin: typeof window !== 'undefined' ? window.location.origin : '',
       isMobile: isMobileDevice(),
       isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
@@ -1260,6 +1310,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
         orderType,
         planId,
         orderAmount,
+        renewalMode: orderType === 'subscription' ? (options.renewalMode ?? renewalMode.value) : undefined,
       })
       return
     }
@@ -1497,6 +1548,7 @@ async function resumeWechatPaymentFromQuery() {
   }
   if (resume.orderType === 'subscription' && resume.planId) {
     selectedPlan.value = checkout.value.plans.find(plan => plan.id === resume.planId) ?? null
+    renewalMode.value = resume.renewalMode ?? 'extend'
   }
 
   await router.replace({ path: route.path, query: stripWechatResumeQuery(route.query) })

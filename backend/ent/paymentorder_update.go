@@ -406,6 +406,20 @@ func (_u *PaymentOrderUpdate) ClearSubscriptionDays() *PaymentOrderUpdate {
 	return _u
 }
 
+// SetSubscriptionRenewalMode sets the "subscription_renewal_mode" field.
+func (_u *PaymentOrderUpdate) SetSubscriptionRenewalMode(v string) *PaymentOrderUpdate {
+	_u.mutation.SetSubscriptionRenewalMode(v)
+	return _u
+}
+
+// SetNillableSubscriptionRenewalMode sets the "subscription_renewal_mode" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableSubscriptionRenewalMode(v *string) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetSubscriptionRenewalMode(*v)
+	}
+	return _u
+}
+
 // SetSubscriptionPlanType sets the "subscription_plan_type" field.
 func (_u *PaymentOrderUpdate) SetSubscriptionPlanType(v string) *PaymentOrderUpdate {
 	_u.mutation.SetSubscriptionPlanType(v)
@@ -898,6 +912,11 @@ func (_u *PaymentOrderUpdate) check() error {
 			return &ValidationError{Name: "order_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.order_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SubscriptionRenewalMode(); ok {
+		if err := paymentorder.SubscriptionRenewalModeValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_renewal_mode", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.subscription_renewal_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SubscriptionPlanType(); ok {
 		if err := paymentorder.SubscriptionPlanTypeValidator(v); err != nil {
 			return &ValidationError{Name: "subscription_plan_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.subscription_plan_type": %w`, err)}
@@ -1057,6 +1076,9 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.SubscriptionDaysCleared() {
 		_spec.ClearField(paymentorder.FieldSubscriptionDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.SubscriptionRenewalMode(); ok {
+		_spec.SetField(paymentorder.FieldSubscriptionRenewalMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.SubscriptionPlanType(); ok {
 		_spec.SetField(paymentorder.FieldSubscriptionPlanType, field.TypeString, value)
@@ -1598,6 +1620,20 @@ func (_u *PaymentOrderUpdateOne) ClearSubscriptionDays() *PaymentOrderUpdateOne 
 	return _u
 }
 
+// SetSubscriptionRenewalMode sets the "subscription_renewal_mode" field.
+func (_u *PaymentOrderUpdateOne) SetSubscriptionRenewalMode(v string) *PaymentOrderUpdateOne {
+	_u.mutation.SetSubscriptionRenewalMode(v)
+	return _u
+}
+
+// SetNillableSubscriptionRenewalMode sets the "subscription_renewal_mode" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableSubscriptionRenewalMode(v *string) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionRenewalMode(*v)
+	}
+	return _u
+}
+
 // SetSubscriptionPlanType sets the "subscription_plan_type" field.
 func (_u *PaymentOrderUpdateOne) SetSubscriptionPlanType(v string) *PaymentOrderUpdateOne {
 	_u.mutation.SetSubscriptionPlanType(v)
@@ -2103,6 +2139,11 @@ func (_u *PaymentOrderUpdateOne) check() error {
 			return &ValidationError{Name: "order_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.order_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SubscriptionRenewalMode(); ok {
+		if err := paymentorder.SubscriptionRenewalModeValidator(v); err != nil {
+			return &ValidationError{Name: "subscription_renewal_mode", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.subscription_renewal_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SubscriptionPlanType(); ok {
 		if err := paymentorder.SubscriptionPlanTypeValidator(v); err != nil {
 			return &ValidationError{Name: "subscription_plan_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.subscription_plan_type": %w`, err)}
@@ -2279,6 +2320,9 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	}
 	if _u.mutation.SubscriptionDaysCleared() {
 		_spec.ClearField(paymentorder.FieldSubscriptionDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.SubscriptionRenewalMode(); ok {
+		_spec.SetField(paymentorder.FieldSubscriptionRenewalMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.SubscriptionPlanType(); ok {
 		_spec.SetField(paymentorder.FieldSubscriptionPlanType, field.TypeString, value)

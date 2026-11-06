@@ -54,6 +54,8 @@ const (
 	FieldSubscriptionGroupID = "subscription_group_id"
 	// FieldSubscriptionDays holds the string denoting the subscription_days field in the database.
 	FieldSubscriptionDays = "subscription_days"
+	// FieldSubscriptionRenewalMode holds the string denoting the subscription_renewal_mode field in the database.
+	FieldSubscriptionRenewalMode = "subscription_renewal_mode"
 	// FieldSubscriptionPlanType holds the string denoting the subscription_plan_type field in the database.
 	FieldSubscriptionPlanType = "subscription_plan_type"
 	// FieldQuotaResetScope holds the string denoting the quota_reset_scope field in the database.
@@ -138,6 +140,7 @@ var Columns = []string{
 	FieldPlanID,
 	FieldSubscriptionGroupID,
 	FieldSubscriptionDays,
+	FieldSubscriptionRenewalMode,
 	FieldSubscriptionPlanType,
 	FieldQuotaResetScope,
 	FieldQuotaResetValue,
@@ -199,6 +202,10 @@ var (
 	DefaultOrderType string
 	// OrderTypeValidator is a validator for the "order_type" field. It is called by the builders before save.
 	OrderTypeValidator func(string) error
+	// DefaultSubscriptionRenewalMode holds the default value on creation for the "subscription_renewal_mode" field.
+	DefaultSubscriptionRenewalMode string
+	// SubscriptionRenewalModeValidator is a validator for the "subscription_renewal_mode" field. It is called by the builders before save.
+	SubscriptionRenewalModeValidator func(string) error
 	// DefaultSubscriptionPlanType holds the default value on creation for the "subscription_plan_type" field.
 	DefaultSubscriptionPlanType string
 	// SubscriptionPlanTypeValidator is a validator for the "subscription_plan_type" field. It is called by the builders before save.
@@ -341,6 +348,11 @@ func BySubscriptionGroupID(opts ...sql.OrderTermOption) OrderOption {
 // BySubscriptionDays orders the results by the subscription_days field.
 func BySubscriptionDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSubscriptionDays, opts...).ToFunc()
+}
+
+// BySubscriptionRenewalMode orders the results by the subscription_renewal_mode field.
+func BySubscriptionRenewalMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionRenewalMode, opts...).ToFunc()
 }
 
 // BySubscriptionPlanType orders the results by the subscription_plan_type field.

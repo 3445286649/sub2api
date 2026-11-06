@@ -1204,6 +1204,7 @@ var (
 		{Name: "plan_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "subscription_group_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "subscription_days", Type: field.TypeInt, Nullable: true},
+		{Name: "subscription_renewal_mode", Type: field.TypeString, Size: 16, Default: "extend"},
 		{Name: "subscription_plan_type", Type: field.TypeString, Size: 30, Default: "subscription"},
 		{Name: "quota_reset_scope", Type: field.TypeString, Size: 20, Default: ""},
 		{Name: "quota_reset_value", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
@@ -1238,7 +1239,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "payment_orders_users_payment_orders",
-				Columns:    []*schema.Column{PaymentOrdersColumns[44]},
+				Columns:    []*schema.Column{PaymentOrdersColumns[45]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1247,7 +1248,7 @@ var (
 			{
 				Name:    "paymentorder_user_id_client_request_id",
 				Unique:  true,
-				Columns: []*schema.Column{PaymentOrdersColumns[44], PaymentOrdersColumns[10]},
+				Columns: []*schema.Column{PaymentOrdersColumns[45], PaymentOrdersColumns[10]},
 			},
 			{
 				Name:    "paymentorder_out_trade_no",
@@ -1268,32 +1269,32 @@ var (
 			{
 				Name:    "paymentorder_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[44]},
+				Columns: []*schema.Column{PaymentOrdersColumns[45]},
 			},
 			{
 				Name:    "paymentorder_status",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[26]},
+				Columns: []*schema.Column{PaymentOrdersColumns[27]},
 			},
 			{
 				Name:    "paymentorder_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[34]},
+				Columns: []*schema.Column{PaymentOrdersColumns[35]},
 			},
 			{
 				Name:    "paymentorder_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[42]},
+				Columns: []*schema.Column{PaymentOrdersColumns[43]},
 			},
 			{
 				Name:    "paymentorder_paid_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[35]},
+				Columns: []*schema.Column{PaymentOrdersColumns[36]},
 			},
 			{
 				Name:    "paymentorder_payment_type_paid_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[11], PaymentOrdersColumns[35]},
+				Columns: []*schema.Column{PaymentOrdersColumns[11], PaymentOrdersColumns[36]},
 			},
 			{
 				Name:    "paymentorder_order_type",

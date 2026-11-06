@@ -25,6 +25,7 @@ export type CryptoNetwork = 'bsc_mainnet' | 'tron_mainnet'
 
 export type OrderType = 'balance' | 'subscription'
 export type SubscriptionPlanType = 'subscription' | 'quota_reset'
+export type SubscriptionRenewalMode = 'restart' | 'extend'
 export type QuotaResetScope = 'daily' | 'weekly' | 'monthly' | 'all' | ''
 
 // ==================== Configuration ====================
@@ -208,6 +209,7 @@ export interface CreateOrderRequest {
   payment_type: string
   order_type: string
   plan_id?: number
+  renewal_mode?: SubscriptionRenewalMode
   return_url?: string
   payment_source?: string
   openid?: string
