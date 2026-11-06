@@ -24,12 +24,26 @@ func RegisterAuthRoutes(
 ) {
 	// 创建速率限制器
 	rateLimiter := middleware.NewRateLimiter(redisClient)
+	// Read the switch once per request so the failure guard and the route limits agree.
+	loginRateLimitEnabled := func(c *gin.Context) bool {
+		const contextKey = "auth.login_rate_limit_enabled"
+		if cached, exists := c.Get(contextKey); exists {
+			if enabled, ok := cached.(bool); ok {
+				return enabled
+			}
+		}
+		enabled := settingService == nil || settingService.IsLoginRateLimitEnabled(c.Request.Context())
+		c.Set(contextKey, enabled)
+		return enabled
+	}
 
 	// 公开接口
 	auth := v1.Group("/auth")
 	auth.Use(servermiddleware.BackendModeAuthGuard(settingService))
 	// 认证事件（登录/注册/2FA/token 刷新失败）入审计
 	auth.Use(gin.HandlerFunc(auditLog))
+	// 登录失败 IP 封禁：15 分钟内 10 次凭证失败后封禁 1 小时（开关默认开启）
+	auth.Use(middleware.LoginFailureGuard(redisClient, loginRateLimitEnabled))
 	{
 		// 注册/登录/2FA/验证码发送均属于高风险入口，增加服务端兜底限流（Redis 故障时 fail-close）
 		auth.POST("/register", rateLimiter.LimitWithOptions("auth-register", 5, time.Minute, middleware.RateLimitOptions{
@@ -37,15 +51,19 @@ func RegisterAuthRoutes(
 		}), h.Auth.Register)
 		auth.POST("/login", rateLimiter.LimitWithOptions("auth-login", 20, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
+			Enabled:     loginRateLimitEnabled,
 		}), h.Auth.Login)
 		auth.POST("/login/2fa", rateLimiter.LimitWithOptions("auth-login-2fa", 20, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
+			Enabled:     loginRateLimitEnabled,
 		}), h.Auth.Login2FA)
 		auth.POST("/passkey/login/begin", rateLimiter.LimitWithOptions("passkey-login-begin", 20, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
+			Enabled:     loginRateLimitEnabled,
 		}), h.Passkey.BeginLogin)
 		auth.POST("/passkey/login/finish", rateLimiter.LimitWithOptions("passkey-login-finish", 20, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
+			Enabled:     loginRateLimitEnabled,
 		}), h.Passkey.FinishLogin)
 		auth.POST("/send-verify-code", rateLimiter.LimitWithOptions("auth-send-verify-code", 5, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
@@ -139,6 +157,7 @@ func RegisterAuthRoutes(
 		auth.POST("/oauth/pending/bind-login",
 			rateLimiter.LimitWithOptions("oauth-pending-bind-login", 10, time.Minute, middleware.RateLimitOptions{
 				FailureMode: middleware.RateLimitFailClose,
+				Enabled:     loginRateLimitEnabled,
 			}),
 			h.Auth.BindPendingOAuthLogin,
 		)
@@ -151,6 +170,7 @@ func RegisterAuthRoutes(
 		auth.POST("/oauth/linuxdo/bind-login",
 			rateLimiter.LimitWithOptions("oauth-linuxdo-bind-login", 20, time.Minute, middleware.RateLimitOptions{
 				FailureMode: middleware.RateLimitFailClose,
+				Enabled:     loginRateLimitEnabled,
 			}),
 			h.Auth.BindLinuxDoOAuthLogin,
 		)
@@ -169,6 +189,7 @@ func RegisterAuthRoutes(
 		auth.POST("/oauth/wechat/bind-login",
 			rateLimiter.LimitWithOptions("oauth-wechat-bind-login", 20, time.Minute, middleware.RateLimitOptions{
 				FailureMode: middleware.RateLimitFailClose,
+				Enabled:     loginRateLimitEnabled,
 			}),
 			h.Auth.BindWeChatOAuthLogin,
 		)
@@ -198,6 +219,7 @@ func RegisterAuthRoutes(
 		auth.POST("/oauth/oidc/bind-login",
 			rateLimiter.LimitWithOptions("oauth-oidc-bind-login", 20, time.Minute, middleware.RateLimitOptions{
 				FailureMode: middleware.RateLimitFailClose,
+				Enabled:     loginRateLimitEnabled,
 			}),
 			h.Auth.BindOIDCOAuthLogin,
 		)
@@ -227,6 +249,7 @@ func RegisterAuthRoutes(
 		auth.POST("/oauth/dingtalk/bind-login",
 			rateLimiter.LimitWithOptions("oauth-dingtalk-bind-login", 20, time.Minute, middleware.RateLimitOptions{
 				FailureMode: middleware.RateLimitFailClose,
+				Enabled:     loginRateLimitEnabled,
 			}),
 			h.Auth.BindDingTalkOAuthLogin,
 		)

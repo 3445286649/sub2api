@@ -16,6 +16,7 @@ type SystemSettings struct {
 	EmailVerifyEnabled                  bool
 	RegistrationEmailSuffixWhitelist    []string
 	RegistrationEmailDomainQuotaEnabled bool
+	LoginRateLimitEnabled               bool // 登录频率限制与失败 IP 封禁（默认开启）
 	PromoCodeEnabled                    bool
 	PasswordResetEnabled                bool
 	FrontendURL                         string

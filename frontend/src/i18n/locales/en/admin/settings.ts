@@ -223,7 +223,9 @@ export default {
         sessionBinding: 'Session IP/UA Binding',
         sessionBindingHint: 'Bind login sessions to the client IP and User-Agent. Any change immediately invalidates the session and forces re-login, raising the bar for stolen-credential reuse.',
         auditRetention: 'Audit Log Retention (days)',
-        auditRetentionHint: 'Audit logs older than this are cleaned up automatically. Set to 0 to keep them forever (manual clear only).'
+        auditRetentionHint: 'Audit logs older than this are cleaned up automatically. Set to 0 to keep them forever (manual clear only).',
+        loginRateLimit: 'Login rate limiting',
+        loginRateLimitHint: 'Enabled by default. Limits sign-in requests and bans an IP (IPv6 by /64) for 1 hour after 10 failed credential checks within 15 minutes. Disabling bypasses request limits and IP bans for password, two-factor, Passkey and OAuth account-binding sign-ins. Saving takes effect immediately. Existing bans keep their original expiry if re-enabled. Make sure server.trusted_proxies is configured correctly, otherwise users behind the same proxy address will be banned together.'
       },
       panelRateLimit: {
         title: 'Panel API Rate Limiting',

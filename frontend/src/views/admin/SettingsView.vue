@@ -1693,6 +1693,24 @@
                 <Toggle v-model="form.session_binding_enabled" />
               </div>
 
+              <!-- 登录限流与失败封禁 -->
+              <div
+                class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
+              >
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">{{
+                    t("admin.settings.security.loginRateLimit")
+                  }}</label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.security.loginRateLimitHint") }}
+                  </p>
+                </div>
+                <Toggle
+                  v-model="form.login_rate_limit_enabled"
+                  :aria-label="t('admin.settings.security.loginRateLimit')"
+                />
+              </div>
+
               <!-- 审计日志保留天数 -->
               <div
                 class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -10231,6 +10249,7 @@ const form = reactive<SettingsForm>({
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
   registration_email_domain_quota_enabled: false,
+  login_rate_limit_enabled: true,
   promo_code_enabled: true,
   invitation_code_enabled: false,
   password_reset_enabled: false,
@@ -12071,6 +12090,7 @@ async function saveSettings() {
         ),
       registration_email_domain_quota_enabled:
         form.registration_email_domain_quota_enabled,
+      login_rate_limit_enabled: form.login_rate_limit_enabled,
       promo_code_enabled: form.promo_code_enabled,
       invitation_code_enabled: form.invitation_code_enabled,
       password_reset_enabled: form.password_reset_enabled,
