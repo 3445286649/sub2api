@@ -124,6 +124,8 @@ const rows = computed(() => {
     { label: t('invoice.confirm.type'), value: t(`invoice.title.${r.invoice_type}`) },
     { label: enterprise ? t('invoice.title.enterpriseName') : t('invoice.title.individualName'), value: r.title },
   ]
+  // 历史申请没有类目，不显示这一行
+  if (r.category_name) list.push({ label: t('invoice.category.label'), value: r.category_name })
   if (enterprise && r.enterprise_tax_number) list.push({ label: t('invoice.title.taxNumber'), value: r.enterprise_tax_number, mono: true })
   if (!enterprise && r.individual_id_number) list.push({ label: t('invoice.title.idNumber'), value: r.individual_id_number, mono: true })
   list.push({ label: t('invoice.detail.receiverEmail'), value: r.receiver_email })

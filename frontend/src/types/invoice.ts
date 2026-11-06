@@ -50,11 +50,15 @@ export interface InvoiceTitleForm {
   individual_id_number: string
   /** 电子发票接收邮箱 */
   receiver_email: string
+  /** 开票类目；没有启用类目时为 null */
+  category_id: number | null
 }
 
 export interface CreateInvoiceRequest extends Partial<InvoiceTitleForm> {
   invoice_type: InvoiceType
   order_ids: number[]
+  /** 管理员配置了启用类目时必填 */
+  category_id?: number | null
 }
 
 export interface InvoiceRequest {
@@ -88,6 +92,33 @@ export interface InvoiceRequest {
   rejected_at?: string | null
   /** 仅详情接口返回 */
   orders?: InvoiceableOrder[]
+  /** 申请时选择的开票类目；category_name 是提交时的名称快照，历史申请为空 */
+  category_id?: number | null
+  category_name?: string | null
+}
+
+/** 用户申请页下拉框里的一项 */
+export interface InvoiceCategoryOption {
+  id: number
+  name: string
+  description: string
+}
+
+/** 管理端类目：带启停、排序和被申请引用的次数 */
+export interface AdminInvoiceCategory extends InvoiceCategoryOption {
+  enabled: boolean
+  sort_order: number
+  request_count: number
+  created_at: string
+  updated_at: string
+}
+
+/** 字段缺省表示不修改；创建时 enabled 缺省为启用 */
+export interface InvoiceCategoryInput {
+  name?: string
+  description?: string
+  enabled?: boolean
+  sort_order?: number
 }
 
 export interface InvoiceStatusCounts {
@@ -115,6 +146,7 @@ export interface AdminInvoiceListParams {
   page_size?: number
   status?: InvoiceRequestStatus
   invoice_type?: InvoiceType
+  category_id?: number
   /** 匹配用户邮箱、抬头、税号或申请编号 */
   keyword?: string
 }

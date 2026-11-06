@@ -32,6 +32,7 @@ type createInvoiceRequest struct {
 	EnterpriseBankAccount string  `json:"enterprise_bank_account"`
 	IndividualName        string  `json:"individual_name"`
 	IndividualIDNumber    string  `json:"individual_id_number"`
+	CategoryID            *int64  `json:"category_id"`
 }
 
 func (h *InvoiceHandler) ListOrders(c *gin.Context) {
@@ -75,6 +76,7 @@ func (h *InvoiceHandler) Create(c *gin.Context) {
 		EnterpriseBankAccount: req.EnterpriseBankAccount,
 		IndividualName:        req.IndividualName,
 		IndividualIDNumber:    req.IndividualIDNumber,
+		CategoryID:            req.CategoryID,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

@@ -171,6 +171,7 @@ func RegisterUserRoutes(
 		invoice := authenticated.Group("/invoice")
 		{
 			invoice.GET("/orders", h.Invoice.ListOrders)
+			invoice.GET("/categories", h.Invoice.ListCategories)
 			invoice.GET("/requests", h.Invoice.List)
 			invoice.POST("/requests", h.Invoice.Create)
 			invoice.GET("/requests/:id", h.Invoice.GetByID)

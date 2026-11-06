@@ -5,7 +5,7 @@
 
 import type { InvoiceAPI } from './invoice'
 import type { AdminInvoiceAPI } from './admin/invoice'
-import type { AddInvoiceExclusionsResult, AdminInvoiceRequest, InvoiceableOrder, InvoiceExclusion, InvoiceRequest } from '@/types/invoice'
+import type { AddInvoiceExclusionsResult, AdminInvoiceCategory, AdminInvoiceRequest, InvoiceableOrder, InvoiceExclusion, InvoiceRequest } from '@/types/invoice'
 import { sumAmounts } from '@/components/invoice/invoiceFormat'
 
 const delay = (ms = 350) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -136,7 +136,21 @@ function find(id: number) {
 }
 const myRequests = () => requests.filter((r) => r.user_id === ME.id)
 
+/** 管理员配置的开票类目；用户端只看到启用的 */
+const categories: AdminInvoiceCategory[] = [
+  { id: 1, name: '技术服务费', description: '软件技术服务', enabled: true, sort_order: 1, request_count: 0, created_at: daysAgo(30), updated_at: daysAgo(30) },
+  { id: 2, name: '软件使用费', description: '', enabled: true, sort_order: 2, request_count: 0, created_at: daysAgo(30), updated_at: daysAgo(30) },
+]
+
 export const invoiceMockAPI: InvoiceAPI = {
+  async getCategories() {
+    await delay(200)
+    return categories
+      .filter((c) => c.enabled)
+      .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
+      .map(({ id, name, description }) => ({ id, name, description }))
+  },
+
   async getInvoiceableOrders() {
     await delay()
     const items = orders.map(view)
@@ -156,6 +170,11 @@ export const invoiceMockAPI: InvoiceAPI = {
     if (picked.length === 0 || picked.some((o) => activeClaim(o.id) !== null || exclusions.has(o.id))) {
       throw mockError(400, 'ORDER_NOT_INVOICEABLE', '所选订单中有已申请开票的订单，请刷新后重试')
     }
+    // 与后端一致：有启用类目时必须选其中一个，没有时保持旧流程
+    const enabledCategories = categories.filter((c) => c.enabled)
+    const category = enabledCategories.find((c) => c.id === payload.category_id)
+    if (enabledCategories.length > 0 && payload.category_id == null) throw mockError(400, 'INVOICE_CATEGORY_REQUIRED', '请选择开票类目')
+    if (payload.category_id != null && !category) throw mockError(400, 'INVALID_INVOICE_CATEGORY', '开票类目不可用，请重新选择')
     const isEnterprise = payload.invoice_type === 'enterprise'
     const id = Math.max(...requests.map((r) => r.id)) + 1
     const created: AdminInvoiceRequest = {
@@ -174,6 +193,8 @@ export const invoiceMockAPI: InvoiceAPI = {
       order_count: picked.length,
       status: 'pending',
       receiver_email: payload.receiver_email ?? '',
+      category_id: category?.id ?? null,
+      category_name: category?.name ?? null,
       created_at: new Date().toISOString(),
     }
     requests.unshift(created)
@@ -211,6 +232,9 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   processing: ['completed', 'rejected'],
 }
 
+const withCount = (c: AdminInvoiceCategory): AdminInvoiceCategory => ({ ...c, request_count: requests.filter((r) => r.category_id === c.id).length })
+const sortedCategories = () => [...categories].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
+
 export const adminInvoiceMockAPI: AdminInvoiceAPI = {
   async getStats() {
     await delay(200)
@@ -233,6 +257,7 @@ export const adminInvoiceMockAPI: AdminInvoiceAPI = {
     const filtered = requests.filter((r) => {
       if (params?.status && r.status !== params.status) return false
       if (params?.invoice_type && r.invoice_type !== params.invoice_type) return false
+      if (params?.category_id && r.category_id !== params.category_id) return false
       if (kw) {
         const hay = [String(r.id), r.user_email, r.title, r.enterprise_tax_number ?? ''].join(' ').toLowerCase()
         if (!hay.includes(kw)) return false
@@ -360,5 +385,65 @@ export const adminInvoiceMockAPI: AdminInvoiceAPI = {
       }
     }
     throw mockError(404, 'INVOICE_EXCLUSION_NOT_FOUND', '这条排除记录已不存在')
+  },
+
+  async listCategories() {
+    await delay(200)
+    return sortedCategories().map(withCount)
+  },
+
+  async createCategory(input) {
+    await delay(300)
+    const name = (input.name ?? '').trim()
+    if (!name) throw mockError(400, 'INVOICE_CATEGORY_NAME_REQUIRED', '请填写类目名称')
+    if (categories.some((c) => c.name === name)) throw mockError(409, 'INVOICE_CATEGORY_DUPLICATE', '已经有同名的类目')
+    const now = new Date().toISOString()
+    const created: AdminInvoiceCategory = {
+      id: Math.max(0, ...categories.map((c) => c.id)) + 1,
+      name,
+      description: (input.description ?? '').trim(),
+      enabled: input.enabled ?? true,
+      sort_order: input.sort_order ?? Math.max(0, ...categories.map((c) => c.sort_order)) + 1,
+      request_count: 0,
+      created_at: now,
+      updated_at: now,
+    }
+    categories.push(created)
+    return withCount(created)
+  },
+
+  async updateCategory(id, input) {
+    await delay(300)
+    const category = categories.find((c) => c.id === id)
+    if (!category) throw mockError(404, 'INVOICE_CATEGORY_NOT_FOUND', '类目不存在')
+    const name = input.name === undefined ? category.name : input.name.trim()
+    if (!name) throw mockError(400, 'INVOICE_CATEGORY_NAME_REQUIRED', '请填写类目名称')
+    if (categories.some((c) => c.id !== id && c.name === name)) throw mockError(409, 'INVOICE_CATEGORY_DUPLICATE', '已经有同名的类目')
+    Object.assign(category, {
+      name,
+      description: input.description === undefined ? category.description : input.description.trim(),
+      enabled: input.enabled ?? category.enabled,
+      sort_order: input.sort_order ?? category.sort_order,
+      updated_at: new Date().toISOString(),
+    })
+    return withCount(category)
+  },
+
+  async deleteCategory(id) {
+    await delay(200)
+    const index = categories.findIndex((c) => c.id === id)
+    if (index < 0) throw mockError(404, 'INVOICE_CATEGORY_NOT_FOUND', '类目不存在')
+    if (requests.some((r) => r.category_id === id)) throw mockError(409, 'INVOICE_CATEGORY_IN_USE', '这个类目已有开票申请使用，只能停用，不能删除')
+    categories.splice(index, 1)
+  },
+
+  async reorderCategories(ids) {
+    await delay(200)
+    if (ids.length === 0 || new Set(ids).size !== ids.length) throw mockError(400, 'INVOICE_CATEGORY_REORDER_INVALID', '类目排序无效')
+    if (ids.some((id) => !categories.some((c) => c.id === id))) throw mockError(404, 'INVOICE_CATEGORY_NOT_FOUND', '类目不存在')
+    ids.forEach((id, index) => {
+      categories.find((c) => c.id === id)!.sort_order = index + 1
+    })
+    return sortedCategories().map(withCount)
   },
 }

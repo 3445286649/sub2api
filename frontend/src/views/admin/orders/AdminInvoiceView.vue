@@ -35,7 +35,11 @@
           </div>
           <Select v-model="filters.status" :options="statusOptions" class="w-36" @change="reload" />
           <Select v-model="filters.invoice_type" :options="typeOptions" class="w-36" @change="reload" />
+          <Select v-if="categories.length > 0" v-model="filters.category_id" :options="categoryOptions" class="w-44" data-testid="admin-invoice-category-filter" @change="reload" />
           <div class="flex flex-1 justify-end gap-2">
+            <button type="button" class="btn btn-secondary" data-testid="admin-invoice-categories" @click="categoriesOpen = true">
+              <Icon name="document" size="sm" class="mr-1.5" />{{ t('invoice.categories.open') }}
+            </button>
             <button type="button" class="btn btn-secondary" data-testid="admin-invoice-exclusions" @click="exclusionsOpen = true">
               <Icon name="ban" size="sm" class="mr-1.5" />{{ t('invoice.exclusions.open') }}
             </button>
@@ -63,6 +67,9 @@
               </p>
             </div>
           </div>
+        </template>
+        <template #cell-category_name="{ value }">
+          <span class="text-sm text-gray-700 dark:text-gray-300">{{ value || '—' }}</span>
         </template>
         <template #cell-user_email="{ value, row }">
           <div class="text-sm">
@@ -124,6 +131,7 @@
       @download-file="handleDownload"
     />
     <AdminInvoiceExclusionDialog :show="exclusionsOpen" @close="exclusionsOpen = false" />
+    <AdminInvoiceCategoryDialog :show="categoriesOpen" @close="categoriesOpen = false" @changed="onCategoriesChanged" />
   </AppLayout>
 </template>
 
@@ -136,6 +144,7 @@ import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
+import AdminInvoiceCategoryDialog from '@/components/invoice/AdminInvoiceCategoryDialog.vue'
 import AdminInvoiceExclusionDialog from '@/components/invoice/AdminInvoiceExclusionDialog.vue'
 import AdminInvoiceProcessDialog from '@/components/invoice/AdminInvoiceProcessDialog.vue'
 import InvoiceStatusBadge from '@/components/invoice/InvoiceStatusBadge.vue'
@@ -147,6 +156,7 @@ import { extractI18nErrorMessage } from '@/utils/apiError'
 import { formatDateTimeToMinute } from '@/utils/format'
 import type { Column } from '@/components/common/types'
 import type {
+  AdminInvoiceCategory,
   AdminInvoiceRequest,
   AdminUpdateInvoiceStatus,
   InvoiceRequestStatus,
@@ -199,15 +209,17 @@ const statCards = computed(() => [
 const items = ref<AdminInvoiceRequest[]>([])
 const loading = ref(false)
 const keyword = ref('')
-const filters = reactive<{ status: InvoiceRequestStatus | ''; invoice_type: InvoiceType | '' }>({
+const filters = reactive<{ status: InvoiceRequestStatus | ''; invoice_type: InvoiceType | ''; category_id: number | '' }>({
   status: (['pending', 'processing', 'completed', 'rejected'] as const).find((s) => s === route.query.status) ?? '',
   invoice_type: '',
+  category_id: '',
 })
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
 
 const columns = computed<Column[]>(() => [
   { key: 'id', label: t('invoice.admin.col.id') },
   { key: 'title', label: t('invoice.admin.col.title') },
+  { key: 'category_name', label: t('invoice.admin.col.category') },
   { key: 'user_email', label: t('invoice.admin.col.user') },
   { key: 'total_amount', label: t('invoice.admin.col.amount') },
   { key: 'status', label: t('invoice.admin.col.status') },
@@ -233,6 +245,7 @@ async function loadList() {
       page_size: pagination.page_size,
       status: filters.status || undefined,
       invoice_type: filters.invoice_type || undefined,
+      category_id: filters.category_id || undefined,
       keyword: keyword.value.trim() || undefined,
     })
     items.value = res.items
@@ -272,6 +285,31 @@ function debounceLoad() {
 }
 
 const exclusionsOpen = ref(false)
+const categoriesOpen = ref(false)
+
+// ---- 开票类目：筛选项里包含已停用的，历史申请可能还在用 ----
+const categories = ref<AdminInvoiceCategory[]>([])
+const categoryOptions = computed(() => [
+  { value: '', label: t('invoice.admin.allCategories') },
+  ...categories.value.map((c) => ({ value: c.id, label: c.enabled ? c.name : `${c.name} · ${t('invoice.categories.disabled')}` })),
+])
+
+async function loadCategories() {
+  try {
+    categories.value = await adminInvoiceAPI.listCategories()
+  } catch (err) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'invoice.errors', t('invoice.categories.loadFailed')))
+  }
+}
+
+// 类目被删除后，正在使用的筛选条件要清掉，否则列表会一直是空的
+async function onCategoriesChanged() {
+  await loadCategories()
+  if (filters.category_id !== '' && !categories.value.some((c) => c.id === filters.category_id)) {
+    filters.category_id = ''
+    reload()
+  }
+}
 
 // ---- 详情 / 处理 ----
 const detailOpen = ref(false)
@@ -352,5 +390,8 @@ async function handleDownload(id: number) {
   }
 }
 
-onMounted(refreshAll)
+onMounted(() => {
+  refreshAll()
+  void loadCategories()
+})
 </script>

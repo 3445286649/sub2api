@@ -21,8 +21,20 @@ import (
 
 type invoiceHandlerRepo struct {
 	service.InvoiceRepository
-	rows    []service.InvoiceOrderRow
-	request *service.InvoiceRequest
+	rows       []service.InvoiceOrderRow
+	request    *service.InvoiceRequest
+	categories []service.InvoiceCategory
+}
+
+func (r *invoiceHandlerRepo) ListCategories(_ context.Context, enabledOnly bool) ([]service.InvoiceCategory, error) {
+	out := make([]service.InvoiceCategory, 0, len(r.categories))
+	for _, c := range r.categories {
+		if enabledOnly && !c.Enabled {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out, nil
 }
 
 func (r *invoiceHandlerRepo) ListOrdersForUser(context.Context, int64, []string) ([]service.InvoiceOrderRow, error) {
@@ -59,6 +71,7 @@ func newInvoiceTestRouter(repo service.InvoiceRepository, userID int64) *gin.Eng
 		c.Next()
 	})
 	router.GET("/invoice/orders", h.ListOrders)
+	router.GET("/invoice/categories", h.ListCategories)
 	router.GET("/invoice/requests", h.List)
 	router.POST("/invoice/requests", h.Create)
 	router.GET("/invoice/requests/:id", h.GetByID)

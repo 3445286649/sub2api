@@ -146,6 +146,15 @@ func (s *InvoiceService) CreateRequest(ctx context.Context, input CreateInvoiceR
 	if err != nil {
 		return nil, err
 	}
+	// 类目在服务端重新校验，并把名称快照写进申请，之后类目改名不影响历史申请。
+	category, err := s.resolveInvoiceCategory(ctx, input.CategoryID)
+	if err != nil {
+		return nil, err
+	}
+	if category != nil {
+		req.CategoryID = &category.ID
+		req.CategoryName = &category.Name
+	}
 	// 金额只取服务端算出的值，订单归属和可开票状态都在锁内重新判断。
 	buildLines := func(rows []InvoiceOrderRow) ([]InvoiceOrderLine, error) {
 		if len(rows) != len(orderIDs) {

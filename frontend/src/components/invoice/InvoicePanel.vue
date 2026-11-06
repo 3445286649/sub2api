@@ -88,7 +88,7 @@
             <!-- 第 2 步：抬头 -->
             <div v-else-if="step === 1" class="card p-5">
               <h3 class="mb-4 text-sm font-semibold text-gray-800 dark:text-gray-200">{{ t('invoice.title.heading') }}</h3>
-              <InvoiceTitleForm v-model="form" :errors="fieldErrors" :show-all-errors="showAllErrors" />
+              <InvoiceTitleForm v-model="form" :errors="fieldErrors" :show-all-errors="showAllErrors" :categories="categories" />
             </div>
 
             <!-- 第 3 步：确认 -->
@@ -166,7 +166,7 @@ import { invoiceAPI } from '@/api/invoice'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { extractI18nErrorMessage } from '@/utils/apiError'
-import type { InvoiceableOrder, InvoiceableSummary, InvoiceRequest, InvoiceRequestStatus, InvoiceTitleForm as TitleForm } from '@/types/invoice'
+import type { InvoiceableOrder, InvoiceableSummary, InvoiceCategoryOption, InvoiceRequest, InvoiceRequestStatus, InvoiceTitleForm as TitleForm } from '@/types/invoice'
 import InvoiceDetailDialog from './InvoiceDetailDialog.vue'
 import InvoiceOrderItem from './InvoiceOrderItem.vue'
 import InvoiceRecordList from './InvoiceRecordList.vue'
@@ -226,8 +226,26 @@ async function loadOrders() {
 
 // ---- 抬头 ----
 const form = ref<TitleForm>(emptyInvoiceTitleForm(authStore.user?.email ?? ''))
+
+// ---- 开票类目 ----
+// 管理员没配置任何启用类目时为空数组，此时不显示类目选择，提交也不带类目
+const categories = ref<InvoiceCategoryOption[]>([])
+
+async function loadCategories() {
+  try {
+    categories.value = await invoiceAPI.getCategories()
+  } catch (err) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'invoice.errors', t('invoice.errors.loadFailed')))
+    return
+  }
+  // 已选的类目被管理员停用后要重新选；只剩一个类目时直接选中
+  const current = form.value.category_id
+  if (current !== null && !categories.value.some((c) => c.id === current)) form.value.category_id = null
+  if (form.value.category_id === null && categories.value.length === 1) form.value.category_id = categories.value[0].id
+}
+
 const showAllErrors = ref(false)
-const fieldErrors = computed(() => validateInvoiceTitle(form.value))
+const fieldErrors = computed(() => validateInvoiceTitle(form.value, categories.value.length > 0))
 const titleValid = computed(() => Object.keys(fieldErrors.value).length === 0)
 const titleText = computed(() =>
   (form.value.invoice_type === 'enterprise' ? form.value.enterprise_name : form.value.individual_name).trim(),
@@ -238,6 +256,8 @@ const confirmRows = computed(() => {
   const rows: { label: string; value: string; mono?: boolean }[] = [
     { label: t('invoice.confirm.type'), value: t(`invoice.title.${f.invoice_type}`) },
   ]
+  const chosen = categories.value.find((c) => c.id === f.category_id)
+  if (chosen) rows.push({ label: t('invoice.category.label'), value: chosen.name })
   if (f.invoice_type === 'enterprise') {
     rows.push({ label: t('invoice.title.enterpriseName'), value: f.enterprise_name.trim() })
     rows.push({ label: t('invoice.title.taxNumber'), value: f.enterprise_tax_number.trim().toUpperCase(), mono: true })
@@ -299,6 +319,7 @@ async function submit() {
       invoice_type: f.invoice_type,
       order_ids: selectedOrders.value.map((o) => o.id),
       receiver_email: f.receiver_email.trim(),
+      category_id: f.category_id ?? undefined,
       ...(enterprise
         ? {
             enterprise_name: f.enterprise_name.trim(),
@@ -318,6 +339,7 @@ async function submit() {
   } catch (err) {
     appStore.showError(extractI18nErrorMessage(err, t, 'invoice.errors', t('invoice.errors.submitFailed')))
     void loadOrders()
+    void loadCategories()
   } finally {
     submitting.value = false
   }
@@ -388,6 +410,10 @@ function reapply(req: InvoiceRequest) {
   detailOpen.value = false
   const next = emptyInvoiceTitleForm(req.receiver_email)
   next.invoice_type = req.invoice_type
+  // 带上原类目；该类目已停用或被删除时清空，让用户重新选
+  const prior = req.category_id ?? null
+  next.category_id = prior !== null && categories.value.some((c) => c.id === prior) ? prior : null
+  if (next.category_id === null && categories.value.length === 1) next.category_id = categories.value[0].id
   if (req.invoice_type === 'enterprise') {
     next.enterprise_name = req.title
     next.enterprise_tax_number = req.enterprise_tax_number ?? ''
@@ -403,7 +429,10 @@ function reapply(req: InvoiceRequest) {
   view.value = 'apply'
 }
 
-onMounted(loadOrders)
+onMounted(() => {
+  void loadOrders()
+  void loadCategories()
+})
 </script>
 
 <style scoped>

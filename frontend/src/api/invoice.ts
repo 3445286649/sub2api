@@ -7,6 +7,7 @@ import { apiClient } from './client'
 import type { BasePaginationResponse } from '@/types'
 import type {
   CreateInvoiceRequest,
+  InvoiceCategoryOption,
   InvoiceableOrdersResponse,
   InvoiceRequest,
   InvoiceRequestStatus,
@@ -19,6 +20,8 @@ export interface InvoiceRequestListParams {
 }
 
 export interface InvoiceAPI {
+  /** 已启用的开票类目，一个都没配置时为空数组 */
+  getCategories(): Promise<InvoiceCategoryOption[]>
   getInvoiceableOrders(): Promise<InvoiceableOrdersResponse>
   createRequest(payload: CreateInvoiceRequest): Promise<InvoiceRequest>
   listRequests(params?: InvoiceRequestListParams): Promise<BasePaginationResponse<InvoiceRequest>>
@@ -28,6 +31,10 @@ export interface InvoiceAPI {
 }
 
 const remoteInvoiceAPI: InvoiceAPI = {
+  async getCategories() {
+    const { data } = await apiClient.get<InvoiceCategoryOption[]>('/invoice/categories')
+    return data
+  },
   async getInvoiceableOrders() {
     const { data } = await apiClient.get<InvoiceableOrdersResponse>('/invoice/orders')
     return data
@@ -60,6 +67,7 @@ function resolveAPI(): Promise<InvoiceAPI> {
 }
 
 export const invoiceAPI: InvoiceAPI = {
+  getCategories: () => resolveAPI().then((api) => api.getCategories()),
   getInvoiceableOrders: () => resolveAPI().then((api) => api.getInvoiceableOrders()),
   createRequest: (payload) => resolveAPI().then((api) => api.createRequest(payload)),
   listRequests: (params) => resolveAPI().then((api) => api.listRequests(params)),

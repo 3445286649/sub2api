@@ -16,13 +16,15 @@ import (
 
 type fakeInvoiceRepo struct {
 	InvoiceRepository
-	rows      []InvoiceOrderRow
-	request   *InvoiceRequest
-	lines     []InvoiceOrderLine
-	updateOK  bool
-	lastAdded []int64
-	matches   []InvoiceOrderMatch
-	emailedAt *time.Time
+	rows       []InvoiceOrderRow
+	request    *InvoiceRequest
+	lines      []InvoiceOrderLine
+	updateOK   bool
+	lastAdded  []int64
+	matches    []InvoiceOrderMatch
+	emailedAt  *time.Time
+	categories []InvoiceCategory
+	reordered  []int64
 }
 
 func (f *fakeInvoiceRepo) ListOrdersForUser(context.Context, int64, []string) ([]InvoiceOrderRow, error) {
@@ -64,6 +66,48 @@ func (f *fakeInvoiceRepo) UpdateStatus(_ context.Context, _ int64, update Invoic
 
 func (f *fakeInvoiceRepo) MarkEmailSent(_ context.Context, _ int64, at time.Time) error {
 	f.emailedAt = &at
+	return nil
+}
+
+func (f *fakeInvoiceRepo) ListCategories(_ context.Context, enabledOnly bool) ([]InvoiceCategory, error) {
+	out := make([]InvoiceCategory, 0, len(f.categories))
+	for _, c := range f.categories {
+		if enabledOnly && !c.Enabled {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out, nil
+}
+
+func (f *fakeInvoiceRepo) GetCategory(_ context.Context, id int64) (*InvoiceCategory, error) {
+	for i := range f.categories {
+		if f.categories[i].ID == id {
+			c := f.categories[i]
+			return &c, nil
+		}
+	}
+	return nil, ErrInvoiceCategoryNotFound
+}
+
+func (f *fakeInvoiceRepo) CreateCategory(_ context.Context, c *InvoiceCategory) error {
+	c.ID = int64(len(f.categories) + 1)
+	f.categories = append(f.categories, *c)
+	return nil
+}
+
+func (f *fakeInvoiceRepo) UpdateCategory(_ context.Context, c *InvoiceCategory) error {
+	for i := range f.categories {
+		if f.categories[i].ID == c.ID {
+			f.categories[i] = *c
+			return nil
+		}
+	}
+	return ErrInvoiceCategoryNotFound
+}
+
+func (f *fakeInvoiceRepo) ReorderCategories(_ context.Context, ids []int64) error {
+	f.reordered = ids
 	return nil
 }
 

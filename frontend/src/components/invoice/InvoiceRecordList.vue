@@ -41,7 +41,7 @@
               <InvoiceStatusBadge :status="r.status" />
             </div>
             <p class="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
-              #{{ r.id }} · {{ t('invoice.records.orderCount', { count: r.order_count }) }} ·
+              #{{ r.id }} · <template v-if="r.category_name">{{ r.category_name }} · </template>{{ t('invoice.records.orderCount', { count: r.order_count }) }} ·
               {{ t('invoice.records.appliedAt', { time: formatDateTimeToMinute(r.created_at) }) }}
             </p>
           </div>

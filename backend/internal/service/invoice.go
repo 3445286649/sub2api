@@ -95,6 +95,7 @@ type CreateInvoiceRequestInput struct {
 	IndividualName        string
 	IndividualIDNumber    string
 	ReceiverEmail         string
+	CategoryID            *int64
 }
 
 type InvoiceRequest struct {
@@ -131,6 +132,9 @@ type InvoiceRequest struct {
 	CompletedAt     *time.Time
 	RejectedAt      *time.Time
 	Orders          []InvoiceableOrder
+	// 申请时选择的开票类目；CategoryName 是提交当时的名称快照，历史申请两者都为空。
+	CategoryID   *int64
+	CategoryName *string
 }
 
 type InvoiceRequestListFilters struct {
@@ -138,6 +142,7 @@ type InvoiceRequestListFilters struct {
 	Status      string
 	InvoiceType string
 	Keyword     string
+	CategoryID  int64
 }
 
 type InvoiceStatusCounts struct {
@@ -228,4 +233,15 @@ type InvoiceRepository interface {
 	AddExclusions(ctx context.Context, orderIDs []int64, adminID int64) ([]InvoiceExclusion, error)
 	ListExclusions(ctx context.Context, params pagination.PaginationParams, keyword string) ([]InvoiceExclusion, *pagination.PaginationResult, error)
 	DeleteExclusion(ctx context.Context, id int64) error
+	// ListCategories 按 sort_order、id 排序；enabledOnly 为 true 时只返回启用的，false 时附带被申请引用的次数。
+	ListCategories(ctx context.Context, enabledOnly bool) ([]InvoiceCategory, error)
+	GetCategory(ctx context.Context, id int64) (*InvoiceCategory, error)
+	// CreateCategory 回填 ID；名称重复返回 ErrInvoiceCategoryDuplicate。
+	CreateCategory(ctx context.Context, category *InvoiceCategory) error
+	// UpdateCategory 类目不存在返回 ErrInvoiceCategoryNotFound，名称重复返回 ErrInvoiceCategoryDuplicate。
+	UpdateCategory(ctx context.Context, category *InvoiceCategory) error
+	// DeleteCategory 被申请引用时返回 ErrInvoiceCategoryInUse，不存在返回 ErrInvoiceCategoryNotFound。
+	DeleteCategory(ctx context.Context, id int64) error
+	// ReorderCategories 按 ids 的顺序重写 sort_order，所有 ID 必须存在。
+	ReorderCategories(ctx context.Context, ids []int64) error
 }

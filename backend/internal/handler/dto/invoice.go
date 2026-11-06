@@ -58,6 +58,8 @@ type InvoiceRequest struct {
 	CompletedAt           *time.Time         `json:"completed_at"`
 	RejectedAt            *time.Time         `json:"rejected_at"`
 	Orders                []InvoiceableOrder `json:"orders,omitempty"`
+	CategoryID            *int64             `json:"category_id"`
+	CategoryName          *string            `json:"category_name"`
 }
 
 type AdminInvoiceRequest struct {
@@ -170,6 +172,8 @@ func InvoiceRequestFromService(req *service.InvoiceRequest) *InvoiceRequest {
 		ProcessingAt:          req.ProcessingAt,
 		CompletedAt:           req.CompletedAt,
 		RejectedAt:            req.RejectedAt,
+		CategoryID:            req.CategoryID,
+		CategoryName:          req.CategoryName,
 	}
 	// 用户只在发票已开具后才看到文件，开票前管理员上传的草稿对用户不可见。
 	if req.InvoiceFileKey != nil && req.Status == service.InvoiceStatusCompleted {

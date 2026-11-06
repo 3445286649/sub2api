@@ -92,6 +92,17 @@ describe('invoiceFormat', () => {
       expect(validateInvoiceTitle({ ...named, individual_id_number: '3301061990' }).individual_id_number).toBe('idNumberInvalid')
     })
 
+    it('requires a category only when the caller says categories are configured', () => {
+      const form = { ...emptyInvoiceTitleForm('a@b.cn'), invoice_type: 'individual' as const, individual_name: '张三' }
+      expect(validateInvoiceTitle(form)).toEqual({})
+      expect(validateInvoiceTitle(form, true)).toEqual({ category_id: 'categoryRequired' })
+      expect(validateInvoiceTitle({ ...form, category_id: 3 }, true)).toEqual({})
+    })
+
+    it('starts without a category selected', () => {
+      expect(emptyInvoiceTitleForm('').category_id).toBeNull()
+    })
+
     it('rejects malformed receiver emails', () => {
       const form = { ...emptyInvoiceTitleForm('not-an-email'), invoice_type: 'individual' as const, individual_name: '张三' }
       expect(validateInvoiceTitle(form).receiver_email).toBe('emailInvalid')

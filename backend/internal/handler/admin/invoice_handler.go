@@ -56,6 +56,7 @@ func (h *InvoiceHandler) List(c *gin.Context) {
 		service.InvoiceRequestListFilters{
 			Status:      strings.TrimSpace(c.Query("status")),
 			InvoiceType: strings.TrimSpace(c.Query("invoice_type")),
+			CategoryID:  parseInvoiceCategoryFilter(c.Query("category_id")),
 			Keyword:     keyword,
 		},
 	)

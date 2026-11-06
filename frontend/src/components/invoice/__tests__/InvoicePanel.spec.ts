@@ -24,6 +24,17 @@ const BaseDialogStub = defineComponent({
     props.show ? h('div', { 'data-testid': 'dialog' }, [h('h2', props.title), slots.default?.(), slots.footer?.()]) : null,
 })
 
+// Select 用原生 <select> 替身，测试里直接选值，不依赖 Teleport 下拉
+const SelectStub = defineComponent({
+  props: { modelValue: null, options: { type: Array, default: () => [] } },
+  emits: ['update:modelValue'],
+  setup: (props, { emit }) => () =>
+    h('select', { onChange: (e: Event) => emit('update:modelValue', Number((e.target as HTMLSelectElement).value)) }, [
+      h('option', { value: '' }, ''),
+      ...(props.options as { value: number; label: string }[]).map((o) => h('option', { value: o.value }, o.label)),
+    ]),
+})
+
 async function mountPanel() {
   // resetModules 之后组件拿到的是新的 vue-i18n 实例，插件也要从同一份模块创建。
   // vitest 用的是 runtime 构建，需与 vite.config.ts 一样打开 JIT，否则文案不编译、只显示键名
@@ -32,7 +43,7 @@ async function mountPanel() {
   const { default: zh } = await import('@/i18n/locales/zh')
   const { default: InvoicePanel } = await import('../InvoicePanel.vue')
   const i18n = createI18n({ legacy: false, locale: 'zh', messages: { zh }, missingWarn: false, fallbackWarn: false })
-  return mount(InvoicePanel, { global: { plugins: [i18n], stubs: { Icon: IconStub, BaseDialog: BaseDialogStub, transition: true } } })
+  return mount(InvoicePanel, { global: { plugins: [i18n], stubs: { Icon: IconStub, BaseDialog: BaseDialogStub, Select: SelectStub, transition: true } } })
 }
 
 async function settle() {
@@ -134,12 +145,19 @@ describe('InvoicePanel', () => {
     await nextButton(wrapper).trigger('click')
     expect(wrapper.text()).toContain('请输入企业名称')
     expect(wrapper.text()).toContain('请输入纳税人识别号')
+    expect(wrapper.text()).toContain('请选择开票类目')
     expect(wrapper.find('[data-testid="invoice-agree"]').exists()).toBe(false)
 
     await wrapper.get('#inv-enterprise-name').setValue('杭州云栈科技有限公司')
     await wrapper.get('#inv-tax').setValue('91330106ma2kxxxx7q')
+    // 抬头填完但没选类目：仍然进不了确认页
+    await nextButton(wrapper).trigger('click')
+    expect(wrapper.find('[data-testid="invoice-agree"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="invoice-category-select"]').setValue('1')
     await nextButton(wrapper).trigger('click')
     expect(wrapper.find('[data-testid="invoice-agree"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('技术服务费')
     // 确认页展示大写后的税号
     expect(wrapper.text()).toContain('91330106MA2KXXXX7Q')
   })
@@ -151,7 +169,9 @@ describe('InvoicePanel', () => {
     await nextButton(wrapper).trigger('click')
     await wrapper.get('[data-testid="invoice-type-individual"]').trigger('click')
     await wrapper.get('#inv-name').setValue('张三')
+    await wrapper.get('[data-testid="invoice-category-select"]').setValue('2')
     await nextButton(wrapper).trigger('click')
+    expect(wrapper.text()).toContain('软件使用费')
 
     expect(nextButton(wrapper).attributes('disabled')).toBeDefined()
     await wrapper.get('[data-testid="invoice-agree"]').setValue(true)
@@ -192,5 +212,25 @@ describe('InvoicePanel', () => {
     await wrapper.get('[data-testid="invoice-order-320097"] input').trigger('change')
     await nextButton(wrapper).trigger('click')
     expect((wrapper.get('#inv-name').element as HTMLInputElement).value).toBe('张三')
+  })
+
+  it('refuses a request without a usable category and stores the name snapshot on success', async () => {
+    const mocked = (await import('@/api/invoice')) as unknown as { invoiceAPI: InvoiceAPI }
+    const { invoiceAPI } = mocked
+    const categories = await withTimers(invoiceAPI.getCategories())
+    expect(categories.map((c) => c.name)).toEqual(['技术服务费', '软件使用费'])
+
+    const open = (await withTimers(invoiceAPI.getInvoiceableOrders())).items.find((o) => !o.already_invoiced)!
+    const base = { invoice_type: 'individual' as const, order_ids: [open.id], individual_name: '张三', receiver_email: 'a@b.cn' }
+    for (const [extra, reason] of [[{}, 'INVOICE_CATEGORY_REQUIRED'], [{ category_id: 99 }, 'INVALID_INVOICE_CATEGORY']] as const) {
+      const refused = invoiceAPI.createRequest({ ...base, ...extra })
+      const assertion = expect(refused).rejects.toMatchObject({ reason })
+      await vi.runAllTimersAsync()
+      await assertion
+    }
+
+    const created = await withTimers(invoiceAPI.createRequest({ ...base, category_id: 1 }))
+    expect(created.category_id).toBe(1)
+    expect(created.category_name).toBe('技术服务费')
   })
 })

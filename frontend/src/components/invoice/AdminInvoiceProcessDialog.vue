@@ -306,6 +306,8 @@ const titleRows = computed(() => {
     { label: t('invoice.confirm.type'), value: t(`invoice.title.${r.invoice_type}`) },
     { label: enterprise ? t('invoice.title.enterpriseName') : t('invoice.title.individualName'), value: r.title, copy: true },
   ]
+  // 历史申请没有类目，不显示这一行；有类目时可复制，开票时直接对照
+  if (r.category_name) rows.push({ label: t('invoice.category.label'), value: r.category_name, copy: true })
   const optional: [string, string | null | undefined, boolean?][] = enterprise
     ? [
         [t('invoice.title.taxNumber'), r.enterprise_tax_number, true],

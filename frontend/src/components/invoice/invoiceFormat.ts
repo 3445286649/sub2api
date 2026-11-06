@@ -45,8 +45,9 @@ const ID_NUMBER_RE = /^\d{17}[\dX]$/
 export type InvoiceFieldErrors = Partial<Record<keyof InvoiceTitleForm, string>>
 
 /** 返回 i18n key（invoice.validation.*），由调用方翻译 */
-export function validateInvoiceTitle(form: InvoiceTitleForm): InvoiceFieldErrors {
+export function validateInvoiceTitle(form: InvoiceTitleForm, categoryRequired = false): InvoiceFieldErrors {
   const errors: InvoiceFieldErrors = {}
+  if (categoryRequired && form.category_id == null) errors.category_id = 'categoryRequired'
   if (form.invoice_type === 'enterprise') {
     if (!form.enterprise_name.trim()) errors.enterprise_name = 'enterpriseNameRequired'
     const tax = form.enterprise_tax_number.trim().toUpperCase()
@@ -114,5 +115,6 @@ export function emptyInvoiceTitleForm(receiverEmail = ''): InvoiceTitleForm {
     enterprise_bank_account: '',
     individual_name: '',
     individual_id_number: '',
+    category_id: null,
   }
 }

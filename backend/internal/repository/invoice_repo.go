@@ -137,15 +137,15 @@ func (r *invoiceRepository) CreateRequest(
 			user_id, user_email, invoice_type, title,
 			enterprise_tax_number, enterprise_address, enterprise_phone, enterprise_bank, enterprise_bank_account,
 			individual_id_number_encrypted, individual_id_number_masked,
-			total_amount, order_count, status, receiver_email
+			total_amount, order_count, status, receiver_email, category_id, category_name
 		) VALUES (
 			$1, COALESCE((SELECT email FROM users WHERE id = $1), ''), $2, $3,
-			$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+			$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 		) RETURNING id`,
 		req.UserID, req.InvoiceType, req.Title,
 		req.EnterpriseTaxNumber, req.EnterpriseAddress, req.EnterprisePhone, req.EnterpriseBank, req.EnterpriseBankAccount,
 		req.IDNumberEncrypted, req.IDNumberMasked,
-		req.TotalAmount, req.OrderCount, req.Status, req.ReceiverEmail,
+		req.TotalAmount, req.OrderCount, req.Status, req.ReceiverEmail, req.CategoryID, req.CategoryName,
 	).Scan(&req.ID)
 	if err != nil {
 		return err
@@ -173,7 +173,8 @@ const invoiceRequestColumns = `
 	total_amount, order_count, status, receiver_email,
 	invoice_number, invoice_file_url, invoice_file_name, invoice_file_key, invoice_file_size,
 	email_sent_at, admin_notes, reject_reason,
-	created_at, processing_at, completed_at, rejected_at`
+	created_at, processing_at, completed_at, rejected_at,
+		category_id, category_name`
 
 func scanInvoiceRequest(row invoiceRowScanner) (*service.InvoiceRequest, error) {
 	var req service.InvoiceRequest
@@ -181,6 +182,8 @@ func scanInvoiceRequest(row invoiceRowScanner) (*service.InvoiceRequest, error) 
 	var invoiceNumber, fileURL, fileName, fileKey, notes, reason sql.NullString
 	var fileSize sql.NullInt64
 	var emailSentAt, processingAt, completedAt, rejectedAt sql.NullTime
+	var categoryID sql.NullInt64
+	var categoryName sql.NullString
 	err := row.Scan(
 		&req.ID, &req.UserID, &req.UserEmail, &req.InvoiceType, &req.Title,
 		&taxNumber, &address, &phone, &bank, &bankAccount,
@@ -189,6 +192,7 @@ func scanInvoiceRequest(row invoiceRowScanner) (*service.InvoiceRequest, error) 
 		&invoiceNumber, &fileURL, &fileName, &fileKey, &fileSize,
 		&emailSentAt, &notes, &reason,
 		&req.CreatedAt, &processingAt, &completedAt, &rejectedAt,
+		&categoryID, &categoryName,
 	)
 	if err != nil {
 		return nil, err
@@ -214,6 +218,11 @@ func scanInvoiceRequest(row invoiceRowScanner) (*service.InvoiceRequest, error) 
 	req.ProcessingAt = invoiceNullTime(processingAt)
 	req.CompletedAt = invoiceNullTime(completedAt)
 	req.RejectedAt = invoiceNullTime(rejectedAt)
+	if categoryID.Valid {
+		id := categoryID.Int64
+		req.CategoryID = &id
+	}
+	req.CategoryName = invoiceNullString(categoryName)
 	return &req, nil
 }
 
@@ -297,6 +306,9 @@ func (r *invoiceRepository) ListRequests(
 	}
 	if filters.InvoiceType != "" {
 		conditions = append(conditions, "invoice_type = "+arg(filters.InvoiceType))
+	}
+	if filters.CategoryID > 0 {
+		conditions = append(conditions, "category_id = "+arg(filters.CategoryID))
 	}
 	if keyword := strings.TrimSpace(filters.Keyword); keyword != "" {
 		pattern := arg("%" + escapeLike(keyword) + "%")
