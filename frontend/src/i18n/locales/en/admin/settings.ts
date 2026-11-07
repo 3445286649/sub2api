@@ -1034,6 +1034,12 @@ export default {
         enabled: 'Enable Subscription Expiry Reminder',
         enabledHint: 'When enabled, the system sends reminders 7, 3, and 1 day before expiry.'
       },
+      balanceForecastNotify: {
+        title: 'Balance Depletion Forecast',
+        description: 'Estimate from recent spending when a user balance will run out, and email the user in advance.',
+        enabled: 'Enable Balance Depletion Forecast',
+        enabledHint: 'Off by default. When enabled, users whose balance is expected to run out within 72 hours (based on the last 7 days of balance spending) get one email to their verified notification emails. Users who turned off balance alerts or have no verified email are skipped, and a new forecast only starts after the balance is topped up.'
+      },
       smtp: {
         title: 'SMTP Settings',
         description: 'Configure email sending for verification codes',

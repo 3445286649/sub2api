@@ -1029,6 +1029,12 @@ export default {
         enabled: '启用订阅到期提醒',
         enabledHint: '开启后，系统会在订阅到期前 7 天、3 天、1 天各发送一次提醒。'
       },
+      balanceForecastNotify: {
+        title: '余额耗尽预测',
+        description: '根据用户近期消耗估算余额何时耗尽，并提前发送邮件提醒。',
+        enabled: '启用余额耗尽预测',
+        enabledHint: '默认关闭。开启后，按最近 7 天的余额消耗估算，预计 72 小时内耗尽的用户会向其已验证的通知邮箱发送一封提醒。已关闭余额提醒或没有已验证邮箱的用户不会收到；充值后才会开始新一轮预测。'
+      },
       smtp: {
         title: 'SMTP 设置',
         description: '配置用于发送验证码的邮件服务',

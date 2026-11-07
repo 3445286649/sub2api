@@ -542,6 +542,7 @@ const baseSettingsResponse = {
   balance_low_notify_threshold: 0,
   balance_low_notify_recharge_url: "",
   subscription_expiry_notify_enabled: true,
+  balance_forecast_notify_enabled: false,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [],
   // 平台限额嵌套字段（新后端契约）
